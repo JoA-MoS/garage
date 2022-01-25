@@ -1,0 +1,52 @@
+{
+  "root": "apps/auth/api/express",
+  "sourceRoot": "apps/auth/api/express/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "@nrwl/node:build",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/auth/api/express",
+        "main": "apps/auth/api/express/src/main.ts",
+        "tsConfig": "apps/auth/api/express/tsconfig.app.json",
+        "assets": ["apps/auth/api/express/src/assets"]
+      },
+      "configurations": {
+        "production": {
+          "optimization": true,
+          "extractLicenses": true,
+          "inspect": false,
+          "fileReplacements": [
+            {
+              "replace": "apps/auth/api/express/src/environments/environment.ts",
+              "with": "apps/auth/api/express/src/environments/environment.prod.ts"
+            }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nrwl/node:execute",
+      "options": {
+        "buildTarget": "auth-api-express:build"
+      }
+    },
+    "lint": {
+      "executor": "@nrwl/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/auth/api/express/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nrwl/jest:jest",
+      "outputs": ["coverage/apps/auth/api/express"],
+      "options": {
+        "jestConfig": "apps/auth/api/express/jest.config.js",
+        "passWithNoTests": true
+      }
+    }
+  },
+  "tags": []
+}
