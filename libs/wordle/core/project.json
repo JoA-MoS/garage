@@ -1,0 +1,34 @@
+{
+  "root": "libs/wordle/core",
+  "sourceRoot": "libs/wordle/core/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nrwl/node:package",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/wordle/core",
+        "tsConfig": "libs/wordle/core/tsconfig.lib.json",
+        "packageJson": "libs/wordle/core/package.json",
+        "main": "libs/wordle/core/src/index.ts",
+        "assets": ["libs/wordle/core/*.md"]
+      }
+    },
+    "lint": {
+      "executor": "@nrwl/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["libs/wordle/core/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nrwl/jest:jest",
+      "outputs": ["coverage/libs/wordle/core"],
+      "options": {
+        "jestConfig": "libs/wordle/core/jest.config.js",
+        "passWithNoTests": true
+      }
+    }
+  },
+  "tags": []
+}

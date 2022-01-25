@@ -1,4 +1,6 @@
 {
   "version": 2,
-  "projects": {}
+  "projects": {
+    "wordle-core": "libs/wordle/core"
+  }
 }
