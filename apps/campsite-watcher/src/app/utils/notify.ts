@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { environment } from '../environments/environment';
+import { environment } from '../../environments/environment';
 import { WatchOptions } from '../interfaces/watch-options.interface';
 
 export async function notify({

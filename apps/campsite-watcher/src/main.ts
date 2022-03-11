@@ -1,10 +1,10 @@
-import { Availability, CampsiteType } from './enums';
-import { AvailabilityObj, Campsite } from './interfaces';
-import { WatchOptions } from './interfaces/watch-options.interface';
-import { getCampgroundsMonthAvailability } from './services/recreation-gov.service';
-import { getReservationMonths } from './utils/date-range-utils';
-import { notify } from './utils/notify';
-import { getWatcherConfig } from './utils/read-config';
+import { Availability, CampsiteType } from './app/enums';
+import { AvailabilityObj, Campsite } from './app/interfaces';
+import { WatchOptions } from './app/interfaces/watch-options.interface';
+import { getCampgroundsMonthAvailability } from './app/services/recreation-gov.service';
+import { getReservationMonths } from './app/utils/date-range-utils';
+import { notify } from './app/utils/notify';
+import { getWatcherConfig } from './app/utils/read-config';
 
 (async () => {
   const watchers: WatchOptions[] = await getWatcherConfig();
@@ -12,7 +12,7 @@ import { getWatcherConfig } from './utils/read-config';
   setInterval(async () => {
     await checkAllWatchers(watchers);
   }, 15 * 60 * 1000);
-})();
+})().catch((err) => console.log(err));
 
 async function checkAllWatchers(watchConfigs: WatchOptions[]) {
   try {
