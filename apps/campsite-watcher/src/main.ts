@@ -6,7 +6,9 @@ import { getReservationMonths } from './app/utils/date-range-utils';
 import { notify } from './app/utils/notify';
 import { getWatcherConfig } from './app/utils/read-config';
 
+// pass the watcher list via config param
 (async () => {
+  // reload watcher list every interval
   const watchers: WatchOptions[] = await getWatcherConfig();
   await checkAllWatchers(watchers);
   setInterval(async () => {
@@ -31,6 +33,10 @@ async function checkAllWatchers(watchConfigs: WatchOptions[]) {
   }
 }
 
+// load all watcher configurations for campground then get the required months
+// load all that into a store to then run the availiblity check. This way if
+// multiple watchers need the same month we are not over querying the endpoint
+// we could also consider something like rest data source if we decide to go that way
 async function checkAvailability(watchConfig: WatchOptions) {
   const months = getReservationMonths(watchConfig.dates);
   console.log(watchConfig);

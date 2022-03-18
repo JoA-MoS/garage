@@ -10,7 +10,8 @@
         "outputPath": "dist/apps/campsite-watcher",
         "main": "apps/campsite-watcher/src/main.ts",
         "tsConfig": "apps/campsite-watcher/tsconfig.app.json",
-        "assets": ["apps/campsite-watcher/src/assets"]
+        "assets": ["apps/campsite-watcher/src/assets"],
+        "generatePackageJson": true
       },
       "configurations": {
         "production": {
@@ -46,6 +47,20 @@
         "jestConfig": "apps/campsite-watcher/jest.config.js",
         "passWithNoTests": true
       }
+    },
+    "docker-build": {
+      "executor": "@nrwl/workspace:run-commands",
+      "options": {
+        "commands": [
+          "docker build -t campsite-watcher -f ./apps/campsite-watcher/Dockerfile ."
+        ]
+      },
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": "self"
+        }
+      ]
     }
   },
   "tags": []
