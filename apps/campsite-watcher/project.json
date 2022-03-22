@@ -52,7 +52,7 @@
       "executor": "@nrwl/workspace:run-commands",
       "options": {
         "commands": [
-          "docker build -t campsite-watcher -f ./apps/campsite-watcher/Dockerfile ."
+          "docker build --tag joamos/campsite-watcher -f ./apps/campsite-watcher/Dockerfile ."
         ]
       },
       "dependsOn": [
@@ -61,6 +61,12 @@
           "projects": "self"
         }
       ]
+    },
+    "release": {
+      "executor": "@nrwl/workspace:run-script",
+      "options": {
+        "script": "release"
+      }
     }
   },
   "tags": []
