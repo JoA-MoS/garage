@@ -32,7 +32,7 @@ jobs:
         with:
           node-version: '16'
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: npx nx workspace-lint
   stage_1:
     name: Stage 1
@@ -64,7 +64,7 @@ jobs:
         with:
           node-version: '16'
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - name: ${{ matrix.task }}
         run: npx nx affected --target=${{ matrix.task }} --parallel=3
   stage_2:
@@ -94,7 +94,7 @@ jobs:
         with:
           node-version: '16'
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - name: ${{ matrix.task }}
         run: npx nx affected --target=${{ matrix.task }} --parallel=3
   # do we need to do this in the same job that builds the docker image
@@ -107,6 +107,7 @@ jobs:
         task:
           - release
     env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       DOCKER_USERNAME: ${{secrets.DOCKER_USERNAME}}
       DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
     steps:
@@ -128,6 +129,6 @@ jobs:
         with:
           node-version: '16'
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - name: ${{ matrix.task }}
         run: npx nx affected --target=${{ matrix.task }} --parallel=1
