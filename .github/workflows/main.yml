@@ -8,6 +8,9 @@ on:
       - next
   pull_request:
 
+env:
+  NX_CLOUD_ACCESS_TOKEN: ${{secrets.NX_CLOUD_ACCESS_TOKEN}}
+
 jobs:
   lint_workspace:
     name: Lint Workspace
@@ -15,7 +18,7 @@ jobs:
     steps:
       # consider creating reusable action for this
       - uses: actions/checkout@v2
-        name: Checkout [main]
+        name: Checkout [Trunk]
         if: ${{ github.event_name != 'pull_request' }}
         with:
           fetch-depth: 0
@@ -31,8 +34,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx nx workspace-lint
-  lint_test_build:
-    name: Lint, Build, Test
+  stage_1:
+    name: Stage 1
     needs: lint_workspace
     runs-on: ubuntu-latest
     strategy:
