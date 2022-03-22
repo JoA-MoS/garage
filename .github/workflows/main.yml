@@ -11,6 +11,14 @@ on:
 jobs:
   main:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        task:
+          - lint
+          - test
+          - build
+          - e2e
+          - docker-build
     steps:
       - uses: actions/checkout@v2
         name: Checkout [main]
@@ -29,5 +37,5 @@ jobs:
         with:
           node-version: '16'
       - run: npm ci
-      - run: npx nx affected --target=build --parallel=3
-      - run: npx nx affected --target=test --parallel=2
+      - name: ${{ matrix.task }}
+        run: npx nx affected --target=${{ matrix.task }} --parallel=3
