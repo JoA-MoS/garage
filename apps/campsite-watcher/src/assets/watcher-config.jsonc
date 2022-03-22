@@ -1,0 +1,13 @@
+[
+  {
+    "campgroundName": "Ohanapecosh",
+    "campgroundId": 232465,
+    "dates": [
+      "2022-07-15T00:00:00Z",
+      "2022-07-16T00:00:00Z",
+      "2022-07-17T00:00:00Z"
+    ],
+    "loops": ["LOOP C", "LOOP H"],
+    "emails": ["omit"]
+  }
+]
