@@ -9,11 +9,14 @@ on:
   pull_request:
 
 env:
+  NX_CLOUD_DISTRIBUTED_EXECUTION: true
   NX_CLOUD_ACCESS_TOKEN: ${{secrets.NX_CLOUD_ACCESS_TOKEN}}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  DOCKER_USERNAME: ${{secrets.DOCKER_USERNAME}}
+  DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
 
 jobs:
-  lint_workspace:
-    name: Lint Workspace
+  main:
     runs-on: ubuntu-latest
     steps:
       # consider creating reusable action for this
@@ -28,107 +31,35 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
+      - name: Derive appropriate SHAs for base and head for `nx affected` commands
+        uses: nrwl/nx-set-shas@v2
       - uses: actions/setup-node@v2
         with:
           node-version: '16'
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npx nx workspace-lint
-  stage_1:
-    name: Stage 1
-    needs: lint_workspace
+      - run: npx nx-cloud start-ci-run
+      - run: npx nx affected --target=lint --parallel --max-parallel=3
+      - run: npx nx affected --target=test --parallel --max-parallel=2
+      - run: npx nx affected --target=build --parallel --max-parallel=3
+      - run: npx nx affected --target=docker-build
+      - run: npx nx affected --target=release
+      - run: npx nx-cloud stop-all-agents
+
+  agents:
     runs-on: ubuntu-latest
+    name: Agent 1
+    timeout-minutes: 60
     strategy:
       matrix:
-        task:
-          - lint
-          - test
-          - build
-          # - e2e
+        agent: [1, 2, 3]
     steps:
-      # consider creating reusable action for this
       - uses: actions/checkout@v2
-        name: Checkout [main]
-        if: ${{ github.event_name != 'pull_request' }}
-        with:
-          fetch-depth: 0
-      - uses: actions/checkout@v2
-        name: Checkout [PR]
-        if: ${{ github.event_name == 'pull_request' }}
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 0
-      - name: Derive appropriate SHAs for base and head for `nx affected` commands
-        uses: nrwl/nx-set-shas@v2
-      - uses: actions/setup-node@v1
+      - uses: actions/setup-node@v2
         with:
           node-version: '16'
           cache: npm
       - run: npm ci --ignore-scripts
-      - name: ${{ matrix.task }}
-        run: npx nx affected --target=${{ matrix.task }} --parallel=3
-  stage_2:
-    name: Stage 2
-    needs: stage_1
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        task:
-          - docker-build
-    steps:
-      # consider creating reusable action for this
-      - uses: actions/checkout@v2
-        name: Checkout [main]
-        if: ${{ github.event_name != 'pull_request' }}
-        with:
-          fetch-depth: 0
-      - uses: actions/checkout@v2
-        name: Checkout [PR]
-        if: ${{ github.event_name == 'pull_request' }}
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 0
-      - name: Derive appropriate SHAs for base and head for `nx affected` commands
-        uses: nrwl/nx-set-shas@v2
-      - uses: actions/setup-node@v1
-        with:
-          node-version: '16'
-          cache: npm
-      - run: npm ci --ignore-scripts
-      - name: ${{ matrix.task }}
-        run: npx nx affected --target=${{ matrix.task }} --parallel=3
-  # do we need to do this in the same job that builds the docker image
-  release:
-    name: Release
-    needs: stage_2
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        task:
-          - release
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      DOCKER_USERNAME: ${{secrets.DOCKER_USERNAME}}
-      DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
-    steps:
-      # consider creating reusable action for this
-      - uses: actions/checkout@v2
-        name: Checkout [main]
-        if: ${{ github.event_name != 'pull_request' }}
-        with:
-          fetch-depth: 0
-      - uses: actions/checkout@v2
-        name: Checkout [PR]
-        if: ${{ github.event_name == 'pull_request' }}
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 0
-      - name: Derive appropriate SHAs for base and head for `nx affected` commands
-        uses: nrwl/nx-set-shas@v2
-      - uses: actions/setup-node@v1
-        with:
-          node-version: '16'
-          cache: npm
-      - run: npm ci --ignore-scripts
-      - name: ${{ matrix.task }}
-        run: npx nx affected --target=${{ matrix.task }} --parallel=1
+      - name: Start Nx Agent ${{ matrix.agent }}
+        run: npx nx-cloud start-agent
