@@ -1,4 +1,3 @@
-// testing release
 import { Availability, CampsiteType } from './app/enums';
 import { AvailabilityObj, Campsite } from './app/interfaces';
 import { WatchOptions } from './app/interfaces/watch-options.interface';
