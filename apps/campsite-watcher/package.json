@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "start": "node main.js",
+    "release": "semantic-release-plus"
+  },
+  "dependencies": {
+    "tslib": "*"
+  }
+}
