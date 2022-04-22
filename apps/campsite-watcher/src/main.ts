@@ -9,12 +9,13 @@ import { getWatcherConfig } from './app/utils/read-config';
 // pass the watcher list via config param
 (async () => {
   // reload watcher list every interval
-  const watchers: WatchOptions[] = await getWatcherConfig();
+  let watchers = await getWatcherConfig();
   await checkAllWatchers(watchers);
   setInterval(async () => {
+    watchers = await getWatcherConfig();
     await checkAllWatchers(watchers);
   }, 15 * 60 * 1000);
-})().catch((err) => console.log(err));
+})().catch((err) => console.error(err));
 
 async function checkAllWatchers(watchConfigs: WatchOptions[]) {
   try {
@@ -22,6 +23,7 @@ async function checkAllWatchers(watchConfigs: WatchOptions[]) {
       watchConfigs.map((v) => checkAvailability(v))
     );
     result.forEach((r) => {
+      console.log(new Date().toISOString());
       console.log(r.summary);
       if (r.details.length > 0) {
         console.table(r.details);
@@ -29,6 +31,7 @@ async function checkAllWatchers(watchConfigs: WatchOptions[]) {
       }
     });
   } catch (err) {
+    console.log(new Date().toISOString());
     console.error(err);
   }
 }
