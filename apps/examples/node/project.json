@@ -1,0 +1,52 @@
+{
+  "root": "apps/examples/node",
+  "sourceRoot": "apps/examples/node/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "@nrwl/node:webpack",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/examples/node",
+        "main": "apps/examples/node/src/main.ts",
+        "tsConfig": "apps/examples/node/tsconfig.app.json",
+        "assets": ["apps/examples/node/src/assets"]
+      },
+      "configurations": {
+        "production": {
+          "optimization": true,
+          "extractLicenses": true,
+          "inspect": false,
+          "fileReplacements": [
+            {
+              "replace": "apps/examples/node/src/environments/environment.ts",
+              "with": "apps/examples/node/src/environments/environment.prod.ts"
+            }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nrwl/node:node",
+      "options": {
+        "buildTarget": "examples-node:build"
+      }
+    },
+    "lint": {
+      "executor": "@nrwl/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/examples/node/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nrwl/jest:jest",
+      "outputs": ["coverage/apps/examples/node"],
+      "options": {
+        "jestConfig": "apps/examples/node/jest.config.js",
+        "passWithNoTests": true
+      }
+    }
+  },
+  "tags": []
+}

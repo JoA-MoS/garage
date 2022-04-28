@@ -1,0 +1,32 @@
+{
+  "root": "libs/examples/js-buildable",
+  "sourceRoot": "libs/examples/js-buildable/src",
+  "targets": {
+    "build": {
+      "executor": "@nrwl/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/examples/js-buildable",
+        "main": "libs/examples/js-buildable/src/index.ts",
+        "tsConfig": "libs/examples/js-buildable/tsconfig.lib.json",
+        "assets": ["libs/examples/js-buildable/*.md"]
+      }
+    },
+    "lint": {
+      "executor": "@nrwl/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["libs/examples/js-buildable/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nrwl/jest:jest",
+      "outputs": ["coverage/libs/examples/js-buildable"],
+      "options": {
+        "jestConfig": "libs/examples/js-buildable/jest.config.js",
+        "passWithNoTests": true
+      }
+    }
+  },
+  "tags": []
+}

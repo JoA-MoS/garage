@@ -15,6 +15,12 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
+      "@garage/examples/js-buildable": [
+        "libs/examples/js-buildable/src/index.ts"
+      ],
+      "@garage/examples/node-buildable": [
+        "libs/examples/node-buildable/src/index.ts"
+      ],
       "@garage/wordle/core": ["libs/wordle/core/src/index.ts"]
     }
   },

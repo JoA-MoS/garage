@@ -8,6 +8,9 @@
     "auth-ui-react": "apps/auth/ui/react",
     "auth-ui-react-e2e": "apps/auth/ui/react-e2e",
     "campsite-watcher": "apps/campsite-watcher",
+    "examples-js-buildable": "libs/examples/js-buildable",
+    "examples-node": "apps/examples/node",
+    "examples-node-buildable": "libs/examples/node-buildable",
     "wordle-core": "libs/wordle/core"
   }
 }
