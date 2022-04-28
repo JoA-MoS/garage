@@ -1,0 +1,34 @@
+{
+  "root": "libs/examples/node-buildable",
+  "sourceRoot": "libs/examples/node-buildable/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nrwl/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/examples/node-buildable",
+        "tsConfig": "libs/examples/node-buildable/tsconfig.lib.json",
+        "packageJson": "libs/examples/node-buildable/package.json",
+        "main": "libs/examples/node-buildable/src/index.ts",
+        "assets": ["libs/examples/node-buildable/*.md"]
+      }
+    },
+    "lint": {
+      "executor": "@nrwl/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["libs/examples/node-buildable/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nrwl/jest:jest",
+      "outputs": ["coverage/libs/examples/node-buildable"],
+      "options": {
+        "jestConfig": "libs/examples/node-buildable/jest.config.js",
+        "passWithNoTests": true
+      }
+    }
+  },
+  "tags": []
+}
