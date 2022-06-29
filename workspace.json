@@ -3,10 +3,6 @@
   "projects": {
     "auth-api-express": "apps/auth/api/express",
     "auth-api-nest": "apps/auth/api/nest",
-    "auth-ui-angular": "apps/auth/ui/angular",
-    "auth-ui-angular-e2e": "apps/auth/ui/angular-e2e",
-    "auth-ui-react": "apps/auth/ui/react",
-    "auth-ui-react-e2e": "apps/auth/ui/react-e2e",
     "campsite-watcher": "apps/campsite-watcher",
     "wordle-core": "libs/wordle/core"
   }
