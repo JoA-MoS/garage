@@ -3,9 +3,6 @@
   "affected": {
     "defaultBase": "main"
   },
-  "cli": {
-    "defaultCollection": "@nrwl/angular"
-  },
   "implicitDependencies": {
     "package.json": {
       "dependencies": "*",
@@ -21,14 +18,6 @@
         "accessToken": "Njk1YzdjMmUtN2MzMS00YzdlLTg0MzItY2Y4Yjc2MmM3YjhlfHJlYWQ="
       }
     }
-  },
-  "targetDependencies": {
-    "build": [
-      {
-        "target": "build",
-        "projects": "dependencies"
-      }
-    ]
   },
   "generators": {
     "@nrwl/angular:application": {
@@ -59,5 +48,11 @@
       }
     }
   },
-  "defaultProject": "auth-api-nest"
+  "defaultProject": "auth-api-nest",
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "targetDefaults": {
+    "build": {
+      "dependsOn": ["^build"]
+    }
+  }
 }

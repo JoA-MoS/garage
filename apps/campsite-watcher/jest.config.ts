@@ -1,4 +1,5 @@
-module.exports = {
+/* eslint-disable */
+export default {
   displayName: 'campsite-watcher',
   preset: '../../jest.preset.js',
   globals: {
