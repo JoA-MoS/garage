@@ -1,5 +1,5 @@
 {
-  "root": "apps/campsite-watcher",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/campsite-watcher/src",
   "projectType": "application",
   "targets": {
@@ -44,7 +44,7 @@
       "executor": "@nrwl/jest:jest",
       "outputs": ["coverage/apps/campsite-watcher"],
       "options": {
-        "jestConfig": "apps/campsite-watcher/jest.config.js",
+        "jestConfig": "apps/campsite-watcher/jest.config.ts",
         "passWithNoTests": true
       }
     },
@@ -63,7 +63,7 @@
       ]
     },
     "release": {
-      "executor": "@nrwl/workspace:run-script",
+      "executor": "nx:run-script",
       "options": {
         "script": "release"
       }

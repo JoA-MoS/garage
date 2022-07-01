@@ -1,5 +1,5 @@
 {
-  "root": "libs/wordle/core",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/wordle/core/src",
   "projectType": "library",
   "targets": {
@@ -25,7 +25,7 @@
       "executor": "@nrwl/jest:jest",
       "outputs": ["coverage/libs/wordle/core"],
       "options": {
-        "jestConfig": "libs/wordle/core/jest.config.js",
+        "jestConfig": "libs/wordle/core/jest.config.ts",
         "passWithNoTests": true
       }
     }
