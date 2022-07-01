@@ -1,5 +1,5 @@
 {
-  "root": "apps/auth/api/nest",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/auth/api/nest/src",
   "projectType": "application",
   "targets": {
@@ -43,7 +43,7 @@
       "executor": "@nrwl/jest:jest",
       "outputs": ["coverage/apps/auth/api/nest"],
       "options": {
-        "jestConfig": "apps/auth/api/nest/jest.config.js",
+        "jestConfig": "apps/auth/api/nest/jest.config.ts",
         "passWithNoTests": true
       }
     }

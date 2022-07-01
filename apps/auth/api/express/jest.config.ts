@@ -1,5 +1,6 @@
-module.exports = {
-  displayName: 'auth-api-nest',
+/* eslint-disable */
+export default {
+  displayName: 'auth-api-express',
   preset: '../../../../jest.preset.js',
   globals: {
     'ts-jest': {
@@ -11,5 +12,5 @@ module.exports = {
     '^.+\\.[tj]s$': 'ts-jest',
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
-  coverageDirectory: '../../../../coverage/apps/auth/api/nest',
+  coverageDirectory: '../../../../coverage/apps/auth/api/express',
 };
