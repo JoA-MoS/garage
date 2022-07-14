@@ -1,4 +1,4 @@
-import { moduleMetadata, Story, Meta } from '@storybook/angular';
+import { Meta, moduleMetadata, Story } from '@storybook/angular';
 import { SampleComponent } from './sample.component';
 
 export default {
@@ -16,4 +16,7 @@ const Template: Story<SampleComponent> = (args: SampleComponent) => ({
 });
 
 export const Primary = Template.bind({});
-Primary.args = {};
+
+Primary.args = {
+  name: 'Default Value',
+};
