@@ -6,6 +6,8 @@
     "campsite-watcher": "apps/campsite-watcher",
     "ng-example": "apps/ng/example",
     "ng-example-e2e": "apps/ng/example-e2e",
+    "ng-lib-example": "libs/ng/lib-example",
+    "ng-lib-example-e2e": "apps/ng-lib-example-e2e",
     "wordle-core": "libs/wordle/core"
   },
   "$schema": "./node_modules/nx/schemas/workspace-schema.json"

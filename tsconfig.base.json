@@ -15,6 +15,7 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
+      "@garage/ng/lib-example": ["libs/ng/lib-example/src/index.ts"],
       "@garage/wordle/core": ["libs/wordle/core/src/index.ts"]
     }
   },
