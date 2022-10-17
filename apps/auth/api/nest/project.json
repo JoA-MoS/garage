@@ -4,13 +4,15 @@
   "projectType": "application",
   "targets": {
     "build": {
-      "executor": "@nrwl/node:webpack",
+      "executor": "@nrwl/webpack:webpack",
       "outputs": ["{options.outputPath}"],
       "options": {
         "outputPath": "dist/apps/auth/api/nest",
         "main": "apps/auth/api/nest/src/main.ts",
         "tsConfig": "apps/auth/api/nest/tsconfig.app.json",
-        "assets": ["apps/auth/api/nest/src/assets"]
+        "assets": ["apps/auth/api/nest/src/assets"],
+        "target": "node",
+        "compiler": "tsc"
       },
       "configurations": {
         "production": {
@@ -41,7 +43,7 @@
     },
     "test": {
       "executor": "@nrwl/jest:jest",
-      "outputs": ["coverage/apps/auth/api/nest"],
+      "outputs": ["{workspaceRoot}/coverage/apps/auth/api/nest"],
       "options": {
         "jestConfig": "apps/auth/api/nest/jest.config.ts",
         "passWithNoTests": true
