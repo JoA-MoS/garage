@@ -14,7 +14,9 @@ export async function getCampgroundsMonthAvailability(
         params: {
           start_date: date,
         },
-        paramsSerializer: (params) => qs.stringify(params),
+        paramsSerializer: {
+          encode: (params: Record<string, unknown>) => qs.stringify(params),
+        },
       }
     );
     // console.log(JSON.stringify(data, null, 2));
