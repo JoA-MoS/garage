@@ -23,7 +23,7 @@
     },
     "test": {
       "executor": "@nrwl/jest:jest",
-      "outputs": ["coverage/libs/wordle/core"],
+      "outputs": ["{workspaceRoot}/coverage/libs/wordle/core"],
       "options": {
         "jestConfig": "libs/wordle/core/jest.config.ts",
         "passWithNoTests": true
