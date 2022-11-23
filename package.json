@@ -17,7 +17,7 @@
     "@angular-eslint/template-parser": "14.0.4",
     "@angular/cli": "~14.2.0",
     "@angular/compiler-cli": "14.2.6",
-    "@angular/language-service": "14.2.6",
+    "@angular/language-service": "15.0.1",
     "@nestjs/schematics": "9.0.3",
     "@nestjs/testing": "9.1.4",
     "@nrwl/angular": "15.0.10",
