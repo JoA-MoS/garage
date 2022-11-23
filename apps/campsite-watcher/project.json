@@ -71,5 +71,6 @@
       }
     }
   },
-  "tags": []
+  "tags": [],
+  "name": "campsite-watcher"
 }

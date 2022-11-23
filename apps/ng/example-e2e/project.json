@@ -24,5 +24,6 @@
     }
   },
   "tags": [],
-  "implicitDependencies": ["ng-example"]
+  "implicitDependencies": ["ng-example"],
+  "name": "ng-example-e2e"
 }
