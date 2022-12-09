@@ -89,5 +89,6 @@
       }
     }
   },
-  "tags": []
+  "tags": [],
+  "name": "ng-example"
 }

@@ -30,5 +30,6 @@
       }
     }
   },
-  "tags": []
+  "tags": [],
+  "name": "wordle-core"
 }
