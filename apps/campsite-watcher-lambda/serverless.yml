@@ -1,0 +1,76 @@
+org: joamos
+app: campsite-watcher
+service: campsite-watcher
+
+frameworkVersion: '3'
+configValidationMode: error
+
+plugins:
+  - '@ns3/nx-serverless/plugin'
+  - serverless-offline
+
+package:
+  individually: true
+
+custom:
+  stage: ${opt:stage, env:STAGE, 'dev'}
+  serverless-offline:
+    httpPort: 3333
+    lambdaPort: 2333
+    noPrependStageInUrl: true
+params:
+  prod:
+    production: true
+  default:
+    production: false
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${self:custom.stage}
+  endpointType: REGIONAL
+  region: us-west-2
+  timeout: 20
+  environment:
+    APP_ENV: ${self:custom.stage}
+    IS_PRODUCTION: ${param:production}
+    NODE_OPTIONS: --enable-source-maps
+    SMTP_HOST: ${param:SMTP_HOST}
+    SMTP_PORT: ${param:SMTP_PORT}
+    SMTP_SECURE: ${param:SMTP_SECURE}
+    SMTP_USER: ${param:SMTP_USER}
+    SMTP_PASSWORD: ${param:SMTP_PASSWORD}
+
+functions:
+  ping:
+    handler: src/main.ping
+    events:
+      - http:
+          method: GET
+          path: /ping
+  hasAvailability:
+    handler: src/main.hasAvailability
+    events:
+      - http:
+          method: POST
+          path: /has-availability
+      - schedule:
+          rate: rate(15 minutes)
+          input:
+            campgroundName: Ohanapecosh
+            campgroundId: 232465
+            dates:
+              - '2023-07-07T00:00:00Z'
+              - '2023-07-08T00:00:00Z'
+              - '2023-07-09T00:00:00Z'
+              - '2023-07-14T00:00:00Z'
+              - '2023-07-15T00:00:00Z'
+              - '2023-07-16T00:00:00Z'
+              - '2023-07-21T00:00:00Z'
+              - '2023-07-22T00:00:00Z'
+              - '2023-07-23T00:00:00Z'
+              - '2023-07-28T00:00:00Z'
+              - '2023-07-29T00:00:00Z'
+              - '2023-07-30T00:00:00Z'
+            emails:
+              - joamos.dev@gmail.com
