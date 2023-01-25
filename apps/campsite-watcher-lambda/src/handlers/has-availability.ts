@@ -24,7 +24,7 @@ export async function hasAvailability(
           pass: environment.smtp.password, // generated ethereal password
         },
       };
-      notify(res, transportOptions);
+      await notify(res, transportOptions);
     }
   }
   return {

@@ -96,6 +96,5 @@
         "linter": "eslint"
       }
     }
-  },
-  "defaultProject": "auth-api-nest"
+  }
 }
