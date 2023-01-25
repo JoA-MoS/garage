@@ -5,6 +5,13 @@
       {
         "useBuiltIns": "usage"
       }
+    ],
+    [
+      "@nrwl/react/babel",
+      {
+        "runtime": "automatic",
+        "useBuiltIns": "usage"
+      }
     ]
   ]
 }

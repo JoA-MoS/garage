@@ -5,17 +5,9 @@
     "module": "commonjs",
     "types": ["node"],
     "resolveJsonModule": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "jsx": "react-jsx"
   },
   "exclude": ["**/*.spec.ts", "**/*.test.ts", "jest.config.ts"],
-  "include": [
-    "**/*.ts",
-    "src/interfaces/loop..enumts",
-    "../../libs/campsite-watcher-core/src/lib/utils/check-availability.ts",
-    "../../libs/campsite-watcher-core/src/lib/utils/check-availability.ts",
-    "../../libs/campsite-watcher-core/src/lib/utils/format-sites.ts",
-    "../../libs/campsite-watcher-core/src/lib/utils/format-sites.ts",
-    "../../libs/campsite-watcher-core/src/lib/utils/pick-reservation-dates.ts",
-    "../../libs/campsite-watcher-core/src/lib/utils/pick-reservation-dates.ts"
-  ]
+  "include": ["**/*.ts"]
 }
