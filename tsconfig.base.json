@@ -15,8 +15,11 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@garage/campsite-watcher-core": [
-        "libs/campsite-watcher-core/src/index.ts"
+      "@garage/campsite-watcher/core": [
+        "libs/campsite-watcher/core/src/index.ts"
+      ],
+      "@garage/campsite-watcher/recreation-gov": [
+        "libs/campsite-watcher/recreation-gov/src/index.ts"
       ],
       "@garage/ng/lib-example": ["libs/ng/lib-example/src/index.ts"],
       "@garage/wordle/core": ["libs/wordle/core/src/index.ts"]

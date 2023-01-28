@@ -2,7 +2,8 @@ import {
   checkAvailability,
   notify,
   WatchOptions,
-} from '@garage/campsite-watcher-core';
+} from '@garage/campsite-watcher/core';
+
 import { getWatcherConfig } from './app/read-config';
 import { environment } from './environments/environment';
 
@@ -23,7 +24,6 @@ async function checkAllWatchers(watchConfigs: WatchOptions[]) {
       watchConfigs.map((v) => checkAvailability(v))
     );
     result.forEach((r) => {
-      console.log(new Date().toISOString());
       console.log(r.summary);
       if (r.details.length > 0) {
         console.table(r.details);
