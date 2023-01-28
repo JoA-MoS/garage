@@ -1,9 +1,11 @@
+import { APIGatewayProxyResult } from 'aws-lambda';
+
 import {
   checkAvailability,
   notify,
   WatchOptions,
-} from '@garage/campsite-watcher-core';
-import { APIGatewayProxyResult } from 'aws-lambda';
+} from '@garage/campsite-watcher/core';
+
 import { environment } from '../environments/environment';
 
 export async function hasAvailability(
