@@ -1,7 +1,8 @@
-import { WatchOptions } from '@garage/campsite-watcher-core';
 import { readFile } from 'fs/promises';
-import { stripComments } from 'jsonc-parser';
 import { join } from 'path';
+
+import { WatchOptions } from '@garage/campsite-watcher/core';
+import { stripComments } from 'jsonc-parser';
 
 export async function getWatcherConfig(
   configPath = './assets/watcher-config.jsonc'

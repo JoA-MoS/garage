@@ -10,4 +10,4 @@ COPY --chown=node:node ./package-lock.json ./package-lock.json
 RUN npm ci --ignore-scripts --omit=dev
 
 USER node
-CMD ["npm", "start"]
+CMD ["node", "main.js"]
