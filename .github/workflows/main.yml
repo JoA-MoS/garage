@@ -35,7 +35,7 @@ jobs:
         uses: nrwl/nx-set-shas@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: '16'
+          node-version-file: '.nvmrc'
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npx nx workspace-lint
@@ -58,7 +58,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: '16'
+          node-version-file: '.nvmrc'
           cache: npm
       - run: npm ci --ignore-scripts
       - name: Start Nx Agent ${{ matrix.agent }}
