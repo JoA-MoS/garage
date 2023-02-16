@@ -4,18 +4,20 @@ import {
 } from '@garage/campsite-watcher/recreation-gov';
 
 export function pickReservationDates(
-  obj: AvailabilityObj,
-  dates: Date[]
+  campsiteAvailability: AvailabilityObj,
+  requestedDates: Date[]
 ): AvailabilityObj {
-  const dateKeys = dates.map(
+  const dateKeys = requestedDates.map(
     (v) => new Date(v).toISOString().split('.')[0] + 'Z'
   );
   return Object.fromEntries(
     dateKeys
-      .filter((d) => d in obj)
-      .map((k) => [k, obj[k]])
+      .filter((requestedDate) => requestedDate in campsiteAvailability)
+      .map((date) => [date, campsiteAvailability[date]])
       .filter(
-        ([, v]) => v === Availability.Available || v === Availability.Open
+        ([, dateAvailability]) =>
+          dateAvailability === Availability.Available ||
+          dateAvailability === Availability.Open
       )
   );
 }
