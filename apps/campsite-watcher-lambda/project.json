@@ -5,13 +5,15 @@
   "sourceRoot": "apps/campsite-watcher-lambda/src",
   "targets": {
     "build": {
-      "executor": "@nrwl/node:webpack",
+      "executor": "@nx/webpack:webpack",
       "outputs": ["{options.outputPath}"],
       "options": {
         "outputPath": "dist/apps/campsite-watcher-lambda",
         "main": "apps/campsite-watcher-lambda/src/main.ts",
         "tsConfig": "apps/campsite-watcher-lambda/tsconfig.app.json",
-        "externalDependencies": "all"
+        "externalDependencies": "all",
+        "compiler": "tsc",
+        "target": "node"
       },
       "configurations": {
         "production": {
@@ -32,8 +34,8 @@
     "package": {
       "executor": "@ns3/nx-serverless:sls",
       "outputs": [
-        "apps/campsite-watcher-lambda/.serverless",
-        "dist/apps/campsite-watcher-lambda"
+        "{projectRoot}/.serverless",
+        "{workspaceRoot}/dist/apps/campsite-watcher-lambda"
       ],
       "dependsOn": ["^build"],
       "options": {
@@ -44,8 +46,8 @@
     "deploy": {
       "executor": "@ns3/nx-serverless:sls",
       "outputs": [
-        "apps/campsite-watcher-lambda/.serverless",
-        "dist/apps/campsite-watcher-lambda"
+        "{projectRoot}/.serverless",
+        "{workspaceRoot}/dist/apps/campsite-watcher-lambda"
       ],
       "dependsOn": ["package"],
       "options": {
@@ -65,7 +67,7 @@
       "options": {}
     },
     "test": {
-      "executor": "@nrwl/jest:jest",
+      "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
         "jestConfig": "apps/campsite-watcher-lambda/jest.config.ts",
@@ -73,7 +75,7 @@
       }
     },
     "lint": {
-      "executor": "@nrwl/linter:eslint",
+      "executor": "@nx/linter:eslint",
       "outputs": ["{options.outputFile}"],
       "options": {
         "lintFilePatterns": [

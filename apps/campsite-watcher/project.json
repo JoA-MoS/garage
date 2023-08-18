@@ -1,10 +1,11 @@
 {
+  "name": "campsite-watcher",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/campsite-watcher/src",
   "projectType": "application",
   "targets": {
     "build": {
-      "executor": "@nrwl/webpack:webpack",
+      "executor": "@nx/webpack:webpack",
       "outputs": ["{options.outputPath}"],
       "options": {
         "outputPath": "dist/apps/campsite-watcher",
@@ -30,20 +31,20 @@
       }
     },
     "serve": {
-      "executor": "@nrwl/node:node",
+      "executor": "@nx/js:node",
       "options": {
         "buildTarget": "campsite-watcher:build"
       }
     },
     "lint": {
-      "executor": "@nrwl/linter:eslint",
+      "executor": "@nx/linter:eslint",
       "outputs": ["{options.outputFile}"],
       "options": {
         "lintFilePatterns": ["apps/campsite-watcher/**/*.ts"]
       }
     },
     "test": {
-      "executor": "@nrwl/jest:jest",
+      "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/apps/campsite-watcher"],
       "options": {
         "jestConfig": "apps/campsite-watcher/jest.config.ts",
@@ -59,8 +60,7 @@
       },
       "dependsOn": [
         {
-          "target": "build",
-          "projects": "self"
+          "target": "build"
         }
       ]
     },
@@ -71,6 +71,5 @@
       }
     }
   },
-  "tags": [],
-  "name": "campsite-watcher"
+  "tags": []
 }
