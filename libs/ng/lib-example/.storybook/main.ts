@@ -4,7 +4,6 @@ import { rootMain } from '../../../../.storybook/main';
 
 const config: StorybookConfig = {
   ...rootMain,
-
   core: { ...rootMain.core, builder: 'webpack5' },
 
   stories: [
@@ -12,7 +11,9 @@ const config: StorybookConfig = {
     '../src/lib/**/*.stories.mdx',
     '../src/lib/**/*.stories.@(js|jsx|ts|tsx)',
   ],
+
   addons: ['@storybook/addon-essentials', ...(rootMain.addons || [])],
+
   webpackFinal: async (config, { configType }: Options) => {
     // apply any global webpack configs that might have been specified in .storybook/main.ts
     if (rootMain.webpackFinal) {
@@ -22,6 +23,10 @@ const config: StorybookConfig = {
     // add your own webpack tweaks if needed
 
     return config;
+  },
+
+  docs: {
+    autodocs: true,
   },
 };
 
