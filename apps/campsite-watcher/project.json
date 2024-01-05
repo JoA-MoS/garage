@@ -14,7 +14,8 @@
         "assets": ["apps/campsite-watcher/src/assets"],
         "generatePackageJson": true,
         "target": "node",
-        "compiler": "tsc"
+        "compiler": "tsc",
+        "isolatedConfig": false
       },
       "configurations": {
         "production": {

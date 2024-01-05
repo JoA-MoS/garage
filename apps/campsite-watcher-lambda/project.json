@@ -13,7 +13,8 @@
         "tsConfig": "apps/campsite-watcher-lambda/tsconfig.app.json",
         "externalDependencies": "all",
         "compiler": "tsc",
-        "target": "node"
+        "target": "node",
+        "isolatedConfig": false
       },
       "configurations": {
         "production": {

@@ -13,7 +13,8 @@
         "tsConfig": "apps/auth/api/express/tsconfig.app.json",
         "assets": ["apps/auth/api/express/src/assets"],
         "target": "node",
-        "compiler": "tsc"
+        "compiler": "tsc",
+        "isolatedConfig": false
       },
       "configurations": {
         "production": {

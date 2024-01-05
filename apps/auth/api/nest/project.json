@@ -13,7 +13,8 @@
         "tsConfig": "apps/auth/api/nest/tsconfig.app.json",
         "assets": ["apps/auth/api/nest/src/assets"],
         "target": "node",
-        "compiler": "tsc"
+        "compiler": "tsc",
+        "isolatedConfig": false
       },
       "configurations": {
         "production": {
