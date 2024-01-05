@@ -1,0 +1,24 @@
+{
+  "name": "nx-kaniko",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/nx-kaniko/src",
+  "projectType": "application",
+  "targets": {
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "docker build --tag joamos/nx-kaniko -f ./apps/nx-kaniko/Dockerfile ."
+        ]
+      }
+    },
+    "release": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "semantic-release-plus",
+        "cwd": "apps/nx-kaniko"
+      }
+    }
+  },
+  "tags": []
+}
