@@ -38,7 +38,6 @@ jobs:
           node-version-file: '.nvmrc'
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npx nx workspace-lint
       - run: npx nx-cloud start-ci-run
       - run: npx nx affected --target=lint --parallel --max-parallel=3
       - run: npx nx affected --target=test --parallel --max-parallel=2
