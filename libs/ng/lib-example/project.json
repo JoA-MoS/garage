@@ -9,18 +9,11 @@
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/libs/ng/lib-example"],
       "options": {
-        "jestConfig": "libs/ng/lib-example/jest.config.ts",
-        "passWithNoTests": true
+        "jestConfig": "libs/ng/lib-example/jest.config.ts"
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "options": {
-        "lintFilePatterns": [
-          "libs/ng/lib-example/**/*.ts",
-          "libs/ng/lib-example/**/*.html"
-        ]
-      }
+      "executor": "@nx/eslint:lint"
     },
     "storybook": {
       "executor": "@storybook/angular:start-storybook",

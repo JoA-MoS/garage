@@ -1,7 +1,7 @@
 import {
-  getCampgroundsMonthAvailability,
-  Campsite as RecreationGovCampsite,
   CampsiteType,
+  Campsite as RecreationGovCampsite,
+  getCampgroundsMonthAvailability,
 } from '@garage/campsite-watcher/recreation-gov';
 import dayjs from 'dayjs';
 import _merge from 'lodash/merge';
@@ -26,7 +26,7 @@ export async function checkAvailability(watchConfig: WatchOptions) {
   if (dataArr?.length === 0) {
     return undefined;
   }
-  const totalSites = dataArr[0].count || 0;
+
   const campsitesArr = dataArr.map((v) => v.campsites);
   const mergedCampsites: { [key: string]: RecreationGovCampsite } = _merge(
     {},

@@ -45,3 +45,5 @@ Thumbs.db
 # Serverless
 .serverless
 .webpack
+
+.nx/cache

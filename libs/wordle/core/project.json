@@ -12,23 +12,18 @@
         "tsConfig": "libs/wordle/core/tsconfig.lib.json",
         "packageJson": "libs/wordle/core/package.json",
         "main": "libs/wordle/core/src/index.ts",
-        "assets": ["libs/wordle/core/*.md"],
-        "updateBuildableProjectDepsInPackageJson": true
+        "assets": ["libs/wordle/core/*.md"]
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["libs/wordle/core/**/*.ts"]
-      }
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"]
     },
     "test": {
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/libs/wordle/core"],
       "options": {
-        "jestConfig": "libs/wordle/core/jest.config.ts",
-        "passWithNoTests": true
+        "jestConfig": "libs/wordle/core/jest.config.ts"
       }
     }
   },
