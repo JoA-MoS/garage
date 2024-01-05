@@ -13,7 +13,8 @@
         "tsConfig": "apps/auth/api/nest/tsconfig.app.json",
         "assets": ["apps/auth/api/nest/src/assets"],
         "target": "node",
-        "compiler": "tsc"
+        "compiler": "tsc",
+        "isolatedConfig": false
       },
       "configurations": {
         "production": {
@@ -36,18 +37,14 @@
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["apps/auth/api/nest/**/*.ts"]
-      }
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"]
     },
     "test": {
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/apps/auth/api/nest"],
       "options": {
-        "jestConfig": "apps/auth/api/nest/jest.config.ts",
-        "passWithNoTests": true
+        "jestConfig": "apps/auth/api/nest/jest.config.ts"
       }
     }
   },

@@ -14,7 +14,8 @@
         "assets": ["apps/campsite-watcher/src/assets"],
         "generatePackageJson": true,
         "target": "node",
-        "compiler": "tsc"
+        "compiler": "tsc",
+        "isolatedConfig": false
       },
       "configurations": {
         "production": {
@@ -37,18 +38,14 @@
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["apps/campsite-watcher/**/*.ts"]
-      }
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"]
     },
     "test": {
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/apps/campsite-watcher"],
       "options": {
-        "jestConfig": "apps/campsite-watcher/jest.config.ts",
-        "passWithNoTests": true
+        "jestConfig": "apps/campsite-watcher/jest.config.ts"
       }
     },
     "docker-build": {
