@@ -72,8 +72,6 @@ export function App() {
 
   const itemList = groupBy(items, ({ status }) => status);
 
-  console.log(itemList);
-
   const toDoItems = items
     .filter((chore) => chore.status === 'to-do')
     .map(({ id, title, assignee, status }) => {
