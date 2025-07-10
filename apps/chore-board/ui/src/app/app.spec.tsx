@@ -19,6 +19,6 @@ describe('App', () => {
         <App />
       </BrowserRouter>
     );
-    expect(getByText(/Welcome chore-board/gi)).toBeTruthy();
+    expect(getByText(/To-Do/gi)).toBeTruthy();
   });
 });
