@@ -18,13 +18,14 @@ module.exports = {
           'repeating-conic-gradient(black 0% 25%, transparent 0% 50%) 50% / 40px 40px',
       },
       gridTemplateAreas: {
-        scramble: ['nav  main  finnish'],
+        scramble: ['nav  main  finnish', 'footer footer footer'],
       },
       gridTemplateColumns: {
         scramble: 'auto 2fr auto',
       },
       gridTemplateRows: {
-        scramble: `1fr`,
+        scramble: ` 1fr
+                    auto`,
       },
     },
   },

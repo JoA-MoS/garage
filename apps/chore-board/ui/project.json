@@ -1,7 +1,7 @@
 {
-  "name": "chore-board",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "apps/chore-board/src",
+  "name": "chore-board-ui",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/chore-board/ui/src",
   "projectType": "application",
   "targets": {
     "build": {
@@ -9,7 +9,7 @@
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/apps/chore-board"
+        "outputPath": "dist/apps/chore-board/ui"
       },
       "configurations": {
         "development": {
@@ -24,15 +24,16 @@
       "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "chore-board:build"
+        "buildTarget": "chore-board-ui:build",
+        "proxyConfig": "apps/chore-board/ui/proxy.conf.json"
       },
       "configurations": {
         "development": {
-          "buildTarget": "chore-board:build:development",
+          "buildTarget": "chore-board-ui:build:development",
           "hmr": true
         },
         "production": {
-          "buildTarget": "chore-board:build:production",
+          "buildTarget": "chore-board-ui:build:production",
           "hmr": false
         }
       }
@@ -41,36 +42,36 @@
       "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "chore-board:build"
+        "buildTarget": "chore-board-ui:build"
       },
       "configurations": {
         "development": {
-          "buildTarget": "chore-board:build:development"
+          "buildTarget": "chore-board-ui:build:development"
         },
         "production": {
-          "buildTarget": "chore-board:build:production"
+          "buildTarget": "chore-board-ui:build:production"
         }
       }
     },
     "test": {
       "executor": "@nx/vite:test",
-      "outputs": ["coverage/apps/chore-board"],
+      "outputs": ["coverage/apps/chore-board/ui"],
       "options": {
         "passWithNoTests": true,
-        "reportsDirectory": "../../coverage/apps/chore-board"
+        "reportsDirectory": "../../../coverage/apps/chore-board/ui"
       }
     },
     "lint": {
       "executor": "@nx/linter:eslint",
       "outputs": ["{options.outputFile}"],
       "options": {
-        "lintFilePatterns": ["apps/chore-board/**/*.{ts,tsx,js,jsx}"]
+        "lintFilePatterns": ["apps/chore-board/ui/**/*.{ts,tsx,js,jsx}"]
       }
     },
     "serve-static": {
       "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "chore-board:build"
+        "buildTarget": "chore-board-ui:build"
       }
     }
   },
