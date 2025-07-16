@@ -33,12 +33,11 @@ jobs:
           fetch-depth: 0
       - name: Derive appropriate SHAs for base and head for `nx affected` commands
         uses: nrwl/nx-set-shas@v3
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v3
         with:
           node-version-file: '.nvmrc'
           cache: pnpm
-      - run: corepack enable
-      - run: corepack prepare --activate
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm nx-cloud start-ci-run
       - run: pnpm nx affected --target=lint --parallel --max-parallel=3
@@ -57,12 +56,11 @@ jobs:
         agent: [1, 2, 3]
     steps:
       - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v3
         with:
           node-version-file: '.nvmrc'
           cache: pnpm
-      - run: corepack enable
-      - run: corepack prepare --activate
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Start Nx Agent ${{ matrix.agent }}
         run: pnpm nx-cloud start-agent
