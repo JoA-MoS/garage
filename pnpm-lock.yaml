@@ -95,7 +95,7 @@ importers:
         specifier: ^6.7.2
         version: 6.10.1
       qs:
-        specifier: ^6.10.3
+        specifier: ^6.14.0
         version: 6.14.0
       react:
         specifier: 18.2.0
@@ -263,6 +263,9 @@ importers:
       '@types/jest':
         specifier: 29.4.4
         version: 29.4.4
+      '@types/lodash':
+        specifier: ^4.17.20
+        version: 4.17.20
       '@types/lodash.merge':
         specifier: ^4.6.6
         version: 4.6.9
@@ -272,6 +275,9 @@ importers:
       '@types/nodemailer':
         specifier: ^6.4.4
         version: 6.4.17
+      '@types/qs':
+        specifier: ^6.14.0
+        version: 6.14.0
       '@types/react':
         specifier: 18.2.24
         version: 18.2.24
@@ -34846,7 +34852,7 @@ snapshots:
 
   docker-modem@3.0.8:
     dependencies:
-      debug: 4.3.3
+      debug: 4.4.1(supports-color@9.4.0)
       readable-stream: 3.6.2
       split-ca: 1.0.1
       ssh2: 1.16.0
@@ -36633,7 +36639,7 @@ snapshots:
       fs.realpath: 1.0.0
       inflight: 1.0.6
       inherits: 2.0.4
-      minimatch: 3.0.8
+      minimatch: 3.1.2
       once: 1.4.0
       path-is-absolute: 1.0.1
 
@@ -39218,7 +39224,7 @@ snapshots:
     dependencies:
       hosted-git-info: 4.1.0
       is-core-module: 2.16.1
-      semver: 7.3.5
+      semver: 7.7.2
       validate-npm-package-license: 3.0.4
 
   normalize-package-data@6.0.2:
