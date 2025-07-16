@@ -14,11 +14,11 @@ describe('App', () => {
   });
 
   it('should have a greeting as the title', () => {
-    const { getByText } = render(
+    const { getByRole } = render(
       <BrowserRouter>
         <App />
       </BrowserRouter>
     );
-    expect(getByText(/To-Do/gi)).toBeTruthy();
+    expect(getByRole('heading', { name: /To-Do/i })).toBeTruthy();
   });
 });

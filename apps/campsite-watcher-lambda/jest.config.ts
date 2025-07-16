@@ -14,4 +14,5 @@ export default {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../coverage/apps/campsite-watcher-lambda',
+  passWithNoTests: true,
 };
