@@ -1,7 +1,7 @@
 import {
-  getCampgroundsMonthAvailability,
-  Campsite as RecreationGovCampsite,
   CampsiteType,
+  Campsite as RecreationGovCampsite,
+  getCampgroundsMonthAvailability,
 } from '@garage/campsite-watcher/recreation-gov';
 import dayjs from 'dayjs';
 import _merge from 'lodash/merge';

@@ -54,25 +54,23 @@
         {
           "env": "STAGE"
         }
-      ],
-      "cache": true
-    },
-    "@nx/jest:jest": {
-      "cache": true,
-      "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"],
+      ]
+    }
+  },
+  "tasksRunnerOptions": {
+    "default": {
+      "runner": "nx-cloud",
       "options": {
-        "passWithNoTests": true
-      },
-      "configurations": {
-        "ci": {
-          "ci": true,
-          "codeCoverage": true
-        }
+        "cacheableOperations": [
+          "build",
+          "lint",
+          "test",
+          "e2e",
+          "package",
+          "deploy"
+        ],
+        "accessToken": "Njk1YzdjMmUtN2MzMS00YzdlLTg0MzItY2Y4Yjc2MmM3YjhlfHJlYWQ="
       }
-    },
-    "@nx/vite:test": {
-      "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"],
-      "cache": true
     }
   },
   "affected": {
