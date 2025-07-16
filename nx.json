@@ -54,23 +54,11 @@
         {
           "env": "STAGE"
         }
-      ]
-    }
-  },
-  "tasksRunnerOptions": {
-    "default": {
-      "runner": "nx-cloud",
-      "options": {
-        "cacheableOperations": [
-          "build",
-          "lint",
-          "test",
-          "e2e",
-          "package",
-          "deploy"
-        ],
-        "accessToken": "Njk1YzdjMmUtN2MzMS00YzdlLTg0MzItY2Y4Yjc2MmM3YjhlfHJlYWQ="
-      }
+      ],
+      "cache": true
+    },
+    "test": {
+      "cache": true
     }
   },
   "affected": {
