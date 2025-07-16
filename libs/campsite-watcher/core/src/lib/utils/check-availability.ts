@@ -26,7 +26,8 @@ export async function checkAvailability(watchConfig: WatchOptions) {
   if (dataArr?.length === 0) {
     return undefined;
   }
-  const totalSites = dataArr[0].count || 0;
+
+  // const totalSites = dataArr[0].count || 0;
   const campsitesArr = dataArr.map((v) => v.campsites);
   const mergedCampsites: { [key: string]: RecreationGovCampsite } = _merge(
     {},

@@ -1,5 +1,6 @@
 import type { StorybookConfig, Options } from '@storybook/core-common';
 
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { rootMain } from '../../../../.storybook/main';
 
 const config: StorybookConfig = {
