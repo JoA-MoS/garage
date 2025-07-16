@@ -53,12 +53,6 @@ const defaultChores: Chore[] = [
   },
 ];
 
-const groupBy = <T, K extends keyof any>(arr: T[], key: (i: T) => K) =>
-  arr.reduce((groups, item) => {
-    (groups[key(item)] ||= []).push(item);
-    return groups;
-  }, {} as Record<K, T[]>);
-
 export function App() {
   const [items, setItems] = useState<Chore[]>(defaultChores);
 
@@ -69,8 +63,6 @@ export function App() {
       color={person.bgColor}
     />
   ));
-
-  const itemList = groupBy(items, ({ status }) => status);
 
   const toDoItems = items
     .filter((chore) => chore.status === 'to-do')
