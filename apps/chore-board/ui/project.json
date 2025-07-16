@@ -55,7 +55,7 @@
     },
     "test": {
       "executor": "@nx/vite:test",
-      "outputs": ["coverage/apps/chore-board/ui"],
+      "outputs": ["{workspaceRoot}/coverage/apps/chore-board/ui"],
       "options": {
         "passWithNoTests": true,
         "reportsDirectory": "../../../coverage/apps/chore-board/ui"
