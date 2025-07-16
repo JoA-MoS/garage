@@ -3,6 +3,7 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/chore-board/ui/src",
   "projectType": "application",
+  "tags": [],
   "targets": {
     "build": {
       "executor": "@nx/vite:build",
@@ -51,7 +52,8 @@
         "production": {
           "buildTarget": "chore-board-ui:build:production"
         }
-      }
+      },
+      "dependsOn": ["build"]
     },
     "test": {
       "executor": "@nx/vite:test",
@@ -71,6 +73,5 @@
         "buildTarget": "chore-board-ui:build"
       }
     }
-  },
-  "tags": []
+  }
 }
