@@ -15,7 +15,7 @@
         "generatePackageJson": true,
         "target": "node",
         "compiler": "tsc",
-        "isolatedConfig": false
+        "webpackConfig": "apps/campsite-watcher/webpack.config.js"
       },
       "configurations": {
         "production": {

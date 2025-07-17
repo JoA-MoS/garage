@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* You can add global styles to this file, and also import other style files */
+
+@layer components {
+  .bg-checkered {
+    background: repeating-conic-gradient(rgb(40, 40, 40) 0% 25%, white 0% 50%)
+      50% / 32px 32px;
+  }
+}
