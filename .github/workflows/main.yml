@@ -33,18 +33,19 @@ jobs:
           fetch-depth: 0
       - name: Derive appropriate SHAs for base and head for `nx affected` commands
         uses: nrwl/nx-set-shas@v3
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v3
         with:
           node-version-file: '.nvmrc'
-          cache: npm
-      - run: npm ci --ignore-scripts
-      - run: npx nx-cloud start-ci-run
-      - run: npx nx affected --target=lint --parallel --max-parallel=3
-      - run: npx nx affected --target=test --parallel --max-parallel=2
-      - run: npx nx affected --target=build --parallel --max-parallel=3
-      - run: NX_CLOUD_DISTRIBUTED_EXECUTION=false npx nx affected --target=docker-build
-      - run: NX_CLOUD_DISTRIBUTED_EXECUTION=false npx nx affected --target=release
-      - run: npx nx-cloud stop-all-agents
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm nx-cloud start-ci-run
+      - run: pnpm nx affected --target=lint --parallel --max-parallel=3
+      - run: pnpm nx affected --target=test --parallel --max-parallel=2
+      - run: pnpm nx affected --target=build --parallel --max-parallel=3
+      - run: NX_CLOUD_DISTRIBUTED_EXECUTION=false pnpm nx affected --target=docker-build
+      - run: NX_CLOUD_DISTRIBUTED_EXECUTION=false pnpm nx affected --target=release
+      - run: pnpm nx-cloud stop-all-agents
 
   agents:
     runs-on: ubuntu-latest
@@ -55,10 +56,11 @@ jobs:
         agent: [1, 2, 3]
     steps:
       - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v3
         with:
           node-version-file: '.nvmrc'
-          cache: npm
-      - run: npm ci --ignore-scripts
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Start Nx Agent ${{ matrix.agent }}
-        run: npx nx-cloud start-agent
+        run: pnpm nx-cloud start-agent

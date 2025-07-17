@@ -14,7 +14,7 @@
         "assets": ["apps/auth/api/express/src/assets"],
         "target": "node",
         "compiler": "tsc",
-        "isolatedConfig": false
+        "webpackConfig": "apps/auth/api/express/webpack.config.js"
       },
       "configurations": {
         "production": {

@@ -1,0 +1,77 @@
+{
+  "name": "chore-board-ui",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/chore-board/ui/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/chore-board/ui"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "chore-board-ui:build",
+        "proxyConfig": "apps/chore-board/ui/proxy.conf.json"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "chore-board-ui:build:development",
+          "hmr": true
+        },
+        "production": {
+          "buildTarget": "chore-board-ui:build:production",
+          "hmr": false
+        }
+      }
+    },
+    "preview": {
+      "executor": "@nx/vite:preview-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "chore-board-ui:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "chore-board-ui:build:development"
+        },
+        "production": {
+          "buildTarget": "chore-board-ui:build:production"
+        }
+      },
+      "dependsOn": ["build"]
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{workspaceRoot}/coverage/apps/chore-board/ui"],
+      "options": {
+        "passWithNoTests": true,
+        "reportsDirectory": "../../../coverage/apps/chore-board/ui"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"]
+    },
+    "serve-static": {
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "chore-board-ui:build"
+      }
+    }
+  }
+}

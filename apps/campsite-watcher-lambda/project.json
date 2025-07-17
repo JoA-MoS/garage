@@ -14,7 +14,7 @@
         "externalDependencies": "all",
         "compiler": "tsc",
         "target": "node",
-        "isolatedConfig": false
+        "webpackConfig": "apps/campsite-watcher-lambda/webpack.config.js"
       },
       "configurations": {
         "production": {
