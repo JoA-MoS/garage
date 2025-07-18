@@ -4,6 +4,7 @@
   "projectType": "library",
   "sourceRoot": "libs/ng/lib-example/src",
   "prefix": "garage",
+  "tags": [],
   "targets": {
     "test": {
       "executor": "@nx/jest:jest",
@@ -44,6 +45,5 @@
         }
       }
     }
-  },
-  "tags": []
+  }
 }
