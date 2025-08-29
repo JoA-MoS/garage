@@ -110,8 +110,7 @@
     "vite": "6.3.5",
     "vitest": "3.2.4",
     "webpack": "5.98.0",
-    "webpack-merge": "^5.8.0",
-    "jest-util": "30.0.5"
+    "webpack-merge": "^5.8.0"
   },
   "dependencies": {
     "@angular/animations": "20.1.8",
