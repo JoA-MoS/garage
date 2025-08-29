@@ -183,6 +183,38 @@ pnpm nx show project <project-name>
 - Some apps have Dockerfile in their project directory
 - Release configurations available for containerized apps
 
+## Development Standards
+
+### Commit Message Format
+This repository follows the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) standard for commit messages. All commits must use the format:
+
+```
+<type>: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+**Common commit types:**
+- `feat:` - New features
+- `fix:` - Bug fixes  
+- `docs:` - Documentation changes
+- `style:` - Code style changes (formatting, missing semicolons, etc.)
+- `refactor:` - Code refactoring without changing functionality
+- `test:` - Adding or modifying tests
+- `chore:` - Maintenance tasks, dependency updates
+- `ci:` - Changes to CI/CD configuration
+- `perf:` - Performance improvements
+
+**Examples:**
+```bash
+feat: add user authentication to chore-board-api
+fix: resolve memory leak in campsite-watcher service  
+docs: update API documentation for auth endpoints
+chore: update dependencies to latest versions
+```
+
 ## Important Notes
 - **ALWAYS** validate changes with lint, test, and build before committing
 - **NEVER CANCEL** long-running commands - they complete quickly but use safety timeouts
