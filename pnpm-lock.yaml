@@ -360,9 +360,6 @@ importers:
       jest-preset-angular:
         specifier: 15.0.0
         version: 15.0.0(7c5006d8009494c4d45747bc7fcaae9d)
-      jest-util:
-        specifier: 30.0.5
-        version: 30.0.5
       jiti:
         specifier: 2.4.2
         version: 2.4.2
@@ -34905,7 +34902,7 @@ snapshots:
 
   xml2js@0.6.2:
     dependencies:
-      sax: 1.2.1
+      sax: 1.4.1
       xmlbuilder: 11.0.1
 
   xmlbuilder@11.0.1: {}
