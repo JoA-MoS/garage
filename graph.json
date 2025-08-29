@@ -1,0 +1,1202 @@
+{
+  "graph": {
+    "nodes": {
+      "campsite-watcher-recreation-gov": {
+        "name": "campsite-watcher-recreation-gov",
+        "type": "lib",
+        "data": {
+          "root": "libs/campsite-watcher/recreation-gov",
+          "name": "campsite-watcher-recreation-gov",
+          "tags": [
+            "npm:public"
+          ],
+          "metadata": {
+            "targetGroups": {},
+            "js": {
+              "packageName": "@garage/campsite-watcher/recreation-gov",
+              "isInPackageManagerWorkspaces": false
+            }
+          },
+          "targets": {
+            "nx-release-publish": {
+              "executor": "@nx/js:release-publish",
+              "dependsOn": [
+                "^nx-release-publish"
+              ],
+              "options": {},
+              "configurations": {},
+              "parallelism": true
+            },
+            "build": {
+              "executor": "@nx/js:tsc",
+              "outputs": [
+                "{options.outputPath}"
+              ],
+              "options": {
+                "outputPath": "dist/libs/campsite-watcher/recreation-gov",
+                "main": "libs/campsite-watcher/recreation-gov/src/index.ts",
+                "tsConfig": "libs/campsite-watcher/recreation-gov/tsconfig.lib.json",
+                "assets": [
+                  "libs/campsite-watcher/recreation-gov/*.md"
+                ]
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "production",
+                "^production"
+              ],
+              "cache": true
+            },
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "configurations": {},
+              "options": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/eslint.config.mjs"
+              ],
+              "cache": true
+            },
+            "test": {
+              "executor": "@nx/jest:jest",
+              "outputs": [
+                "{workspaceRoot}/coverage/{projectRoot}"
+              ],
+              "options": {
+                "jestConfig": "libs/campsite-watcher/recreation-gov/jest.config.ts"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": true
+            }
+          },
+          "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+          "sourceRoot": "libs/campsite-watcher/recreation-gov/src",
+          "projectType": "library",
+          "implicitDependencies": []
+        }
+      },
+      "campsite-watcher-lambda": {
+        "name": "campsite-watcher-lambda",
+        "type": "app",
+        "data": {
+          "root": "apps/campsite-watcher-lambda",
+          "name": "campsite-watcher-lambda",
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "projectType": "application",
+          "sourceRoot": "apps/campsite-watcher-lambda/src",
+          "tags": [],
+          "targets": {
+            "build": {
+              "executor": "@nx/webpack:webpack",
+              "outputs": [
+                "{options.outputPath}"
+              ],
+              "options": {
+                "outputPath": "dist/apps/campsite-watcher-lambda",
+                "main": "apps/campsite-watcher-lambda/src/main.ts",
+                "tsConfig": "apps/campsite-watcher-lambda/tsconfig.app.json",
+                "externalDependencies": "all",
+                "compiler": "tsc",
+                "target": "node",
+                "webpackConfig": "apps/campsite-watcher-lambda/webpack.config.js"
+              },
+              "configurations": {
+                "production": {
+                  "optimization": true,
+                  "extractLicenses": true,
+                  "inspect": false,
+                  "externalDependencies": "none"
+                }
+              },
+              "parallelism": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "production",
+                "^production"
+              ],
+              "cache": true
+            },
+            "serve": {
+              "executor": "@ns3/nx-serverless:sls",
+              "options": {
+                "command": "offline",
+                "buildTarget": "campsite-watcher-lambda:build"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "package": {
+              "executor": "@ns3/nx-serverless:sls",
+              "outputs": [
+                "{projectRoot}/.serverless",
+                "{workspaceRoot}/dist/apps/campsite-watcher-lambda"
+              ],
+              "dependsOn": [
+                "^build"
+              ],
+              "options": {
+                "command": "package",
+                "buildTarget": "campsite-watcher-lambda:build:production"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "production",
+                "^production",
+                {
+                  "env": "STAGE"
+                }
+              ],
+              "cache": true
+            },
+            "deploy": {
+              "executor": "@ns3/nx-serverless:sls",
+              "outputs": [
+                "{projectRoot}/.serverless",
+                "{workspaceRoot}/dist/apps/campsite-watcher-lambda"
+              ],
+              "dependsOn": [
+                "package"
+              ],
+              "options": {
+                "command": "deploy",
+                "package": ".serverless",
+                "buildTarget": "campsite-watcher-lambda:build:production"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "production",
+                "^production",
+                {
+                  "env": "STAGE"
+                }
+              ],
+              "cache": true
+            },
+            "remove": {
+              "executor": "@ns3/nx-serverless:sls",
+              "options": {
+                "command": "remove"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "sls": {
+              "executor": "@ns3/nx-serverless:sls",
+              "options": {},
+              "configurations": {},
+              "parallelism": true
+            },
+            "test": {
+              "executor": "@nx/jest:jest",
+              "outputs": [
+                "{workspaceRoot}/coverage/{projectRoot}"
+              ],
+              "options": {
+                "jestConfig": "apps/campsite-watcher-lambda/jest.config.ts"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": true
+            },
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "configurations": {},
+              "options": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/eslint.config.mjs"
+              ],
+              "cache": true
+            }
+          },
+          "implicitDependencies": []
+        }
+      },
+      "campsite-watcher-core": {
+        "name": "campsite-watcher-core",
+        "type": "lib",
+        "data": {
+          "root": "libs/campsite-watcher/core",
+          "name": "campsite-watcher-core",
+          "tags": [
+            "npm:public"
+          ],
+          "metadata": {
+            "targetGroups": {},
+            "js": {
+              "packageName": "@garage/campsite-watcher/core",
+              "isInPackageManagerWorkspaces": false
+            }
+          },
+          "targets": {
+            "nx-release-publish": {
+              "executor": "@nx/js:release-publish",
+              "dependsOn": [
+                "^nx-release-publish"
+              ],
+              "options": {},
+              "configurations": {},
+              "parallelism": true
+            },
+            "build": {
+              "executor": "@nx/js:tsc",
+              "outputs": [
+                "{options.outputPath}"
+              ],
+              "options": {
+                "outputPath": "dist/libs/campsite-watcher/core",
+                "main": "libs/campsite-watcher/core/src/index.ts",
+                "tsConfig": "libs/campsite-watcher/core/tsconfig.lib.json",
+                "assets": [
+                  "libs/campsite-watcher/core/*.md"
+                ]
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "production",
+                "^production"
+              ],
+              "cache": true
+            },
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "configurations": {},
+              "options": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/eslint.config.mjs"
+              ],
+              "cache": true
+            },
+            "test": {
+              "executor": "@nx/jest:jest",
+              "outputs": [
+                "{workspaceRoot}/coverage/{projectRoot}"
+              ],
+              "options": {
+                "jestConfig": "libs/campsite-watcher/core/jest.config.ts"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": true
+            }
+          },
+          "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+          "sourceRoot": "libs/campsite-watcher/core/src",
+          "projectType": "library",
+          "implicitDependencies": []
+        }
+      },
+      "auth-api-express": {
+        "name": "auth-api-express",
+        "type": "app",
+        "data": {
+          "root": "apps/auth/api/express",
+          "name": "auth-api-express",
+          "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+          "sourceRoot": "apps/auth/api/express/src",
+          "projectType": "application",
+          "tags": [],
+          "targets": {
+            "build": {
+              "executor": "@nx/webpack:webpack",
+              "outputs": [
+                "{options.outputPath}"
+              ],
+              "options": {
+                "outputPath": "dist/apps/auth/api/express",
+                "main": "apps/auth/api/express/src/main.ts",
+                "tsConfig": "apps/auth/api/express/tsconfig.app.json",
+                "assets": [
+                  "apps/auth/api/express/src/assets"
+                ],
+                "target": "node",
+                "compiler": "tsc",
+                "webpackConfig": "apps/auth/api/express/webpack.config.js"
+              },
+              "configurations": {
+                "production": {
+                  "optimization": true,
+                  "extractLicenses": true,
+                  "inspect": false,
+                  "fileReplacements": [
+                    {
+                      "replace": "apps/auth/api/express/src/environments/environment.ts",
+                      "with": "apps/auth/api/express/src/environments/environment.prod.ts"
+                    }
+                  ]
+                }
+              },
+              "parallelism": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "production",
+                "^production"
+              ],
+              "cache": true
+            },
+            "serve": {
+              "executor": "@nx/js:node",
+              "options": {
+                "buildTarget": "auth-api-express:build"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "configurations": {},
+              "options": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/eslint.config.mjs"
+              ],
+              "cache": true
+            },
+            "test": {
+              "executor": "@nx/jest:jest",
+              "outputs": [
+                "{workspaceRoot}/coverage/apps/auth/api/express"
+              ],
+              "options": {
+                "jestConfig": "apps/auth/api/express/jest.config.ts"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": true
+            }
+          },
+          "implicitDependencies": []
+        }
+      },
+      "campsite-watcher": {
+        "name": "campsite-watcher",
+        "type": "app",
+        "data": {
+          "root": "apps/campsite-watcher",
+          "name": "campsite-watcher",
+          "tags": [
+            "npm:public"
+          ],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": [
+                "release"
+              ]
+            },
+            "js": {
+              "isInPackageManagerWorkspaces": false
+            }
+          },
+          "targets": {
+            "release": {
+              "executor": "nx:run-script",
+              "metadata": {
+                "scriptContent": "semantic-release-plus",
+                "runCommand": "pnpm run release"
+              },
+              "options": {
+                "script": "release"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "nx-release-publish": {
+              "executor": "@nx/js:release-publish",
+              "dependsOn": [
+                "^nx-release-publish"
+              ],
+              "options": {},
+              "configurations": {},
+              "parallelism": true
+            },
+            "build": {
+              "executor": "@nx/webpack:webpack",
+              "outputs": [
+                "{options.outputPath}"
+              ],
+              "options": {
+                "outputPath": "dist/apps/campsite-watcher",
+                "main": "apps/campsite-watcher/src/main.ts",
+                "tsConfig": "apps/campsite-watcher/tsconfig.app.json",
+                "assets": [
+                  "apps/campsite-watcher/src/assets"
+                ],
+                "generatePackageJson": true,
+                "target": "node",
+                "compiler": "tsc",
+                "webpackConfig": "apps/campsite-watcher/webpack.config.js"
+              },
+              "configurations": {
+                "production": {
+                  "optimization": true,
+                  "extractLicenses": true,
+                  "inspect": false,
+                  "fileReplacements": [
+                    {
+                      "replace": "apps/campsite-watcher/src/environments/environment.ts",
+                      "with": "apps/campsite-watcher/src/environments/environment.prod.ts"
+                    }
+                  ]
+                }
+              },
+              "parallelism": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "production",
+                "^production"
+              ],
+              "cache": true
+            },
+            "serve": {
+              "executor": "@nx/js:node",
+              "options": {
+                "buildTarget": "campsite-watcher:build"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "configurations": {},
+              "options": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/eslint.config.mjs"
+              ],
+              "cache": true
+            },
+            "test": {
+              "executor": "@nx/jest:jest",
+              "outputs": [
+                "{workspaceRoot}/coverage/apps/campsite-watcher"
+              ],
+              "options": {
+                "jestConfig": "apps/campsite-watcher/jest.config.ts"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": true
+            },
+            "docker-build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "commands": [
+                  "docker build --tag joamos/campsite-watcher -f ./apps/campsite-watcher/Dockerfile ."
+                ]
+              },
+              "dependsOn": [
+                {
+                  "target": "build"
+                }
+              ],
+              "configurations": {},
+              "parallelism": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "sourceRoot": "apps/campsite-watcher/src",
+          "projectType": "application",
+          "implicitDependencies": []
+        }
+      },
+      "chore-board-api": {
+        "name": "chore-board-api",
+        "type": "app",
+        "data": {
+          "root": "apps/chore-board/api",
+          "name": "chore-board-api",
+          "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+          "sourceRoot": "apps/chore-board/api/src",
+          "projectType": "application",
+          "tags": [],
+          "targets": {
+            "build": {
+              "executor": "@nx/webpack:webpack",
+              "outputs": [
+                "{options.outputPath}"
+              ],
+              "defaultConfiguration": "production",
+              "options": {
+                "target": "node",
+                "compiler": "tsc",
+                "outputPath": "dist/apps/chore-board/api",
+                "main": "apps/chore-board/api/src/main.ts",
+                "tsConfig": "apps/chore-board/api/tsconfig.app.json",
+                "assets": [
+                  "apps/chore-board/api/src/assets"
+                ],
+                "isolatedConfig": true,
+                "webpackConfig": "apps/chore-board/api/webpack.config.js"
+              },
+              "configurations": {
+                "development": {},
+                "production": {}
+              },
+              "parallelism": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "production",
+                "^production"
+              ],
+              "cache": true
+            },
+            "serve": {
+              "executor": "@nx/js:node",
+              "defaultConfiguration": "development",
+              "options": {
+                "buildTarget": "chore-board-api:build"
+              },
+              "configurations": {
+                "development": {
+                  "buildTarget": "chore-board-api:build:development"
+                },
+                "production": {
+                  "buildTarget": "chore-board-api:build:production"
+                }
+              },
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "configurations": {},
+              "options": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/eslint.config.mjs"
+              ],
+              "cache": true
+            },
+            "test": {
+              "executor": "@nx/jest:jest",
+              "outputs": [
+                "{workspaceRoot}/coverage/{projectRoot}"
+              ],
+              "options": {
+                "jestConfig": "apps/chore-board/api/jest.config.ts"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": true
+            }
+          },
+          "implicitDependencies": []
+        }
+      },
+      "chore-board-ui": {
+        "name": "chore-board-ui",
+        "type": "app",
+        "data": {
+          "root": "apps/chore-board/ui",
+          "name": "chore-board-ui",
+          "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+          "sourceRoot": "apps/chore-board/ui/src",
+          "projectType": "application",
+          "tags": [],
+          "targets": {
+            "build": {
+              "executor": "@nx/vite:build",
+              "outputs": [
+                "{options.outputPath}"
+              ],
+              "defaultConfiguration": "production",
+              "options": {
+                "outputPath": "dist/apps/chore-board/ui"
+              },
+              "configurations": {
+                "development": {
+                  "mode": "development"
+                },
+                "production": {
+                  "mode": "production"
+                }
+              },
+              "parallelism": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "production",
+                "^production"
+              ],
+              "cache": true
+            },
+            "serve": {
+              "executor": "@nx/vite:dev-server",
+              "defaultConfiguration": "development",
+              "options": {
+                "buildTarget": "chore-board-ui:build",
+                "proxyConfig": "apps/chore-board/ui/proxy.conf.json"
+              },
+              "configurations": {
+                "development": {
+                  "buildTarget": "chore-board-ui:build:development",
+                  "hmr": true
+                },
+                "production": {
+                  "buildTarget": "chore-board-ui:build:production",
+                  "hmr": false
+                }
+              },
+              "parallelism": true,
+              "continuous": true
+            },
+            "preview": {
+              "executor": "@nx/vite:preview-server",
+              "defaultConfiguration": "development",
+              "options": {
+                "buildTarget": "chore-board-ui:build"
+              },
+              "configurations": {
+                "development": {
+                  "buildTarget": "chore-board-ui:build:development"
+                },
+                "production": {
+                  "buildTarget": "chore-board-ui:build:production"
+                }
+              },
+              "dependsOn": [
+                "build"
+              ],
+              "parallelism": true,
+              "continuous": true
+            },
+            "test": {
+              "executor": "@nx/vite:test",
+              "outputs": [
+                "{workspaceRoot}/coverage/apps/chore-board/ui"
+              ],
+              "options": {
+                "passWithNoTests": true,
+                "reportsDirectory": "../../../coverage/apps/chore-board/ui"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": true
+            },
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "configurations": {},
+              "options": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/eslint.config.mjs"
+              ],
+              "cache": true
+            },
+            "serve-static": {
+              "executor": "@nx/web:file-server",
+              "options": {
+                "buildTarget": "chore-board-ui:build"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "continuous": true
+            }
+          },
+          "implicitDependencies": []
+        }
+      },
+      "ng-lib-example": {
+        "name": "ng-lib-example",
+        "type": "lib",
+        "data": {
+          "root": "libs/ng/lib-example",
+          "name": "ng-lib-example",
+          "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+          "projectType": "library",
+          "sourceRoot": "libs/ng/lib-example/src",
+          "prefix": "garage",
+          "tags": [],
+          "targets": {
+            "test": {
+              "executor": "@nx/jest:jest",
+              "outputs": [
+                "{workspaceRoot}/coverage/libs/ng/lib-example"
+              ],
+              "options": {
+                "jestConfig": "libs/ng/lib-example/jest.config.ts"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": true
+            },
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "configurations": {},
+              "options": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/eslint.config.mjs"
+              ],
+              "cache": true
+            },
+            "storybook": {
+              "executor": "@storybook/angular:start-storybook",
+              "options": {
+                "port": 4400,
+                "configDir": "libs/ng/lib-example/.storybook",
+                "browserTarget": "ng-lib-example:build-storybook",
+                "compodoc": false
+              },
+              "configurations": {
+                "ci": {
+                  "quiet": true
+                }
+              },
+              "parallelism": true
+            },
+            "build-storybook": {
+              "executor": "@storybook/angular:build-storybook",
+              "outputs": [
+                "{options.outputPath}"
+              ],
+              "options": {
+                "outputDir": "dist/storybook/ng-lib-example",
+                "configDir": "libs/ng/lib-example/.storybook",
+                "browserTarget": "ng-lib-example:build-storybook",
+                "compodoc": false
+              },
+              "configurations": {
+                "ci": {
+                  "quiet": true
+                }
+              },
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "^production",
+                "{workspaceRoot}/.storybook/**/*",
+                "{projectRoot}/.storybook/**/*",
+                "{projectRoot}/tsconfig.storybook.json"
+              ]
+            }
+          },
+          "implicitDependencies": []
+        }
+      },
+      "auth-api-nest": {
+        "name": "auth-api-nest",
+        "type": "app",
+        "data": {
+          "root": "apps/auth/api/nest",
+          "name": "auth-api-nest",
+          "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+          "sourceRoot": "apps/auth/api/nest/src",
+          "projectType": "application",
+          "tags": [],
+          "targets": {
+            "build": {
+              "executor": "@nx/webpack:webpack",
+              "outputs": [
+                "{options.outputPath}"
+              ],
+              "options": {
+                "outputPath": "dist/apps/auth/api/nest",
+                "main": "apps/auth/api/nest/src/main.ts",
+                "tsConfig": "apps/auth/api/nest/tsconfig.app.json",
+                "assets": [
+                  "apps/auth/api/nest/src/assets"
+                ],
+                "target": "node",
+                "compiler": "tsc",
+                "webpackConfig": "apps/auth/api/nest/webpack.config.js"
+              },
+              "configurations": {
+                "production": {
+                  "optimization": true,
+                  "extractLicenses": true,
+                  "inspect": false,
+                  "fileReplacements": [
+                    {
+                      "replace": "apps/auth/api/nest/src/environments/environment.ts",
+                      "with": "apps/auth/api/nest/src/environments/environment.prod.ts"
+                    }
+                  ]
+                }
+              },
+              "parallelism": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "production",
+                "^production"
+              ],
+              "cache": true
+            },
+            "serve": {
+              "executor": "@nx/js:node",
+              "options": {
+                "buildTarget": "auth-api-nest:build"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "configurations": {},
+              "options": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/eslint.config.mjs"
+              ],
+              "cache": true
+            },
+            "test": {
+              "executor": "@nx/jest:jest",
+              "outputs": [
+                "{workspaceRoot}/coverage/apps/auth/api/nest"
+              ],
+              "options": {
+                "jestConfig": "apps/auth/api/nest/jest.config.ts"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": true
+            }
+          },
+          "implicitDependencies": []
+        }
+      },
+      "wordle-core": {
+        "name": "wordle-core",
+        "type": "lib",
+        "data": {
+          "root": "libs/wordle/core",
+          "name": "wordle-core",
+          "tags": [
+            "npm:public"
+          ],
+          "metadata": {
+            "targetGroups": {},
+            "js": {
+              "packageName": "@garage/wordle/core",
+              "isInPackageManagerWorkspaces": false
+            }
+          },
+          "targets": {
+            "nx-release-publish": {
+              "executor": "@nx/js:release-publish",
+              "dependsOn": [
+                "^nx-release-publish"
+              ],
+              "options": {},
+              "configurations": {},
+              "parallelism": true
+            },
+            "build": {
+              "executor": "@nx/js:tsc",
+              "outputs": [
+                "{options.outputPath}"
+              ],
+              "options": {
+                "outputPath": "dist/libs/wordle/core",
+                "tsConfig": "libs/wordle/core/tsconfig.lib.json",
+                "packageJson": "libs/wordle/core/package.json",
+                "main": "libs/wordle/core/src/index.ts",
+                "assets": [
+                  "libs/wordle/core/*.md"
+                ]
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "production",
+                "^production"
+              ],
+              "cache": true
+            },
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "configurations": {},
+              "options": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/eslint.config.mjs"
+              ],
+              "cache": true
+            },
+            "test": {
+              "executor": "@nx/jest:jest",
+              "outputs": [
+                "{workspaceRoot}/coverage/libs/wordle/core"
+              ],
+              "options": {
+                "jestConfig": "libs/wordle/core/jest.config.ts"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": true
+            }
+          },
+          "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+          "sourceRoot": "libs/wordle/core/src",
+          "projectType": "library",
+          "implicitDependencies": []
+        }
+      },
+      "ng-example": {
+        "name": "ng-example",
+        "type": "app",
+        "data": {
+          "root": "apps/ng/example",
+          "name": "ng-example",
+          "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+          "projectType": "application",
+          "sourceRoot": "apps/ng/example/src",
+          "prefix": "garage",
+          "tags": [],
+          "targets": {
+            "build": {
+              "executor": "@angular-devkit/build-angular:browser",
+              "outputs": [
+                "{options.outputPath}"
+              ],
+              "options": {
+                "outputPath": "dist/apps/ng/example",
+                "index": "apps/ng/example/src/index.html",
+                "main": "apps/ng/example/src/main.ts",
+                "polyfills": "apps/ng/example/src/polyfills.ts",
+                "tsConfig": "apps/ng/example/tsconfig.app.json",
+                "inlineStyleLanguage": "scss",
+                "assets": [
+                  "apps/ng/example/src/favicon.ico",
+                  "apps/ng/example/src/assets"
+                ],
+                "styles": [
+                  "apps/ng/example/src/styles.scss"
+                ],
+                "scripts": []
+              },
+              "configurations": {
+                "production": {
+                  "budgets": [
+                    {
+                      "type": "initial",
+                      "maximumWarning": "500kb",
+                      "maximumError": "1mb"
+                    },
+                    {
+                      "type": "anyComponentStyle",
+                      "maximumWarning": "8kb",
+                      "maximumError": "12kb"
+                    }
+                  ],
+                  "fileReplacements": [
+                    {
+                      "replace": "apps/ng/example/src/environments/environment.ts",
+                      "with": "apps/ng/example/src/environments/environment.prod.ts"
+                    }
+                  ],
+                  "outputHashing": "all"
+                },
+                "development": {
+                  "buildOptimizer": false,
+                  "optimization": false,
+                  "vendorChunk": true,
+                  "extractLicenses": false,
+                  "sourceMap": true,
+                  "namedChunks": true
+                }
+              },
+              "defaultConfiguration": "production",
+              "parallelism": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "production",
+                "^production"
+              ],
+              "cache": true
+            },
+            "serve": {
+              "executor": "@angular-devkit/build-angular:dev-server",
+              "configurations": {
+                "production": {
+                  "buildTarget": "ng-example:build:production"
+                },
+                "development": {
+                  "buildTarget": "ng-example:build:development"
+                }
+              },
+              "defaultConfiguration": "development",
+              "continuous": true,
+              "options": {},
+              "parallelism": true
+            },
+            "extract-i18n": {
+              "executor": "@angular-devkit/build-angular:extract-i18n",
+              "options": {
+                "buildTarget": "ng-example:build"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "configurations": {},
+              "options": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/eslint.config.mjs"
+              ],
+              "cache": true
+            },
+            "test": {
+              "executor": "@nx/jest:jest",
+              "outputs": [
+                "{workspaceRoot}/coverage/apps/ng/example"
+              ],
+              "options": {
+                "jestConfig": "apps/ng/example/jest.config.ts"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": true
+            }
+          },
+          "implicitDependencies": []
+        }
+      },
+      "nx-kaniko": {
+        "name": "nx-kaniko",
+        "type": "app",
+        "data": {
+          "root": "apps/nx-kaniko",
+          "name": "nx-kaniko",
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "sourceRoot": "apps/nx-kaniko/src",
+          "projectType": "application",
+          "tags": [],
+          "targets": {
+            "docker-build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "commands": [
+                  "docker build --tag joamos/nx-kaniko -f ./apps/nx-kaniko/Dockerfile ."
+                ]
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "release": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "semantic-release-plus",
+                "cwd": "apps/nx-kaniko"
+              },
+              "configurations": {},
+              "parallelism": true
+            }
+          },
+          "implicitDependencies": []
+        }
+      }
+    },
+    "dependencies": {
+      "campsite-watcher-recreation-gov": [],
+      "campsite-watcher-lambda": [
+        {
+          "source": "campsite-watcher-lambda",
+          "target": "campsite-watcher-core",
+          "type": "static"
+        }
+      ],
+      "campsite-watcher-core": [
+        {
+          "source": "campsite-watcher-core",
+          "target": "campsite-watcher-recreation-gov",
+          "type": "static"
+        }
+      ],
+      "auth-api-express": [],
+      "campsite-watcher": [
+        {
+          "source": "campsite-watcher",
+          "target": "campsite-watcher-core",
+          "type": "static"
+        }
+      ],
+      "chore-board-api": [],
+      "chore-board-ui": [],
+      "ng-lib-example": [],
+      "auth-api-nest": [],
+      "wordle-core": [],
+      "ng-example": [],
+      "nx-kaniko": []
+    }
+  }
+}
