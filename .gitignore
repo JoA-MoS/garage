@@ -53,3 +53,7 @@ Thumbs.db
 .nx/workspace-data
 vite.config.*.timestamp*
 vitest.config.*.timestamp*
+
+# Nx project graph artifacts
+graph.html
+static/
