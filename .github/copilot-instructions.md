@@ -7,11 +7,20 @@ Garage is an Nx monorepo containing multiple applications and libraries includin
 ## Working Effectively
 
 ### Environment Setup
-- Install Node.js v24.4.1: Use nvm to install the exact version specified in `.nvmrc`
+- Install Node.js v24.4.1: Use nvm or fnm to install the exact version specified in `.nvmrc`
+  
+  **Option 1: Using nvm**
   ```bash
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
   export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
   nvm install && nvm use
+  ```
+  
+  **Option 2: Using fnm (Fast Node Manager)**
+  ```bash
+  curl -fsSL https://fnm.vercel.app/install | bash
+  source ~/.bashrc
+  fnm install && fnm use
   ```
 - Enable corepack for pnpm: `corepack enable`
 - Install dependencies: `pnpm install --frozen-lockfile --ignore-scripts` -- takes 100 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
@@ -120,8 +129,12 @@ libs/
 
 ### Workspace Commands Reference
 ```bash
-# Environment
+# Environment (choose one)
+# Option 1: nvm
 export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && nvm use
+# Option 2: fnm
+fnm use
+
 corepack enable
 
 # Dependencies (NEVER CANCEL - 100 seconds)
@@ -149,7 +162,7 @@ pnpm nx show projects
 1. **Nx Cloud errors**: Expected in sandbox environments - commands still succeed despite exit code 1
 2. **Serve commands failing**: Apps may not serve in sandbox but builds work fine
 3. **Missing dist folder**: Builds use intelligent caching - success doesn't always create visible dist folders
-4. **Node version mismatch**: Always use `nvm use` in each session to ensure correct Node.js version
+4. **Node version mismatch**: Always use `nvm use` (for nvm) or `fnm use` (for fnm) in each session to ensure correct Node.js version
 5. **Package manager not found**: Run `corepack enable` after Node.js setup
 6. **Exit code 1 with successful output**: Nx Cloud warnings cause non-zero exit codes but operations succeed
 
@@ -167,5 +180,5 @@ pnpm nx show projects
 - **NEVER CANCEL** long-running commands - they complete quickly but use safety timeouts
 - Nx Cloud connectivity issues are expected in sandbox environments
 - Use `pnpm` not `npm` or `yarn` for all package management
-- Node.js v24.4.1 is required (use nvm to install/switch)
+- Node.js v24.4.1 is required (use nvm or fnm to install/switch)
 - Projects may have interdependencies - use `nx graph` to visualize
