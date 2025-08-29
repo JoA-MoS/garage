@@ -34,7 +34,8 @@ Garage is an Nx monorepo containing multiple applications and libraries includin
 - **Build Outputs**: Nx uses intelligent caching - builds may not always create visible dist folders but still succeed
 
 ### Working with Specific Projects
-- List all projects: `pnpm nx show projects`
+- **Discover projects**: `pnpm nx show projects`
+- **Project details**: `pnpm nx show project <project-name>`
 - Build specific project: `pnpm nx build <project-name>`
 - Test specific project: `pnpm nx test <project-name>`
 - Serve development server: `pnpm nx serve <project-name>`
@@ -88,14 +89,20 @@ The GitHub Actions CI (.github/workflows/main.yml) will fail if:
 
 ## Common Tasks
 
-### Repository Structure
+### Discovering Repository Structure
+**Always use these commands to discover current projects and structure:**
+- List all projects: `pnpm nx show projects`
+- View project dependencies: `pnpm nx graph --file=graph.json` 
+- Explore apps directory: `find apps -maxdepth 3 -type d | head -20`
+- Explore libs directory: `find libs -maxdepth 3 -type d | head -20`
+- Get project details: `pnpm nx show project <project-name>`
+
+**Example Repository Structure** (use discovery commands above for current state):
 ```
 apps/
 ├── auth/                   # Authentication services
-├── campsite-watcher/       # Main Node.js application with Docker
-├── campsite-watcher-lambda/# AWS Lambda version
-├── chore-board/ui/         # React UI application
-├── chore-board/api/        # NestJS API
+├── campsite-watcher/       # Node.js application with Docker
+├── chore-board/            # React UI and NestJS API
 ├── ng/example/             # Angular example app
 └── nx-kaniko/              # Docker build utilities
 
@@ -112,20 +119,20 @@ libs/
 - `eslint.config.mjs` - ESLint configuration
 - `.nvmrc` - Node.js version specification (v24.4.1)
 
-### Project Types and Commands
-**Applications:**
-- `campsite-watcher-recreation-gov` (lib)
-- `campsite-watcher-lambda` (app)
-- `campsite-watcher-core` (lib)  
-- `auth-api-express` (app)
-- `campsite-watcher` (app)
-- `chore-board-api` (app)
-- `chore-board-ui` (app)
-- `ng-lib-example` (lib)
-- `auth-api-nest` (app)
-- `wordle-core` (lib)
-- `ng-example` (app)
-- `nx-kaniko` (app)
+### Project Discovery and Commands
+**Use these commands to discover current projects (structure changes as repository evolves):**
+- `pnpm nx show projects` - Lists all current projects
+- `pnpm nx show project <name>` - Shows details for a specific project
+- `pnpm nx graph --file=graph.json` - Generates dependency graph
+
+**Example Projects** (use `pnpm nx show projects` for current complete list):
+- React Applications: `chore-board-ui` (drag-drop kanban board)
+- Angular Applications: `ng-example` (welcome components)  
+- Node.js Services: `campsite-watcher` (monitoring service)
+- NestJS APIs: `chore-board-api`, `auth-api-nest`
+- Express APIs: `auth-api-express`
+- AWS Lambda: `campsite-watcher-lambda`
+- Libraries: `campsite-watcher-core`, `wordle-core`, `ng-lib-example`
 
 ### Workspace Commands Reference
 ```bash
@@ -154,6 +161,7 @@ pnpm nx docker-build campsite-watcher
 # Utilities
 pnpm nx graph --file=graph.json
 pnpm nx show projects
+pnpm nx show project <project-name>
 ```
 
 ## Troubleshooting
@@ -182,3 +190,4 @@ pnpm nx show projects
 - Use `pnpm` not `npm` or `yarn` for all package management
 - Node.js v24.4.1 is required (use nvm or fnm to install/switch)
 - Projects may have interdependencies - use `nx graph` to visualize
+- **Repository structure evolves** - always use discovery commands (`pnpm nx show projects`, `find apps libs -maxdepth 3 -type d`) rather than relying on static lists in documentation
