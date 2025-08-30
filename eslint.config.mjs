@@ -23,7 +23,10 @@ export default [
     settings: {
       'import/resolver': {
         typescript: {
-          project: ['tsconfig.base.json'],
+          project: [
+            'tsconfig.base.json',
+            'apps/soccer-stats/tsconfig.storybook.json',
+          ],
         },
         node: true,
       },

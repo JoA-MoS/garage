@@ -36,7 +36,8 @@
         "{workspaceRoot}/.storybook/**/*",
         "{projectRoot}/.storybook/**/*",
         "{projectRoot}/tsconfig.storybook.json"
-      ]
+      ],
+      "cache": true
     },
     "deploy": {
       "inputs": [
@@ -73,6 +74,11 @@
     "e2e": {
       "cache": true,
       "inputs": ["default", "^production"]
+    },
+    "@nx/webpack:webpack": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
     }
   },
   "generators": {

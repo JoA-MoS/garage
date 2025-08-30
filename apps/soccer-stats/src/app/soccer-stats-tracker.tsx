@@ -1,7 +1,22 @@
 import { useState, useEffect } from 'react';
 
-import { GameConfig, SubstitutionRecommendation, Team } from './types';
+import { GameConfig, SubstitutionRecommendation, Team, Goal } from './types';
 import { formatTime } from './utils';
+import { GameStatsService } from './services/game-stats.service';
+import {
+  testHomeTeam,
+  testAwayTeam,
+  testGameConfig,
+  testHomeTeamSmall,
+  testAwayTeamSmall,
+  testGameConfigSmall,
+  testHomeTeam9v9,
+  testAwayTeam9v9,
+  testGameConfig9v9,
+  testHomeTeam7v7,
+  testAwayTeam7v7,
+  testGameConfig7v7,
+} from './data/test-data';
 import { ConfigTab } from './components/ConfigTab';
 import { GameHeader } from './components/GameHeader';
 import { GoalModal } from './components/GoalModal';
@@ -10,27 +25,13 @@ import { StatsTab } from './components/StatsTab';
 import { SubstitutionsTab } from './components/SubstitutionsTab';
 
 const SoccerStatsTracker = () => {
-  // Default configuration
-  const defaultGameConfig: GameConfig = {
-    playersPerTeam: 11,
-    playersOnField: 11,
-    positions: ['Goalkeeper', 'Defender', 'Midfielder', 'Forward'],
-    homeTeamName: 'Home Team',
-    awayTeamName: 'Away Team',
-  };
+  // Default configuration - using test data for development
+  const defaultGameConfig: GameConfig = testGameConfig;
 
   // State management
   const [gameConfig, setGameConfig] = useState<GameConfig>(defaultGameConfig);
-  const [homeTeam, setHomeTeam] = useState<Team>({
-    name: 'Home Team',
-    players: [],
-    score: 0,
-  });
-  const [awayTeam, setAwayTeam] = useState<Team>({
-    name: 'Away Team',
-    players: [],
-    score: 0,
-  });
+  const [homeTeam, setHomeTeam] = useState<Team>(testHomeTeam);
+  const [awayTeam, setAwayTeam] = useState<Team>(testAwayTeam);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameTime, setGameTime] = useState(0);
   const [isGameRunning, setIsGameRunning] = useState(false);
@@ -47,6 +48,48 @@ const SoccerStatsTracker = () => {
     } else {
       setAwayTeam(updatedTeam);
     }
+  };
+
+  // Load different test data sets
+  const loadTestData = (size: 'full' | 'small' | '9v9' | '7v7' = 'full') => {
+    if (size === 'full') {
+      setHomeTeam(testHomeTeam);
+      setAwayTeam(testAwayTeam);
+      setGameConfig(testGameConfig);
+    } else if (size === 'small') {
+      setHomeTeam(testHomeTeamSmall);
+      setAwayTeam(testAwayTeamSmall);
+      setGameConfig(testGameConfigSmall);
+    } else if (size === '9v9') {
+      setHomeTeam(testHomeTeam9v9);
+      setAwayTeam(testAwayTeam9v9);
+      setGameConfig(testGameConfig9v9);
+    } else if (size === '7v7') {
+      setHomeTeam(testHomeTeam7v7);
+      setAwayTeam(testAwayTeam7v7);
+      setGameConfig(testGameConfig7v7);
+    }
+    // Reset game state
+    setGameStarted(false);
+    setGameTime(0);
+    setIsGameRunning(false);
+    setActiveTab('lineup');
+  };
+
+  const clearTeams = () => {
+    setHomeTeam({ name: 'Home Team', players: [], goals: [] });
+    setAwayTeam({ name: 'Away Team', players: [], goals: [] });
+    setGameConfig({
+      playersPerTeam: 11,
+      playersOnField: 11,
+      positions: ['Goalkeeper', 'Defender', 'Midfielder', 'Forward'],
+      homeTeamName: 'Home Team',
+      awayTeamName: 'Away Team',
+    });
+    setGameStarted(false);
+    setGameTime(0);
+    setIsGameRunning(false);
+    setActiveTab('config');
   };
 
   // Position management
@@ -125,33 +168,21 @@ const SoccerStatsTracker = () => {
   };
 
   const recordGoal = (scorerId: number, assistId: number | null) => {
+    const newGoal = GameStatsService.createGoal(
+      scorerId,
+      assistId || undefined,
+      gameTime
+    );
+
     if (goalTeam === 'home') {
       setHomeTeam((prevTeam) => ({
         ...prevTeam,
-        score: prevTeam.score + 1,
-        players: prevTeam.players.map((player) => {
-          if (player.id === scorerId) {
-            return { ...player, goals: player.goals + 1 };
-          }
-          if (assistId && player.id === assistId) {
-            return { ...player, assists: player.assists + 1 };
-          }
-          return player;
-        }),
+        goals: [...prevTeam.goals, newGoal],
       }));
     } else {
       setAwayTeam((prevTeam) => ({
         ...prevTeam,
-        score: prevTeam.score + 1,
-        players: prevTeam.players.map((player) => {
-          if (player.id === scorerId) {
-            return { ...player, goals: player.goals + 1 };
-          }
-          if (assistId && player.id === assistId) {
-            return { ...player, assists: player.assists + 1 };
-          }
-          return player;
-        }),
+        goals: [...prevTeam.goals, newGoal],
       }));
     }
 
@@ -159,28 +190,31 @@ const SoccerStatsTracker = () => {
   };
 
   const updatePlayerStat = (playerId: number, stat: 'goals' | 'assists') => {
-    // Determine which team the player belongs to
+    // For quick stat updates, we'll create a goal record
+    // This is a simplified version - in the real app, user would use the goal modal for full details
     const isHomePlayer = homeTeam.players.some((p) => p.id === playerId);
 
-    if (isHomePlayer) {
-      setHomeTeam((prevTeam) => ({
-        ...prevTeam,
-        players: prevTeam.players.map((player) =>
-          player.id === playerId
-            ? { ...player, [stat]: player[stat] + 1 }
-            : player
-        ),
-      }));
-    } else {
-      setAwayTeam((prevTeam) => ({
-        ...prevTeam,
-        players: prevTeam.players.map((player) =>
-          player.id === playerId
-            ? { ...player, [stat]: player[stat] + 1 }
-            : player
-        ),
-      }));
+    if (stat === 'goals') {
+      const newGoal = GameStatsService.createGoal(
+        playerId,
+        undefined,
+        gameTime
+      );
+
+      if (isHomePlayer) {
+        setHomeTeam((prevTeam) => ({
+          ...prevTeam,
+          goals: [...prevTeam.goals, newGoal],
+        }));
+      } else {
+        setAwayTeam((prevTeam) => ({
+          ...prevTeam,
+          goals: [...prevTeam.goals, newGoal],
+        }));
+      }
     }
+    // For assists, we would need to associate with an existing goal
+    // This is a limitation of the quick stat buttons - better to use the goal modal
   };
 
   // Substitution management
@@ -269,13 +303,13 @@ const SoccerStatsTracker = () => {
     if (homeTeam.players.length === 0 && awayTeam.players.length === 0) {
       setHomeTeam({
         name: gameConfig.homeTeamName,
-        score: 0,
         players: [],
+        goals: [],
       });
       setAwayTeam({
         name: gameConfig.awayTeamName,
-        score: 0,
         players: [],
+        goals: [],
       });
     }
   }, [
@@ -299,14 +333,16 @@ const SoccerStatsTracker = () => {
           onTeamChange={handleTeamChange}
           startGame={startGame}
           defaultGameConfig={defaultGameConfig}
+          loadTestData={loadTestData}
+          clearTeams={clearTeams}
         />
       ) : (
         <>
           <GameHeader
             homeTeamName={gameConfig.homeTeamName}
             awayTeamName={gameConfig.awayTeamName}
-            homeScore={homeTeam.score}
-            awayScore={awayTeam.score}
+            homeScore={GameStatsService.getTeamScore(homeTeam)}
+            awayScore={GameStatsService.getTeamScore(awayTeam)}
             gameTime={gameTime}
             isGameRunning={isGameRunning}
             onToggleGame={() => setIsGameRunning(!isGameRunning)}
@@ -355,6 +391,7 @@ const SoccerStatsTracker = () => {
                 <LineupTab
                   playersOnField={playersOnField}
                   playersOnBench={playersOnBench}
+                  team={getCurrentTeam()}
                   onStatUpdate={updatePlayerStat}
                 />
               </div>

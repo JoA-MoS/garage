@@ -1,0 +1,102 @@
+{
+  "name": "soccer-stats-api",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/soccer-stats-api/src",
+  "projectType": "application",
+  "tags": ["type:api", "domain:sports"],
+  "targets": {
+    "build": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "target": "node",
+        "compiler": "tsc",
+        "outputPath": "dist/apps/soccer-stats-api",
+        "main": "apps/soccer-stats-api/src/main.ts",
+        "tsConfig": "apps/soccer-stats-api/tsconfig.app.json",
+        "assets": ["apps/soccer-stats-api/src/assets"],
+        "webpackConfig": "apps/soccer-stats-api/webpack.config.js",
+        "generatePackageJson": true
+      },
+      "configurations": {
+        "development": {
+          "outputHashing": "none"
+        },
+        "production": {}
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "soccer-stats-api:build",
+        "runBuildTargetDependencies": false
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "soccer-stats-api:build:development"
+        },
+        "production": {
+          "buildTarget": "soccer-stats-api:build:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "apps/soccer-stats-api/jest.config.ts",
+        "passWithNoTests": true
+      }
+    },
+    "db:start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker compose up -d postgres",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "db:stop": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker compose stop postgres",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "db:reset": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "docker compose down postgres",
+          "docker volume rm garage_postgres_data || true",
+          "docker compose up -d postgres"
+        ],
+        "cwd": "{workspaceRoot}",
+        "parallel": false
+      }
+    },
+    "db:logs": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker compose logs -f postgres",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "serve:dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "nx db:start soccer-stats-api",
+          "nx serve soccer-stats-api"
+        ],
+        "parallel": false
+      }
+    }
+  }
+}

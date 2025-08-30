@@ -6,15 +6,20 @@ export interface Player {
   depthRank: number;
   playTime: number;
   isOnField: boolean;
-  goals: number;
-  assists: number;
-  team: 'home' | 'away';
+}
+
+export interface Goal {
+  id: string;
+  timestamp: number; // Game time in seconds when goal was scored
+  scorerId: number; // Player who scored
+  assistId?: number; // Player who assisted (optional)
+  realTime: string; // Actual timestamp when goal was recorded
 }
 
 export interface Team {
   name: string;
   players: Player[];
-  score: number;
+  goals: Goal[];
 }
 
 export interface GameConfig {

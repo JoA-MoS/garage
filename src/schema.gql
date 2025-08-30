@@ -1,0 +1,227 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+input AddPlayerToTeamInput {
+  depthRank: Int! = 1
+  isActive: Boolean! = true
+  jersey: Int!
+  playerId: ID!
+  teamId: ID!
+}
+
+input CreateGameInput {
+  awayTeamId: ID!
+  duration: Int! = 90
+  format: GameFormat!
+  homeTeamId: ID!
+}
+
+input CreatePlayerInput {
+  name: String!
+  position: String!
+}
+
+input CreateTeamInput {
+  colors: String
+  logo: String
+  name: String!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type EventType {
+  category: String!
+  code: String!
+  createdAt: DateTime!
+  description: String
+  gameEvents: [GameEvent!]!
+  id: ID!
+  isActive: Boolean!
+  isPositive: Boolean!
+  isTeamEvent: Boolean!
+  name: String!
+  requiresRelatedPlayer: Boolean!
+  updatedAt: DateTime!
+}
+
+type Game {
+  createdAt: DateTime!
+  currentTime: Int!
+  duration: Int!
+  endTime: DateTime
+  format: GameFormat!
+  gameEvents: [GameEvent!]!
+  gameTeams: [GameTeam!]!
+  id: ID!
+  participations: [GameParticipation!]!
+  startTime: DateTime!
+  status: GameStatus!
+  updatedAt: DateTime!
+}
+
+type GameEvent {
+  createdAt: DateTime!
+  eventType: EventType!
+  eventTypeId: String!
+  game: Game!
+  gameId: String!
+  gameTeam: GameTeam!
+  gameTeamId: String!
+  id: ID!
+  minute: Int!
+  notes: String
+  player: Player!
+  playerId: String!
+  realTime: DateTime!
+  relatedPlayer: Player
+  relatedPlayerId: String
+  timestamp: Int!
+  updatedAt: DateTime!
+}
+
+enum GameFormat {
+  ELEVEN_V_ELEVEN
+  FIVE_V_FIVE
+  NINE_V_NINE
+  SEVEN_V_SEVEN
+}
+
+type GameParticipation {
+  createdAt: DateTime!
+  endMinute: Int
+  game: Game!
+  gameId: String!
+  gameTeam: GameTeam!
+  gameTeamId: String!
+  id: ID!
+  isOnField: Boolean!
+  isStarter: Boolean!
+  minutesPlayed: Int!
+  player: Player!
+  playerId: String!
+  startMinute: Int!
+  updatedAt: DateTime!
+}
+
+enum GameStatus {
+  CANCELLED
+  FINISHED
+  IN_PROGRESS
+  NOT_STARTED
+  PAUSED
+}
+
+type GameTeam {
+  createdAt: DateTime!
+  formation: String
+  game: Game!
+  gameEvents: [GameEvent!]!
+  gameId: String!
+  gameParticipations: [GameParticipation!]!
+  id: ID!
+  isHome: Boolean!
+  team: Team!
+  teamId: String!
+  updatedAt: DateTime!
+}
+
+type Mutation {
+  addPlayerToTeam(addPlayerToTeamInput: AddPlayerToTeamInput!): Team!
+  createGame(createGameInput: CreateGameInput!): Game!
+  createPlayer(createPlayerInput: CreatePlayerInput!): Player!
+  createTeam(createTeamInput: CreateTeamInput!): Team!
+  endGame(id: ID!): Game!
+  pauseGame(id: ID!): Game!
+  removeGame(id: ID!): Boolean!
+  removePlayer(id: ID!): Boolean!
+  removePlayerFromTeam(playerId: ID!, teamId: ID!): Team!
+  removeTeam(id: ID!): Boolean!
+  startGame(id: ID!): Game!
+  updateGame(id: ID!, updateGameInput: UpdateGameInput!): Game!
+  updateGameTime(currentTime: Int!, id: ID!): Game!
+  updatePlayer(id: ID!, updatePlayerInput: UpdatePlayerInput!): Player!
+  updateTeam(id: ID!, updateTeamInput: UpdateTeamInput!): Team!
+}
+
+type Player {
+  createdAt: DateTime!
+  id: ID!
+  name: String!
+  participations: [GameParticipation!]!
+  position: String!
+  teamPlayers: [TeamPlayer!]!
+  teams: [Team!]!
+  updatedAt: DateTime!
+}
+
+type Query {
+  game(id: ID!): Game!
+  games: [Game!]!
+  player(id: ID!): Player!
+  players: [Player!]!
+  playersByName(name: String!): [Player!]!
+  playersByPosition(position: String!): [Player!]!
+  team(id: ID!): Team!
+  teams: [Team!]!
+  teamsByName(name: String!): [Team!]!
+}
+
+type Subscription {
+  gameCreated: Game!
+  gameUpdated: Game!
+  playerCreated: Player!
+  playerUpdated: Player!
+  teamCreated: Team!
+  teamUpdated: Team!
+}
+
+type Team {
+  colors: String
+  createdAt: DateTime!
+  gameTeams: [GameTeam!]!
+  id: ID!
+  logo: String
+  name: String!
+  players: [Player!]!
+  teamPlayers: [TeamPlayer!]!
+  updatedAt: DateTime!
+}
+
+type TeamPlayer {
+  createdAt: DateTime!
+  depthRank: Int!
+  id: ID!
+  isActive: Boolean!
+  jersey: Int!
+  joinedAt: DateTime!
+  leftAt: DateTime
+  player: Player!
+  playerId: String!
+  team: Team!
+  teamId: String!
+  updatedAt: DateTime!
+}
+
+input UpdateGameInput {
+  awayTeamId: ID
+  currentTime: Int
+  duration: Int = 90
+  format: GameFormat
+  homeTeamId: ID
+  status: GameStatus
+}
+
+input UpdatePlayerInput {
+  name: String
+  position: String
+}
+
+input UpdateTeamInput {
+  colors: String
+  logo: String
+  name: String
+}

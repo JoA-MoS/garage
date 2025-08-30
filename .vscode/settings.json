@@ -1,4 +1,49 @@
 {
   "vsicons.presets.angular": true,
-  "nxConsole.generateAiAgentRules": true
+  "nxConsole.generateAiAgentRules": true,
+  "sqltools.connections": [
+    {
+      "database": "pushspring_development",
+      "driver": "PostgreSQL",
+      "group": "LOCAL",
+      "name": "pushspring",
+      "password": "",
+      "port": 5432,
+      "previewLimit": 50,
+      "server": "localhost",
+      "username": "jdietz5"
+    },
+    {
+      "previewLimit": 50,
+      "server": "pixel-test-db.vpc.magentamarketing.com",
+      "port": 5432,
+      "askForPassword": true,
+      "driver": "PostgreSQL",
+      "name": "pushspring",
+      "group": "DEV3",
+      "username": "pushspring",
+      "database": "pushspring_production"
+    },
+    {
+      "previewLimit": 50,
+      "server": "postgres-03.vpc.magentamarketing.com",
+      "port": 5432,
+      "askForPassword": true,
+      "database": "pushspring_production",
+      "driver": "PostgreSQL",
+      "group": "PROD",
+      "name": "pushspring pg",
+      "username": "pushspring"
+    },
+    {
+      "previewLimit": 50,
+      "server": "localhost",
+      "port": 5432,
+      "driver": "PostgreSQL",
+      "name": "Soccer Stats",
+      "group": "LOCAL",
+      "database": "soccer_stats",
+      "username": "postgres"
+    }
+  ]
 }

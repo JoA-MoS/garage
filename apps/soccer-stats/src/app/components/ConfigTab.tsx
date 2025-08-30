@@ -15,6 +15,8 @@ interface ConfigTabProps {
   addPosition: () => void;
   removePosition: (index: number) => void;
   updatePosition: (index: number, value: string) => void;
+  loadTestData: (size?: 'full' | 'small' | '9v9' | '7v7') => void;
+  clearTeams: () => void;
 }
 
 export const ConfigTab = ({
@@ -28,6 +30,8 @@ export const ConfigTab = ({
   addPosition,
   removePosition,
   updatePosition,
+  loadTestData,
+  clearTeams,
 }: ConfigTabProps) => {
   const updateHomeTeamName = (name: string) => {
     const updatedConfig = { ...gameConfig, homeTeamName: name };
@@ -88,6 +92,48 @@ export const ConfigTab = ({
           Configure your teams and players before starting the game. Add players
           with their names and jersey numbers.
         </p>
+      </div>
+
+      {/* Test Data Controls */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <h3 className="font-semibold text-yellow-800 mb-3">
+          Quick Setup with Test Data
+        </h3>
+        <p className="text-yellow-700 text-sm mb-3">
+          Skip manual setup and use pre-populated teams for quick testing.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => loadTestData('full')}
+            className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+          >
+            Load 11v11 Teams (Barcelona vs Real Madrid)
+          </button>
+          <button
+            onClick={() => loadTestData('9v9')}
+            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+          >
+            Load 9v9 Teams (Eagles vs Lions)
+          </button>
+          <button
+            onClick={() => loadTestData('7v7')}
+            className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+          >
+            Load 7v7 Teams (Sharks vs Tigers)
+          </button>
+          <button
+            onClick={() => loadTestData('small')}
+            className="bg-yellow-400 hover:bg-yellow-500 text-white px-4 py-2 rounded-md text-sm font-medium"
+          >
+            Load 5v5 Teams (City vs United)
+          </button>
+          <button
+            onClick={clearTeams}
+            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+          >
+            Clear All Teams
+          </button>
+        </div>
       </div>
 
       <div>
