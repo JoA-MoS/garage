@@ -5,6 +5,11 @@
 /tmp
 /out-tsc
 
+# Generated files and artifacts
+/docs/generated
+/artifacts
+*.generated.*
+
 # dependencies
 /node_modules
 
@@ -53,3 +58,8 @@ Thumbs.db
 .nx/workspace-data
 vite.config.*.timestamp*
 vitest.config.*.timestamp*
+
+
+# Nx project graph artifacts
+graph.html
+static/
