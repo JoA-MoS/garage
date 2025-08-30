@@ -1,7 +1,7 @@
 import { Player, Team } from '../types';
 import { GameStatsService } from '../services/game-stats.service';
 
-import { PlayerCardPresentation } from './presentation/PlayerCardPresentation';
+import { PlayerCardPresentation } from './presentation/player-card.presentation';
 
 /**
  * Smart Component: Handles data fetching and state management

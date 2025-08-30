@@ -1,6 +1,6 @@
 import { GameStatsService } from '../../services/game-stats.service';
 import { Team } from '../../types';
-import { GameHeaderPresentation } from '../presentation/GameHeaderPresentation';
+import { GameHeaderPresentation } from '../presentation/game-header.presentation';
 
 interface GameHeaderSmartProps {
   homeTeam: Team;

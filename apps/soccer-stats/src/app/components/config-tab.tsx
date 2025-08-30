@@ -2,7 +2,7 @@ import { Settings, Plus, Trash2 } from 'lucide-react';
 
 import { GameConfig, Team, Player } from '../types';
 
-import { TeamEntry } from './TeamEntry';
+import { TeamEntry } from './team-entry';
 
 interface ConfigTabProps {
   gameConfig: GameConfig;

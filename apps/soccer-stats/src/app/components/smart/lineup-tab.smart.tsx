@@ -1,5 +1,5 @@
 import { Team, Player } from '../../types';
-import { LineupTabPresentation } from '../presentation/LineupTabPresentation';
+import { LineupTabPresentation } from '../presentation/lineup-tab.presentation';
 
 interface LineupTabSmartProps {
   team: Team;

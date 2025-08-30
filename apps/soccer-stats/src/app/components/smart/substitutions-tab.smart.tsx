@@ -1,6 +1,6 @@
 import { Player, SubstitutionRecommendation, Team } from '../../types';
 import { formatTime } from '../../utils';
-import { SubstitutionsTabPresentation } from '../presentation/SubstitutionsTabPresentation';
+import { SubstitutionsTabPresentation } from '../presentation/substitutions-tab.presentation';
 
 interface SubstitutionsTabSmartProps {
   team: Team;
