@@ -1,0 +1,19 @@
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - '@parcel/watcher'
+  - '@swc/core'
+  - aws-sdk
+  - bufferutil
+  - core-js
+  - core-js-pure
+  - cpu-features
+  - cypress
+  - es5-ext
+  - esbuild
+  - lmdb
+  - msgpackr-extract
+  - nx
+  - serverless
+  - ssh2
+  - unrs-resolver
+  - utf-8-validate

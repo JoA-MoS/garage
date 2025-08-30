@@ -24,11 +24,9 @@ export const TeamEntry = ({
       name: '',
       jersey: getNextAvailableJersey(),
       position: positions[0] || 'Player',
-      goals: 0,
-      assists: 0,
+      depthRank: players.length + 1,
       playTime: 0,
       isOnField: players.length < 11, // First 11 players start on field
-      team: teamName.toLowerCase() as 'home' | 'away',
     };
     onPlayersChange([...players, newPlayer]);
   };

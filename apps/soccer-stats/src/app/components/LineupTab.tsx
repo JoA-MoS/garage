@@ -1,18 +1,20 @@
 import { Users } from 'lucide-react';
 
-import { Player } from '../types';
+import { Player, Team } from '../types';
 
 import { PlayerCard } from './PlayerCard';
 
 interface LineupTabProps {
   playersOnField: Player[];
   playersOnBench: Player[];
+  team: Team;
   onStatUpdate: (playerId: number, stat: 'goals' | 'assists') => void;
 }
 
 export const LineupTab = ({
   playersOnField,
   playersOnBench,
+  team,
   onStatUpdate,
 }: LineupTabProps) => {
   return (
@@ -27,6 +29,7 @@ export const LineupTab = ({
             <PlayerCard
               key={player.id}
               player={player}
+              team={team}
               isOnField={true}
               onStatUpdate={onStatUpdate}
             />
@@ -41,7 +44,12 @@ export const LineupTab = ({
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {playersOnBench.map((player) => (
-            <PlayerCard key={player.id} player={player} isOnField={false} />
+            <PlayerCard
+              key={player.id}
+              player={player}
+              team={team}
+              isOnField={false}
+            />
           ))}
         </div>
       </div>

@@ -28,7 +28,8 @@
       "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "soccer-stats:build"
+        "buildTarget": "soccer-stats:build",
+        "proxyConfig": "apps/soccer-stats/proxy.conf.json"
       },
       "configurations": {
         "development": {
@@ -39,7 +40,8 @@
           "buildTarget": "soccer-stats:build:production",
           "hmr": false
         }
-      }
+      },
+      "dependsOn": ["soccer-stats-api:serve"]
     },
     "preview": {
       "dependsOn": ["build"],
@@ -70,6 +72,31 @@
       "options": {
         "buildTarget": "soccer-stats:build",
         "spa": true
+      }
+    },
+    "storybook": {
+      "executor": "@nx/storybook:storybook",
+      "options": {
+        "port": 4400,
+        "configDir": "apps/soccer-stats/.storybook"
+      },
+      "configurations": {
+        "ci": {
+          "quiet": true
+        }
+      }
+    },
+    "build-storybook": {
+      "executor": "@nx/storybook:build",
+      "outputs": ["{options.outputDir}"],
+      "options": {
+        "outputDir": "dist/storybook/soccer-stats",
+        "configDir": "apps/soccer-stats/.storybook"
+      },
+      "configurations": {
+        "ci": {
+          "quiet": true
+        }
       }
     }
   }

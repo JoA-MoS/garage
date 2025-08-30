@@ -1,5 +1,6 @@
 import { Team } from '../types';
 import { formatTime } from '../utils';
+import { GameStatsService } from '../services/game-stats.service';
 
 interface StatsTabProps {
   homeTeam: Team;
@@ -10,14 +11,47 @@ interface StatsTabProps {
 export const StatsTab = ({ homeTeam, awayTeam, gameTime }: StatsTabProps) => {
   const allPlayers = [...homeTeam.players, ...awayTeam.players];
 
-  const totalGoals = allPlayers.reduce((sum, p) => sum + p.goals, 0);
-  const totalAssists = allPlayers.reduce((sum, p) => sum + p.assists, 0);
+  // Helper function to determine which team a player belongs to
+  const getPlayerTeam = (playerId: number): 'home' | 'away' => {
+    return homeTeam.players.some((p) => p.id === playerId) ? 'home' : 'away';
+  };
 
-  const homeGoals = homeTeam.players.reduce((sum, p) => sum + p.goals, 0);
-  const awayGoals = awayTeam.players.reduce((sum, p) => sum + p.goals, 0);
+  // Helper function to get the team object for a player
+  const getPlayerTeamObject = (playerId: number) => {
+    return getPlayerTeam(playerId) === 'home' ? homeTeam : awayTeam;
+  };
 
-  const homeAssists = homeTeam.players.reduce((sum, p) => sum + p.assists, 0);
-  const awayAssists = awayTeam.players.reduce((sum, p) => sum + p.assists, 0);
+  // Calculate total goals and assists from all players
+  const totalGoals =
+    homeTeam.players.reduce(
+      (sum, p) => sum + GameStatsService.getPlayerGoals(p.id, homeTeam),
+      0
+    ) +
+    awayTeam.players.reduce(
+      (sum, p) => sum + GameStatsService.getPlayerGoals(p.id, awayTeam),
+      0
+    );
+  const totalAssists =
+    homeTeam.players.reduce(
+      (sum, p) => sum + GameStatsService.getPlayerAssists(p.id, homeTeam),
+      0
+    ) +
+    awayTeam.players.reduce(
+      (sum, p) => sum + GameStatsService.getPlayerAssists(p.id, awayTeam),
+      0
+    );
+
+  const homeGoals = GameStatsService.getTeamScore(homeTeam);
+  const awayGoals = GameStatsService.getTeamScore(awayTeam);
+
+  const homeAssists = homeTeam.players.reduce(
+    (sum, p) => sum + GameStatsService.getPlayerAssists(p.id, homeTeam),
+    0
+  );
+  const awayAssists = awayTeam.players.reduce(
+    (sum, p) => sum + GameStatsService.getPlayerAssists(p.id, awayTeam),
+    0
+  );
 
   return (
     <div className="space-y-6">
@@ -116,43 +150,52 @@ export const StatsTab = ({ homeTeam, awayTeam, gameTime }: StatsTabProps) => {
             <tbody>
               {allPlayers
                 .sort(
-                  (a, b) => a.team.localeCompare(b.team) || a.jersey - b.jersey
+                  (a, b) =>
+                    getPlayerTeam(a.id).localeCompare(getPlayerTeam(b.id)) ||
+                    a.jersey - b.jersey
                 )
-                .map((player) => (
-                  <tr key={`${player.team}-${player.id}`} className="border-t">
-                    <td className="px-4 py-2">
-                      <span
-                        className={`inline-block w-3 h-3 rounded-full mr-2 ${
-                          player.team === 'home' ? 'bg-blue-500' : 'bg-red-500'
-                        }`}
-                      ></span>
-                      {player.team === 'home' ? homeTeam.name : awayTeam.name}
-                    </td>
-                    <td className="px-4 py-2 font-mono">{player.jersey}</td>
-                    <td className="px-4 py-2 font-medium">{player.name}</td>
-                    <td className="px-4 py-2">{player.position}</td>
-                    <td className="px-4 py-2 font-mono">
-                      {formatTime(player.playTime)}
-                    </td>
-                    <td className="px-4 py-2 font-semibold text-blue-600">
-                      {player.goals}
-                    </td>
-                    <td className="px-4 py-2 font-semibold text-purple-600">
-                      {player.assists}
-                    </td>
-                    <td className="px-4 py-2">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          player.isOnField
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {player.isOnField ? 'On Field' : 'Bench'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                .map((player) => {
+                  const playerTeam = getPlayerTeam(player.id);
+                  const teamObject = getPlayerTeamObject(player.id);
+                  return (
+                    <tr key={`${playerTeam}-${player.id}`} className="border-t">
+                      <td className="px-4 py-2">
+                        <span
+                          className={`inline-block w-3 h-3 rounded-full mr-2 ${
+                            playerTeam === 'home' ? 'bg-blue-500' : 'bg-red-500'
+                          }`}
+                        ></span>
+                        {playerTeam === 'home' ? homeTeam.name : awayTeam.name}
+                      </td>
+                      <td className="px-4 py-2 font-mono">{player.jersey}</td>
+                      <td className="px-4 py-2 font-medium">{player.name}</td>
+                      <td className="px-4 py-2">{player.position}</td>
+                      <td className="px-4 py-2 font-mono">
+                        {formatTime(player.playTime)}
+                      </td>
+                      <td className="px-4 py-2 font-semibold text-blue-600">
+                        {GameStatsService.getPlayerGoals(player.id, teamObject)}
+                      </td>
+                      <td className="px-4 py-2 font-semibold text-purple-600">
+                        {GameStatsService.getPlayerAssists(
+                          player.id,
+                          teamObject
+                        )}
+                      </td>
+                      <td className="px-4 py-2">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            player.isOnField
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {player.isOnField ? 'On Field' : 'Bench'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>
