@@ -13,14 +13,13 @@ describe('App', () => {
     expect(baseElement).toBeTruthy();
   });
 
-  it('should have a greeting as the title', () => {
-    const { getAllByText } = render(
+  it('should display game setup configuration', () => {
+    const { getByText } = render(
       <BrowserRouter>
         <App />
       </BrowserRouter>
     );
-    expect(
-      getAllByText(new RegExp('Welcome soccer-stats', 'gi')).length > 0
-    ).toBeTruthy();
+    expect(getByText('Game Setup')).toBeTruthy();
+    expect(getByText('Quick Setup with Test Data')).toBeTruthy();
   });
 });

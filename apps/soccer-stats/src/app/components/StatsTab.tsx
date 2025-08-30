@@ -74,7 +74,8 @@ export const StatsTab = ({ homeTeam, awayTeam, gameTime }: StatsTabProps) => {
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
           <h3 className="font-semibold text-orange-800 mb-2">Score</h3>
           <p className="text-2xl font-bold text-orange-600">
-            {homeTeam.score} - {awayTeam.score}
+            {GameStatsService.getTeamScore(homeTeam)} -{' '}
+            {GameStatsService.getTeamScore(awayTeam)}
           </p>
         </div>
       </div>
