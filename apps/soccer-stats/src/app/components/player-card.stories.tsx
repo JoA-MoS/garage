@@ -1,4 +1,4 @@
-import { PlayerCard } from './PlayerCard';
+import { PlayerCard } from './player-card';
 
 const meta = {
   title: 'Components/PlayerCard',

@@ -1,7 +1,7 @@
 import { Users } from 'lucide-react';
 
 import { Player, Team } from '../../types';
-import { PlayerCard } from '../PlayerCard';
+import { PlayerCard } from '../player-card';
 
 interface LineupTabPresentationProps {
   playersOnField: Player[];

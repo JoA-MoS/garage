@@ -1,4 +1,4 @@
-import { SoccerStatsTrackerSmart } from './components/smart/SoccerStatsTrackerSmart';
+import { SoccerStatsTrackerSmart } from './components/smart/soccer-stats-tracker.smart';
 
 export function App() {
   return (

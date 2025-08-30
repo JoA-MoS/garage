@@ -1,12 +1,12 @@
-import { ConfigTab } from '../ConfigTab';
-import { StatsTab } from '../StatsTab';
-import { GoalModal } from '../GoalModal';
-import { TabNavigationPresentation } from '../presentation/TabNavigationPresentation';
+import { ConfigTab } from '../config-tab';
+import { StatsTab } from '../stats-tab';
+import { GoalModal } from '../goal-modal';
+import { TabNavigationPresentation } from '../presentation/tab-navigation.presentation';
 
-import { useGameManager } from './GameManager';
-import { GameHeaderSmart } from './GameHeaderSmart';
-import { LineupTabSmart } from './LineupTabSmart';
-import { SubstitutionsTabSmart } from './SubstitutionsTabSmart';
+import { useGameManager } from './game-manager.smart';
+import { GameHeaderSmart } from './game-header.smart';
+import { LineupTabSmart } from './lineup-tab.smart';
+import { SubstitutionsTabSmart } from './substitutions-tab.smart';
 
 /**
  * Main smart component that orchestrates all other smart components and manages the overall game state

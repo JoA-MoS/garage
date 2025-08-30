@@ -1,4 +1,4 @@
-import { GameHeader } from './GameHeader';
+import { GameHeader } from './game-header';
 
 const meta = {
   title: 'Components/GameHeader',
