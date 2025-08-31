@@ -1,0 +1,10 @@
+{
+  "buildCommand": "pnpm nx build soccer-stats",
+  "outputDirectory": "../../dist/apps/soccer-stats",
+  "framework": "vite",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile --ignore-scripts",
+  "devCommand": "cd ../.. && pnpm nx serve soccer-stats",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

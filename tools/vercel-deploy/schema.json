@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "type": "object",
+  "title": "Vercel Deploy Executor",
+  "description": "Deploy applications to Vercel",
+  "properties": {
+    "project": {
+      "type": "string",
+      "description": "Name of the project to deploy (defaults to current project)"
+    },
+    "production": {
+      "type": "boolean",
+      "description": "Deploy to production (default: false for preview)",
+      "default": false
+    },
+    "token": {
+      "type": "string",
+      "description": "Vercel authentication token"
+    },
+    "projectName": {
+      "type": "string", 
+      "description": "Vercel project name (optional)"
+    },
+    "orgId": {
+      "type": "string",
+      "description": "Vercel organization ID"
+    },
+    "projectId": {
+      "type": "string",
+      "description": "Vercel project ID"
+    }
+  },
+  "additionalProperties": false
+}
