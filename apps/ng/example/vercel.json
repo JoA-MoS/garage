@@ -1,0 +1,13 @@
+{
+  "buildCommand": "pnpm nx build ng-example",
+  "outputDirectory": "../../dist/apps/ng/example",
+  "framework": "static",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile --ignore-scripts",
+  "devCommand": "cd ../.. && pnpm nx serve ng-example",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
