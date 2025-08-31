@@ -74,14 +74,34 @@ export const ConfigTab = ({
   };
 
   const canStartGame = () => {
-    return (
-      gameConfig.homeTeamName.trim() !== '' &&
-      gameConfig.awayTeamName.trim() !== '' &&
-      homeTeam.players.length > 0 &&
-      awayTeam.players.length > 0 &&
-      homeTeam.players.every((p) => p.name.trim() !== '') &&
-      awayTeam.players.every((p) => p.name.trim() !== '')
-    );
+    // Basic team names are always required
+    if (
+      gameConfig.homeTeamName.trim() === '' ||
+      gameConfig.awayTeamName.trim() === ''
+    ) {
+      return false;
+    }
+
+    // For teams with detailed tracking, require players with names
+    if (gameConfig.homeTeamDetailedTracking) {
+      if (
+        homeTeam.players.length === 0 ||
+        !homeTeam.players.every((p) => p.name.trim() !== '')
+      ) {
+        return false;
+      }
+    }
+
+    if (gameConfig.awayTeamDetailedTracking) {
+      if (
+        awayTeam.players.length === 0 ||
+        !awayTeam.players.every((p) => p.name.trim() !== '')
+      ) {
+        return false;
+      }
+    }
+
+    return true;
   };
 
   return (
@@ -173,29 +193,143 @@ export const ConfigTab = ({
         </div>
       </div>
 
+      {/* Team Tracking Settings */}
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <h3 className="font-semibold text-amber-800 mb-3">
+          Team Tracking Mode
+        </h3>
+        <p className="text-amber-700 text-sm mb-4">
+          Choose detailed tracking for your own team and simplified tracking for
+          opponents. Detailed tracking includes full player management, while
+          simplified tracking only records jersey numbers for goals.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              id="homeTeamTracking"
+              checked={gameConfig.homeTeamDetailedTracking}
+              onChange={(e) => {
+                const newConfig = {
+                  ...gameConfig,
+                  homeTeamDetailedTracking: e.target.checked,
+                };
+                setGameConfig(newConfig);
+                const updatedTeam = {
+                  ...homeTeam,
+                  isDetailedTracking: e.target.checked,
+                };
+                onTeamChange('home', updatedTeam);
+              }}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label
+              htmlFor="homeTeamTracking"
+              className="text-sm font-medium text-gray-700"
+            >
+              Detailed tracking for {gameConfig.homeTeamName || 'Home Team'}
+            </label>
+          </div>
+          <div className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              id="awayTeamTracking"
+              checked={gameConfig.awayTeamDetailedTracking}
+              onChange={(e) => {
+                const newConfig = {
+                  ...gameConfig,
+                  awayTeamDetailedTracking: e.target.checked,
+                };
+                setGameConfig(newConfig);
+                const updatedTeam = {
+                  ...awayTeam,
+                  isDetailedTracking: e.target.checked,
+                };
+                onTeamChange('away', updatedTeam);
+              }}
+              className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+            />
+            <label
+              htmlFor="awayTeamTracking"
+              className="text-sm font-medium text-gray-700"
+            >
+              Detailed tracking for {gameConfig.awayTeamName || 'Away Team'}
+            </label>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
           <h3 className="text-lg font-semibold mb-3 text-blue-600">
             Home Team
           </h3>
-          <TeamEntry
-            teamName={gameConfig.homeTeamName}
-            players={homeTeam.players}
-            positions={gameConfig.positions}
-            onTeamNameChange={updateHomeTeamName}
-            onPlayersChange={updateHomePlayers}
-          />
+          {gameConfig.homeTeamDetailedTracking ? (
+            <TeamEntry
+              teamName={gameConfig.homeTeamName}
+              players={homeTeam.players}
+              positions={gameConfig.positions}
+              onTeamNameChange={updateHomeTeamName}
+              onPlayersChange={updateHomePlayers}
+            />
+          ) : (
+            <div className="bg-white border border-gray-200 rounded-lg p-6">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Team Name
+                </label>
+                <input
+                  type="text"
+                  value={gameConfig.homeTeamName}
+                  onChange={(e) => updateHomeTeamName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter team name"
+                />
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-blue-700 text-sm">
+                  <strong>Simplified Tracking:</strong> Only jersey numbers will
+                  be recorded for goals and assists. No detailed player
+                  management is needed.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         <div>
           <h3 className="text-lg font-semibold mb-3 text-red-600">Away Team</h3>
-          <TeamEntry
-            teamName={gameConfig.awayTeamName}
-            players={awayTeam.players}
-            positions={gameConfig.positions}
-            onTeamNameChange={updateAwayTeamName}
-            onPlayersChange={updateAwayPlayers}
-          />
+          {gameConfig.awayTeamDetailedTracking ? (
+            <TeamEntry
+              teamName={gameConfig.awayTeamName}
+              players={awayTeam.players}
+              positions={gameConfig.positions}
+              onTeamNameChange={updateAwayTeamName}
+              onPlayersChange={updateAwayPlayers}
+            />
+          ) : (
+            <div className="bg-white border border-gray-200 rounded-lg p-6">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Team Name
+                </label>
+                <input
+                  type="text"
+                  value={gameConfig.awayTeamName}
+                  onChange={(e) => updateAwayTeamName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  placeholder="Enter team name"
+                />
+              </div>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-700 text-sm">
+                  <strong>Simplified Tracking:</strong> Only jersey numbers will
+                  be recorded for goals and assists. No detailed player
+                  management is needed.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -207,24 +341,40 @@ export const ConfigTab = ({
               <strong>Home Team:</strong> {gameConfig.homeTeamName || 'Not set'}
             </p>
             <p>
-              <strong>Home Players:</strong> {homeTeam.players.length}
+              <strong>Tracking Mode:</strong>{' '}
+              {gameConfig.homeTeamDetailedTracking ? 'Detailed' : 'Simplified'}
             </p>
-            <p>
-              <strong>Home Starters:</strong>{' '}
-              {homeTeam.players.filter((p) => p.isOnField).length}
-            </p>
+            {gameConfig.homeTeamDetailedTracking && (
+              <>
+                <p>
+                  <strong>Home Players:</strong> {homeTeam.players.length}
+                </p>
+                <p>
+                  <strong>Home Starters:</strong>{' '}
+                  {homeTeam.players.filter((p) => p.isOnField).length}
+                </p>
+              </>
+            )}
           </div>
           <div>
             <p>
               <strong>Away Team:</strong> {gameConfig.awayTeamName || 'Not set'}
             </p>
             <p>
-              <strong>Away Players:</strong> {awayTeam.players.length}
+              <strong>Tracking Mode:</strong>{' '}
+              {gameConfig.awayTeamDetailedTracking ? 'Detailed' : 'Simplified'}
             </p>
-            <p>
-              <strong>Away Starters:</strong>{' '}
-              {awayTeam.players.filter((p) => p.isOnField).length}
-            </p>
+            {gameConfig.awayTeamDetailedTracking && (
+              <>
+                <p>
+                  <strong>Away Players:</strong> {awayTeam.players.length}
+                </p>
+                <p>
+                  <strong>Away Starters:</strong>{' '}
+                  {awayTeam.players.filter((p) => p.isOnField).length}
+                </p>
+              </>
+            )}
           </div>
         </div>
         <div className="mt-2">

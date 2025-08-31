@@ -12,6 +12,7 @@ interface GameHeaderSmartProps {
   onToggleGame: () => void;
   onGoalClick: (team: 'home' | 'away') => void;
   onResetGame: () => void;
+  onSaveAndNewGame?: () => Promise<string | null>;
 }
 
 /**
@@ -27,10 +28,23 @@ export const GameHeaderSmart = ({
   onToggleGame,
   onGoalClick,
   onResetGame,
+  onSaveAndNewGame,
 }: GameHeaderSmartProps) => {
   // Calculate scores using the service (in the future this will come from API)
   const homeScore = GameStatsService.getTeamScore(homeTeam);
   const awayScore = GameStatsService.getTeamScore(awayTeam);
+
+  const handleSaveAndNewGame = async () => {
+    if (onSaveAndNewGame) {
+      try {
+        await onSaveAndNewGame();
+        // Could show a success message here
+      } catch (error) {
+        console.error('Failed to save game:', error);
+        // Could show an error message here
+      }
+    }
+  };
 
   return (
     <GameHeaderPresentation
@@ -43,6 +57,7 @@ export const GameHeaderSmart = ({
       onToggleGame={onToggleGame}
       onGoalClick={onGoalClick}
       onResetGame={onResetGame}
+      onSaveAndNewGame={onSaveAndNewGame ? handleSaveAndNewGame : undefined}
     />
   );
 };
