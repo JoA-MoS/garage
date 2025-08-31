@@ -1,9 +1,9 @@
 {
-  "buildCommand": "pnpm nx build chore-board-ui",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "cd ../.. && pnpm nx build chore-board-ui",
   "outputDirectory": "../../dist/apps/chore-board/ui",
-  "framework": "vite",
-  "installCommand": "cd ../.. && pnpm install --frozen-lockfile --ignore-scripts",
-  "devCommand": "cd ../.. && pnpm nx serve chore-board-ui",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "framework": null,
   "rewrites": [
     {
       "source": "/(.*)",

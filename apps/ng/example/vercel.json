@@ -1,9 +1,9 @@
 {
-  "buildCommand": "pnpm nx build ng-example",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "cd ../.. && pnpm nx build ng-example",
   "outputDirectory": "../../dist/apps/ng/example",
-  "framework": "static",
-  "installCommand": "cd ../.. && pnpm install --frozen-lockfile --ignore-scripts",
-  "devCommand": "cd ../.. && pnpm nx serve ng-example",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "framework": null,
   "rewrites": [
     {
       "source": "/(.*)",
