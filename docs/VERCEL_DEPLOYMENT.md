@@ -2,6 +2,15 @@
 
 This guide explains how to deploy applications from the garage monorepo to Vercel following [Vercel's official Nx monorepo best practices](https://vercel.com/docs/monorepos/nx).
 
+## 🚀 Automated CI/CD Deployment
+
+**NEW**: The monorepo now includes automated deployment using Nx affected functionality. See [CI/CD Deployment Guide](CI_CD_DEPLOYMENT.md) for the complete CI/CD solution that:
+
+- 🎯 Only deploys affected UI applications
+- 🔄 Automatic preview deployments on pull requests  
+- 🚀 Production deployments on main branch
+- ⚡ Efficient builds using Nx intelligent caching
+
 ## Quick Start
 
 ### Deploy Soccer Stats App
@@ -25,6 +34,16 @@ node tools/deploy-to-vercel.js <project-name> --production
 node tools/deploy-to-vercel.js chore-board-ui
 node tools/deploy-to-vercel.js chore-board-ui --production
 node tools/deploy-to-vercel.js ng-example
+```
+
+### Deploy Only Affected Applications
+
+```bash
+# Deploy all affected UI apps (preview mode)
+node tools/deploy-affected-apps.js
+
+# Deploy all affected UI apps (production mode)  
+node tools/deploy-affected-apps.js --production
 ```
 
 ## Setup Requirements
@@ -181,16 +200,25 @@ If Vercel doesn't detect your framework correctly:
 
 ## Integration with CI/CD
 
-Add to your GitHub Actions or CI pipeline:
+**Automated Deployment**: The repository includes complete CI/CD integration using GitHub Actions. See [CI/CD Deployment Guide](CI_CD_DEPLOYMENT.md) for:
+
+- Automated affected app detection and deployment
+- Preview deployments on pull requests
+- Production deployments on main branch pushes
+- Vercel GitHub App conflict resolution
+
+### Manual CI/CD Integration
+
+For custom CI/CD setups, add to your pipeline:
 
 ```yaml
-- name: Deploy to Vercel
+- name: Deploy Affected Apps
   env:
     VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
     VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
   run: |
-    node tools/deploy-to-vercel.js soccer-stats --production
+    node tools/deploy-affected-apps.js --production
 ```
 
 ## Additional Resources
@@ -198,3 +226,12 @@ Add to your GitHub Actions or CI pipeline:
 - [Vercel Nx Monorepo Documentation](https://vercel.com/docs/monorepos/nx)
 - [Nx React Deployment Guide](https://nx.dev/technologies/react/recipes/deploy-nextjs-to-vercel)
 - [Vercel CLI Documentation](https://vercel.com/docs/cli)
+- [CI/CD Deployment Guide](CI_CD_DEPLOYMENT.md) - Complete automation guide
+
+## Vercel GitHub App Integration
+
+If you have the [Vercel GitHub App](https://github.com/apps/vercel) installed, it may conflict with this deployment system. See the [CI/CD Deployment Guide](CI_CD_DEPLOYMENT.md#vercel-github-app-integration) for resolution options including:
+
+- Disabling the app for this repository
+- Configuring branch-specific deployments  
+- Using CI/CD for affected deployments while keeping GitHub App for manual deploys
