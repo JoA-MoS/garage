@@ -84,6 +84,14 @@
       "options": {
         "jestConfig": "apps/ng/example/jest.config.ts"
       }
+    },
+    "deploy": {
+      "command": "node ../../../tools/deploy-to-vercel.js ng-example",
+      "dependsOn": ["build"]
+    },
+    "deploy:production": {
+      "command": "node ../../../tools/deploy-to-vercel.js ng-example --production",
+      "dependsOn": ["build"]
     }
   }
 }

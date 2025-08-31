@@ -73,6 +73,26 @@ Run `nx affected:e2e` to execute the end-to-end tests affected by a change.
 
 Run `nx graph` to see a diagram of the dependencies of your projects.
 
+## Vercel Deployment
+
+Deploy UI applications to Vercel with ease:
+
+```bash
+# Deploy soccer stats app
+pnpm nx deploy soccer-stats
+pnpm nx deploy:production soccer-stats
+
+# Deploy chore board UI
+pnpm nx deploy chore-board-ui
+pnpm nx deploy:production chore-board-ui
+
+# Deploy any UI application
+node tools/deploy-to-vercel.js <project-name>
+node tools/deploy-to-vercel.js <project-name> --production
+```
+
+For detailed setup and configuration, see [docs/VERCEL_DEPLOYMENT.md](docs/VERCEL_DEPLOYMENT.md).
+
 ## Further help
 
 Visit the [Nx Documentation](https://nx.dev) to learn more.
