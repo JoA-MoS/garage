@@ -114,6 +114,8 @@ export const testHomeTeam: Team = {
     createTestPlayer(20, 'Pau Víctor', 18, 'Striker', 2),
   ],
   goals: [],
+  statEvents: [], // Phase 1: Initialize empty stat events
+  isDetailedTracking: true,
 };
 
 /**
@@ -171,6 +173,8 @@ export const testAwayTeam: Team = {
     createTestPlayer(40, 'Joselu', 14, 'Striker', 2),
   ],
   goals: [],
+  statEvents: [], // Phase 1: Initialize empty stat events
+  isDetailedTracking: false,
 };
 
 /**
@@ -182,6 +186,8 @@ export const testGameConfig: GameConfig = {
   positions: POSITIONS,
   homeTeamName: testHomeTeam.name,
   awayTeamName: testAwayTeam.name,
+  homeTeamDetailedTracking: true,
+  awayTeamDetailedTracking: false,
 };
 
 /**
@@ -205,6 +211,8 @@ export const testHomeTeamSmall: Team = {
     createTestPlayer(10, 'Parker Thompson', 10, 'Forward', 3),
   ],
   goals: [],
+  statEvents: [], // Phase 1: Initialize empty stat events
+  isDetailedTracking: true,
 };
 
 export const testAwayTeamSmall: Team = {
@@ -225,6 +233,8 @@ export const testAwayTeamSmall: Team = {
     createTestPlayer(20, 'Cameron Young', 10, 'Forward', 3),
   ],
   goals: [],
+  statEvents: [], // Phase 1: Initialize empty stat events
+  isDetailedTracking: false,
 };
 
 export const testGameConfigSmall: GameConfig = {
@@ -233,6 +243,8 @@ export const testGameConfigSmall: GameConfig = {
   positions: ['Goalkeeper', 'Defender', 'Midfielder', 'Forward'],
   homeTeamName: testHomeTeamSmall.name,
   awayTeamName: testAwayTeamSmall.name,
+  homeTeamDetailedTracking: true,
+  awayTeamDetailedTracking: false,
 };
 
 /**
@@ -262,6 +274,8 @@ export const testHomeTeam9v9: Team = {
     createTestPlayer(16, 'Rowan Cooper', 16, 'Right Forward', 2),
   ],
   goals: [],
+  statEvents: [], // Phase 1: Initialize empty stat events
+  isDetailedTracking: true,
 };
 
 export const testAwayTeam9v9: Team = {
@@ -288,6 +302,8 @@ export const testAwayTeam9v9: Team = {
     createTestPlayer(32, 'Indie Baker', 16, 'Right Forward', 2),
   ],
   goals: [],
+  statEvents: [], // Phase 1: Initialize empty stat events
+  isDetailedTracking: false,
 };
 
 export const testGameConfig9v9: GameConfig = {
@@ -304,6 +320,8 @@ export const testGameConfig9v9: GameConfig = {
   ],
   homeTeamName: testHomeTeam9v9.name,
   awayTeamName: testAwayTeam9v9.name,
+  homeTeamDetailedTracking: true,
+  awayTeamDetailedTracking: false,
 };
 
 /**
@@ -331,6 +349,8 @@ export const testHomeTeam7v7: Team = {
     createTestPlayer(46, 'Milo Jackson', 14, 'Forward', 2),
   ],
   goals: [],
+  statEvents: [], // Phase 1: Initialize empty stat events
+  isDetailedTracking: true,
 };
 
 export const testAwayTeam7v7: Team = {
@@ -355,6 +375,8 @@ export const testAwayTeam7v7: Team = {
     createTestPlayer(60, 'Blaze Nelson', 14, 'Forward', 2),
   ],
   goals: [],
+  statEvents: [], // Phase 1: Initialize empty stat events
+  isDetailedTracking: false,
 };
 
 export const testGameConfig7v7: GameConfig = {
@@ -371,4 +393,6 @@ export const testGameConfig7v7: GameConfig = {
   ],
   homeTeamName: testHomeTeam7v7.name,
   awayTeamName: testAwayTeam7v7.name,
+  homeTeamDetailedTracking: true,
+  awayTeamDetailedTracking: false,
 };

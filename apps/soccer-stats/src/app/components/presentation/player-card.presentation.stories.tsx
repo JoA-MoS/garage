@@ -8,12 +8,13 @@ const meta = {
   },
   tags: ['autodocs'],
   argTypes: {
-    onGoalClick: { action: 'goal clicked' },
-    onAssistClick: { action: 'assist clicked' },
     isOnField: {
       control: 'boolean',
     },
     showStatButtons: {
+      control: 'boolean',
+    },
+    showPhase1Stats: {
       control: 'boolean',
     },
   },
@@ -158,5 +159,41 @@ export const LongPlayerName = {
     goals: 1,
     assists: 1,
     showStatButtons: true,
+  },
+};
+
+export const WithPhase1Stats = {
+  args: {
+    player: samplePlayer,
+    isOnField: true,
+    goals: 2,
+    assists: 1,
+    yellowCards: 1,
+    redCards: 0,
+    foulsCommitted: 3,
+    foulsReceived: 2,
+    shotsOnTarget: 5, // 2 goals + 3 additional shots on target
+    shotsOffTarget: 2,
+    saves: 0,
+    showStatButtons: true,
+    showPhase1Stats: true,
+  },
+};
+
+export const GoalkeeperWithPhase1Stats = {
+  args: {
+    player: goalkeeper,
+    isOnField: true,
+    goals: 0,
+    assists: 0,
+    yellowCards: 0,
+    redCards: 0,
+    foulsCommitted: 1,
+    foulsReceived: 2,
+    shotsOnTarget: 0,
+    shotsOffTarget: 0,
+    saves: 7,
+    showStatButtons: true,
+    showPhase1Stats: true,
   },
 };

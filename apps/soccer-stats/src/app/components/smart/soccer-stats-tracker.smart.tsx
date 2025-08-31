@@ -1,10 +1,14 @@
 import { ConfigTab } from '../config-tab';
 import { GoalModal } from '../goal-modal';
+import { OpponentGoalModal } from '../opponent-goal-modal';
 import { TabNavigationPresentation } from '../presentation/tab-navigation.presentation';
+import { GameStatsService } from '../../services/game-stats.service';
 
 import { useGameManager } from './game-manager.smart';
 import { GameHeaderSmart } from './game-header.smart';
+import { HistoryTabSmart } from './history-tab.smart';
 import { LineupTabSmart } from './lineup-tab.smart';
+import { RosterViewSmart } from './roster-view.smart';
 import { SubstitutionsTabSmart } from './substitutions-tab.smart';
 import { StatsTabSmart } from './stats-tab.smart';
 
@@ -45,10 +49,12 @@ export const SoccerStatsTrackerSmart = () => {
     openGoalModal,
     closeGoalModal,
     recordGoal,
+    recordOpponentGoal,
     updatePlayerStat,
     setSelectedScorer,
     setSelectedAssist,
     substitutePlayer,
+    saveAndNewGame,
   } = gameActions;
 
   const { currentTeam, availablePlayers } = derivedData;
@@ -82,6 +88,7 @@ export const SoccerStatsTrackerSmart = () => {
             onToggleGame={toggleGame}
             onGoalClick={openGoalModal}
             onResetGame={resetGame}
+            onSaveAndNewGame={saveAndNewGame}
           />
 
           <TabNavigationPresentation
@@ -98,6 +105,7 @@ export const SoccerStatsTrackerSmart = () => {
                 <LineupTabSmart
                   team={currentTeam}
                   onStatUpdate={updatePlayerStat}
+                  showPhase1Stats={true}
                 />
               </div>
               <div>
@@ -118,21 +126,61 @@ export const SoccerStatsTrackerSmart = () => {
             />
           )}
 
-          {/* Goal Modal */}
-          {showGoalModal && (
-            <GoalModal
-              goalTeam={goalTeam}
-              onClose={closeGoalModal}
-              onRecordGoal={recordGoal}
-              availablePlayers={availablePlayers}
+          {activeTab === 'roster' && (
+            <RosterViewSmart
+              homeTeam={homeTeam}
+              awayTeam={awayTeam}
               homeTeamName={gameConfig.homeTeamName}
               awayTeamName={gameConfig.awayTeamName}
-              selectedScorer={selectedScorer}
-              setSelectedScorer={setSelectedScorer}
-              selectedAssist={selectedAssist}
-              setSelectedAssist={setSelectedAssist}
             />
           )}
+
+          {activeTab === 'history' && <HistoryTabSmart />}
+
+          {activeTab === 'stats' && (
+            <StatsTabSmart
+              homeTeam={homeTeam}
+              awayTeam={awayTeam}
+              gameTime={gameTime}
+            />
+          )}
+
+          {/* Goal Modal */}
+          {showGoalModal &&
+            (() => {
+              const currentTeam = goalTeam === 'home' ? homeTeam : awayTeam;
+              const useDetailedTracking = currentTeam.isDetailedTracking;
+
+              if (useDetailedTracking) {
+                return (
+                  <GoalModal
+                    goalTeam={goalTeam}
+                    onClose={closeGoalModal}
+                    onRecordGoal={recordGoal}
+                    availablePlayers={availablePlayers}
+                    homeTeamName={gameConfig.homeTeamName}
+                    awayTeamName={gameConfig.awayTeamName}
+                    selectedScorer={selectedScorer}
+                    setSelectedScorer={setSelectedScorer}
+                    selectedAssist={selectedAssist}
+                    setSelectedAssist={setSelectedAssist}
+                  />
+                );
+              } else {
+                return (
+                  <OpponentGoalModal
+                    isOpen={true}
+                    teamName={
+                      goalTeam === 'home'
+                        ? gameConfig.homeTeamName
+                        : gameConfig.awayTeamName
+                    }
+                    onClose={closeGoalModal}
+                    onRecordGoal={recordOpponentGoal}
+                  />
+                );
+              }
+            })()}
         </>
       )}
     </div>

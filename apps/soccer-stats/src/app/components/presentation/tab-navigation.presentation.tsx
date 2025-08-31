@@ -34,6 +34,26 @@ export const TabNavigationPresentation = ({
         {awayTeamName} Team
       </button>
       <button
+        onClick={() => onTabChange('roster')}
+        className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200 ${
+          activeTab === 'roster'
+            ? 'bg-white text-blue-600 shadow-sm'
+            : 'text-gray-600 hover:text-gray-800'
+        }`}
+      >
+        Roster
+      </button>
+      <button
+        onClick={() => onTabChange('history')}
+        className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200 ${
+          activeTab === 'history'
+            ? 'bg-white text-blue-600 shadow-sm'
+            : 'text-gray-600 hover:text-gray-800'
+        }`}
+      >
+        History
+      </button>
+      <button
         onClick={() => onTabChange('stats')}
         className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200 ${
           activeTab === 'stats'

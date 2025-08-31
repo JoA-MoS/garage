@@ -7,7 +7,18 @@ interface LineupTabPresentationProps {
   playersOnField: Player[];
   playersOnBench: Player[];
   team: Team;
-  onStatUpdate: (playerId: number, stat: 'goals' | 'assists') => void;
+  onStatUpdate: (
+    playerId: number,
+    stat:
+      | 'yellow_card'
+      | 'red_card'
+      | 'foul_committed'
+      | 'foul_received'
+      | 'shot_on_target'
+      | 'shot_off_target'
+      | 'save'
+  ) => void;
+  showPhase1Stats?: boolean;
 }
 
 export const LineupTabPresentation = ({
@@ -15,6 +26,7 @@ export const LineupTabPresentation = ({
   playersOnBench,
   team,
   onStatUpdate,
+  showPhase1Stats = false,
 }: LineupTabPresentationProps) => {
   return (
     <div className="space-y-6">
@@ -31,6 +43,7 @@ export const LineupTabPresentation = ({
               team={team}
               isOnField={true}
               onStatUpdate={onStatUpdate}
+              showPhase1Stats={showPhase1Stats}
             />
           ))}
         </div>
@@ -49,6 +62,7 @@ export const LineupTabPresentation = ({
               team={team}
               isOnField={false}
               onStatUpdate={onStatUpdate}
+              showPhase1Stats={showPhase1Stats}
             />
           ))}
         </div>

@@ -1,4 +1,4 @@
-import { Team, Goal } from '../types';
+import { Team, Goal, StatEvent, StatEventType } from '../types';
 
 /**
  * Game Statistics Service
@@ -87,5 +87,149 @@ export class GameStatsService {
       assistId,
       realTime: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Create a new opponent goal record using jersey numbers
+   */
+  static createOpponentGoal(
+    scorerJersey: number,
+    assistJersey: number | undefined,
+    gameTime: number
+  ): Goal {
+    return {
+      id: this.generateGoalId(),
+      timestamp: gameTime,
+      scorerId: -1, // Use -1 to indicate opponent goal
+      assistId: assistJersey ? -1 : undefined, // Use -1 for opponent assist or undefined
+      isOpponentGoal: true,
+      opponentScorerJersey: scorerJersey,
+      opponentAssistJersey: assistJersey,
+      realTime: new Date().toISOString(),
+    };
+  }
+
+  // PHASE 1: Additional Statistics Methods
+
+  /**
+   * Generate unique stat event ID
+   */
+  static generateStatEventId(): string {
+    return `stat_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+  }
+
+  /**
+   * Create a new stat event record
+   */
+  static createStatEvent(
+    playerId: number,
+    eventType: StatEventType,
+    gameTime: number,
+    metadata?: Record<string, unknown>
+  ): StatEvent {
+    return {
+      id: this.generateStatEventId(),
+      timestamp: gameTime,
+      playerId,
+      eventType,
+      realTime: new Date().toISOString(),
+      metadata,
+    };
+  }
+
+  /**
+   * Get stat events by type for a specific player
+   */
+  static getPlayerStatEvents(
+    playerId: number,
+    team: Team,
+    eventType?: StatEventType
+  ): StatEvent[] {
+    const playerEvents = team.statEvents.filter(
+      (event) => event.playerId === playerId
+    );
+    return eventType
+      ? playerEvents.filter((event) => event.eventType === eventType)
+      : playerEvents;
+  }
+
+  /**
+   * Get stat count by type for a specific player
+   */
+  static getPlayerStatCount(
+    playerId: number,
+    team: Team,
+    eventType: StatEventType
+  ): number {
+    return this.getPlayerStatEvents(playerId, team, eventType).length;
+  }
+
+  /**
+   * Get yellow cards for a player
+   */
+  static getPlayerYellowCards(playerId: number, team: Team): number {
+    return this.getPlayerStatCount(playerId, team, 'yellow_card');
+  }
+
+  /**
+   * Get red cards for a player
+   */
+  static getPlayerRedCards(playerId: number, team: Team): number {
+    return this.getPlayerStatCount(playerId, team, 'red_card');
+  }
+
+  /**
+   * Get fouls committed by a player
+   */
+  static getPlayerFoulsCommitted(playerId: number, team: Team): number {
+    return this.getPlayerStatCount(playerId, team, 'foul_committed');
+  }
+
+  /**
+   * Get fouls received by a player
+   */
+  static getPlayerFoulsReceived(playerId: number, team: Team): number {
+    return this.getPlayerStatCount(playerId, team, 'foul_received');
+  }
+
+  /**
+   * Get shots on target by a player (includes goals)
+   */
+  static getPlayerShotsOnTarget(playerId: number, team: Team): number {
+    return this.getPlayerStatCount(playerId, team, 'shot_on_target');
+  }
+
+  /**
+   * Get shots off target by a player
+   */
+  static getPlayerShotsOffTarget(playerId: number, team: Team): number {
+    return this.getPlayerStatCount(playerId, team, 'shot_off_target');
+  }
+
+  /**
+   * Get total shots by a player (shots on target + shots off target)
+   * Note: Goals are automatically included in shots on target
+   */
+  static getPlayerTotalShots(playerId: number, team: Team): number {
+    return (
+      this.getPlayerShotsOnTarget(playerId, team) +
+      this.getPlayerShotsOffTarget(playerId, team)
+    );
+  }
+
+  /**
+   * Get saves by a player (goalkeeper)
+   */
+  static getPlayerSaves(playerId: number, team: Team): number {
+    return this.getPlayerStatCount(playerId, team, 'save');
+  }
+
+  /**
+   * Get shooting accuracy for a player
+   */
+  static getPlayerShootingAccuracy(playerId: number, team: Team): number {
+    const totalShots = this.getPlayerTotalShots(playerId, team);
+    const shotsOnTarget = this.getPlayerShotsOnTarget(playerId, team);
+    return totalShots > 0 ? Math.round((shotsOnTarget / totalShots) * 100) : 0;
   }
 }

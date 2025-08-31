@@ -7,6 +7,7 @@ import {
   SubstitutionRecommendation,
 } from '../../types';
 import { GameStatsService } from '../../services/game-stats.service';
+import { useGameHistory } from '../../hooks/use-game-history';
 import { formatTime } from '../../utils';
 import {
   testHomeTeam,
@@ -57,6 +58,7 @@ export interface GameActions {
   // Game control
   startGame: () => void;
   resetGame: () => void;
+  saveAndNewGame: () => Promise<string | null>;
   toggleGame: () => void;
 
   // Navigation
@@ -66,7 +68,20 @@ export interface GameActions {
   openGoalModal: (team: 'home' | 'away') => void;
   closeGoalModal: () => void;
   recordGoal: (scorerId: number, assistId: number | null) => void;
-  updatePlayerStat: (playerId: number, stat: 'goals' | 'assists') => void;
+  recordOpponentGoal: (scorerJersey: number, assistJersey?: number) => void;
+  updatePlayerStat: (
+    playerId: number,
+    stat:
+      | 'goals'
+      | 'assists'
+      | 'yellow_card'
+      | 'red_card'
+      | 'foul_committed'
+      | 'foul_received'
+      | 'shot_on_target'
+      | 'shot_off_target'
+      | 'save'
+  ) => void;
   setSelectedScorer: (scorer: string) => void;
   setSelectedAssist: (assist: string) => void;
 
@@ -85,7 +100,10 @@ export interface DerivedGameData {
 }
 
 export const useGameManager = () => {
-  // Default configuration - using test data for development
+  // Game history hook
+  const { saveCurrentGame } = useGameHistory();
+
+  // Default game configuration
   const defaultGameConfig: GameConfig = testGameConfig;
 
   // State management
@@ -137,14 +155,28 @@ export const useGameManager = () => {
   };
 
   const clearTeams = () => {
-    setHomeTeam({ name: 'Home Team', players: [], goals: [] });
-    setAwayTeam({ name: 'Away Team', players: [], goals: [] });
+    setHomeTeam({
+      name: 'Home Team',
+      players: [],
+      goals: [],
+      statEvents: [],
+      isDetailedTracking: true,
+    });
+    setAwayTeam({
+      name: 'Away Team',
+      players: [],
+      goals: [],
+      statEvents: [],
+      isDetailedTracking: false,
+    });
     setGameConfig({
       playersPerTeam: 11,
       playersOnField: 11,
       positions: ['Goalkeeper', 'Defender', 'Midfielder', 'Forward'],
       homeTeamName: 'Home Team',
       awayTeamName: 'Away Team',
+      homeTeamDetailedTracking: true,
+      awayTeamDetailedTracking: false,
     });
     setGameStarted(false);
     setGameTime(0);
@@ -191,6 +223,39 @@ export const useGameManager = () => {
     setActiveTab('home');
   };
 
+  const MIN_GAME_TIME_FOR_SAVE = 60;
+
+  const saveAndNewGame = async (): Promise<string | null> => {
+    try {
+      // Only save if game has been started and has some time
+      if (!gameStarted || gameTime < MIN_GAME_TIME_FOR_SAVE) {
+        // Just reset if game hasn't really started
+        resetGame();
+        return null;
+      }
+
+      // Save the current game
+      const gameId = saveCurrentGame(
+        homeTeam,
+        awayTeam,
+        gameConfig.homeTeamName,
+        gameConfig.awayTeamName,
+        gameTime,
+        [...homeTeam.goals, ...awayTeam.goals] // Combine all goals
+      );
+
+      // Reset for new game
+      resetGame();
+
+      return gameId;
+    } catch (error) {
+      console.error('Failed to save game:', error);
+      // Still reset even if save failed
+      resetGame();
+      throw error;
+    }
+  };
+
   const toggleGame = () => {
     setIsGameRunning(!isGameRunning);
   };
@@ -235,10 +300,45 @@ export const useGameManager = () => {
     setShowGoalModal(false);
   };
 
+  /**
+   * Records a goal and automatically adds a shot on target for the scorer
+   * (following standard soccer statistics where goals count as shots on target)
+   */
   const recordGoal = (scorerId: number, assistId: number | null) => {
     const newGoal = GameStatsService.createGoal(
       scorerId,
       assistId || undefined,
+      gameTime
+    );
+
+    // Create shot on target stat event for the scorer (goals are shots on target)
+    const shotOnTargetEvent = GameStatsService.createStatEvent(
+      scorerId,
+      'shot_on_target',
+      gameTime
+    );
+
+    if (goalTeam === 'home') {
+      setHomeTeam((prevTeam) => ({
+        ...prevTeam,
+        goals: [...prevTeam.goals, newGoal],
+        statEvents: [...prevTeam.statEvents, shotOnTargetEvent],
+      }));
+    } else {
+      setAwayTeam((prevTeam) => ({
+        ...prevTeam,
+        goals: [...prevTeam.goals, newGoal],
+        statEvents: [...prevTeam.statEvents, shotOnTargetEvent],
+      }));
+    }
+
+    setShowGoalModal(false);
+  };
+
+  const recordOpponentGoal = (scorerJersey: number, assistJersey?: number) => {
+    const newGoal = GameStatsService.createOpponentGoal(
+      scorerJersey,
+      assistJersey,
       gameTime
     );
 
@@ -257,12 +357,23 @@ export const useGameManager = () => {
     setShowGoalModal(false);
   };
 
-  const updatePlayerStat = (playerId: number, stat: 'goals' | 'assists') => {
-    // For quick stat updates, we'll create a goal record
-    // This is a simplified version - in the real app, user would use the goal modal for full details
+  const updatePlayerStat = (
+    playerId: number,
+    stat:
+      | 'goals'
+      | 'assists'
+      | 'yellow_card'
+      | 'red_card'
+      | 'foul_committed'
+      | 'foul_received'
+      | 'shot_on_target'
+      | 'shot_off_target'
+      | 'save'
+  ) => {
     const isHomePlayer = homeTeam.players.some((p) => p.id === playerId);
 
     if (stat === 'goals') {
+      // For goals, we create a goal record
       const newGoal = GameStatsService.createGoal(
         playerId,
         undefined,
@@ -280,9 +391,30 @@ export const useGameManager = () => {
           goals: [...prevTeam.goals, newGoal],
         }));
       }
+    } else if (stat === 'assists') {
+      // For assists, we would need to associate with an existing goal
+      // This is a limitation of the quick stat buttons - better to use the goal modal
+      console.log('Assist tracking requires goal association - use goal modal');
+    } else {
+      // For all other stats, create a stat event
+      const newStatEvent = GameStatsService.createStatEvent(
+        playerId,
+        stat,
+        gameTime
+      );
+
+      if (isHomePlayer) {
+        setHomeTeam((prevTeam) => ({
+          ...prevTeam,
+          statEvents: [...prevTeam.statEvents, newStatEvent],
+        }));
+      } else {
+        setAwayTeam((prevTeam) => ({
+          ...prevTeam,
+          statEvents: [...prevTeam.statEvents, newStatEvent],
+        }));
+      }
     }
-    // For assists, we would need to associate with an existing goal
-    // This is a limitation of the quick stat buttons - better to use the goal modal
   };
 
   // Substitution management
@@ -361,11 +493,15 @@ export const useGameManager = () => {
         name: gameConfig.homeTeamName,
         players: [],
         goals: [],
+        statEvents: [],
+        isDetailedTracking: gameConfig.homeTeamDetailedTracking,
       });
       setAwayTeam({
         name: gameConfig.awayTeamName,
         players: [],
         goals: [],
+        statEvents: [],
+        isDetailedTracking: gameConfig.awayTeamDetailedTracking,
       });
     }
   }, [
@@ -414,11 +550,13 @@ export const useGameManager = () => {
     setGameConfig,
     startGame,
     resetGame,
+    saveAndNewGame,
     toggleGame,
     setActiveTab,
     openGoalModal,
     closeGoalModal,
     recordGoal,
+    recordOpponentGoal,
     updatePlayerStat,
     setSelectedScorer,
     setSelectedAssist,
