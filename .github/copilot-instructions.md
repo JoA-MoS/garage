@@ -292,6 +292,263 @@ docs: update API documentation for auth endpoints
 chore: update dependencies to latest versions
 ```
 
+## Styling with Tailwind CSS
+
+**This workspace strongly encourages and defaults to Tailwind CSS for all styling needs.** Tailwind CSS is the primary styling framework and should be used for all new UI components and applications.
+
+### Why Tailwind CSS
+
+- **Consistency**: Provides a unified design system across all applications
+- **Developer Experience**: Excellent IntelliSense and autocompletion support
+- **Performance**: Optimized build output with unused CSS purging
+- **Maintainability**: Utility-first approach reduces custom CSS maintenance
+- **Team Productivity**: Rapid prototyping and development
+
+### Framework-Specific Setup
+
+#### React Applications (Recommended Pattern)
+
+For React applications, use the established pattern from `chore-board-ui`:
+
+**tailwind.config.js:**
+```javascript
+const { join } = require('path');
+const { createGlobPatternsForDependencies } = require('@nx/react/tailwind');
+
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    join(
+      __dirname,
+      '{src,pages,components,app}/**/*!(*.stories|*.spec).{ts,tsx,html}'
+    ),
+    ...createGlobPatternsForDependencies(__dirname),
+  ],
+  theme: {
+    extend: {
+      // Add custom theme extensions here
+    },
+  },
+  plugins: [
+    // Add plugins as needed
+  ],
+};
+```
+
+**postcss.config.js:**
+```javascript
+const { join } = require('path');
+
+module.exports = {
+  plugins: {
+    tailwindcss: {
+      config: join(__dirname, 'tailwind.config.js'),
+    },
+    autoprefixer: {},
+  },
+};
+```
+
+#### Angular Applications
+
+For Angular applications, use the pattern from `ng-example`:
+
+**tailwind.config.js:**
+```javascript
+const { join } = require('path');
+const { createGlobPatternsForDependencies } = require('@nx/angular/tailwind');
+
+module.exports = {
+  content: [
+    join(__dirname, 'src/**/!(*.stories|*.spec).{ts,html}'),
+    ...createGlobPatternsForDependencies(__dirname),
+  ],
+  theme: {
+    extend: {
+      // Add custom theme extensions here
+    },
+  },
+  plugins: [],
+};
+```
+
+### Current Custom Theme Extensions
+
+The workspace includes several custom theme extensions that should be leveraged:
+
+```javascript
+// Available custom utilities (from chore-board-ui)
+theme: {
+  extend: {
+    backgroundImage: {
+      checkered: 'repeating-conic-gradient(black 0% 25%, transparent 0% 50%) 50% / 40px 40px',
+    },
+    gridTemplateAreas: {
+      scramble: ['nav  main  finnish', 'footer footer footer'],
+    },
+    gridTemplateColumns: {
+      scramble: 'auto 2fr auto',
+    },
+    gridTemplateRows: {
+      scramble: ` 1fr
+                  auto`,
+    },
+  },
+},
+plugins: [require('@savvywombat/tailwindcss-grid-areas')],
+```
+
+### Tailwind CSS Best Practices
+
+#### Component Styling Guidelines
+
+**Use Tailwind classes directly in components:**
+```tsx
+// ✅ Preferred approach
+export const Button = ({ children, variant = 'primary' }) => {
+  const baseClasses = 'px-4 py-2 rounded-md font-medium focus:outline-none focus:ring-2';
+  const variantClasses = {
+    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
+    secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500',
+  };
+  
+  return (
+    <button className={`${baseClasses} ${variantClasses[variant]}`}>
+      {children}
+    </button>
+  );
+};
+```
+
+**For complex conditional styling, use clsx or similar:**
+```tsx
+import clsx from 'clsx';
+
+const buttonClasses = clsx(
+  'px-4 py-2 rounded-md font-medium',
+  {
+    'bg-blue-600 text-white': variant === 'primary',
+    'bg-gray-200 text-gray-900': variant === 'secondary',
+    'opacity-50 cursor-not-allowed': disabled,
+  }
+);
+```
+
+#### Responsive Design Patterns
+
+```tsx
+// Use Tailwind's responsive utilities
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  <div className="p-4 sm:p-6 lg:p-8">
+    <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold">
+      Responsive Content
+    </h2>
+  </div>
+</div>
+```
+
+#### Custom Component Classes
+
+When creating reusable patterns, define them in your Tailwind config:
+
+```javascript
+// tailwind.config.js
+module.exports = {
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          50: '#eff6ff',
+          500: '#3b82f6',
+          900: '#1e3a8a',
+        },
+      },
+      spacing: {
+        '18': '4.5rem',
+        '88': '22rem',
+      },
+    },
+  },
+};
+```
+
+### Available Plugins
+
+The workspace includes these Tailwind plugins:
+
+- **@savvywombat/tailwindcss-grid-areas**: Enables CSS Grid Areas with Tailwind utilities
+  - Use `grid-areas-{name}` and `grid-in-{area}` classes
+  - Example: `grid-areas-scramble grid-in-nav`
+
+### Integration with Development Tools
+
+#### Prettier Integration
+
+The workspace includes `prettier-plugin-tailwindcss` for automatic class sorting:
+- Classes are automatically sorted in recommended order
+- No manual class organization needed
+- Consistent class order across the codebase
+
+#### IntelliSense Setup
+
+For optimal development experience, ensure your IDE has:
+- Tailwind CSS IntelliSense extension installed
+- Proper configuration for class name completion
+- Hover previews for utility classes
+
+### Validation Commands
+
+When working with Tailwind CSS applications:
+
+```bash
+# Build and validate Tailwind compilation
+pnpm nx build chore-board-ui
+pnpm nx build ng-example
+
+# Serve with hot reload (if environment supports)
+pnpm nx serve chore-board-ui
+pnpm nx serve ng-example
+
+# Test applications using Tailwind
+pnpm nx test chore-board-ui
+pnpm nx test ng-example
+```
+
+### Migration from Other CSS Approaches
+
+When working with existing components:
+
+1. **Gradual Migration**: Convert components to Tailwind CSS incrementally
+2. **Preserve Functionality**: Ensure visual parity during migration
+3. **Remove Custom CSS**: Delete unused CSS files after Tailwind migration
+4. **Update Tests**: Verify component tests still pass after styling changes
+
+### Common Patterns in This Workspace
+
+**Grid Layout with Areas:**
+```tsx
+<div className="grid-areas-scramble grid-cols-scramble grid-rows-scramble grid h-screen">
+  <nav className="grid-in-nav">Navigation</nav>
+  <main className="grid-in-main">Content</main>
+  <footer className="grid-in-footer">Footer</footer>
+</div>
+```
+
+**Assignee Circles:**
+```tsx
+const person = {
+  bgColor: 'bg-cyan-400',
+  borderColor: 'border-cyan-400',
+};
+```
+
+**Dark Theme Patterns:**
+```tsx
+<nav className="bg-slate-900 text-white">
+  <div className="bg-slate-200">Light content area</div>
+</nav>
+```
+
 ## Important Notes
 
 - **ALWAYS** validate changes with lint, test, and build before committing
