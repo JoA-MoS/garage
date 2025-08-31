@@ -1,7 +1,7 @@
 import { Users } from 'lucide-react';
 
 import { Player, Team } from '../../types';
-import { PlayerCard } from '../player-card';
+import { PlayerCardSmart } from '../smart/player-card.smart';
 
 interface LineupTabPresentationProps {
   playersOnField: Player[];
@@ -25,7 +25,7 @@ export const LineupTabPresentation = ({
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {playersOnField.map((player) => (
-            <PlayerCard
+            <PlayerCardSmart
               key={player.id}
               player={player}
               team={team}
@@ -43,7 +43,7 @@ export const LineupTabPresentation = ({
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {playersOnBench.map((player) => (
-            <PlayerCard
+            <PlayerCardSmart
               key={player.id}
               player={player}
               team={team}

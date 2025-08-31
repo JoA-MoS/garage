@@ -28,7 +28,8 @@ function createTestPlayer(
   jersey: number,
   position: string,
   depthRank: number,
-  isStarter = false
+  isStarter = false,
+  photo?: string
 ): Player {
   return {
     id,
@@ -38,6 +39,7 @@ function createTestPlayer(
     depthRank,
     playTime: 0,
     isOnField: isStarter,
+    photo,
   };
 }
 
@@ -48,17 +50,57 @@ export const testHomeTeam: Team = {
   name: 'FC Barcelona',
   players: [
     // Starters (Formation: 4-3-3)
-    createTestPlayer(1, 'Marc-André ter Stegen', 1, 'Goalkeeper', 1, true),
+    createTestPlayer(
+      1,
+      'Marc-André ter Stegen',
+      1,
+      'Goalkeeper',
+      1,
+      true,
+      'https://images.unsplash.com/photo-1564752066068-5f58d370c7d1?w=400&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
+    ),
     createTestPlayer(2, 'Jules Koundé', 23, 'Right Back', 1, true),
-    createTestPlayer(3, 'Ronald Araújo', 4, 'Center Back', 1, true),
+    createTestPlayer(
+      3,
+      'Ronald Araújo',
+      4,
+      'Center Back',
+      1,
+      true,
+      'https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=400&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
+    ),
     createTestPlayer(4, 'Pau Cubarsí', 2, 'Center Back', 2, true),
     createTestPlayer(5, 'Alejandro Balde', 3, 'Left Back', 1, true),
-    createTestPlayer(6, 'Pedri', 8, 'Central Midfielder', 1, true),
+    createTestPlayer(
+      6,
+      'Pedri',
+      8,
+      'Central Midfielder',
+      1,
+      true,
+      'https://images.unsplash.com/photo-1594736797933-d0601ba2fe65?w=400&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
+    ),
     createTestPlayer(7, 'Frenkie de Jong', 21, 'Central Midfielder', 1, true),
     createTestPlayer(8, 'Gavi', 6, 'Central Midfielder', 2, true),
-    createTestPlayer(9, 'Robert Lewandowski', 9, 'Striker', 1, true),
+    createTestPlayer(
+      9,
+      'Robert Lewandowski',
+      9,
+      'Striker',
+      1,
+      true,
+      'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
+    ),
     createTestPlayer(10, 'Raphinha', 11, 'Right Winger', 1, true),
-    createTestPlayer(11, 'Ferran Torres', 7, 'Left Winger', 1, true),
+    createTestPlayer(
+      11,
+      'Ferran Torres',
+      7,
+      'Left Winger',
+      1,
+      true,
+      'https://images.unsplash.com/photo-1560272564-c83b66b1ad12?w=400&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
+    ),
 
     // Substitutes
     createTestPlayer(12, 'Iñaki Peña', 13, 'Goalkeeper', 2),
@@ -81,7 +123,15 @@ export const testAwayTeam: Team = {
   name: 'Real Madrid',
   players: [
     // Starters (Formation: 4-3-3)
-    createTestPlayer(21, 'Thibaut Courtois', 1, 'Goalkeeper', 1, true),
+    createTestPlayer(
+      21,
+      'Thibaut Courtois',
+      1,
+      'Goalkeeper',
+      1,
+      true,
+      'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=400&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
+    ),
     createTestPlayer(22, 'Dani Carvajal', 2, 'Right Back', 1, true),
     createTestPlayer(23, 'Éder Militão', 3, 'Center Back', 1, true),
     createTestPlayer(24, 'Antonio Rüdiger', 22, 'Center Back', 1, true),
@@ -92,9 +142,18 @@ export const testAwayTeam: Team = {
       18,
       'Defensive Midfielder',
       1,
-      true
+      true,
+      'https://images.unsplash.com/photo-1552318965-6e6be7484ada?w=400&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
     ),
-    createTestPlayer(27, 'Luka Modrić', 10, 'Central Midfielder', 1, true),
+    createTestPlayer(
+      27,
+      'Luka Modrić',
+      10,
+      'Central Midfielder',
+      1,
+      true,
+      'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?w=400&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
+    ),
     createTestPlayer(28, 'Jude Bellingham', 5, 'Attacking Midfielder', 1, true),
     createTestPlayer(29, 'Vinícius Jr.', 7, 'Left Winger', 1, true),
     createTestPlayer(30, 'Karim Benzema', 9, 'Striker', 1, true),

@@ -6,6 +6,7 @@ export interface Player {
   depthRank: number;
   playTime: number;
   isOnField: boolean;
+  photo?: string; // Optional URL to player photo
 }
 
 export interface Goal {
