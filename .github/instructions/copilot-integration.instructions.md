@@ -76,9 +76,17 @@ export const {FeatureName}Presentation: React.FC<{FeatureName}PresentationProps>
   // other props
 }) => {
   return (
-    <div className="{feature-name}">
-      {/* UI content here */}
-      <button onClick={onAction}>Action</button>
+    <div className="p-4 bg-white rounded-lg shadow-md">
+      {/* Always use Tailwind CSS classes for styling */}
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">
+        {FeatureName} Component
+      </h2>
+      <button 
+        onClick={onAction}
+        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        Action
+      </button>
     </div>
   );
 };
@@ -192,17 +200,45 @@ export const create{Domain} = async (data: Create{Domain}Request): Promise<{Doma
 
 ### Existing Patterns
 
-- Look at existing components in the `soccer-stats` app for reference
+- Look at existing components in the `chore-board-ui` app for reference
 - Follow the established Smart/Presentation pattern already implemented
-- Use similar styling approaches (Tailwind CSS where applicable)
+- **Use Tailwind CSS for all styling** - this is the workspace standard
+- Follow the grid-areas pattern for complex layouts (see `chore-board-ui/app.tsx`)
+- Use established color patterns (`bg-cyan-400`, `bg-purple-400`, `bg-green-400` for assignees)
 
 ### Technology Stack
 
 - React with TypeScript
-- Tailwind CSS for styling
+- **Tailwind CSS for styling (STRONGLY RECOMMENDED - use for all new components)**
 - React Testing Library for testing
 - Vite for bundling (where applicable)
 - NestJS for API applications
+
+### Styling Guidelines
+
+**Always use Tailwind CSS for new components:**
+
+- Use utility classes directly in components: `className="flex items-center justify-between p-4 bg-white rounded-lg"`
+- Leverage responsive utilities: `className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3"`
+- Use the workspace's custom theme extensions when applicable (grid-areas, checkered backgrounds)
+- Follow the existing patterns from `chore-board-ui` for consistency
+
+**Common Tailwind patterns in this workspace:**
+```tsx
+// Grid layout with custom areas
+<div className="grid-areas-scramble grid-cols-scramble grid-rows-scramble grid h-screen">
+  <nav className="grid-in-nav bg-slate-900 text-white">...</nav>
+  <main className="grid-in-main bg-slate-200">...</main>
+</div>
+
+// Assignee circles pattern
+<div className="bg-cyan-400 border-cyan-400 rounded-full">...</div>
+
+// Interactive elements
+<button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+  Action
+</button>
+```
 
 ## Migration and Refactoring
 
