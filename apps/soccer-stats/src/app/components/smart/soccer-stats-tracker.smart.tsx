@@ -1,5 +1,4 @@
 import { ConfigTab } from '../config-tab';
-import { StatsTab } from '../stats-tab';
 import { GoalModal } from '../goal-modal';
 import { TabNavigationPresentation } from '../presentation/tab-navigation.presentation';
 
@@ -7,6 +6,7 @@ import { useGameManager } from './game-manager.smart';
 import { GameHeaderSmart } from './game-header.smart';
 import { LineupTabSmart } from './lineup-tab.smart';
 import { SubstitutionsTabSmart } from './substitutions-tab.smart';
+import { StatsTabSmart } from './stats-tab.smart';
 
 /**
  * Main smart component that orchestrates all other smart components and manages the overall game state
@@ -111,7 +111,7 @@ export const SoccerStatsTrackerSmart = () => {
           )}
 
           {activeTab === 'stats' && (
-            <StatsTab
+            <StatsTabSmart
               homeTeam={homeTeam}
               awayTeam={awayTeam}
               gameTime={gameTime}

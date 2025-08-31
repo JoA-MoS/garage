@@ -1,26 +1,25 @@
-import { Player, Team } from '../types';
-import { GameStatsService } from '../services/game-stats.service';
-
-import { PlayerCardPresentation } from './presentation/player-card.presentation';
+import { Player, Team } from '../../types';
+import { GameStatsService } from '../../services/game-stats.service';
+import { PlayerCardPresentation } from '../presentation/player-card.presentation';
 
 /**
  * Smart Component: Handles data fetching and state management
  * Computes stats and passes them to the dumb presentation component
  */
 
-interface PlayerCardProps {
+interface PlayerCardSmartProps {
   player: Player;
   team: Team;
   isOnField: boolean;
   onStatUpdate?: (playerId: number, stat: 'goals' | 'assists') => void;
 }
 
-export const PlayerCard = ({
+export const PlayerCardSmart = ({
   player,
   team,
   isOnField,
   onStatUpdate,
-}: PlayerCardProps) => {
+}: PlayerCardSmartProps) => {
   // Compute stats using the service (will eventually come from API/database)
   const goals = GameStatsService.getPlayerGoals(player.id, team);
   const assists = GameStatsService.getPlayerAssists(player.id, team);

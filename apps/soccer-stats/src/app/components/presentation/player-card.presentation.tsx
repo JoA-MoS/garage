@@ -43,38 +43,61 @@ export const PlayerCardPresentation = ({
 
   return (
     <div className={`${cardClass} rounded-lg p-4`}>
-      <div className="flex justify-between items-start mb-2">
-        <div>
-          <h4 className={nameClass}>
-            #{player.jersey} {player.name}
-          </h4>
-          <p className={positionClass}>{player.position}</p>
+      <div className="flex space-x-4">
+        {/* Player Photo - Now larger and rectangular */}
+        <div className="flex-shrink-0">
+          {player.photo ? (
+            <img
+              src={player.photo}
+              alt={`${player.name} photo`}
+              className="w-16 h-20 rounded-lg object-cover border-2 border-gray-300"
+            />
+          ) : (
+            <div className="w-16 h-20 rounded-lg bg-gray-300 flex flex-col items-center justify-center text-gray-600 border-2 border-gray-400">
+              <span className="text-lg font-bold">#{player.jersey}</span>
+            </div>
+          )}
         </div>
-        <div className="text-right">
-          <p className={timeClass}>{formatTime(player.playTime)}</p>
-        </div>
-      </div>
-      <div className="flex justify-between items-center">
-        <div className="flex space-x-4 text-sm">
-          <span className="text-gray-600">Goals: {goals}</span>
-          <span className="text-gray-600">Assists: {assists}</span>
-        </div>
-        {showStatButtons && (
-          <div className="flex space-x-2">
-            <button
-              onClick={onGoalClick}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
-            >
-              +Goal
-            </button>
-            <button
-              onClick={onAssistClick}
-              className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs"
-            >
-              +Assist
-            </button>
+
+        {/* Player Info and Stats */}
+        <div className="flex-1 min-w-0">
+          {/* Top row: Name, Position, and Play Time */}
+          <div className="flex justify-between items-start mb-2">
+            <div>
+              <h4 className={nameClass}>
+                #{player.jersey} {player.name}
+              </h4>
+              <p className={positionClass}>{player.position}</p>
+            </div>
+            <div className="text-right">
+              <p className={timeClass}>{formatTime(player.playTime)}</p>
+            </div>
           </div>
-        )}
+
+          {/* Bottom row: Goals/Assists and Action Buttons */}
+          <div className="flex justify-between items-center">
+            <div className="flex space-x-4 text-sm">
+              <span className="text-gray-600">Goals: {goals}</span>
+              <span className="text-gray-600">Assists: {assists}</span>
+            </div>
+            {showStatButtons && (
+              <div className="flex space-x-2">
+                <button
+                  onClick={onGoalClick}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
+                >
+                  +Goal
+                </button>
+                <button
+                  onClick={onAssistClick}
+                  className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs"
+                >
+                  +Assist
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
