@@ -73,13 +73,6 @@
         "buildTarget": "chore-board-ui:build"
       }
     },
-    "deploy": {
-      "command": "node ../../../tools/deploy-to-vercel.js chore-board-ui",
-      "dependsOn": ["build"]
-    },
-    "deploy:production": {
-      "command": "node ../../../tools/deploy-to-vercel.js chore-board-ui --production",
-      "dependsOn": ["build"]
-    }
+
   }
 }
