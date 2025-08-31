@@ -80,15 +80,12 @@ Deploy UI applications to Vercel with ease:
 ```bash
 # Deploy soccer stats app
 pnpm nx deploy soccer-stats
-pnpm nx deploy:production soccer-stats
 
 # Deploy chore board UI
 pnpm nx deploy chore-board-ui
-pnpm nx deploy:production chore-board-ui
 
-# Deploy any UI application
-node tools/deploy-to-vercel.js <project-name>
-node tools/deploy-to-vercel.js <project-name> --production
+# Deploy any UI application using Vercel CLI
+vercel deploy --prod ./dist/apps/<project-name>
 ```
 
 For detailed setup and configuration, see [docs/VERCEL_DEPLOYMENT.md](docs/VERCEL_DEPLOYMENT.md).
