@@ -1,4 +1,3 @@
-/* eslint-disable */
 export default {
   displayName: 'campsite-watcher-lambda',
   preset: '../../jest.preset.js',
