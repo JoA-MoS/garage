@@ -99,13 +99,6 @@
         }
       }
     },
-    "deploy": {
-      "command": "node ../../tools/deploy-to-vercel.js soccer-stats",
-      "dependsOn": ["build"]
-    },
-    "deploy:production": {
-      "command": "node ../../tools/deploy-to-vercel.js soccer-stats --production",
-      "dependsOn": ["build"]
-    }
+
   }
 }

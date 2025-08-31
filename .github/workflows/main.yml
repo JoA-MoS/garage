@@ -14,9 +14,6 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   DOCKER_USERNAME: ${{secrets.DOCKER_USERNAME}}
   DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
-  VERCEL_TOKEN: ${{secrets.VERCEL_TOKEN}}
-  VERCEL_ORG_ID: ${{secrets.VERCEL_ORG_ID}}
-  VERCEL_PROJECT_ID: ${{secrets.VERCEL_PROJECT_ID}}
 
 jobs:
   main:
@@ -49,34 +46,6 @@ jobs:
       - run: NX_CLOUD_DISTRIBUTED_EXECUTION=false pnpm nx affected --target=docker-build
       - run: NX_CLOUD_DISTRIBUTED_EXECUTION=false pnpm nx affected --target=release
       - run: pnpm nx-cloud stop-all-agents
-
-  # Deploy affected UI applications to Vercel
-  deploy:
-    runs-on: ubuntu-latest
-    needs: main
-    # Only run if main job succeeded and we're not in a fork
-    if: success() && github.repository == 'JoA-MoS/garage'
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Derive appropriate SHAs for base and head for `nx affected` commands
-        uses: nrwl/nx-set-shas@v3
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v3
-        with:
-          node-version-file: '.nvmrc'
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      
-      # Deploy to preview for pull requests, production for main branch
-      - name: Deploy affected apps (Preview)
-        if: github.event_name == 'pull_request'
-        run: node tools/deploy-affected-apps.js --base=origin/${{ github.base_ref }}
-        
-      - name: Deploy affected apps (Production)
-        if: github.event_name == 'push' && contains(fromJSON('["main", "alpha", "beta", "next"]'), github.ref_name)
-        run: node tools/deploy-affected-apps.js --production --base=HEAD~1
 
   agents:
     runs-on: ubuntu-latest

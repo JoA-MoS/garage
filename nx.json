@@ -39,16 +39,7 @@
       ],
       "cache": true
     },
-    "deploy": {
-      "inputs": [
-        "production",
-        "^production",
-        {
-          "env": "STAGE"
-        }
-      ],
-      "cache": true
-    },
+
     "package": {
       "inputs": [
         "production",
@@ -165,5 +156,13 @@
   },
   "nxCloudAccessToken": "Njk1YzdjMmUtN2MzMS00YzdlLTg0MzItY2Y4Yjc2MmM3YjhlfHJlYWQ=",
   "useInferencePlugins": false,
-  "defaultBase": "main"
+  "defaultBase": "main",
+  "tasksRunnerOptions": {
+    "default": {
+      "runner": "@vercel/remote-nx",
+      "options": {
+        "cacheDirectory": "/tmp/nx-cache"
+      }
+    }
+  }
 }
