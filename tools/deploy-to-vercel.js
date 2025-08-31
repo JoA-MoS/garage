@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
+/**
+ * Deploy Nx applications to Vercel following best practices
+ * Based on Vercel's official Nx monorepo documentation
+ * Usage: node deploy-to-vercel.js <project-name> [--production]
+ */
+
 const { execSync } = require('child_process');
 const { readFileSync, writeFileSync, existsSync } = require('fs');
 const { join } = require('path');
-
-/**
- * Deploy Nx applications to Vercel
- * Usage: node deploy-to-vercel.js <project-name> [--production]
- */
 
 function main() {
   const args = process.argv.slice(2);
@@ -25,70 +26,40 @@ function main() {
 
   console.log(`🚀 Deploying ${projectName} to Vercel${isProduction ? ' (production)' : ' (preview)'}...`);
 
-  // Read workspace configuration to get project info
-  let projectConfig;
+  // Get project information using nx
+  let projectRoot;
   try {
-    // First try to read from nx.json projects configuration
-    const nxConfig = JSON.parse(readFileSync(join(workspaceRoot, 'nx.json'), 'utf8'));
-    
-    // Look for the project in various possible locations
-    const possiblePaths = [
-      `apps/${projectName}/project.json`,
-      `libs/${projectName}/project.json`,
-      `apps/${projectName.replace('-ui', '')}/ui/project.json`,
-      `apps/${projectName.replace('-ui', '')}/project.json`,
-      `apps/ng/${projectName.replace('ng-', '')}/project.json`, // For ng-example
-    ];
-    
-    for (const path of possiblePaths) {
-      const fullPath = join(workspaceRoot, path);
-      if (existsSync(fullPath)) {
-        const config = JSON.parse(readFileSync(fullPath, 'utf8'));
-        // Extract the directory path from the project.json location
-        const projectDir = path.substring(0, path.lastIndexOf('/project.json'));
-        projectConfig = { root: projectDir, ...config };
-        console.log(`📁 Found project configuration at ${path}`);
-        break;
-      }
-    }
-    
-    // If not found in standard locations, try reading all project.json files
-    if (!projectConfig) {
-      const { execSync } = require('child_process');
-      try {
-        const projectInfo = execSync(`pnpm nx show project ${projectName} --json`, { 
-          cwd: workspaceRoot, 
-          encoding: 'utf8',
-          stdio: ['pipe', 'pipe', 'ignore']
-        });
-        const parsedInfo = JSON.parse(projectInfo);
-        projectConfig = parsedInfo;
-        console.log(`📁 Found project via nx show: ${parsedInfo.root}`);
-      } catch (nxError) {
-        // Ignore nx errors and continue with manual search
-      }
-    }
+    const projectInfo = execSync(`pnpm nx show project ${projectName} --json`, { 
+      cwd: workspaceRoot, 
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'ignore']
+    });
+    const project = JSON.parse(projectInfo);
+    projectRoot = project.root;
+    console.log(`📁 Found project at: ${projectRoot}`);
   } catch (error) {
-    console.error('❌ Failed to read workspace configuration:', error.message);
-    process.exit(1);
-  }
-
-  if (!projectConfig) {
     console.error(`❌ Project ${projectName} not found in workspace`);
+    console.error('Available projects:');
+    try {
+      const projects = execSync('pnpm nx show projects', { cwd: workspaceRoot, encoding: 'utf8' });
+      console.error(projects);
+    } catch (e) {
+      // Ignore error
+    }
     process.exit(1);
   }
 
-  const projectPath = join(workspaceRoot, projectConfig.root);
+  const projectPath = join(workspaceRoot, projectRoot);
   
-  // Create vercel.json if it doesn't exist
+  // Ensure vercel.json exists with minimal configuration
   const vercelConfigPath = join(projectPath, 'vercel.json');
   if (!existsSync(vercelConfigPath)) {
-    const defaultConfig = createDefaultVercelConfig(projectName, projectConfig);
-    writeFileSync(vercelConfigPath, JSON.stringify(defaultConfig, null, 2));
-    console.log(`📝 Created vercel.json for ${projectName}`);
+    const config = createMinimalVercelConfig(projectName, projectRoot);
+    writeFileSync(vercelConfigPath, JSON.stringify(config, null, 2));
+    console.log(`📝 Created minimal vercel.json for ${projectName}`);
   }
 
-  // Build the project first
+  // Build the project from workspace root
   console.log(`🔨 Building ${projectName}...`);
   try {
     execSync(`pnpm nx build ${projectName}`, {
@@ -100,53 +71,46 @@ function main() {
     process.exit(1);
   }
 
-  // Deploy to Vercel
-  console.log(`🚀 Deploying to Vercel...`);
+  // Deploy from project directory (Vercel best practice for monorepos)
+  console.log(`🚀 Deploying from project directory...`);
   try {
     const deployCommand = [
       'npx vercel',
       isProduction ? '--prod' : '',
       '--yes', // Skip confirmation prompts
+      '--cwd', projectPath // Deploy from project directory
     ].filter(Boolean).join(' ');
 
     execSync(deployCommand, {
       stdio: 'inherit',
-      cwd: projectPath,
+      cwd: workspaceRoot, // Run from workspace root but deploy project directory
     });
 
     console.log(`✅ Successfully deployed ${projectName} to Vercel`);
   } catch (error) {
     console.error(`❌ Deployment failed for ${projectName}`);
+    console.error('Make sure you are logged in to Vercel CLI: npx vercel login');
     process.exit(1);
   }
 }
 
-function createDefaultVercelConfig(projectName, projectConfig) {
-  const buildTarget = projectConfig.targets?.build;
-  const outputPath = buildTarget?.options?.outputPath || `dist/apps/${projectName}`;
+/**
+ * Create minimal vercel.json configuration following Vercel's Nx best practices
+ * Let Vercel auto-detect framework and other settings when possible
+ */
+function createMinimalVercelConfig(projectName, projectRoot) {
+  // Calculate relative path from project to workspace root
+  const pathSegments = projectRoot.split('/').length;
+  const workspaceRelative = '../'.repeat(pathSegments);
   
-  // Determine framework based on project type
-  let framework = 'static';
-  if (projectConfig.projectType === 'application') {
-    // Check if it's a React app
-    if (buildTarget?.executor === '@nx/vite:build' || buildTarget?.executor === '@nx/webpack:webpack') {
-      framework = 'vite';
-    }
-    // Check if it's an Angular app  
-    if (buildTarget?.executor === '@angular-devkit/build-angular:browser' || 
-        buildTarget?.executor === '@nx/angular:webpack-browser') {
-      framework = 'static'; // Angular builds to static files
-    }
-  }
-
   return {
-    buildCommand: `pnpm nx build ${projectName}`,
-    outputDirectory: outputPath.startsWith('/') ? outputPath : `../../${outputPath}`,
-    framework,
-    installCommand: 'cd ../.. && pnpm install --frozen-lockfile --ignore-scripts',
-    devCommand: `cd ../.. && pnpm nx serve ${projectName}`,
-    rewrites: [
-      { source: '/(.*)', destination: '/index.html' }
+    "$schema": "https://openapi.vercel.sh/vercel.json",
+    "buildCommand": `cd ${workspaceRelative} && pnpm nx build ${projectName}`,
+    "outputDirectory": `${workspaceRelative}dist/${projectRoot}`,
+    "installCommand": `cd ${workspaceRelative} && pnpm install --frozen-lockfile`,
+    "framework": null, // Let Vercel auto-detect
+    "rewrites": [
+      { "source": "/(.*)", "destination": "/index.html" }
     ]
   };
 }
