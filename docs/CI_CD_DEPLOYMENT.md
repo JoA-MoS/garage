@@ -1,36 +1,47 @@
 # CI/CD Deployment Guide
 
-This guide covers the automated deployment system for UI applications in the garage monorepo using Nx affected functionality and Vercel.
+This guide covers the automated deployment system for applications in the garage monorepo using Nx affected functionality.
 
 ## Overview
 
-The CI/CD system automatically deploys only the UI applications that have been changed (affected) using Nx's intelligent dependency graph analysis. This ensures efficient deployments and reduces unnecessary build times.
+The CI/CD system automatically deploys only the applications that have been changed (affected) using Nx's intelligent dependency graph analysis. This ensures efficient deployments and reduces unnecessary build times.
+
+**Key Feature**: The system is service-agnostic and works with any deployment service (Vercel, Serverless, etc.) as long as the project has a `deploy` target configured.
 
 ## Deployment Strategy
 
 ### When Deployments Happen
 
 1. **Preview Deployments**: On every pull request
-   - Deploys affected UI apps to Vercel preview environments
-   - Each PR gets unique preview URLs for testing
+   - Deploys affected applications with deploy targets to their respective services
+   - Each PR gets unique preview URLs for testing (service-dependent)
 
 2. **Production Deployments**: On push to main/alpha/beta/next branches
-   - Deploys affected UI apps to production
+   - Deploys affected applications to production environments
    - Only runs after all tests and builds pass
 
 ### Affected Detection
 
-The system uses `nx affected` to identify which UI applications need deployment by:
+The system uses `nx affected` to identify which applications need deployment by:
 - Comparing against the base branch (main for PRs, previous commit for pushes)
 - Analyzing the dependency graph to understand impact
-- Only deploying applications that have actual changes
+- Only deploying applications that have actual changes AND a deploy target
 
 ## Deployable Applications
 
-Currently configured UI applications:
-- **soccer-stats** - React/Vite soccer tracking application
-- **chore-board-ui** - React chore management interface  
-- **ng-example** - Angular example application
+Any project with a `deploy` target will be automatically included in CI/CD deployments. Currently configured:
+
+- **soccer-stats** - React/Vite soccer tracking application (→ Vercel)
+- **chore-board-ui** - React chore management interface (→ Vercel)
+- **ng-example** - Angular example application (→ Vercel)
+- **campsite-watcher-lambda** - Serverless monitoring service (→ AWS Lambda)
+
+### Adding New Deployable Projects
+
+To make any project deployable via CI/CD:
+1. Add a `deploy` target to the project's configuration
+2. Optionally add a `deploy:production` target for production-specific settings
+3. The system will automatically detect and deploy the project when affected
 
 ## Required Secrets
 

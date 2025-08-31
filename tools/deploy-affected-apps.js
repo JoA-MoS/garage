@@ -1,22 +1,17 @@
 #!/usr/bin/env node
 
 /**
- * Deploy affected UI applications to Vercel using Nx affected functionality
+ * Deploy affected applications using Nx affected functionality
+ * Runs the deploy target for any affected project that has one
  * Integrates with CI/CD pipelines to only deploy changed applications
+ * 
+ * Works with any deployment service (Vercel, Serverless, etc.) as long as
+ * the project has a deploy target configured.
  * 
  * Usage: node deploy-affected-apps.js [--production] [--base=origin/main] [--dry-run]
  */
 
 const { execSync } = require('child_process');
-const { existsSync } = require('fs');
-const { join } = require('path');
-
-// UI projects that are deployable to Vercel
-const DEPLOYABLE_PROJECTS = [
-  'soccer-stats',
-  'chore-board-ui', 
-  'ng-example'
-];
 
 function main() {
   const args = process.argv.slice(2);
@@ -31,7 +26,7 @@ function main() {
     console.log(`🔬 DRY RUN: Will show what would be deployed without actually deploying`);
   }
 
-  // Get affected projects that have a deploy target
+  // Get affected projects
   let affectedProjects;
   try {
     const affectedOutput = execSync(
@@ -42,37 +37,31 @@ function main() {
   } catch (error) {
     console.error('❌ Failed to get affected projects');
     console.error('This might happen if no git history is available or base commit is invalid');
-    console.error(`Falling back to deploying all deployable projects`);
-    affectedProjects = DEPLOYABLE_PROJECTS;
+    console.error(`Error: ${error.message}`);
+    process.exit(1);
   }
 
   console.log(`📋 Affected projects: ${affectedProjects.join(', ')}`);
 
-  // Filter to only deployable UI projects
-  const deployableAffected = affectedProjects.filter(project => 
-    DEPLOYABLE_PROJECTS.includes(project)
-  );
+  // Filter to only projects that have a deploy target
+  const deployableAffected = affectedProjects.filter(project => {
+    const hasTarget = hasDeployTarget(project);
+    if (hasTarget) {
+      console.log(`✅ ${project} has deploy target`);
+    }
+    return hasTarget;
+  });
 
   if (deployableAffected.length === 0) {
-    console.log('✅ No deployable UI applications were affected');
-    console.log('🎯 Deployable projects that can be affected:', DEPLOYABLE_PROJECTS.join(', '));
+    console.log('✅ No deployable applications were affected');
+    console.log('💡 Only projects with a "deploy" target will be deployed');
     return;
   }
 
-  console.log(`🚀 Deploying ${deployableAffected.length} affected UI application(s): ${deployableAffected.join(', ')}`);
+  console.log(`🚀 Deploying ${deployableAffected.length} affected application(s): ${deployableAffected.join(', ')}`);
 
-  // Verify each project has the required files
+  // Deploy each project with a deploy target
   for (const project of deployableAffected) {
-    if (!hasDeployTarget(project)) {
-      console.warn(`⚠️  Project ${project} does not have a deploy target, skipping`);
-      continue;
-    }
-
-    if (!hasVercelConfig(project)) {
-      console.warn(`⚠️  Project ${project} does not have vercel.json, skipping`);
-      continue;
-    }
-
     console.log(`\n📦 ${isDryRun ? 'Would deploy' : 'Deploying'} ${project}...`);
     if (isDryRun) {
       console.log(`   ✅ ${project} would be deployed successfully`);
@@ -97,31 +86,38 @@ function hasDeployTarget(projectName) {
   }
 }
 
-function hasVercelConfig(projectName) {
-  try {
-    const projectInfo = execSync(`pnpm nx show project ${projectName} --json`, { 
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore']
-    });
-    const project = JSON.parse(projectInfo);
-    const vercelConfigPath = join(process.cwd(), project.root, 'vercel.json');
-    return existsSync(vercelConfigPath);
-  } catch (error) {
-    return false;
-  }
-}
-
 function deployProject(projectName, isProduction) {
   try {
+    // Use the production configuration if specified, otherwise use default deploy target
     const targetName = isProduction ? 'deploy:production' : 'deploy';
     
-    console.log(`   Building ${projectName}...`);
+    // First try the production target if requested, fall back to regular deploy if not found
+    let actualTarget = targetName;
+    if (isProduction) {
+      try {
+        const projectInfo = execSync(`pnpm nx show project ${projectName} --json`, { 
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'ignore']
+        });
+        const project = JSON.parse(projectInfo);
+        
+        // Check if production target exists, otherwise use regular deploy target
+        if (!project.targets || !project.targets['deploy:production']) {
+          console.log(`   ℹ️  No deploy:production target found for ${projectName}, using deploy target`);
+          actualTarget = 'deploy';
+        }
+      } catch (error) {
+        actualTarget = 'deploy';
+      }
+    }
+
+    console.log(`   🏗️  Building ${projectName}...`);
     execSync(`pnpm nx build ${projectName}`, {
       stdio: 'pipe' // Capture output to check for success
     });
 
-    console.log(`   Deploying to Vercel...`);
-    execSync(`pnpm nx ${targetName} ${projectName}`, {
+    console.log(`   🚀 Deploying via "${actualTarget}" target...`);
+    execSync(`pnpm nx ${actualTarget} ${projectName}`, {
       stdio: 'inherit'
     });
 
@@ -131,7 +127,8 @@ function deployProject(projectName, isProduction) {
     const output = error.stdout ? error.stdout.toString() : '';
     const errorOutput = error.stderr ? error.stderr.toString() : '';
     
-    if (output.includes('Successfully ran target build') || output.includes(`Successfully ran target ${isProduction ? 'deploy:production' : 'deploy'}`)) {
+    if (output.includes('Successfully ran target') && 
+        (output.includes('build') || output.includes('deploy'))) {
       console.log(`   ✅ ${projectName} deployed successfully (ignoring Nx Cloud warnings)`);
       return;
     }
