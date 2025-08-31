@@ -1,6 +1,3 @@
-# Vercel Deployment Guide for Nx Monorepos
-
-# Vercel Deployment Guide for Nx Monorepos
 
 **⚠️ IMPORTANT: This document describes the previous custom deployment approach. For the current recommended setup, see [Vercel Official Setup Guide](VERCEL_OFFICIAL_SETUP.md).**
 
