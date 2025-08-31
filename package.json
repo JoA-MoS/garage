@@ -95,6 +95,7 @@
     "jest-environment-jsdom": "30.0.5",
     "jest-environment-node": "^29.4.1",
     "jest-preset-angular": "15.0.0",
+    "jest-util": "~30.0.0",
     "jiti": "2.4.2",
     "jsdom": "~22.1.0",
     "lint-staged": "^12.3.1",
@@ -117,11 +118,11 @@
     "typescript": "5.8.2",
     "typescript-eslint": "^8.29.0",
     "url-loader": "^4.1.1",
+    "vercel": "^46.1.1",
     "vite": "6.3.5",
     "vitest": "3.2.4",
     "webpack": "5.98.0",
-    "webpack-merge": "^5.8.0",
-    "jest-util": "~30.0.0"
+    "webpack-merge": "^5.8.0"
   },
   "dependencies": {
     "@angular/animations": "20.1.8",
