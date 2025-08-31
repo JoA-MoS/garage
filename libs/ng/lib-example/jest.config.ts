@@ -1,4 +1,3 @@
-/* eslint-disable */
 export default {
   displayName: 'ng-lib-example',
   preset: '../../../jest.preset.js',

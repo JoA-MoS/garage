@@ -1,5 +1,3 @@
-/* eslint-disable */
-
 const name = 'campsite-watcher';
 const pathToRepoRoot = '../..';
 
