@@ -71,16 +71,19 @@ For each project, override the build settings:
 #### React/Vite Applications (soccer-stats, chore-board-ui)
 
 **Build Command:**
+
 ```bash
 npx nx build soccer-stats --prod
 ```
 
 **Output Directory:**
+
 ```
 dist/apps/soccer-stats
 ```
 
 **Install Command:**
+
 ```bash
 pnpm install --frozen-lockfile
 ```
@@ -88,16 +91,19 @@ pnpm install --frozen-lockfile
 #### Angular Applications (ng-example)
 
 **Build Command:**
+
 ```bash
 npx nx build ng-example --prod
 ```
 
 **Output Directory:**
+
 ```
 dist/apps/ng/example
 ```
 
 **Install Command:**
+
 ```bash
 pnpm install --frozen-lockfile
 ```
@@ -113,6 +119,7 @@ This is the key feature that makes only affected apps build:
    ```
 
 **Examples:**
+
 - For soccer-stats: `npx nx-ignore soccer-stats`
 - For chore-board-ui: `npx nx-ignore chore-board-ui`
 - For ng-example: `npx nx-ignore ng-example`
@@ -123,11 +130,11 @@ Set any required environment variables in **Project Settings** → **Environment
 
 ## Current Applications Ready for Deployment
 
-| Application | Type | Build Command | Output Directory | nx-ignore Command |
-|------------|------|---------------|------------------|-------------------|
-| soccer-stats | React/Vite | `npx nx build soccer-stats --prod` | `dist/apps/soccer-stats` | `npx nx-ignore soccer-stats` |
+| Application    | Type       | Build Command                        | Output Directory           | nx-ignore Command              |
+| -------------- | ---------- | ------------------------------------ | -------------------------- | ------------------------------ |
+| soccer-stats   | React/Vite | `npx nx build soccer-stats --prod`   | `dist/apps/soccer-stats`   | `npx nx-ignore soccer-stats`   |
 | chore-board-ui | React/Vite | `npx nx build chore-board-ui --prod` | `dist/apps/chore-board/ui` | `npx nx-ignore chore-board-ui` |
-| ng-example | Angular | `npx nx build ng-example --prod` | `dist/apps/ng/example` | `npx nx-ignore ng-example` |
+| ng-example     | Angular    | `npx nx build ng-example --prod`     | `dist/apps/ng/example`     | `npx nx-ignore ng-example`     |
 
 ## How It Works
 
@@ -143,6 +150,7 @@ When you push changes to GitHub:
 ### Dependency Graph Awareness
 
 The `nx-ignore` command understands your Nx dependency graph:
+
 - If you change a shared library, all dependent apps will build
 - If you change an app-specific file, only that app will build
 - If you change workspace configuration, all apps may build
@@ -184,7 +192,8 @@ npx nx build soccer-stats
 ### Affected Detection Issues
 
 **Problem**: App builds when it shouldn't (or vice versa)
-**Solution**: 
+**Solution**:
+
 - Check the `nx-ignore` command is correct for your app name
 - Verify your changes actually affect (or don't affect) the app using `npx nx show projects --affected`
 
@@ -208,14 +217,14 @@ If you were previously using custom deployment scripts:
 
 ## Benefits Over Custom Deployment
 
-| Aspect | Custom Scripts | Vercel Official |
-|--------|---------------|-----------------|
-| **Maintenance** | Requires custom code maintenance | Zero maintenance - Vercel handles it |
-| **Framework Support** | Manual detection and configuration | Automatic framework detection |
-| **Build Optimization** | Custom caching logic | Native Vercel + Nx caching |
-| **Error Handling** | Custom error handling required | Vercel's robust error handling |
-| **Monitoring** | Custom logging and monitoring | Native Vercel deployment monitoring |
-| **Preview Deployments** | Complex PR setup required | Automatic preview deployments |
+| Aspect                  | Custom Scripts                     | Vercel Official                      |
+| ----------------------- | ---------------------------------- | ------------------------------------ |
+| **Maintenance**         | Requires custom code maintenance   | Zero maintenance - Vercel handles it |
+| **Framework Support**   | Manual detection and configuration | Automatic framework detection        |
+| **Build Optimization**  | Custom caching logic               | Native Vercel + Nx caching           |
+| **Error Handling**      | Custom error handling required     | Vercel's robust error handling       |
+| **Monitoring**          | Custom logging and monitoring      | Native Vercel deployment monitoring  |
+| **Preview Deployments** | Complex PR setup required          | Automatic preview deployments        |
 
 ## References
 
