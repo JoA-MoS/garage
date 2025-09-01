@@ -62,3 +62,5 @@ vitest.config.*.timestamp*
 # Nx project graph artifacts
 graph.html
 static/
+
+.vercel/
