@@ -84,7 +84,6 @@
       "options": {
         "jestConfig": "apps/ng/example/jest.config.ts"
       }
-    },
-
+    }
   }
 }
