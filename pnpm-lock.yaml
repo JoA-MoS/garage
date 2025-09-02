@@ -142,9 +142,9 @@ importers:
       react-is:
         specifier: 18.3.1
         version: 18.3.1
-      react-router-dom:
-        specifier: 6.29.0
-        version: 6.29.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react-router:
+        specifier: 7.1.1
+        version: 7.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       reflect-metadata:
         specifier: ^0.1.13
         version: 0.1.14
@@ -353,9 +353,6 @@ importers:
       '@types/react-dom':
         specifier: 18.3.0
         version: 18.3.0
-      '@types/react-router-dom':
-        specifier: 5.3.3
-        version: 5.3.3
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.37.0
         version: 8.37.0(@typescript-eslint/parser@8.37.0(eslint@9.31.0(jiti@2.4.2))(typescript@5.8.2))(eslint@9.31.0(jiti@2.4.2))(typescript@5.8.2)
@@ -6234,13 +6231,6 @@ packages:
       }
     engines: { node: '>=16.0.0' }
 
-  '@remix-run/router@1.22.0':
-    resolution:
-      {
-        integrity: sha512-MBOl8MeOzpK0HQQQshKB7pABXbmyHizdTpqnrIseTbsv0nAepwC2ENZa1aaBExNQcpLoXmWthhak8SABLzvGPw==,
-      }
-    engines: { node: '>=14.0.0' }
-
   '@repeaterjs/repeater@3.0.6':
     resolution:
       {
@@ -8332,6 +8322,12 @@ packages:
         integrity: sha512-K6uROf1LD88uDQqJCktA4yzL1YYAK6NgfsI0v/mTgyPKWsX1CnJ0XPSDhViejru1GcRkLWb8RlzFYJRqGUbaug==,
       }
 
+  '@types/cookie@0.6.0':
+    resolution:
+      {
+        integrity: sha512-4Kh9a6B2bQciAhf7FSuMRRkUWecJgJu9nPnx3yzpsfXX/c50REIqpHY4C82bXP90qrLtXtkDxTZosYO3UpOwlA==,
+      }
+
   '@types/deep-eql@4.0.2':
     resolution:
       {
@@ -8402,12 +8398,6 @@ packages:
     resolution:
       {
         integrity: sha512-olP3sd1qOEe5dXTSaFvQG+02VdRXcdytWLAZsAq1PecU8uqQAhkrnbli7DagjtXKW/Bl7YJbUsa8MPcuc8LHEQ==,
-      }
-
-  '@types/history@4.7.11':
-    resolution:
-      {
-        integrity: sha512-qjDJRrmvBMiTx+jyLxvLfJU7UznFuokDv4f3WRuriHKERccVpFU+8XMQUAbDzoiJCsmexxRExQeMwwCdamSKDA==,
       }
 
   '@types/html-minifier-terser@6.1.0':
@@ -8595,18 +8585,6 @@ packages:
     resolution:
       {
         integrity: sha512-EhwApuTmMBmXuFOikhQLIBUn6uFg81SwLMOAUgodJF14SOBOCMdU04gDoYi0WOJJHD144TL32z4yDqCW3dnkQg==,
-      }
-
-  '@types/react-router-dom@5.3.3':
-    resolution:
-      {
-        integrity: sha512-kpqnYK4wcdm5UaWI3fLcELopqLrHgLqNsdpHauzlQktfkHL3npOSwtj1Uz9oKBAzs7lFtVkV8j83voAz2D8fhw==,
-      }
-
-  '@types/react-router@5.1.20':
-    resolution:
-      {
-        integrity: sha512-jGjmu/ZqS7FjSH6owMcD5qpq19+1RS9DeVRqfl1FeBMxTDQAGwlMWOcs52NDoXaNKyG3d1cYQFMs9rCrb88o9Q==,
       }
 
   '@types/react@18.3.1':
@@ -11874,6 +11852,13 @@ packages:
         integrity: sha512-6DnInpx7SJ2AK3+CTUE/ZM0vWTUboZCegxhC2xiIydHR9jNuTAASBrfEpHhiGOZw/nX51bHt6YQl8jsGo4y/0w==,
       }
     engines: { node: '>= 0.6' }
+
+  cookie@1.0.2:
+    resolution:
+      {
+        integrity: sha512-9Kr/j4O16ISv8zBBhJoi4bXOYNTkFLOqSL3UDB0njXxCXNezjeyVrJyGOWtgfs/q2km1gwBcfH8q1yEGoMYunA==,
+      }
+    engines: { node: '>=18' }
 
   cookiejar@2.1.4:
     resolution:
@@ -22244,24 +22229,18 @@ packages:
       }
     engines: { node: '>=0.10.0' }
 
-  react-router-dom@6.29.0:
+  react-router@7.1.1:
     resolution:
       {
-        integrity: sha512-pkEbJPATRJ2iotK+wUwHfy0xs2T59YPEN8BQxVCPeBZvK7kfPESRc/nyxzdcxR17hXgUPYx2whMwl+eo9cUdnQ==,
+        integrity: sha512-39sXJkftkKWRZ2oJtHhCxmoCrBCULr/HAH4IT5DHlgu/Q0FCPV0S4Lx+abjDTx/74xoZzNYDYbOZWlJjruyuDQ==,
       }
-    engines: { node: '>=14.0.0' }
+    engines: { node: '>=20.0.0' }
     peerDependencies:
-      react: '>=16.8'
-      react-dom: '>=16.8'
-
-  react-router@6.29.0:
-    resolution:
-      {
-        integrity: sha512-DXZJoE0q+KyeVw75Ck6GkPxFak63C4fGqZGNijnWgzB/HzSP1ZfTlBj5COaGWwhrMQ/R8bXiq5Ooy4KG+ReyjQ==,
-      }
-    engines: { node: '>=14.0.0' }
-    peerDependencies:
-      react: '>=16.8'
+      react: '>=18'
+      react-dom: '>=18'
+    peerDependenciesMeta:
+      react-dom:
+        optional: true
 
   react@18.2.0:
     resolution:
@@ -23383,6 +23362,12 @@ packages:
       }
     engines: { node: '>=12.0' }
     hasBin: true
+
+  set-cookie-parser@2.7.1:
+    resolution:
+      {
+        integrity: sha512-IOc8uWeOZgnb3ptbCURJWNjWUPcO3ZnTTdzsurqERrP6nPyv+paC55vJM0LpOlT2ne+Ix+9+CRG1MNLlyZ4GjQ==,
+      }
 
   set-function-length@1.2.2:
     resolution:
@@ -25182,6 +25167,12 @@ packages:
     resolution:
       {
         integrity: sha512-McnNiV1l8RYeY8tBgEpuodCC1mLUdbSN+CYBL7kJsJNInOP8UjDDEwdk6Mw60vdLLrr5NHKZhMAOSrR2NZuQ+w==,
+      }
+
+  turbo-stream@2.4.0:
+    resolution:
+      {
+        integrity: sha512-FHncC10WpBd2eOmGwpmQsWLDoK4cqsA/UT/GqNoaKOQnT8uzhtCbg3EoUDMvqpOSAI0S26mr0rkjzbOO6S3v1g==,
       }
 
   tweetnacl@0.14.5:
@@ -33007,8 +32998,6 @@ snapshots:
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
 
-  '@remix-run/router@1.22.0': {}
-
   '@repeaterjs/repeater@3.0.6': {}
 
   '@rolldown/pluginutils@1.0.0-beta.19': {}
@@ -34664,6 +34653,8 @@ snapshots:
     dependencies:
       '@types/node': 20.19.11
 
+  '@types/cookie@0.6.0': {}
+
   '@types/deep-eql@4.0.2': {}
 
   '@types/doctrine@0.0.9': {}
@@ -34718,8 +34709,6 @@ snapshots:
   '@types/graceful-fs@4.1.9':
     dependencies:
       '@types/node': 20.19.11
-
-  '@types/history@4.7.11': {}
 
   '@types/html-minifier-terser@6.1.0': {}
 
@@ -34815,17 +34804,6 @@ snapshots:
 
   '@types/react-dom@18.3.0':
     dependencies:
-      '@types/react': 18.3.1
-
-  '@types/react-router-dom@5.3.3':
-    dependencies:
-      '@types/history': 4.7.11
-      '@types/react': 18.3.1
-      '@types/react-router': 5.1.20
-
-  '@types/react-router@5.1.20':
-    dependencies:
-      '@types/history': 4.7.11
       '@types/react': 18.3.1
 
   '@types/react@18.3.1':
@@ -37169,6 +37147,8 @@ snapshots:
   cookie-signature@1.2.2: {}
 
   cookie@0.7.1: {}
+
+  cookie@1.0.2: {}
 
   cookiejar@2.1.4: {}
 
@@ -44546,17 +44526,15 @@ snapshots:
 
   react-refresh@0.17.0: {}
 
-  react-router-dom@6.29.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+  react-router@7.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
-      '@remix-run/router': 1.22.0
+      '@types/cookie': 0.6.0
+      cookie: 1.0.2
       react: 18.3.1
+      set-cookie-parser: 2.7.1
+      turbo-stream: 2.4.0
+    optionalDependencies:
       react-dom: 18.3.1(react@18.3.1)
-      react-router: 6.29.0(react@18.3.1)
-
-  react-router@6.29.0(react@18.3.1):
-    dependencies:
-      '@remix-run/router': 1.22.0
-      react: 18.3.1
 
   react@18.2.0:
     dependencies:
@@ -45596,6 +45574,8 @@ snapshots:
       - debug
       - encoding
       - utf-8-validate
+
+  set-cookie-parser@2.7.1: {}
 
   set-function-length@1.2.2:
     dependencies:
@@ -46920,6 +46900,8 @@ snapshots:
     dependencies:
       safe-buffer: 5.2.1
     optional: true
+
+  turbo-stream@2.4.0: {}
 
   tweetnacl@0.14.5: {}
 

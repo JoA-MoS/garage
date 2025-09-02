@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 
 import { ConfigTab } from '../components/config-tab';
 import { useGameContext } from '../context/game.context';
