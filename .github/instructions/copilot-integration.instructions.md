@@ -34,7 +34,7 @@ When generating code, always follow these patterns and conventions established i
 **Example Smart Component Template:**
 
 ```tsx
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { {FeatureName}Presentation } from '../presentation/{feature-name}.presentation';
 import { use{FeatureName}Manager } from '../../hooks/use-{feature-name}-manager';
 
@@ -42,7 +42,7 @@ interface {FeatureName}SmartProps {
   // Define props here
 }
 
-export const {FeatureName}Smart: React.FC<{FeatureName}SmartProps> = (props) => {
+export const {FeatureName}Smart = (props: {FeatureName}SmartProps) => {
   // Business logic and state management here
   const { data, actions } = use{FeatureName}Manager();
 
@@ -64,17 +64,15 @@ export const {FeatureName}Smart: React.FC<{FeatureName}SmartProps> = (props) => 
 **Example Presentation Component Template:**
 
 ```tsx
-import React from 'react';
-
 interface {FeatureName}PresentationProps {
   // Define UI-focused props here
   onAction: () => void;
 }
 
-export const {FeatureName}Presentation: React.FC<{FeatureName}PresentationProps> = ({
+export const {FeatureName}Presentation = ({
   onAction,
   // other props
-}) => {
+}: {FeatureName}PresentationProps) => {
   return (
     <div className="{feature-name}">
       {/* UI content here */}
@@ -180,7 +178,42 @@ export const create{Domain} = async (data: Create{Domain}Request): Promise<{Doma
 
 - Use `useCallback` for event handlers
 - Use `useMemo` for expensive computations
-- Implement `React.memo` for presentation components when beneficial
+- Use `memo` from React for presentation components when beneficial
+
+## Code Generation Standards
+
+### React Components
+
+- **Function Components**: Use arrow function syntax without `React.FC`
+- **Props Typing**: Define interfaces separately and use inline type annotations
+- **Imports**: Only import specific hooks/functions needed from React
+- **No Default React Import**: Modern JSX transform doesn't require importing React
+
+**Component Pattern:**
+
+```tsx
+import { useState, useCallback } from 'react';
+
+interface ComponentProps {
+  title: string;
+  onAction: () => void;
+}
+
+export const Component = ({ title, onAction }: ComponentProps) => {
+  const [state, setState] = useState(false);
+
+  const handleClick = useCallback(() => {
+    onAction();
+  }, [onAction]);
+
+  return (
+    <div>
+      <h1>{title}</h1>
+      <button onClick={handleClick}>Click me</button>
+    </div>
+  );
+};
+```
 
 ## Workspace-Specific Patterns
 
