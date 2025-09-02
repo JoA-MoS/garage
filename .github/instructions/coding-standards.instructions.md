@@ -31,6 +31,40 @@ Follow these coding standards consistently across the entire workspace.
 
 ## Code Quality Standards
 
+### React Components (Modern Patterns)
+
+- **Function Components**: Use arrow function syntax without `React.FC`
+- **Props Typing**: Define interfaces separately and use inline type annotations
+- **Imports**: Only import specific hooks/functions needed from React
+- **No Default React Import**: Modern JSX transform doesn't require importing React
+- **Component Naming**: Use PascalCase for component names, kebab-case for file names
+
+**Example Modern Component:**
+
+```tsx
+import { useState, useCallback } from 'react';
+
+interface ComponentProps {
+  title: string;
+  onAction: () => void;
+}
+
+export const Component = ({ title, onAction }: ComponentProps) => {
+  const [state, setState] = useState(false);
+
+  const handleClick = useCallback(() => {
+    onAction();
+  }, [onAction]);
+
+  return (
+    <div>
+      <h1>{title}</h1>
+      <button onClick={handleClick}>Click me</button>
+    </div>
+  );
+};
+```
+
 ### TypeScript
 
 - Use strict TypeScript configuration
@@ -64,8 +98,10 @@ Follow these coding standards consistently across the entire workspace.
 
 ## Performance Guidelines
 
-- Use React.memo for presentation components when appropriate
+- Use `memo` from React for presentation components when appropriate
 - Implement proper loading states
 - Optimize bundle sizes with code splitting
 - Use proper caching strategies
 - Monitor and optimize re-renders
+- Use `useCallback` for event handlers
+- Use `useMemo` for expensive computations

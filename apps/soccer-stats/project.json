@@ -1,0 +1,103 @@
+{
+  "name": "soccer-stats",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/soccer-stats/src",
+  "projectType": "application",
+  "tags": ["type:app", "domain:sports"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/soccer-stats"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "soccer-stats:build",
+        "proxyConfig": "apps/soccer-stats/proxy.conf.json"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "soccer-stats:build:development",
+          "hmr": true
+        },
+        "production": {
+          "buildTarget": "soccer-stats:build:production",
+          "hmr": false
+        }
+      },
+      "dependsOn": ["soccer-stats-api:serve"]
+    },
+    "preview": {
+      "dependsOn": ["build"],
+      "executor": "@nx/vite:preview-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "soccer-stats:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "soccer-stats:build:development"
+        },
+        "production": {
+          "buildTarget": "soccer-stats:build:production"
+        }
+      }
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "../../coverage/apps/soccer-stats"
+      }
+    },
+    "serve-static": {
+      "executor": "@nx/web:file-server",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "soccer-stats:build",
+        "spa": true
+      }
+    },
+    "storybook": {
+      "executor": "@nx/storybook:storybook",
+      "options": {
+        "port": 4400,
+        "configDir": "apps/soccer-stats/.storybook"
+      },
+      "configurations": {
+        "ci": {
+          "quiet": true
+        }
+      }
+    },
+    "build-storybook": {
+      "executor": "@nx/storybook:build",
+      "outputs": ["{options.outputDir}"],
+      "options": {
+        "outputDir": "dist/storybook/soccer-stats",
+        "configDir": "apps/soccer-stats/.storybook"
+      },
+      "configurations": {
+        "ci": {
+          "quiet": true
+        }
+      }
+    }
+  }
+}

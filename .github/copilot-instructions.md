@@ -311,19 +311,14 @@ chore: update dependencies to latest versions
 For React applications, use the established pattern from `chore-board-ui`:
 
 **tailwind.config.js:**
+
 ```javascript
 const { join } = require('path');
 const { createGlobPatternsForDependencies } = require('@nx/react/tailwind');
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: [
-    join(
-      __dirname,
-      '{src,pages,components,app}/**/*!(*.stories|*.spec).{ts,tsx,html}'
-    ),
-    ...createGlobPatternsForDependencies(__dirname),
-  ],
+  content: [join(__dirname, '{src,pages,components,app}/**/*!(*.stories|*.spec).{ts,tsx,html}'), ...createGlobPatternsForDependencies(__dirname)],
   theme: {
     extend: {
       // Add custom theme extensions here
@@ -336,6 +331,7 @@ module.exports = {
 ```
 
 **postcss.config.js:**
+
 ```javascript
 const { join } = require('path');
 
@@ -354,15 +350,13 @@ module.exports = {
 For Angular applications, use the pattern from `ng-example`:
 
 **tailwind.config.js:**
+
 ```javascript
 const { join } = require('path');
 const { createGlobPatternsForDependencies } = require('@nx/angular/tailwind');
 
 module.exports = {
-  content: [
-    join(__dirname, 'src/**/!(*.stories|*.spec).{ts,html}'),
-    ...createGlobPatternsForDependencies(__dirname),
-  ],
+  content: [join(__dirname, 'src/**/!(*.stories|*.spec).{ts,html}'), ...createGlobPatternsForDependencies(__dirname)],
   theme: {
     extend: {
       // Add custom theme extensions here
@@ -403,6 +397,7 @@ plugins: [require('@savvywombat/tailwindcss-grid-areas')],
 #### Component Styling Guidelines
 
 **Use Tailwind classes directly in components:**
+
 ```tsx
 // ✅ Preferred approach
 export const Button = ({ children, variant = 'primary' }) => {
@@ -411,27 +406,21 @@ export const Button = ({ children, variant = 'primary' }) => {
     primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
     secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500',
   };
-  
-  return (
-    <button className={`${baseClasses} ${variantClasses[variant]}`}>
-      {children}
-    </button>
-  );
+
+  return <button className={`${baseClasses} ${variantClasses[variant]}`}>{children}</button>;
 };
 ```
 
 **For complex conditional styling, use clsx or similar:**
+
 ```tsx
 import clsx from 'clsx';
 
-const buttonClasses = clsx(
-  'px-4 py-2 rounded-md font-medium',
-  {
-    'bg-blue-600 text-white': variant === 'primary',
-    'bg-gray-200 text-gray-900': variant === 'secondary',
-    'opacity-50 cursor-not-allowed': disabled,
-  }
-);
+const buttonClasses = clsx('px-4 py-2 rounded-md font-medium', {
+  'bg-blue-600 text-white': variant === 'primary',
+  'bg-gray-200 text-gray-900': variant === 'secondary',
+  'opacity-50 cursor-not-allowed': disabled,
+});
 ```
 
 #### Responsive Design Patterns
@@ -440,9 +429,7 @@ const buttonClasses = clsx(
 // Use Tailwind's responsive utilities
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
   <div className="p-4 sm:p-6 lg:p-8">
-    <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold">
-      Responsive Content
-    </h2>
+    <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold">Responsive Content</h2>
   </div>
 </div>
 ```
@@ -464,8 +451,8 @@ module.exports = {
         },
       },
       spacing: {
-        '18': '4.5rem',
-        '88': '22rem',
+        18: '4.5rem',
+        88: '22rem',
       },
     },
   },
@@ -485,6 +472,7 @@ The workspace includes these Tailwind plugins:
 #### Prettier Integration
 
 The workspace includes `prettier-plugin-tailwindcss` for automatic class sorting:
+
 - Classes are automatically sorted in recommended order
 - No manual class organization needed
 - Consistent class order across the codebase
@@ -492,6 +480,7 @@ The workspace includes `prettier-plugin-tailwindcss` for automatic class sorting
 #### IntelliSense Setup
 
 For optimal development experience, ensure your IDE has:
+
 - Tailwind CSS IntelliSense extension installed
 - Proper configuration for class name completion
 - Hover previews for utility classes
@@ -526,6 +515,7 @@ When working with existing components:
 ### Common Patterns in This Workspace
 
 **Grid Layout with Areas:**
+
 ```tsx
 <div className="grid-areas-scramble grid-cols-scramble grid-rows-scramble grid h-screen">
   <nav className="grid-in-nav">Navigation</nav>
@@ -535,6 +525,7 @@ When working with existing components:
 ```
 
 **Assignee Circles:**
+
 ```tsx
 const person = {
   bgColor: 'bg-cyan-400',
@@ -543,6 +534,7 @@ const person = {
 ```
 
 **Dark Theme Patterns:**
+
 ```tsx
 <nav className="bg-slate-900 text-white">
   <div className="bg-slate-200">Light content area</div>
