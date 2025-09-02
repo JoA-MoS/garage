@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router';
 
 import { NavigationSmart } from '../smart/navigation.smart';
+import { ProtectedRoute } from '../common/protected-route';
 
 /**
  * Main layout component that wraps all pages
@@ -11,7 +12,9 @@ export const Layout = () => {
     <div className="min-h-screen bg-gray-50">
       <NavigationSmart />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Outlet />
+        <ProtectedRoute>
+          <Outlet />
+        </ProtectedRoute>
       </main>
     </div>
   );
