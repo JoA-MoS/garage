@@ -9,6 +9,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { GamesModule } from '../modules/games/games.module';
 import { TeamsModule } from '../modules/teams/teams.module';
 import { PlayersModule } from '../modules/players/players.module';
+import { UsersModule } from '../modules/users/users.module';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -54,6 +55,7 @@ console.log(con);
     GamesModule,
     TeamsModule,
     PlayersModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

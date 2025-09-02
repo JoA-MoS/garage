@@ -8,41 +8,37 @@ import {
 } from 'typeorm';
 import { ObjectType, Field, ID } from '@nestjs/graphql';
 
-import { GameTeam } from './game-team.entity';
-import { TeamPlayer } from './team-player.entity';
 import { UserTeamRole } from './user-team-role.entity';
 
 @ObjectType()
-@Entity('teams')
-export class Team {
+@Entity('users')
+export class User {
   @Field(() => ID)
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Field()
+  @Column({ length: 255, unique: true })
+  clerkId: string;
+
+  @Field()
   @Column({ length: 255 })
-  name: string;
+  email: string;
 
   @Field({ nullable: true })
   @Column({ length: 255, nullable: true })
-  logo?: string;
+  firstName?: string;
 
   @Field({ nullable: true })
-  @Column({ length: 100, nullable: true })
-  colors?: string;
+  @Column({ length: 255, nullable: true })
+  lastName?: string;
 
-  @Field(() => [GameTeam])
-  @OneToMany(() => GameTeam, (gameTeam) => gameTeam.team, { cascade: true })
-  gameTeams: GameTeam[];
-
-  @Field(() => [TeamPlayer])
-  @OneToMany(() => TeamPlayer, (teamPlayer) => teamPlayer.team, {
-    cascade: true,
-  })
-  teamPlayers: TeamPlayer[];
+  @Field({ nullable: true })
+  @Column({ length: 500, nullable: true })
+  profileImageUrl?: string;
 
   @Field(() => [UserTeamRole])
-  @OneToMany(() => UserTeamRole, (userTeamRole) => userTeamRole.team, {
+  @OneToMany(() => UserTeamRole, (userTeamRole) => userTeamRole.user, {
     cascade: true,
   })
   userTeamRoles: UserTeamRole[];

@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { SignIn, SignUp } from '@clerk/clerk-react';
 
 import { Layout } from '../components/layout/layout';
 import { DashboardPage } from '../pages/dashboard.page';
@@ -30,6 +31,34 @@ const NewGameWithProvider = () => (
 );
 
 export const router = createBrowserRouter([
+  {
+    path: '/sign-in/*',
+    element: (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <SignIn 
+          routing="path" 
+          path="/sign-in" 
+          appearance={{
+            baseTheme: undefined, // Can be configured for dark theme
+          }}
+        />
+      </div>
+    ),
+  },
+  {
+    path: '/sign-up/*',
+    element: (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <SignUp 
+          routing="path" 
+          path="/sign-up" 
+          appearance={{
+            baseTheme: undefined, // Can be configured for dark theme
+          }}
+        />
+      </div>
+    ),
+  },
   {
     path: '/',
     element: <Layout />,
