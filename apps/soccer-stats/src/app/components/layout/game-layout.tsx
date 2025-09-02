@@ -1,4 +1,4 @@
-import { Outlet, useParams } from 'react-router-dom';
+import { Outlet, useParams } from 'react-router';
 
 import { GameHeaderSmart } from '../smart/game-header.smart';
 import { GameNavigationSmart } from '../smart/game-navigation.smart';
