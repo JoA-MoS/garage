@@ -7,6 +7,7 @@ import { Player } from '../../entities/player.entity';
 import { TeamPlayer } from '../../entities/team-player.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { PlayersModule } from '../players/players.module';
+import { UsersModule } from '../users/users.module';
 
 import { TeamsResolver } from './teams.resolver';
 import { TeamsService } from './teams.service';
@@ -15,6 +16,7 @@ import { TeamsService } from './teams.service';
   imports: [
     TypeOrmModule.forFeature([Team, Player, TeamPlayer, GameTeam]),
     forwardRef(() => PlayersModule),
+    UsersModule,
   ],
   providers: [
     TeamsResolver,
