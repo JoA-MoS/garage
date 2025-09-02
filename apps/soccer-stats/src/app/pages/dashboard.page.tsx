@@ -1,22 +1,47 @@
 import { Link } from 'react-router';
 
+import { useUserProfile } from '../hooks/use-user-profile';
+
 /**
  * Dashboard page - main landing page with game overview
  */
 export const DashboardPage = () => {
+  const { userDisplayName, isLoaded } = useUserProfile();
+
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-gray-600 mt-2">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow p-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">
-          Soccer Stats Dashboard
+      {/* Welcome Section */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg shadow p-6 text-white">
+        <h1 className="text-3xl font-bold mb-2">
+          Welcome back, {userDisplayName}! ⚽
         </h1>
+        <p className="text-blue-100">
+          Ready to track some soccer stats? Let's get started!
+        </p>
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">
+          Soccer Stats Dashboard
+        </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Quick Actions */}
           <div className="bg-blue-50 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-blue-900 mb-4">
+            <h3 className="text-lg font-semibold text-blue-900 mb-4">
               Quick Actions
-            </h2>
+            </h3>
             <div className="space-y-3">
               <Link
                 to="/game/new"

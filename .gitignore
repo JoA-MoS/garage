@@ -46,7 +46,7 @@ Thumbs.db
 .angular
 
 # env files
-.env
+.env.local
 # Serverless
 .serverless
 .webpack
