@@ -30,7 +30,15 @@ Smart components handle data, state, and business logic.
 
 ```tsx
 // game-header.smart.tsx
-export const GameHeaderSmart: React.FC<GameHeaderSmartProps> = ({ gameId }) => {
+import { useState, useCallback } from 'react';
+import { GameHeaderPresentation } from '../presentation/game-header.presentation';
+import { useGameManager } from '../../hooks/use-game-manager';
+
+interface GameHeaderSmartProps {
+  gameId: string;
+}
+
+export const GameHeaderSmart = ({ gameId }: GameHeaderSmartProps) => {
   const { gameData, updateGame } = useGameManager(gameId);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -68,6 +76,8 @@ Presentation components are pure UI components that only handle display logic.
 
 ```tsx
 // game-header.presentation.tsx
+import { useState } from 'react';
+
 interface GameHeaderPresentationProps {
   game: Game;
   isEditing: boolean;
@@ -76,7 +86,7 @@ interface GameHeaderPresentationProps {
   onCancel: () => void;
 }
 
-export const GameHeaderPresentation: React.FC<GameHeaderPresentationProps> = ({ game, isEditing, onEdit, onSave, onCancel }) => {
+export const GameHeaderPresentation = ({ game, isEditing, onEdit, onSave, onCancel }: GameHeaderPresentationProps) => {
   // Only UI logic here
   const [localFormData, setLocalFormData] = useState(game);
 

@@ -5,6 +5,11 @@
 /tmp
 /out-tsc
 
+# Generated files and artifacts
+/docs/generated
+/artifacts
+*.generated.*
+
 # dependencies
 /node_modules
 
@@ -57,3 +62,5 @@ vitest.config.*.timestamp*
 # Nx project graph artifacts
 graph.html
 static/
+
+.vercel/
