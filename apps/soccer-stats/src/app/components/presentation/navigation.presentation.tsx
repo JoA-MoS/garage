@@ -1,9 +1,15 @@
 import { Link, useLocation } from 'react-router-dom';
+import { UserButton } from '@clerk/clerk-react';
+import { UserResource } from '@clerk/types';
+
+interface NavigationPresentationProps {
+  user: UserResource | null | undefined;
+}
 
 /**
  * Main navigation component for the application
  */
-export const NavigationPresentation = () => {
+export const NavigationPresentation = ({ user }: NavigationPresentationProps) => {
   const location = useLocation();
 
   const navigationItems = [
@@ -51,6 +57,24 @@ export const NavigationPresentation = () => {
                 </Link>
               ))}
             </div>
+          </div>
+
+          {/* User Menu */}
+          <div className="flex items-center space-x-4">
+            {user && (
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-gray-700">
+                  Welcome, {user.firstName || user.emailAddresses[0]?.emailAddress}
+                </span>
+                <UserButton 
+                  appearance={{
+                    elements: {
+                      avatarBox: "w-8 h-8",
+                    },
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

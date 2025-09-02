@@ -1,8 +1,12 @@
+import { useUser } from '@clerk/clerk-react';
 import { NavigationPresentation } from '../presentation/navigation.presentation';
 
 /**
  * Smart component for main application navigation
+ * Handles user authentication state and navigation logic
  */
 export const NavigationSmart = () => {
-  return <NavigationPresentation />;
+  const { user } = useUser();
+
+  return <NavigationPresentation user={user} />;
 };

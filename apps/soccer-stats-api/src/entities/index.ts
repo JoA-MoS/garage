@@ -6,3 +6,5 @@ export * from './team-player.entity';
 export * from './event-type.entity';
 export * from './game-event.entity';
 export * from './game-participation.entity';
+export * from './user.entity';
+export * from './user-team-role.entity';
