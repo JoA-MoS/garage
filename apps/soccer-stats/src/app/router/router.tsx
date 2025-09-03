@@ -6,6 +6,12 @@ import { NewGamePage } from '../pages/new-game.page';
 import { HistoryPage } from '../pages/history.page';
 import { PlayersPage } from '../pages/players.page';
 import { TeamsPage } from '../pages/teams.page';
+import { CreateTeamPage } from '../pages/create-team.page';
+import { EditTeamPage } from '../pages/edit-team.page';
+import { TeamDetailPage } from '../pages/team-detail.page';
+import { TeamConfigurationPage } from '../pages/team-configuration.page';
+import { AddPlayersPage } from '../pages/add-players.page';
+import { TeamManagementPage } from '../pages/team-management.page';
 import { AnalyticsPage } from '../pages/analytics.page';
 import { SettingsPage } from '../pages/settings.page';
 import { AboutPage } from '../pages/about.page';
@@ -83,6 +89,34 @@ export const router = createBrowserRouter([
       {
         path: 'teams',
         element: <TeamsPage />,
+      },
+      {
+        path: 'teams/create',
+        element: <CreateTeamPage />,
+      },
+      {
+        path: 'teams/manage',
+        element: <TeamManagementPage />,
+      },
+      {
+        path: 'teams/:teamId/manage',
+        element: <TeamManagementPage />,
+      },
+      {
+        path: 'teams/:teamId/edit',
+        element: <EditTeamPage />,
+      },
+      {
+        path: 'teams/:teamId',
+        element: <TeamDetailPage />,
+      },
+      {
+        path: 'teams/:teamId/configure',
+        element: <TeamConfigurationPage />,
+      },
+      {
+        path: 'teams/:teamId/add-players',
+        element: <AddPlayersPage />,
       },
       {
         path: 'analytics',

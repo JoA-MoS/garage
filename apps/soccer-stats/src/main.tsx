@@ -2,8 +2,10 @@ import { StrictMode } from 'react';
 import * as ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router/dom';
 import { ClerkProvider } from '@clerk/clerk-react';
+import { ApolloProvider } from '@apollo/client/react';
 
 import { router } from './app/router/router';
+import { apolloClient } from './app/services/apollo-client';
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -18,7 +20,9 @@ const root = ReactDOM.createRoot(
 root.render(
   <StrictMode>
     <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/">
-      <RouterProvider router={router} />
+      <ApolloProvider client={apolloClient}>
+        <RouterProvider router={router} />
+      </ApolloProvider>
     </ClerkProvider>
   </StrictMode>
 );
