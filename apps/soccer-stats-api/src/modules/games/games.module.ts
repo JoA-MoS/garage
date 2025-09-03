@@ -10,6 +10,7 @@ import { TeamPlayer } from '../../entities/team-player.entity';
 import { EventType } from '../../entities/event-type.entity';
 import { GameEvent } from '../../entities/game-event.entity';
 import { GameParticipation } from '../../entities/game-participation.entity';
+import { AuthModule } from '../auth/auth.module';
 
 import { GamesResolver } from './games.resolver';
 import { GamesService } from './games.service';
@@ -26,6 +27,7 @@ import { GamesService } from './games.service';
       GameEvent,
       GameParticipation,
     ]),
+    AuthModule,
   ],
   providers: [
     GamesResolver,
