@@ -2,9 +2,108 @@
 applyTo: '**'
 ---
 
-# React Component Patterns
+# React Component Patterns & Development Guide
 
-Follow these patterns when building React components in any UI application.
+Complete guide for building React components following this workspace's standards and mobile-first approach.
+
+## Mobile-First Development Approach
+
+**ALL UI components must be designed and developed with a mobile-first approach.** Our primary users access applications on mobile devices, making mobile optimization critical for user experience and adoption.
+
+### Mobile-First Design Principles
+
+**Start with Mobile Design:**
+
+- Design and implement components for mobile screens first (320px and up)
+- Ensure all functionality is accessible and usable on touch devices
+- Test on actual mobile devices, not just browser dev tools
+- Prioritize essential content and features for small screens
+
+**Progressive Enhancement:**
+
+- Add features and layout complexity for larger screens using responsive breakpoints
+- Use Tailwind's responsive utilities: `sm:`, `md:`, `lg:`, `xl:`, `2xl:`
+- Never assume desktop features are available (hover states, precise cursor positioning)
+
+**Touch-First Interactions:**
+
+- Design for finger-sized touch targets (minimum 44px × 44px)
+- Provide adequate spacing between interactive elements
+- Consider thumb-friendly navigation patterns
+- Implement swipe gestures where appropriate
+
+### Mobile-First Component Development
+
+**Component Structure for Mobile:**
+
+```tsx
+export const MobileFirstComponent = ({ data }: ComponentProps) => {
+  return (
+    <div
+      className="
+      /* Mobile styles first (default) */
+      p-4 space-y-3 text-base
+      
+      /* Progressive enhancement for larger screens */
+      sm:p-6 sm:space-y-4 sm:text-lg
+      md:p-8 md:space-y-6 md:text-xl
+      lg:flex lg:space-y-0 lg:space-x-8
+    "
+    >
+      <div
+        className="
+        /* Mobile: full width, stacked */
+        w-full
+        
+        /* Tablet and up: constrained width, side-by-side */
+        md:w-1/2 lg:w-1/3
+      "
+      >
+        {/* Content optimized for mobile first */}
+      </div>
+    </div>
+  );
+};
+```
+
+**Responsive Design Patterns:**
+
+```tsx
+// Mobile-first grid layout
+<div className="
+  grid grid-cols-1 gap-4
+  sm:grid-cols-2 sm:gap-6
+  lg:grid-cols-3 lg:gap-8
+">
+
+// Mobile-first typography
+<h1 className="
+  text-xl font-bold leading-tight
+  sm:text-2xl
+  md:text-3xl md:leading-normal
+  lg:text-4xl
+">
+
+// Mobile-first navigation
+<nav className="
+  fixed bottom-0 left-0 right-0 bg-white border-t
+  sm:relative sm:border-t-0 sm:border-b
+  lg:flex lg:items-center lg:justify-between
+">
+```
+
+**Touch Target Guidelines:**
+
+- Minimum touch target size: `min-h-[44px] min-w-[44px]`
+- Adequate spacing: `space-y-3` or `gap-3` minimum between touch targets
+- Button sizing: `py-3 px-4` minimum for mobile buttons
+
+**Performance Considerations:**
+
+- Optimize images for mobile bandwidth: use responsive images with `srcset`
+- Minimize initial bundle size for mobile networks
+- Implement lazy loading for content below the fold
+- Use efficient animations that perform well on mobile devices
 
 ## Smart/Presentation Component Pattern
 
@@ -26,34 +125,6 @@ Smart components handle data, state, and business logic.
 - Use kebab-case for component names
 - Place in `components/smart/` directory
 
-**Example Structure:**
-
-```tsx
-// game-header.smart.tsx
-import { useState, useCallback } from 'react';
-import { GameHeaderPresentation } from '../presentation/game-header.presentation';
-import { useGameManager } from '../../hooks/use-game-manager';
-
-interface GameHeaderSmartProps {
-  gameId: string;
-}
-
-export const GameHeaderSmart = ({ gameId }: GameHeaderSmartProps) => {
-  const { gameData, updateGame } = useGameManager(gameId);
-  const [isEditing, setIsEditing] = useState(false);
-
-  const handleSave = useCallback(
-    (updates: GameUpdate) => {
-      updateGame(updates);
-      setIsEditing(false);
-    },
-    [updateGame]
-  );
-
-  return <GameHeaderPresentation game={gameData} isEditing={isEditing} onEdit={() => setIsEditing(true)} onSave={handleSave} onCancel={() => setIsEditing(false)} />;
-};
-```
-
 ### Presentation Components (Pure Components)
 
 Presentation components are pure UI components that only handle display logic.
@@ -72,25 +143,80 @@ Presentation components are pure UI components that only handle display logic.
 - Use kebab-case for component names
 - Place in `components/presentation/` directory
 
-**Example Structure:**
+## Code Generation Templates
+
+### Smart Component Template
 
 ```tsx
-// game-header.presentation.tsx
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { {FeatureName}Presentation } from '../presentation/{feature-name}.presentation';
+import { use{FeatureName}Manager } from '../../hooks/use-{feature-name}-manager';
 
-interface GameHeaderPresentationProps {
-  game: Game;
-  isEditing: boolean;
-  onEdit: () => void;
-  onSave: (updates: GameUpdate) => void;
-  onCancel: () => void;
+interface {FeatureName}SmartProps {
+  // Define props here
 }
 
-export const GameHeaderPresentation = ({ game, isEditing, onEdit, onSave, onCancel }: GameHeaderPresentationProps) => {
-  // Only UI logic here
-  const [localFormData, setLocalFormData] = useState(game);
+export const {FeatureName}Smart = (props: {FeatureName}SmartProps) => {
+  // Business logic and state management here
+  const { data, actions } = use{FeatureName}Manager();
 
-  return <div className="game-header">{isEditing ? <EditForm data={localFormData} onChange={setLocalFormData} onSave={() => onSave(localFormData)} onCancel={onCancel} /> : <DisplayView game={game} onEdit={onEdit} />}</div>;
+  // Event handlers
+  const handleAction = useCallback(() => {
+    // Handle business logic
+  }, []);
+
+  return (
+    <{FeatureName}Presentation
+      data={data}
+      onAction={handleAction}
+      // Pass other props
+    />
+  );
+};
+```
+
+### Presentation Component Template
+
+```tsx
+interface {FeatureName}PresentationProps {
+  // Define UI-focused props here
+  onAction: () => void;
+}
+
+export const {FeatureName}Presentation = ({
+  onAction,
+  // other props
+}: {FeatureName}PresentationProps) => {
+  return (
+    <div className="
+      /* Mobile-first styling */
+      p-4 space-y-3
+
+      /* Progressive enhancement for larger screens */
+      sm:p-6 sm:space-y-4
+      md:p-8 md:space-y-6
+      lg:flex lg:space-y-0 lg:space-x-8
+    ">
+      {/* UI content here */}
+      <button
+        onClick={onAction}
+        className="
+          /* Mobile-first touch target */
+          min-h-[44px] min-w-[44px] py-3 px-4
+          bg-blue-600 text-white rounded-md
+
+          /* Progressive enhancement */
+          sm:py-2 sm:px-3
+          lg:hover:bg-blue-700
+
+          /* Touch-friendly feedback */
+          active:scale-95 transition-transform
+        "
+      >
+        Action
+      </button>
+    </div>
+  );
 };
 ```
 
@@ -104,26 +230,101 @@ Extract complex business logic into custom hooks that can be shared between smar
 - Use kebab-case for hook names
 - Place in `hooks/` directory
 
-**Example:**
+**Custom Hook Template:**
 
 ```tsx
-// hooks/use-game-manager.ts
-export const useGameManager = (gameId: string) => {
-  const [gameData, setGameData] = useState<Game | null>(null);
+import { useState, useCallback, useMemo } from 'react';
 
-  const updateGame = useCallback((updates: GameUpdate) => {
-    // Business logic here
-    setGameData((prev) => ({ ...prev, ...updates }));
-  }, []);
+export const use{FeatureName}Manager = () => {
+  const [data, setData] = useState();
+
+  const actions = useMemo(() => ({
+    update: (updates) => {
+      // Business logic here
+      setData(prev => ({ ...prev, ...updates }));
+    },
+  }), []);
+
+  const derivedData = useMemo(() => ({
+    // Computed values here
+  }), [data]);
 
   return {
-    gameData,
-    gameActions: { updateGame },
-    derivedData: {
-      isGameActive: gameData?.status === 'active',
-      totalPlayers: gameData?.players.length ?? 0,
-    },
+    data,
+    actions,
+    derivedData
   };
+};
+```
+
+## API Service Patterns
+
+**Naming Convention:**
+
+- Use kebab-case: `{domain}-api.service.ts`
+- Place in `services/api/`
+- Export individual functions, not classes
+
+**API Service Template:**
+
+```tsx
+import { ApiResponse, {Domain} } from '../../types/{domain}.types';
+
+const BASE_URL = '/api/{domain}';
+
+export const get{Domain}ById = async (id: string): Promise<{Domain}> => {
+  const response = await fetch(`${BASE_URL}/${id}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch {domain}: ${response.statusText}`);
+  }
+  return response.json();
+};
+
+export const create{Domain} = async (data: Create{Domain}Request): Promise<{Domain}> => {
+  const response = await fetch(BASE_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to create {domain}: ${response.statusText}`);
+  }
+  return response.json();
+};
+```
+
+## Modern React Standards
+
+### Component Structure
+
+- **Function Components**: Use arrow function syntax without `React.FC`
+- **Props Typing**: Define interfaces separately and use inline type annotations
+- **Imports**: Only import specific hooks/functions needed from React
+- **No Default React Import**: Modern JSX transform doesn't require importing React
+
+**Standard Component Pattern:**
+
+```tsx
+import { useState, useCallback } from 'react';
+
+interface ComponentProps {
+  title: string;
+  onAction: () => void;
+}
+
+export const Component = ({ title, onAction }: ComponentProps) => {
+  const [state, setState] = useState(false);
+
+  const handleClick = useCallback(() => {
+    onAction();
+  }, [onAction]);
+
+  return (
+    <div>
+      <h1>{title}</h1>
+      <button onClick={handleClick}>Click me</button>
+    </div>
+  );
 };
 ```
 
@@ -143,19 +344,59 @@ export const useGameManager = (gameId: string) => {
 - Pass only necessary data in event callbacks
 - Use proper TypeScript types for event handlers
 
-### Testing Strategy
+### Performance Optimization
 
-- Test smart components by mocking dependencies
-- Test presentation components with different prop combinations
-- Use React Testing Library for user-centric testing
-- Mock external services and APIs in smart component tests
+- Use `useCallback` for event handlers
+- Use `useMemo` for expensive computations
+- Use `memo` from React for presentation components when beneficial
+- Implement proper loading states
+
+## Testing Strategy
+
+- **Smart Components**: Test by mocking dependencies and external services
+- **Presentation Components**: Test with different prop combinations using React Testing Library
+- **Custom Hooks**: Test business logic separately from UI
+- **User-Centric Testing**: Focus on user interactions rather than implementation details
+
+## Workspace-Specific Patterns
+
+### Technology Stack
+
+- React with TypeScript
+- Tailwind CSS for styling (mobile-first approach)
+- React Testing Library for testing
+- Vite for bundling (where applicable)
+- NestJS for API applications
+
+### Nx Workspace Considerations
+
+- Respect project boundaries and dependencies
+- Use proper import paths for libraries
+- Follow Nx conventions for project structure
 
 ## Migration Strategy
 
 When working with existing components:
 
-1. Identify mixed components (components with both logic and UI)
-2. Extract business logic into custom hooks or smart components
-3. Create pure presentation components for UI
-4. Maintain backward compatibility during migration
-5. Update tests to match new component structure
+1. **Identify mixed components** (components with both logic and UI)
+2. **Extract business logic** into custom hooks or smart components
+3. **Create pure presentation components** for UI
+4. **Maintain backward compatibility** during migration
+5. **Update tests** to match new component structure
+6. **Follow established refactoring patterns** from the soccer-stats app
+
+## Code Generation Guidelines
+
+When generating code:
+
+1. **Determine component type first:**
+
+   - Data/business logic needs → Smart component
+   - Pure UI display → Presentation component
+   - When unsure → Create both Smart and Presentation components
+
+2. **Follow naming conventions** (see file-naming-conventions.instructions.md)
+3. **Use mobile-first Tailwind classes**
+4. **Include proper TypeScript types**
+5. **Add error handling for async operations**
+6. **Generate corresponding test files**

@@ -10,7 +10,13 @@ This file provides specific guidance for GitHub Copilot to follow the establishe
 
 When generating code, always follow these patterns and conventions established in this workspace.
 
-### Component Generation
+**Primary Reference Files:**
+
+- **React Components**: See `react-component-patterns.instructions.md` for complete patterns, templates, and mobile-first approach
+- **File Naming**: See `file-naming-conventions.instructions.md` for all naming standards
+- **General Standards**: See `coding-standards.instructions.md` for high-level principles
+
+## Component Generation Decision Tree
 
 **When creating React components:**
 
@@ -27,131 +33,38 @@ When generating code, always follow these patterns and conventions established i
    - Common components: `{component-name}.tsx`
 
 3. **Follow the established architecture:**
+
    - Place Smart components in `components/smart/`
    - Place Presentation components in `components/presentation/`
    - Extract business logic into custom hooks when appropriate
 
-**Example Smart Component Template:**
+4. **Apply mobile-first design:**
+   - Start with mobile styles using Tailwind classes
+   - Use progressive enhancement for larger screens
+   - Ensure touch targets are minimum 44px × 44px
+   - Test touch interactions and responsive behavior
 
-```tsx
-import { useState, useCallback } from 'react';
-import { {FeatureName}Presentation } from '../presentation/{feature-name}.presentation';
-import { use{FeatureName}Manager } from '../../hooks/use-{feature-name}-manager';
+## Workspace-Specific Patterns
 
-interface {FeatureName}SmartProps {
-  // Define props here
-}
+### Nx Workspace Considerations
 
-export const {FeatureName}Smart = (props: {FeatureName}SmartProps) => {
-  // Business logic and state management here
-  const { data, actions } = use{FeatureName}Manager();
+- Respect project boundaries and dependencies
+- Use proper import paths for libraries
+- Follow Nx conventions for project structure
 
-  // Event handlers
-  const handleAction = useCallback(() => {
-    // Handle business logic
-  }, []);
+### Existing Patterns
 
-  return (
-    <{FeatureName}Presentation
-      data={data}
-      onAction={handleAction}
-      // Pass other props
-    />
-  );
-};
-```
+- Look at existing components in the `soccer-stats` app for reference
+- Follow the established Smart/Presentation pattern already implemented
+- Use similar styling approaches (Tailwind CSS where applicable)
 
-**Example Presentation Component Template:**
+### Technology Stack
 
-```tsx
-interface {FeatureName}PresentationProps {
-  // Define UI-focused props here
-  onAction: () => void;
-}
-
-export const {FeatureName}Presentation = ({
-  onAction,
-  // other props
-}: {FeatureName}PresentationProps) => {
-  return (
-    <div className="{feature-name}">
-      {/* UI content here */}
-      <button onClick={onAction}>Action</button>
-    </div>
-  );
-};
-```
-
-### Hook Generation
-
-**When creating custom hooks:**
-
-- Name with `use-` prefix: `use-{hook-name}.ts`
-- Place in `hooks/` directory
-- Return object with `data`, `actions`, and `derivedData` when appropriate
-
-**Example Hook Template:**
-
-```tsx
-import { useState, useCallback, useMemo } from 'react';
-
-export const use{FeatureName}Manager = () => {
-  const [data, setData] = useState();
-
-  const actions = useMemo(() => ({
-    update: (updates) => {
-      // Business logic here
-      setData(prev => ({ ...prev, ...updates }));
-    },
-  }), []);
-
-  const derivedData = useMemo(() => ({
-    // Computed values here
-  }), [data]);
-
-  return {
-    data,
-    actions,
-    derivedData
-  };
-};
-```
-
-### API Service Generation
-
-**When creating API services:**
-
-- Use kebab-case: `{domain}-api.service.ts`
-- Place in `services/api/`
-- Export individual functions, not classes
-
-**Example API Service Template:**
-
-```tsx
-import { ApiResponse, {Domain} } from '../../types/{domain}.types';
-
-const BASE_URL = '/api/{domain}';
-
-export const get{Domain}ById = async (id: string): Promise<{Domain}> => {
-  const response = await fetch(`${BASE_URL}/${id}`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch {domain}: ${response.statusText}`);
-  }
-  return response.json();
-};
-
-export const create{Domain} = async (data: Create{Domain}Request): Promise<{Domain}> => {
-  const response = await fetch(BASE_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to create {domain}: ${response.statusText}`);
-  }
-  return response.json();
-};
-```
+- React with TypeScript
+- Tailwind CSS for styling (mobile-first approach)
+- React Testing Library for testing
+- Vite for bundling (where applicable)
+- NestJS for API applications
 
 ## Code Quality Standards for Generation
 
@@ -179,63 +92,6 @@ export const create{Domain} = async (data: Create{Domain}Request): Promise<{Doma
 - Use `useCallback` for event handlers
 - Use `useMemo` for expensive computations
 - Use `memo` from React for presentation components when beneficial
-
-## Code Generation Standards
-
-### React Components
-
-- **Function Components**: Use arrow function syntax without `React.FC`
-- **Props Typing**: Define interfaces separately and use inline type annotations
-- **Imports**: Only import specific hooks/functions needed from React
-- **No Default React Import**: Modern JSX transform doesn't require importing React
-
-**Component Pattern:**
-
-```tsx
-import { useState, useCallback } from 'react';
-
-interface ComponentProps {
-  title: string;
-  onAction: () => void;
-}
-
-export const Component = ({ title, onAction }: ComponentProps) => {
-  const [state, setState] = useState(false);
-
-  const handleClick = useCallback(() => {
-    onAction();
-  }, [onAction]);
-
-  return (
-    <div>
-      <h1>{title}</h1>
-      <button onClick={handleClick}>Click me</button>
-    </div>
-  );
-};
-```
-
-## Workspace-Specific Patterns
-
-### Nx Workspace Considerations
-
-- Respect project boundaries and dependencies
-- Use proper import paths for libraries
-- Follow Nx conventions for project structure
-
-### Existing Patterns
-
-- Look at existing components in the `soccer-stats` app for reference
-- Follow the established Smart/Presentation pattern already implemented
-- Use similar styling approaches (Tailwind CSS where applicable)
-
-### Technology Stack
-
-- React with TypeScript
-- Tailwind CSS for styling
-- React Testing Library for testing
-- Vite for bundling (where applicable)
-- NestJS for API applications
 
 ## Migration and Refactoring
 

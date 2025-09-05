@@ -13,15 +13,20 @@ Follow these coding standards consistently across the entire workspace.
 - **Maintainability**: Separate concerns and keep components focused
 - **Testing**: Write testable code with proper separation of logic and UI
 - **Performance**: Consider performance implications of architectural decisions
+- **Mobile-First**: Design and develop all UI components with mobile users as the primary consideration
 
 ## Architecture Patterns
 
 ### Component Architecture (React/UI Applications)
 
 - Use **Smart/Presentation Component Pattern** for all UI applications
+- **Mobile-First Development**: ALL UI components must be designed for mobile devices first, then enhanced for larger screens
 - Smart components handle data, state, and business logic
 - Presentation components are pure UI components that receive props
 - Keep components focused on a single responsibility
+- Ensure touch-friendly interfaces with adequate touch targets (minimum 44px × 44px)
+
+**For detailed React patterns, see:** `react-component-patterns.instructions.md`
 
 ### File Organization
 
@@ -29,41 +34,9 @@ Follow these coding standards consistently across the entire workspace.
 - Use consistent directory structures across projects
 - Keep components, tests, and stories co-located when possible
 
+**For detailed naming conventions, see:** `file-naming-conventions.instructions.md`
+
 ## Code Quality Standards
-
-### React Components (Modern Patterns)
-
-- **Function Components**: Use arrow function syntax without `React.FC`
-- **Props Typing**: Define interfaces separately and use inline type annotations
-- **Imports**: Only import specific hooks/functions needed from React
-- **No Default React Import**: Modern JSX transform doesn't require importing React
-- **Component Naming**: Use PascalCase for component names, kebab-case for file names
-
-**Example Modern Component:**
-
-```tsx
-import { useState, useCallback } from 'react';
-
-interface ComponentProps {
-  title: string;
-  onAction: () => void;
-}
-
-export const Component = ({ title, onAction }: ComponentProps) => {
-  const [state, setState] = useState(false);
-
-  const handleClick = useCallback(() => {
-    onAction();
-  }, [onAction]);
-
-  return (
-    <div>
-      <h1>{title}</h1>
-      <button onClick={handleClick}>Click me</button>
-    </div>
-  );
-};
-```
 
 ### TypeScript
 
