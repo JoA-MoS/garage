@@ -1,8 +1,11 @@
-import { useState } from 'react';
-
 import { UITeam } from '../types/ui.types';
 
-export type TeamManagementTab = 'basic' | 'formation' | 'players';
+export type TeamManagementTab =
+  | 'basic'
+  | 'format'
+  | 'formation'
+  | 'positions'
+  | 'players';
 
 interface TeamManagementTabsProps {
   activeTab: TeamManagementTab;
@@ -39,6 +42,26 @@ export const TeamManagementTabs = ({
       description: 'Team name, colors, and logo',
     },
     {
+      id: 'format' as const,
+      name: 'Game Format',
+      icon: (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      ),
+      description: 'Select 11v11, 9v9, or other format',
+    },
+    {
       id: 'formation' as const,
       name: 'Formation',
       icon: (
@@ -56,7 +79,33 @@ export const TeamManagementTabs = ({
           />
         </svg>
       ),
-      description: 'Field positions and formation setup',
+      description: 'Choose team formation',
+    },
+    {
+      id: 'positions' as const,
+      name: 'Positions',
+      icon: (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+          />
+        </svg>
+      ),
+      description: 'Customize field positions',
     },
     {
       id: 'players' as const,
