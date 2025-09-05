@@ -15,7 +15,12 @@ import { TeamManagementPage } from '../pages/team-management.page';
 import { AnalyticsPage } from '../pages/analytics.page';
 import { SettingsPage } from '../pages/settings.page';
 import { AboutPage } from '../pages/about.page';
+import { TeamPlayersPage } from '../pages/team-players.page';
+import { TeamGamesPage } from '../pages/team-games.page';
+import { TeamOverviewPage } from '../pages/team-overview.page';
+import { TeamStatsPage } from '../pages/team-stats.page';
 import { GameLayout } from '../components/layout/game-layout';
+import { TeamLayout } from '../components/layout/team-layout';
 import { HomeLineupView } from '../components/views/home-lineup.view';
 import { AwayLineupView } from '../components/views/away-lineup.view';
 import { RosterView } from '../components/views/roster.view';
@@ -99,16 +104,32 @@ export const router = createBrowserRouter([
         element: <TeamManagementPage />,
       },
       {
+        path: 'teams/:teamId',
+        element: <Navigate to="overview" replace />,
+      },
+      {
+        path: 'teams/:teamId/overview',
+        element: <TeamOverviewPage />,
+      },
+      {
+        path: 'teams/:teamId/players',
+        element: <TeamPlayersPage />,
+      },
+      {
+        path: 'teams/:teamId/games',
+        element: <TeamGamesPage />,
+      },
+      {
+        path: 'teams/:teamId/stats',
+        element: <TeamStatsPage />,
+      },
+      {
         path: 'teams/:teamId/manage',
         element: <TeamManagementPage />,
       },
       {
         path: 'teams/:teamId/edit',
         element: <EditTeamPage />,
-      },
-      {
-        path: 'teams/:teamId',
-        element: <TeamDetailPage />,
       },
       {
         path: 'teams/:teamId/configure',

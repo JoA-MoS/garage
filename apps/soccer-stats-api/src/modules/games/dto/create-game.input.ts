@@ -1,7 +1,5 @@
 import { InputType, Field, Int, ID } from '@nestjs/graphql';
-import { IsEnum, IsOptional, IsInt, Min, IsUUID } from 'class-validator';
-
-import { GameFormat } from '../../../entities/game.entity';
+import { IsOptional, IsInt, Min, IsUUID } from 'class-validator';
 
 @InputType()
 export class CreateGameInput {
@@ -13,9 +11,9 @@ export class CreateGameInput {
   @IsUUID()
   awayTeamId: string;
 
-  @Field(() => GameFormat)
-  @IsEnum(GameFormat)
-  format: GameFormat;
+  @Field(() => ID)
+  @IsUUID()
+  gameFormatId: string;
 
   @Field(() => Int, { defaultValue: 90 })
   @IsInt()

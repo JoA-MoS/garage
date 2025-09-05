@@ -5,12 +5,15 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { ObjectType, Field, ID, Int, registerEnumType } from '@nestjs/graphql';
 
 import { GameTeam } from './game-team.entity';
 import { GameEvent } from './game-event.entity';
 import { GameParticipation } from './game-participation.entity';
+import { GameFormat } from './game-format.entity';
 
 export enum GameStatus {
   NOT_STARTED = 'NOT_STARTED',
@@ -20,19 +23,8 @@ export enum GameStatus {
   CANCELLED = 'CANCELLED',
 }
 
-export enum GameFormat {
-  ELEVEN_V_ELEVEN = '11v11',
-  NINE_V_NINE = '9v9',
-  SEVEN_V_SEVEN = '7v7',
-  FIVE_V_FIVE = '5v5',
-}
-
 registerEnumType(GameStatus, {
   name: 'GameStatus',
-});
-
-registerEnumType(GameFormat, {
-  name: 'GameFormat',
 });
 
 @ObjectType()
@@ -59,12 +51,11 @@ export class Game {
   status: GameStatus;
 
   @Field(() => GameFormat)
-  @Column({
-    type: 'enum',
-    enum: GameFormat,
-    default: GameFormat.ELEVEN_V_ELEVEN,
+  @ManyToOne(() => GameFormat, (gameFormat) => gameFormat.games, {
+    nullable: false,
   })
-  format: GameFormat;
+  @JoinColumn({ name: 'game_format_id' })
+  gameFormat: GameFormat;
 
   @Field(() => Int)
   @Column({ type: 'int', default: 0 })

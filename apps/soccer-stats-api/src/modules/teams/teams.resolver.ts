@@ -16,6 +16,7 @@ import { GameTeam } from '../../entities/game-team.entity';
 import { Player } from '../../entities/player.entity';
 import { PlayersService } from '../players/players.service';
 
+import { TeamPlayerWithJersey } from './dto/team-player-with-jersey.dto';
 import { TeamsService } from './teams.service';
 import { CreateTeamInput } from './dto/create-team.input';
 import { UpdateTeamInput } from './dto/update-team.input';
@@ -47,6 +48,11 @@ export class TeamsResolver {
   @ResolveField(() => [Player])
   players(@Parent() team: Team): Promise<Player[]> {
     return this.playersService.findByTeamId(team.id);
+  }
+
+  @ResolveField(() => [TeamPlayerWithJersey])
+  playersWithJersey(@Parent() team: Team): Promise<TeamPlayerWithJersey[]> {
+    return this.teamsService.getPlayersWithJersey(team.id);
   }
 
   @ResolveField(() => [GameTeam])
