@@ -13,6 +13,7 @@ import { GameTeam } from '../../entities/game-team.entity';
 import { CreateTeamInput } from './dto/create-team.input';
 import { UpdateTeamInput } from './dto/update-team.input';
 import { AddPlayerToTeamInput } from './dto/add-player-to-team.input';
+import { TeamPlayerWithJersey } from './dto/team-player-with-jersey.dto';
 
 @Injectable()
 export class TeamsService {
@@ -93,9 +94,9 @@ export class TeamsService {
 
   async addPlayerToTeam(
     addPlayerToTeamInput: AddPlayerToTeamInput
-  ): Promise<TeamPlayer> {
+  ): Promise<Team> {
     // Verify team exists
-    await this.findOne(addPlayerToTeamInput.teamId);
+    const team = await this.findOne(addPlayerToTeamInput.teamId);
 
     // Check if player already exists in this team
     const existing = await this.teamPlayerRepository.findOne({
@@ -133,7 +134,10 @@ export class TeamsService {
       isActive: addPlayerToTeamInput.isActive !== false,
     });
 
-    return this.teamPlayerRepository.save(teamPlayer);
+    await this.teamPlayerRepository.save(teamPlayer);
+
+    // Return the team (which should have all required fields)
+    return team;
   }
 
   async removePlayerFromTeam(
@@ -150,5 +154,22 @@ export class TeamsService {
 
     await this.teamPlayerRepository.remove(teamPlayer);
     return true;
+  }
+
+  async getPlayersWithJersey(teamId: string): Promise<TeamPlayerWithJersey[]> {
+    const teamPlayers = await this.teamPlayerRepository.find({
+      where: { teamId },
+      relations: ['player'],
+      order: { jersey: 'ASC' },
+    });
+
+    return teamPlayers.map((tp) => ({
+      id: tp.player.id,
+      name: tp.player.name,
+      position: tp.player.position,
+      jersey: tp.jersey,
+      depthRank: tp.depthRank,
+      isActive: tp.isActive,
+    }));
   }
 }

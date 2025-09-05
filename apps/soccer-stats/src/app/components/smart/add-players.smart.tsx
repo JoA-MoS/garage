@@ -28,7 +28,9 @@ interface AddPlayersSmartProps {
  */
 export const AddPlayersSmart = ({ teamId }: AddPlayersSmartProps) => {
   const navigate = useNavigate();
-  const [selectedPlayers, setSelectedPlayers] = useState<string[]>([]);
+  const [selectedPlayersWithJerseys, setSelectedPlayersWithJerseys] = useState<
+    { playerId: string; jersey: number }[]
+  >([]);
 
   // Get team data
   const {
@@ -78,8 +80,19 @@ export const AddPlayersSmart = ({ teamId }: AddPlayersSmartProps) => {
         });
 
         if (result.data) {
-          // Automatically select the newly created player
-          setSelectedPlayers((prev) => [...prev, result.data!.createPlayer.id]);
+          // Automatically select the newly created player with a default jersey number
+          const existingJerseys = selectedPlayersWithJerseys.map(
+            (p) => p.jersey
+          );
+          const nextJerseyNumber = Math.max(0, ...existingJerseys) + 1;
+
+          setSelectedPlayersWithJerseys((prev) => [
+            ...prev,
+            {
+              playerId: result.data!.createPlayer.id,
+              jersey: nextJerseyNumber,
+            },
+          ]);
         }
       } catch (err) {
         console.error('Error creating player:', err);
@@ -89,24 +102,43 @@ export const AddPlayersSmart = ({ teamId }: AddPlayersSmartProps) => {
   );
 
   const handlePlayerSelection = useCallback(
-    (playerId: string, isSelected: boolean) => {
-      setSelectedPlayers((prev) =>
-        isSelected ? [...prev, playerId] : prev.filter((id) => id !== playerId)
-      );
+    (playerId: string, isSelected: boolean, jersey?: number) => {
+      setSelectedPlayersWithJerseys((prev) => {
+        if (isSelected) {
+          // Add player with jersey number
+          const existingJerseys = prev.map((p) => p.jersey);
+          const defaultJersey = jersey || Math.max(0, ...existingJerseys) + 1;
+          return [...prev, { playerId, jersey: defaultJersey }];
+        } else {
+          // Remove player
+          return prev.filter((p) => p.playerId !== playerId);
+        }
+      });
     },
     []
   );
 
+  const handleJerseyChange = useCallback((playerId: string, jersey: number) => {
+    setSelectedPlayersWithJerseys((prev) =>
+      prev.map((item) =>
+        item.playerId === playerId ? { ...item, jersey } : item
+      )
+    );
+  }, []);
+
   const handleFinish = useCallback(async () => {
     try {
-      // Add all selected players to the team
+      // Add all selected players to the team with their jersey numbers
       await Promise.all(
-        selectedPlayers.map((playerId) =>
+        selectedPlayersWithJerseys.map(({ playerId, jersey }) =>
           addPlayerToTeam({
             variables: {
               addPlayerToTeamInput: {
                 teamId,
                 playerId,
+                jersey,
+                depthRank: 1,
+                isActive: true,
               },
             },
           })
@@ -118,7 +150,7 @@ export const AddPlayersSmart = ({ teamId }: AddPlayersSmartProps) => {
     } catch (err) {
       console.error('Error adding players to team:', err);
     }
-  }, [selectedPlayers, addPlayerToTeam, teamId, navigate]);
+  }, [selectedPlayersWithJerseys, addPlayerToTeam, teamId, navigate]);
 
   const handleBack = useCallback(() => {
     navigate(`/teams/${teamId}/configure`);
@@ -175,7 +207,7 @@ export const AddPlayersSmart = ({ teamId }: AddPlayersSmartProps) => {
     <AddPlayersPresentation
       team={teamData.team}
       players={playersData?.players || []}
-      selectedPlayers={selectedPlayers}
+      selectedPlayersWithJerseys={selectedPlayersWithJerseys}
       playersLoading={playersLoading}
       createPlayerLoading={createPlayerLoading}
       addPlayerLoading={addPlayerLoading}
@@ -183,6 +215,7 @@ export const AddPlayersSmart = ({ teamId }: AddPlayersSmartProps) => {
       addPlayerError={addPlayerError?.message}
       onCreatePlayer={handleCreatePlayer}
       onPlayerSelection={handlePlayerSelection}
+      onJerseyChange={handleJerseyChange}
       onFinish={handleFinish}
       onBack={handleBack}
       onSkip={handleSkip}

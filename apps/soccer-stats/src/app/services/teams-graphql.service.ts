@@ -1,5 +1,7 @@
 import { gql } from '@apollo/client';
 
+import { Player } from './players-graphql.service';
+
 export const GET_TEAMS = gql`
   query GetTeams {
     teams {
@@ -22,6 +24,14 @@ export const GET_TEAM_BY_ID = gql`
       logo
       createdAt
       updatedAt
+      playersWithJersey {
+        id
+        name
+        position
+        jersey
+        depthRank
+        isActive
+      }
       gameTeams {
         id
         isHome
@@ -80,6 +90,15 @@ export const ADD_PLAYER_TO_TEAM = gql`
 `;
 
 // TypeScript interfaces for the GraphQL responses
+export interface PlayerWithJersey {
+  id: string;
+  name: string;
+  position: string;
+  jersey: number;
+  depthRank?: number;
+  isActive: boolean;
+}
+
 export interface Team {
   id: string;
   name: string;
@@ -87,6 +106,8 @@ export interface Team {
   logo?: string;
   createdAt: string;
   updatedAt: string;
+  players?: Player[];
+  playersWithJersey?: PlayerWithJersey[];
 }
 
 export interface Game {
@@ -136,6 +157,9 @@ export interface UpdateTeamResponse {
 export interface AddPlayerToTeamInput {
   teamId: string;
   playerId: string;
+  jersey: number;
+  depthRank?: number;
+  isActive?: boolean;
 }
 
 export interface AddPlayerToTeamResponse {

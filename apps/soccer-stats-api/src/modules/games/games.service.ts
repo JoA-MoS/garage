@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { Game, GameStatus } from '../../entities/game.entity';
 import { Team } from '../../entities/team.entity';
 import { GameTeam } from '../../entities/game-team.entity';
+import { GameFormat } from '../../entities/game-format.entity';
 
 import { CreateGameInput } from './dto/create-game.input';
 import { UpdateGameInput } from './dto/update-game.input';
@@ -17,12 +18,15 @@ export class GamesService {
     @InjectRepository(Team)
     private readonly teamRepository: Repository<Team>,
     @InjectRepository(GameTeam)
-    private readonly gameTeamRepository: Repository<GameTeam>
+    private readonly gameTeamRepository: Repository<GameTeam>,
+    @InjectRepository(GameFormat)
+    private readonly gameFormatRepository: Repository<GameFormat>
   ) {}
 
   async findAll(): Promise<Game[]> {
     return this.gameRepository.find({
       relations: [
+        'gameFormat',
         'gameTeams',
         'gameTeams.team',
         'gameTeams.team.teamPlayers',
@@ -42,6 +46,7 @@ export class GamesService {
     const game = await this.gameRepository.findOne({
       where: { id },
       relations: [
+        'gameFormat',
         'gameTeams',
         'gameTeams.team',
         'gameTeams.team.teamPlayers',
@@ -83,10 +88,21 @@ export class GamesService {
       );
     }
 
+    // Verify that the game format exists
+    const gameFormat = await this.gameFormatRepository.findOne({
+      where: { id: createGameInput.gameFormatId },
+    });
+
+    if (!gameFormat) {
+      throw new NotFoundException(
+        `Game format with ID ${createGameInput.gameFormatId} not found`
+      );
+    }
+
     // Create the game
     const game = this.gameRepository.create({
-      format: createGameInput.format,
-      duration: createGameInput.duration || 90,
+      gameFormat,
+      duration: createGameInput.duration || gameFormat.defaultDuration,
       status: GameStatus.NOT_STARTED,
       currentTime: 0,
     });

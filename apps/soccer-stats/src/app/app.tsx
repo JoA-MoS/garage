@@ -1,10 +1,13 @@
 import { SoccerStatsTrackerSmart } from './components/smart/soccer-stats-tracker.smart';
+import { ApiProvider } from './providers/api-provider';
 
 export function App() {
   return (
-    <div>
-      <SoccerStatsTrackerSmart />
-    </div>
+    <ApiProvider>
+      <div>
+        <SoccerStatsTrackerSmart />
+      </div>
+    </ApiProvider>
   );
 }
 

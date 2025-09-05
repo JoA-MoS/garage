@@ -1,6 +1,6 @@
 import { useQuery } from '@apollo/client/react';
 import { useNavigate } from 'react-router';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 import {
   GET_TEAM_BY_ID,
@@ -9,68 +9,101 @@ import {
 import { TeamDetailPresentation } from '../presentation/team-detail.presentation';
 import { mapServiceTeamToUITeam } from '../utils/data-mapping.utils';
 
+import { TeamPlayersSmart } from './team-players.smart';
+import { TeamGamesSmart } from './team-games.smart';
+
 interface TeamDetailSmartProps {
   teamId: string;
 }
 
+type TabType = 'overview' | 'players' | 'games' | 'stats';
+
 /**
- * Smart component for viewing team details
+ * Smart component for viewing team details with player management
  */
 export const TeamDetailSmart = ({ teamId }: TeamDetailSmartProps) => {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
 
-  const { data, loading, error } = useQuery<TeamResponse>(GET_TEAM_BY_ID, {
-    variables: { id: teamId },
-    skip: !teamId,
-  });
+  const { data, loading, error, refetch } = useQuery<TeamResponse>(
+    GET_TEAM_BY_ID,
+    {
+      variables: { id: teamId },
+      errorPolicy: 'all',
+      fetchPolicy: 'cache-and-network',
+    }
+  );
 
-  const handleEdit = useCallback(() => {
-    navigate(`/teams/${teamId}/edit`);
-  }, [navigate, teamId]);
-
-  const handleBackToTeams = useCallback(() => {
+  const handleGoBack = useCallback(() => {
     navigate('/teams');
   }, [navigate]);
 
-  // Show loading state
-  if (loading) {
+  const handleTabChange = useCallback(
+    (tab: TabType) => {
+      setActiveTab(tab);
+      // Navigate to the direct route for the tab
+      if (tab !== 'overview') {
+        navigate(`/teams/${teamId}/${tab}`);
+      } else {
+        navigate(`/teams/${teamId}/overview`);
+      }
+    },
+    [navigate, teamId]
+  );
+
+  const handleRefresh = useCallback(() => {
+    refetch();
+  }, [refetch]);
+
+  if (loading && !data) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded mb-4"></div>
-            <div className="h-4 bg-gray-200 rounded mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-          </div>
-        </div>
+      <div className="flex justify-center items-center h-64">
+        <div className="text-lg">Loading team details...</div>
       </div>
     );
   }
 
-  // Show error state
-  if (error || !data?.team) {
+  if (error && !data) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <p className="text-red-800">{error?.message || 'Team not found'}</p>
-          <button
-            onClick={handleBackToTeams}
-            className="mt-3 text-red-600 hover:text-red-800 underline"
-          >
-            Back to Teams
-          </button>
-        </div>
+      <div className="text-center text-red-600 p-4">
+        <div className="text-lg font-semibold">Error loading team</div>
+        <div className="text-sm mt-2">{error.message}</div>
+        <button
+          onClick={handleRefresh}
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
 
-  const uiTeam = mapServiceTeamToUITeam(data.team);
+  const team = data?.team ? mapServiceTeamToUITeam(data.team) : null;
+
+  if (!team) {
+    return (
+      <div className="text-center p-4">
+        <div className="text-lg">Team not found</div>
+        <button
+          onClick={handleGoBack}
+          className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+        >
+          Go Back
+        </button>
+      </div>
+    );
+  }
 
   return (
     <TeamDetailPresentation
-      team={uiTeam}
-      onEdit={handleEdit}
-      onBack={handleBackToTeams}
+      team={team}
+      activeTab={activeTab}
+      onGoBack={handleGoBack}
+      onTabChange={handleTabChange}
+      onRefresh={handleRefresh}
+      isLoading={loading}
+      playersComponent={<TeamPlayersSmart teamId={teamId} />}
+      gamesComponent={<TeamGamesSmart teamId={teamId} />}
     />
   );
 };

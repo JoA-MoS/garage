@@ -11,10 +11,12 @@ import { GamesModule } from '../modules/games/games.module';
 import { TeamsModule } from '../modules/teams/teams.module';
 import { PlayersModule } from '../modules/players/players.module';
 import { AuthModule } from '../modules/auth/auth.module';
+import { GameFormatsModule } from '../modules/game-formats/game-formats.module';
 import { ClerkUser } from '../modules/auth/clerk.service';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { StartupService } from './startup.service';
 
 interface AuthenticatedRequest extends Request {
   user?: ClerkUser;
@@ -66,8 +68,9 @@ console.log(con);
     TeamsModule,
     PlayersModule,
     AuthModule,
+    GameFormatsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, StartupService],
 })
 export class AppModule {}

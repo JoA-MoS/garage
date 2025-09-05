@@ -10,10 +10,20 @@ input AddPlayerToTeamInput {
   teamId: ID!
 }
 
+input CreateGameFormatInput {
+  defaultDuration: Int! = 90
+  description: String
+  displayName: String!
+  maxSubstitutions: Int
+  minPlayers: Int
+  name: String!
+  playersPerSide: Int!
+}
+
 input CreateGameInput {
   awayTeamId: ID!
   duration: Int! = 90
-  format: GameFormat!
+  gameFormatId: ID!
   homeTeamId: ID!
 }
 
@@ -53,8 +63,8 @@ type Game {
   currentTime: Int!
   duration: Int!
   endTime: DateTime
-  format: GameFormat!
   gameEvents: [GameEvent!]!
+  gameFormat: GameFormat!
   gameTeams: [GameTeam!]!
   id: ID!
   participations: [GameParticipation!]!
@@ -83,11 +93,19 @@ type GameEvent {
   updatedAt: DateTime!
 }
 
-enum GameFormat {
-  ELEVEN_V_ELEVEN
-  FIVE_V_FIVE
-  NINE_V_NINE
-  SEVEN_V_SEVEN
+type GameFormat {
+  createdAt: DateTime!
+  defaultDuration: Int!
+  description: String
+  displayName: String!
+  games: [Game!]!
+  id: ID!
+  isActive: Boolean!
+  maxSubstitutions: Int
+  minPlayers: Int
+  name: String!
+  playersPerSide: Int!
+  updatedAt: DateTime!
 }
 
 type GameParticipation {
@@ -132,6 +150,7 @@ type GameTeam {
 type Mutation {
   addPlayerToTeam(addPlayerToTeamInput: AddPlayerToTeamInput!): Team!
   createGame(createGameInput: CreateGameInput!): Game!
+  createGameFormat(input: CreateGameFormatInput!): GameFormat!
   createPlayer(createPlayerInput: CreatePlayerInput!): Player!
   createTeam(createTeamInput: CreateTeamInput!): Team!
   endGame(id: ID!): Game!
@@ -140,6 +159,7 @@ type Mutation {
   removePlayer(id: ID!): Boolean!
   removePlayerFromTeam(playerId: ID!, teamId: ID!): Team!
   removeTeam(id: ID!): Boolean!
+  seedGameFormats: Boolean!
   startGame(id: ID!): Game!
   updateGame(id: ID!, updateGameInput: UpdateGameInput!): Game!
   updateGameTime(currentTime: Int!, id: ID!): Game!
@@ -160,6 +180,8 @@ type Player {
 
 type Query {
   game(id: ID!): Game!
+  gameFormat(id: ID!): GameFormat!
+  gameFormats: [GameFormat!]!
   games: [Game!]!
   player(id: ID!): Player!
   players: [Player!]!
@@ -187,6 +209,7 @@ type Team {
   logo: String
   name: String!
   players: [Player!]!
+  playersWithJersey: [TeamPlayerWithJersey!]!
   teamPlayers: [TeamPlayer!]!
   updatedAt: DateTime!
 }
@@ -206,11 +229,20 @@ type TeamPlayer {
   updatedAt: DateTime!
 }
 
+type TeamPlayerWithJersey {
+  depthRank: Int
+  id: ID!
+  isActive: Boolean!
+  jersey: Int!
+  name: String!
+  position: String!
+}
+
 input UpdateGameInput {
   awayTeamId: ID
   currentTime: Int
   duration: Int = 90
-  format: GameFormat
+  gameFormatId: ID
   homeTeamId: ID
   status: GameStatus
 }

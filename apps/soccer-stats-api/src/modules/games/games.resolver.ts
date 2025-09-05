@@ -41,11 +41,9 @@ export class GamesResolver {
   }
 
   @Mutation(() => Game)
-  async createGame(
-    @Args('createGameInput') createGameInput: CreateGameInput,
-    @CurrentUser() user: ClerkUser
-  ) {
-    console.log('Creating game for user:', user.id);
+  @Public() // Temporarily public for MVP
+  async createGame(@Args('createGameInput') createGameInput: CreateGameInput) {
+    console.log('Creating game with input:', createGameInput);
     const game = await this.gamesService.create(createGameInput);
     this.pubSub.publish('gameCreated', { gameCreated: game });
     return game;

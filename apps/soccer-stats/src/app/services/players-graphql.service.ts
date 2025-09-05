@@ -46,6 +46,9 @@ export interface CreatePlayerInput {
 export interface AddPlayerToTeamInput {
   teamId: string;
   playerId: string;
+  jersey: number;
+  depthRank?: number;
+  isActive?: boolean;
 }
 
 export interface PlayersResponse {
