@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 
 import {
   GET_TEAM_BY_ID,
@@ -13,21 +13,13 @@ import {
 } from '../../services/teams-graphql.service';
 import { TeamManagementPresentation } from '../presentation/team-management.presentation';
 import { TeamManagementTab } from '../presentation/team-management-tabs.presentation';
-import { CreateTeamPresentation } from '../presentation/create-team.presentation';
-import { TeamConfigurationPresentation } from '../presentation/team-configuration.presentation';
-import { AddPlayersPresentation } from '../presentation/add-players.presentation';
-import { UICreateTeamInput, UITeam } from '../types/ui.types';
+import { UICreateTeamInput } from '../types/ui.types';
 import {
   mapUICreateTeamToService,
   mapServiceTeamToUITeam,
 } from '../utils/data-mapping.utils';
-import { Player } from '../../services/players-graphql.service';
 
-import { AddPlayersSmart } from './add-players.smart';
-import {
-  TeamConfigurationSmart,
-  TeamConfiguration,
-} from './team-configuration.smart';
+import { useTeamConfigurationManager } from './team-configuration-manager.smart';
 
 interface TeamManagementSmartProps {
   teamId?: string;
@@ -40,6 +32,15 @@ export const TeamManagementSmart = ({ teamId }: TeamManagementSmartProps) => {
   const navigate = useNavigate();
   const isEditing = Boolean(teamId);
   const [activeTab, setActiveTab] = useState<TeamManagementTab>('basic');
+
+  // Team configuration manager
+  const {
+    gameFormats,
+    formations,
+    configuration,
+    positions,
+    actions: configActions,
+  } = useTeamConfigurationManager();
 
   // Fetch existing team data if editing
   const {
@@ -56,8 +57,8 @@ export const TeamManagementSmart = ({ teamId }: TeamManagementSmartProps) => {
     useMutation<CreateTeamResponse>(CREATE_TEAM, {
       refetchQueries: [{ query: GET_TEAMS }],
       onCompleted: (data) => {
-        // After creating, switch to formation tab and update URL
-        setActiveTab('formation');
+        // After creating, switch to format tab and update URL
+        setActiveTab('format');
         navigate(`/teams/${data.createTeam.id}/manage`, { replace: true });
       },
     });
@@ -81,8 +82,9 @@ export const TeamManagementSmart = ({ teamId }: TeamManagementSmartProps) => {
               updateTeamInput: serviceTeamData,
             },
           });
+          // Stay on current tab for editing
         } else {
-          // Create new team
+          // Create new team - advance to next step
           await createTeam({
             variables: {
               createTeamInput: serviceTeamData,
@@ -153,8 +155,18 @@ export const TeamManagementSmart = ({ teamId }: TeamManagementSmartProps) => {
       team={uiTeam}
       isEditing={isEditing}
       activeTab={activeTab}
+      selectedGameFormat={configuration.gameFormat}
+      selectedFormation={configuration.formation}
+      gameFormats={gameFormats}
+      formations={formations}
+      positions={positions}
       onTabChange={handleTabChange}
       onSaveBasicInfo={handleCreateOrUpdateTeam}
+      onGameFormatSelect={configActions.selectGameFormat}
+      onFormationSelect={configActions.selectFormation}
+      onPositionUpdate={configActions.updatePosition}
+      onAddPosition={configActions.addPosition}
+      onRemovePosition={configActions.removePosition}
       onCancel={handleCancel}
       onComplete={handleComplete}
       loading={createLoading || updateLoading}

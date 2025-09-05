@@ -1,21 +1,52 @@
 import { Link } from 'react-router';
 
-import { UICreateTeamInput, UITeam } from '../types/ui.types';
+import {
+  UICreateTeamInput,
+  UITeam,
+  UIGameFormat,
+  UIFormation,
+} from '../types/ui.types';
 
 import {
   TeamManagementTabs,
   TeamManagementTab,
 } from './team-management-tabs.presentation';
 import { CreateTeamPresentation } from './create-team.presentation';
-import { TeamConfigurationPresentation } from './team-configuration.presentation';
-import { AddPlayersPresentation } from './add-players.presentation';
+import { GameFormatSelectionPresentation } from './game-format-selection.presentation';
+import { FormationSelectionPresentation } from './formation-selection.presentation';
+import { PositionConfigurationPresentation } from './position-configuration.presentation';
 
 interface TeamManagementPresentationProps {
   team?: UITeam;
   isEditing: boolean;
   activeTab: TeamManagementTab;
+  selectedGameFormat?: string;
+  selectedFormation?: string;
+  gameFormats: UIGameFormat[];
+  formations: UIFormation[];
+  positions: Array<{
+    id: string;
+    name: string;
+    abbreviation: string;
+    x: number;
+    y: number;
+  }>;
   onTabChange: (tab: TeamManagementTab) => void;
   onSaveBasicInfo: (teamData: UICreateTeamInput) => void;
+  onGameFormatSelect: (formatId: string) => void;
+  onFormationSelect: (formationId: string) => void;
+  onPositionUpdate: (
+    positionId: string,
+    updates: Partial<{
+      id: string;
+      name: string;
+      abbreviation: string;
+      x: number;
+      y: number;
+    }>
+  ) => void;
+  onAddPosition: () => void;
+  onRemovePosition: (positionId: string) => void;
   onCancel: () => void;
   onComplete: () => void;
   loading: boolean;
@@ -26,8 +57,18 @@ export const TeamManagementPresentation = ({
   team,
   isEditing,
   activeTab,
+  selectedGameFormat,
+  selectedFormation,
+  gameFormats,
+  formations,
+  positions,
   onTabChange,
   onSaveBasicInfo,
+  onGameFormatSelect,
+  onFormationSelect,
+  onPositionUpdate,
+  onAddPosition,
+  onRemovePosition,
   onCancel,
   onComplete,
   loading,
@@ -45,12 +86,12 @@ export const TeamManagementPresentation = ({
               error={error}
               initialData={team}
               isTabMode={true}
-              onNext={() => onTabChange('formation')}
+              onNext={() => onTabChange('format')}
             />
           </div>
         );
 
-      case 'formation':
+      case 'format':
         if (!team?.id && !isEditing) {
           return (
             <div className="p-6">
@@ -70,48 +111,94 @@ export const TeamManagementPresentation = ({
         }
         return (
           <div className="p-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-              <h3 className="text-lg font-medium text-blue-900 mb-2">
-                Team Formation
-              </h3>
-              <p className="text-blue-800 mb-4">
-                Configure your team's formation and field positions.
-              </p>
-              <p className="text-sm text-blue-600">
-                This section will allow you to set up your team's formation and
-                customize player positions.
-              </p>
-              <div className="mt-4 flex space-x-3">
-                <button
-                  onClick={() => onTabChange('basic')}
-                  className="px-4 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
-                >
-                  ← Previous
-                </button>
-                <button
-                  onClick={() => onTabChange('players')}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  Next →
-                </button>
-              </div>
-            </div>
+            <GameFormatSelectionPresentation
+              gameFormats={gameFormats}
+              selectedFormat={selectedGameFormat}
+              onFormatSelect={onGameFormatSelect}
+              onNext={() => onTabChange('formation')}
+              onPrevious={() => onTabChange('basic')}
+              isTabMode={true}
+            />
           </div>
         );
 
-      case 'players':
-        if (!team?.id && !isEditing) {
+      case 'formation':
+        if (!selectedGameFormat) {
           return (
             <div className="p-6">
               <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
                 <p className="text-yellow-800">
-                  Please complete the team setup first.
+                  Please select a game format first.
                 </p>
                 <button
-                  onClick={() => onTabChange('basic')}
+                  onClick={() => onTabChange('format')}
                   className="mt-2 text-yellow-600 hover:text-yellow-800 underline"
                 >
-                  Go to Basic Info
+                  Go to Game Format
+                </button>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div className="p-6">
+            <FormationSelectionPresentation
+              formations={formations}
+              selectedFormation={selectedFormation}
+              gameFormat={selectedGameFormat}
+              onFormationSelect={onFormationSelect}
+              onNext={() => onTabChange('positions')}
+              onPrevious={() => onTabChange('format')}
+              isTabMode={true}
+            />
+          </div>
+        );
+
+      case 'positions':
+        if (!selectedFormation) {
+          return (
+            <div className="p-6">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                <p className="text-yellow-800">
+                  Please select a formation first.
+                </p>
+                <button
+                  onClick={() => onTabChange('formation')}
+                  className="mt-2 text-yellow-600 hover:text-yellow-800 underline"
+                >
+                  Go to Formation
+                </button>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div className="p-6">
+            <PositionConfigurationPresentation
+              positions={positions}
+              onPositionUpdate={onPositionUpdate}
+              onAddPosition={onAddPosition}
+              onRemovePosition={onRemovePosition}
+              onNext={() => onTabChange('players')}
+              onPrevious={() => onTabChange('formation')}
+              isTabMode={true}
+            />
+          </div>
+        );
+
+      case 'players':
+        if (!positions.length) {
+          return (
+            <div className="p-6">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                <p className="text-yellow-800">
+                  Please configure your team positions first.
+                </p>
+                <button
+                  onClick={() => onTabChange('positions')}
+                  className="mt-2 text-yellow-600 hover:text-yellow-800 underline"
+                >
+                  Go to Positions
                 </button>
               </div>
             </div>
@@ -132,7 +219,7 @@ export const TeamManagementPresentation = ({
               </p>
               <div className="mt-4 flex space-x-3">
                 <button
-                  onClick={() => onTabChange('formation')}
+                  onClick={() => onTabChange('positions')}
                   className="px-4 py-2 bg-green-100 text-green-700 rounded-md hover:bg-green-200"
                 >
                   ← Previous

@@ -35,14 +35,33 @@ export interface UITeamWithPlayers extends UITeam {
   players: UIPlayer[];
 }
 
+export interface UIGameFormat {
+  id: string;
+  name: string;
+  playerCount: number;
+  description: string;
+}
+
+export interface UIPosition {
+  id: string;
+  name: string;
+  abbreviation: string;
+  x: number;
+  y: number;
+}
+
 export interface UIFormation {
   id: string;
   name: string;
-  positions: Array<{
-    x: number;
-    y: number;
-    position: string;
-  }>;
+  gameFormat: string;
+  playerCount: number;
+  positions: UIPosition[];
+}
+
+export interface UITeamConfiguration {
+  gameFormat?: string;
+  formation?: string;
+  customPositions?: UIPosition[];
 }
 
 export interface UIGameSummary {
