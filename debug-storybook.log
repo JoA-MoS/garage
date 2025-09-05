@@ -1,0 +1,10 @@
+[06:18:51.602] [INFO] Checking the health of your Storybook..
+[06:18:51.603] [DEBUG] Getting Storybook info...
+[06:18:51.604] [DEBUG] Loading main config...
+[06:18:51.680] [DEBUG] Getting stories paths...
+[06:18:51.681] [ERROR] undefined: 1 problem found
+[06:18:51.681] [INFO] ❌ Unable to determine Storybook version so the command will not proceed.
+🤔 Are you running storybook doctor from your project directory? Please specify your Storybook config directory with the --config-dir flag.
+[06:18:51.687] [INFO] Storybook doctor is complete!
+[06:18:51.687] [INFO] You can always recheck the health of your project(s) by running:
+npx storybook doctor
