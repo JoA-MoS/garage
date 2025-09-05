@@ -1,4 +1,4 @@
-import type { Preview } from '@storybook/react';
+import type { Preview } from '@storybook/react-vite';
 import { BrowserRouter } from 'react-router';
 import { ClerkProvider } from '@clerk/clerk-react';
 import '../src/styles.css';
