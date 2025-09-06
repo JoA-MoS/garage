@@ -9,6 +9,15 @@ export const GET_TEAMS = gql`
       name
       colors
       logo
+      gameFormat
+      formation
+      customPositions {
+        id
+        name
+        abbreviation
+        x
+        y
+      }
       createdAt
       updatedAt
     }
@@ -22,6 +31,15 @@ export const GET_TEAM_BY_ID = gql`
       name
       colors
       logo
+      gameFormat
+      formation
+      customPositions {
+        id
+        name
+        abbreviation
+        x
+        y
+      }
       createdAt
       updatedAt
       playersWithJersey {
@@ -52,6 +70,15 @@ export const CREATE_TEAM = gql`
       name
       colors
       logo
+      gameFormat
+      formation
+      customPositions {
+        id
+        name
+        abbreviation
+        x
+        y
+      }
       createdAt
       updatedAt
     }
@@ -65,6 +92,15 @@ export const UPDATE_TEAM = gql`
       name
       colors
       logo
+      gameFormat
+      formation
+      customPositions {
+        id
+        name
+        abbreviation
+        x
+        y
+      }
       createdAt
       updatedAt
     }
@@ -90,6 +126,14 @@ export const ADD_PLAYER_TO_TEAM = gql`
 `;
 
 // TypeScript interfaces for the GraphQL responses
+export interface TeamPosition {
+  id: string;
+  name: string;
+  abbreviation: string;
+  x: number;
+  y: number;
+}
+
 export interface PlayerWithJersey {
   id: string;
   name: string;
@@ -104,6 +148,9 @@ export interface Team {
   name: string;
   colors?: string;
   logo?: string;
+  gameFormat?: string;
+  formation?: string;
+  customPositions?: TeamPosition[];
   createdAt: string;
   updatedAt: string;
   players?: Player[];
@@ -138,12 +185,18 @@ export interface CreateTeamInput {
   name: string;
   colors?: string;
   logo?: string;
+  gameFormat?: string;
+  formation?: string;
+  customPositions?: TeamPosition[];
 }
 
 export interface UpdateTeamInput {
   name?: string;
   colors?: string;
   logo?: string;
+  gameFormat?: string;
+  formation?: string;
+  customPositions?: TeamPosition[];
 }
 
 export interface CreateTeamResponse {

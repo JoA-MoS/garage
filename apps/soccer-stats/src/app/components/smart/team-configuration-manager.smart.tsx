@@ -1,40 +1,35 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { UIGameFormat, UIFormation, UIPosition } from '../types/ui.types';
 
-import {
-  UIPosition,
-  UIGameFormat,
-  UIFormation,
-  UITeamConfiguration,
-} from '../types/ui.types';
-
-// Sample game formats
+// Game formats with mobile-first design consideration
 const GAME_FORMATS: UIGameFormat[] = [
   {
     id: '11v11',
     name: '11v11',
-    playerCount: 11,
-    description:
-      'Full field soccer with 11 players per side, including goalkeeper',
+    displayName: 'Full Field',
+    playersPerSide: 11,
+    description: 'Traditional full-field soccer with 11 players per side',
   },
   {
     id: '9v9',
     name: '9v9',
-    playerCount: 9,
-    description:
-      'Modified field soccer with 9 players per side, common in youth leagues',
+    displayName: 'Medium Field',
+    playersPerSide: 9,
+    description: 'Youth leagues and recreational play with 9 players per side',
   },
   {
     id: '7v7',
     name: '7v7',
-    playerCount: 7,
-    description:
-      'Small field soccer with 7 players per side, including goalkeeper',
+    displayName: 'Small Field',
+    playersPerSide: 7,
+    description: 'Youth development with 7 players per side',
   },
   {
     id: '5v5',
     name: '5v5',
-    playerCount: 5,
-    description: 'Futsal or small field soccer with 5 players per side',
+    displayName: 'Futsal',
+    playersPerSide: 5,
+    description: 'Indoor futsal or small-sided games',
   },
 ];
 
@@ -45,7 +40,8 @@ const FORMATIONS: UIFormation[] = [
     id: '4-4-2-11v11',
     name: '4-4-2',
     gameFormat: '11v11',
-    playerCount: 11,
+    playersPerSide: 11,
+    isActive: true,
     positions: [
       { id: 'gk', name: 'Goalkeeper', abbreviation: 'GK', x: 10, y: 50 },
       { id: 'rb', name: 'Right Back', abbreviation: 'RB', x: 25, y: 20 },
@@ -76,7 +72,8 @@ const FORMATIONS: UIFormation[] = [
     id: '4-3-3-11v11',
     name: '4-3-3',
     gameFormat: '11v11',
-    playerCount: 11,
+    playersPerSide: 11,
+    isActive: true,
     positions: [
       { id: 'gk', name: 'Goalkeeper', abbreviation: 'GK', x: 10, y: 50 },
       { id: 'rb', name: 'Right Back', abbreviation: 'RB', x: 25, y: 20 },
@@ -113,7 +110,8 @@ const FORMATIONS: UIFormation[] = [
     id: '3-5-2-11v11',
     name: '3-5-2',
     gameFormat: '11v11',
-    playerCount: 11,
+    playersPerSide: 11,
+    isActive: true,
     positions: [
       { id: 'gk', name: 'Goalkeeper', abbreviation: 'GK', x: 10, y: 50 },
       { id: 'cb1', name: 'Center Back', abbreviation: 'CB', x: 25, y: 30 },
@@ -124,21 +122,21 @@ const FORMATIONS: UIFormation[] = [
         id: 'cm1',
         name: 'Central Midfielder',
         abbreviation: 'CM',
-        x: 45,
+        x: 50,
         y: 35,
       },
       {
         id: 'cm2',
         name: 'Central Midfielder',
         abbreviation: 'CM',
-        x: 45,
+        x: 50,
         y: 50,
       },
       {
         id: 'cm3',
         name: 'Central Midfielder',
         abbreviation: 'CM',
-        x: 45,
+        x: 50,
         y: 65,
       },
       { id: 'lwb', name: 'Left Wing Back', abbreviation: 'LWB', x: 45, y: 85 },
@@ -151,7 +149,8 @@ const FORMATIONS: UIFormation[] = [
     id: '3-3-2-9v9',
     name: '3-3-2',
     gameFormat: '9v9',
-    playerCount: 9,
+    playersPerSide: 9,
+    isActive: true,
     positions: [
       { id: 'gk', name: 'Goalkeeper', abbreviation: 'GK', x: 10, y: 50 },
       { id: 'rb', name: 'Right Back', abbreviation: 'RB', x: 30, y: 25 },
@@ -174,7 +173,8 @@ const FORMATIONS: UIFormation[] = [
     id: '2-3-3-9v9',
     name: '2-3-3',
     gameFormat: '9v9',
-    playerCount: 9,
+    playersPerSide: 9,
+    isActive: true,
     positions: [
       { id: 'gk', name: 'Goalkeeper', abbreviation: 'GK', x: 10, y: 50 },
       { id: 'cb1', name: 'Center Back', abbreviation: 'CB', x: 30, y: 40 },
@@ -197,7 +197,8 @@ const FORMATIONS: UIFormation[] = [
     id: '3-4-1-9v9',
     name: '3-4-1',
     gameFormat: '9v9',
-    playerCount: 9,
+    playersPerSide: 9,
+    isActive: true,
     positions: [
       { id: 'gk', name: 'Goalkeeper', abbreviation: 'GK', x: 10, y: 50 },
       { id: 'lb', name: 'Left Back', abbreviation: 'LB', x: 30, y: 25 },
@@ -227,7 +228,8 @@ const FORMATIONS: UIFormation[] = [
     id: '2-3-1-7v7',
     name: '2-3-1',
     gameFormat: '7v7',
-    playerCount: 7,
+    playersPerSide: 7,
+    isActive: true,
     positions: [
       { id: 'gk', name: 'Goalkeeper', abbreviation: 'GK', x: 10, y: 50 },
       { id: 'cb1', name: 'Center Back', abbreviation: 'CB', x: 30, y: 35 },
@@ -249,7 +251,8 @@ const FORMATIONS: UIFormation[] = [
     id: '1-2-1-5v5',
     name: '1-2-1',
     gameFormat: '5v5',
-    playerCount: 5,
+    playersPerSide: 5,
+    isActive: true,
     positions: [
       { id: 'gk', name: 'Goalkeeper', abbreviation: 'GK', x: 10, y: 50 },
       { id: 'def', name: 'Defender', abbreviation: 'DEF', x: 35, y: 50 },
@@ -261,31 +264,30 @@ const FORMATIONS: UIFormation[] = [
 ];
 
 export const useTeamConfigurationManager = () => {
-  const [configuration, setConfiguration] = useState<UITeamConfiguration>({});
-
+  const [selectedGameFormat, setSelectedGameFormat] = useState<string>('');
+  const [selectedFormation, setSelectedFormation] = useState<string>('');
   const [positions, setPositions] = useState<UIPosition[]>([]);
 
-  const handleGameFormatSelect = useCallback((formatId: string) => {
-    setConfiguration((prev) => ({
-      ...prev,
-      gameFormat: formatId,
-      formation: undefined, // Reset formation when format changes
-    }));
-    setPositions([]); // Reset positions when format changes
+  const availableFormations = useMemo(() => {
+    if (!selectedGameFormat) return [];
+    return FORMATIONS.filter((f) => f.gameFormat === selectedGameFormat);
+  }, [selectedGameFormat]);
+
+  const selectGameFormat = useCallback((formatId: string) => {
+    setSelectedGameFormat(formatId);
+    setSelectedFormation(''); // Reset formation when game format changes
+    setPositions([]);
   }, []);
 
-  const handleFormationSelect = useCallback((formationId: string) => {
+  const selectFormation = useCallback((formationId: string) => {
     const formation = FORMATIONS.find((f) => f.id === formationId);
     if (formation) {
-      setConfiguration((prev) => ({
-        ...prev,
-        formation: formationId,
-      }));
+      setSelectedFormation(formationId);
       setPositions([...formation.positions]); // Copy positions so they can be modified
     }
   }, []);
 
-  const handlePositionUpdate = useCallback(
+  const updatePosition = useCallback(
     (positionId: string, updates: Partial<UIPosition>) => {
       setPositions((prev) =>
         prev.map((pos) =>
@@ -296,32 +298,38 @@ export const useTeamConfigurationManager = () => {
     []
   );
 
-  const handleAddPosition = useCallback(() => {
-    const newPosition = {
-      id: `pos_${crypto.randomUUID()}`,
-      name: 'New Position',
-      abbreviation: 'NP',
-      x: 50,
-      y: 50,
-    };
-    setPositions((prev) => [...prev, newPosition]);
+  const addPosition = useCallback((position: UIPosition) => {
+    setPositions((prev) => [...prev, position]);
   }, []);
 
-  const handleRemovePosition = useCallback((positionId: string) => {
+  const removePosition = useCallback((positionId: string) => {
     setPositions((prev) => prev.filter((pos) => pos.id !== positionId));
   }, []);
 
+  const resetConfiguration = useCallback(() => {
+    setSelectedGameFormat('');
+    setSelectedFormation('');
+    setPositions([]);
+  }, []);
+
   return {
+    // Data
     gameFormats: GAME_FORMATS,
     formations: FORMATIONS,
-    configuration,
+    availableFormations,
+    selectedGameFormat,
+    selectedFormation,
     positions,
-    actions: {
-      selectGameFormat: handleGameFormatSelect,
-      selectFormation: handleFormationSelect,
-      updatePosition: handlePositionUpdate,
-      addPosition: handleAddPosition,
-      removePosition: handleRemovePosition,
-    },
+
+    // Actions
+    selectGameFormat,
+    selectFormation,
+    updatePosition,
+    addPosition,
+    removePosition,
+    resetConfiguration,
   };
 };
+
+// Default export for compatibility
+export default useTeamConfigurationManager;

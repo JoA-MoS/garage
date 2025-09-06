@@ -90,10 +90,10 @@ export const GameFormatSelectionPresentation = ({
                   {/* Format info */}
                   <div className="pr-8">
                     <h4 className="text-xl font-semibold text-gray-900 mb-2">
-                      {format.name}
+                      {format.displayName}
                     </h4>
                     <div className="text-2xl font-bold text-blue-600 mb-2">
-                      {format.playerCount} Players
+                      {format.playersPerSide} Players
                     </div>
                     <p className="text-gray-600 text-sm">
                       {format.description}

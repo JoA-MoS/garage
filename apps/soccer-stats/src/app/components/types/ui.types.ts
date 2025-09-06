@@ -8,6 +8,7 @@ export interface UITeam {
   name: string;
   primaryColor: string;
   secondaryColor: string;
+  colors?: string; // Raw colors string from service
   logo?: string;
   playerCount?: number;
   createdAt?: string;
@@ -17,6 +18,7 @@ export interface UICreateTeamInput {
   name: string;
   primaryColor: string;
   secondaryColor: string;
+  colors?: string; // Allow raw colors for simplified forms
   logo?: string;
 }
 
@@ -38,8 +40,9 @@ export interface UITeamWithPlayers extends UITeam {
 export interface UIGameFormat {
   id: string;
   name: string;
-  playerCount: number;
-  description: string;
+  displayName: string;
+  playersPerSide: number;
+  description?: string;
 }
 
 export interface UIPosition {
@@ -53,9 +56,11 @@ export interface UIPosition {
 export interface UIFormation {
   id: string;
   name: string;
-  gameFormat: string;
-  playerCount: number;
+  description?: string;
   positions: UIPosition[];
+  isActive: boolean;
+  gameFormat?: string; // For filtering formations by game format
+  playersPerSide?: number; // Number of players for this formation
 }
 
 export interface UITeamConfiguration {
