@@ -150,7 +150,7 @@ export const TeamConfigurationSmart = ({
   }, [navigate, teamId]);
 
   const handleBack = useCallback(() => {
-    navigate('/teams/create');
+    navigate('/teams/manage');
   }, [navigate]);
 
   if (loading) {

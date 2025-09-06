@@ -11,7 +11,7 @@ describe('Complete Player Setup Workflow', () => {
      * COMPLETE PLAYER SETUP WORKFLOW DEMONSTRATION:
      *
      * 1. TEAM SETUP ✅
-     *    - Create teams with colors, names using CreateTeamSmart component
+     *    - Create teams with colors, names using TeamManagementSmart component
      *    - View team details in tabbed interface with TeamDetailSmart
      *    - Navigate between team overview, players, games, stats tabs
      *    - Mobile-first responsive design with Tailwind CSS
