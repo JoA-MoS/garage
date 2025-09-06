@@ -19,6 +19,7 @@ import { TeamPlayersPage } from '../pages/team-players.page';
 import { TeamGamesPage } from '../pages/team-games.page';
 import { TeamOverviewPage } from '../pages/team-overview.page';
 import { TeamStatsPage } from '../pages/team-stats.page';
+import { TeamSettingsPage } from '../pages/team-settings.page';
 import { GameLayout } from '../components/layout/game-layout';
 import { TeamLayout } from '../components/layout/team-layout';
 import { HomeLineupView } from '../components/views/home-lineup.view';
@@ -105,39 +106,50 @@ export const router = createBrowserRouter([
       },
       {
         path: 'teams/:teamId',
-        element: <Navigate to="overview" replace />,
-      },
-      {
-        path: 'teams/:teamId/overview',
-        element: <TeamOverviewPage />,
-      },
-      {
-        path: 'teams/:teamId/players',
-        element: <TeamPlayersPage />,
-      },
-      {
-        path: 'teams/:teamId/games',
-        element: <TeamGamesPage />,
-      },
-      {
-        path: 'teams/:teamId/stats',
-        element: <TeamStatsPage />,
-      },
-      {
-        path: 'teams/:teamId/manage',
-        element: <TeamManagementPage />,
-      },
-      {
-        path: 'teams/:teamId/edit',
-        element: <EditTeamPage />,
-      },
-      {
-        path: 'teams/:teamId/configure',
-        element: <TeamConfigurationPage />,
-      },
-      {
-        path: 'teams/:teamId/add-players',
-        element: <AddPlayersPage />,
+        element: <TeamLayout />,
+        children: [
+          {
+            index: true,
+            element: <Navigate to="overview" replace />,
+          },
+          {
+            path: 'overview',
+            element: <TeamOverviewPage />,
+          },
+          {
+            path: 'players',
+            element: <TeamPlayersPage />,
+          },
+          {
+            path: 'games',
+            element: <TeamGamesPage />,
+          },
+          {
+            path: 'stats',
+            element: <TeamStatsPage />,
+          },
+          {
+            path: 'settings',
+            element: <TeamSettingsPage />,
+          },
+          // Legacy routes for compatibility
+          {
+            path: 'manage',
+            element: <TeamManagementPage />,
+          },
+          {
+            path: 'edit',
+            element: <EditTeamPage />,
+          },
+          {
+            path: 'configure',
+            element: <TeamConfigurationPage />,
+          },
+          {
+            path: 'add-players',
+            element: <AddPlayersPage />,
+          },
+        ],
       },
       {
         path: 'analytics',

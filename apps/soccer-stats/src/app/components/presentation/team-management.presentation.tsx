@@ -51,6 +51,7 @@ interface TeamManagementPresentationProps {
   onComplete: () => void;
   loading: boolean;
   error?: string;
+  isInSettingsMode?: boolean;
 }
 
 export const TeamManagementPresentation = ({
@@ -73,6 +74,7 @@ export const TeamManagementPresentation = ({
   onComplete,
   loading,
   error,
+  isInSettingsMode = false,
 }: TeamManagementPresentationProps) => {
   const renderTabContent = () => {
     switch (activeTab) {
@@ -82,7 +84,7 @@ export const TeamManagementPresentation = ({
             <CreateTeamPresentation
               onSubmit={onSaveBasicInfo}
               onCancel={onCancel}
-              loading={loading}
+              loading={loading || false}
               error={error}
               initialData={team}
               isTabMode={true}
@@ -241,41 +243,43 @@ export const TeamManagementPresentation = ({
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <div className="bg-white rounded-lg shadow-lg">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {isEditing
-                  ? `Manage ${team?.name || 'Team'}`
-                  : 'Create New Team'}
-              </h1>
-              <p className="text-gray-600 mt-1">
-                {isEditing
-                  ? 'Update your team settings and roster'
-                  : 'Set up your team with formation and players'}
-              </p>
-            </div>
-            <div className="flex items-center space-x-3">
-              <Link
-                to="/teams"
-                className="text-gray-500 hover:text-gray-700 text-sm"
-              >
-                ← Back to Teams
-              </Link>
-              {isEditing && (
-                <button
-                  onClick={onComplete}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
+    <div className={isInSettingsMode ? '' : 'max-w-6xl mx-auto p-6'}>
+      <div className={isInSettingsMode ? '' : 'bg-white rounded-lg shadow-lg'}>
+        {/* Header - Only show when not in settings mode */}
+        {!isInSettingsMode && (
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {isEditing
+                    ? `Manage ${team?.name || 'Team'}`
+                    : 'Create New Team'}
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  {isEditing
+                    ? 'Update your team settings and roster'
+                    : 'Set up your team with formation and players'}
+                </p>
+              </div>
+              <div className="flex items-center space-x-3">
+                <Link
+                  to="/teams"
+                  className="text-gray-500 hover:text-gray-700 text-sm"
                 >
-                  Done
-                </button>
-              )}
+                  ← Back to Teams
+                </Link>
+                {isEditing && (
+                  <button
+                    onClick={onComplete}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
+                  >
+                    Done
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Tabs */}
         <TeamManagementTabs

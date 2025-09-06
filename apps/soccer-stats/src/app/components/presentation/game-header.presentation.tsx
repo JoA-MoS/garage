@@ -24,8 +24,6 @@ export const GameHeaderPresentation = ({
   isGameRunning,
   onToggleGame,
   onGoalClick,
-  onResetGame,
-  onSaveAndNewGame,
 }: GameHeaderPresentationProps) => {
   return (
     <div className="bg-white rounded-lg shadow-md p-6 mb-6">
@@ -33,22 +31,6 @@ export const GameHeaderPresentation = ({
         <h1 className="text-xl font-bold text-gray-800">
           {homeTeamName} vs {awayTeamName}
         </h1>
-        <div className="flex space-x-3">
-          {onSaveAndNewGame && gameTime > 60 && (
-            <button
-              onClick={onSaveAndNewGame}
-              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-medium"
-            >
-              Save & New Game
-            </button>
-          )}
-          <button
-            onClick={onResetGame}
-            className="text-sm text-gray-500 hover:text-gray-700 underline"
-          >
-            New Game
-          </button>
-        </div>
       </div>
 
       <div className="flex items-center justify-center mb-6">
