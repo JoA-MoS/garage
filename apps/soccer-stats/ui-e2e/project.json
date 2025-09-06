@@ -1,0 +1,20 @@
+{
+  "name": "soccer-stats-e2e",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/soccer-stats/ui-e2e/src",
+  "tags": [],
+  "implicitDependencies": ["soccer-stats-ui"],
+  "targets": {
+    "e2e": {
+      "executor": "@nx/playwright:playwright",
+      "outputs": ["{workspaceRoot}/dist/.playwright/apps/soccer-stats/ui-e2e"],
+      "options": {
+        "config": "apps/soccer-stats/ui-e2e/playwright.config.ts"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

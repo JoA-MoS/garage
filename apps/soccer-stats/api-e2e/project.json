@@ -1,6 +1,6 @@
 {
   "name": "soccer-stats-api-e2e",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
   "implicitDependencies": ["soccer-stats-api"],
   "targets": {
@@ -8,7 +8,7 @@
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/{e2eProjectRoot}"],
       "options": {
-        "jestConfig": "apps/soccer-stats-api-e2e/jest.config.ts",
+        "jestConfig": "apps/soccer-stats/api-e2e/jest.config.ts",
         "passWithNoTests": true
       },
       "dependsOn": ["soccer-stats-api:build", "soccer-stats-api:serve"]

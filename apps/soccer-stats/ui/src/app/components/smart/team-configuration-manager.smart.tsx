@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+
 import { UIGameFormat, UIFormation, UIPosition } from '../types/ui.types';
 
 // Game formats with mobile-first design consideration
