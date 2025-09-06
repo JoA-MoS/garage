@@ -1,5 +1,14 @@
 import { InputType, Field } from '@nestjs/graphql';
-import { IsString, IsOptional, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  MaxLength,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+
+import { TeamPositionInput } from './team-position.input';
 
 @InputType()
 export class CreateTeamInput {
@@ -19,4 +28,23 @@ export class CreateTeamInput {
   @IsString()
   @MaxLength(100)
   colors?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  gameFormat?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  formation?: string;
+
+  @Field(() => [TeamPositionInput], { nullable: true })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TeamPositionInput)
+  customPositions?: TeamPositionInput[];
 }

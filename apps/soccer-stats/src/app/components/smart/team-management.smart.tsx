@@ -13,7 +13,7 @@ import {
 } from '../../services/teams-graphql.service';
 import { TeamManagementPresentation } from '../presentation/team-management.presentation';
 import { TeamManagementTab } from '../presentation/team-management-tabs.presentation';
-import { UICreateTeamInput } from '../types/ui.types';
+import { UICreateTeamInput, UIPosition } from '../types/ui.types';
 import {
   mapUICreateTeamToService,
   mapServiceTeamToUITeam,
@@ -49,9 +49,16 @@ export const TeamManagementSmart = ({
   const {
     gameFormats,
     formations,
-    configuration,
+    availableFormations,
+    selectedGameFormat,
+    selectedFormation,
     positions,
-    actions: configActions,
+    selectGameFormat,
+    selectFormation,
+    updatePosition,
+    addPosition,
+    removePosition,
+    resetConfiguration,
   } = useTeamConfigurationManager();
 
   // Fetch existing team data if editing
@@ -137,12 +144,20 @@ export const TeamManagementSmart = ({
       const currentTeam = teamData?.team;
       if (!currentTeam) return;
 
-      // For now, we can only save basic team information to the backend
-      // Configuration data (game format, formation, positions) is stored client-side
+      // Now we can save all team configuration data to the backend
       const updateData = {
         name: currentTeam.name,
         colors: currentTeam.colors,
         logo: currentTeam.logo,
+        gameFormat: selectedGameFormat,
+        formation: selectedFormation,
+        customPositions: positions.map((pos: UIPosition) => ({
+          id: pos.id,
+          name: pos.name,
+          abbreviation: pos.abbreviation,
+          x: pos.x,
+          y: pos.y,
+        })),
       };
 
       await updateTeam({
@@ -156,21 +171,35 @@ export const TeamManagementSmart = ({
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
 
-      // TODO: In the future, extend the backend to support saving:
-      // - gameFormat: configuration.gameFormat
-      // - formation: configuration.formation
-      // - customPositions: positions array
-
-      // For now, the configuration changes are preserved in the UI state
-      console.log('Team configuration updated (client-side):', {
-        gameFormat: configuration.gameFormat,
-        formation: configuration.formation,
+      console.log('Team configuration saved to backend:', {
+        gameFormat: selectedGameFormat,
+        formation: selectedFormation,
         customPositions: positions,
       });
     } catch (err) {
       console.error('Error saving team settings:', err);
     }
-  }, [teamId, isEditing, teamData, updateTeam, configuration, positions]);
+  }, [
+    teamId,
+    isEditing,
+    teamData,
+    updateTeam,
+    selectedGameFormat,
+    selectedFormation,
+    positions,
+  ]);
+
+  const handleAddPosition = useCallback(() => {
+    // Create a default position - this should be replaced with a proper modal/form
+    const newPosition: UIPosition = {
+      id: `pos-${Date.now()}`,
+      name: 'New Position',
+      abbreviation: 'NP',
+      x: 50,
+      y: 50,
+    };
+    addPosition(newPosition);
+  }, [addPosition]);
 
   const handleComplete = useCallback(() => {
     if (isInSettingsMode && teamId) {
@@ -225,18 +254,18 @@ export const TeamManagementSmart = ({
       team={uiTeam}
       isEditing={isEditing}
       activeTab={activeTab}
-      selectedGameFormat={configuration.gameFormat}
-      selectedFormation={configuration.formation}
+      selectedGameFormat={selectedGameFormat}
+      selectedFormation={selectedFormation}
       gameFormats={gameFormats}
       formations={formations}
       positions={positions}
       onTabChange={handleTabChange}
       onSaveBasicInfo={handleCreateOrUpdateTeam}
-      onGameFormatSelect={configActions.selectGameFormat}
-      onFormationSelect={configActions.selectFormation}
-      onPositionUpdate={configActions.updatePosition}
-      onAddPosition={configActions.addPosition}
-      onRemovePosition={configActions.removePosition}
+      onGameFormatSelect={selectGameFormat}
+      onFormationSelect={selectFormation}
+      onPositionUpdate={updatePosition}
+      onAddPosition={handleAddPosition}
+      onRemovePosition={removePosition}
       onCancel={handleCancel}
       onComplete={handleComplete}
       onSaveSettings={isInSettingsMode ? handleSaveSettings : undefined}

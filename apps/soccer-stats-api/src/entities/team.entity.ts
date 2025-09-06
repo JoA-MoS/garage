@@ -8,6 +8,8 @@ import {
 } from 'typeorm';
 import { ObjectType, Field, ID } from '@nestjs/graphql';
 
+import { TeamPosition } from '../modules/teams/dto/team-position.dto';
+
 import { GameTeam } from './game-team.entity';
 import { TeamPlayer } from './team-player.entity';
 
@@ -29,6 +31,18 @@ export class Team {
   @Field({ nullable: true })
   @Column({ length: 100, nullable: true })
   colors?: string;
+
+  @Field({ nullable: true })
+  @Column({ length: 50, nullable: true })
+  gameFormat?: string;
+
+  @Field({ nullable: true })
+  @Column({ length: 50, nullable: true })
+  formation?: string;
+
+  @Field(() => [TeamPosition], { nullable: true })
+  @Column({ type: 'json', nullable: true })
+  customPositions?: TeamPosition[];
 
   @Field(() => [GameTeam])
   @OneToMany(() => GameTeam, (gameTeam) => gameTeam.team, { cascade: true })
