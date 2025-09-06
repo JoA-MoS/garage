@@ -9,7 +9,6 @@ import { mapServiceTeamsToUITeams } from '../utils/data-mapping.utils';
 interface TeamsListSmartProps {
   onCreateTeam?: () => void;
   onEditTeam?: (teamId: string) => void;
-  onViewTeam?: (teamId: string) => void;
 }
 
 /**
@@ -19,7 +18,6 @@ interface TeamsListSmartProps {
 export const TeamsListSmart = ({
   onCreateTeam,
   onEditTeam,
-  onViewTeam,
 }: TeamsListSmartProps) => {
   const navigate = useNavigate();
 
@@ -47,23 +45,11 @@ export const TeamsListSmart = ({
     [onEditTeam, navigate]
   );
 
-  const handleViewTeam = useCallback(
-    (teamId: string) => {
-      if (onViewTeam) {
-        onViewTeam(teamId);
-      } else {
-        navigate(`/teams/${teamId}`);
-      }
-    },
-    [onViewTeam, navigate]
-  );
-
   return (
     <TeamsListPresentation
       teams={mapServiceTeamsToUITeams(data?.teams || [])}
       onCreateTeam={handleCreateTeam}
       onEditTeam={handleEditTeam}
-      onViewTeam={handleViewTeam}
     />
   );
 };

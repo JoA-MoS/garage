@@ -1,4 +1,10 @@
-import { useParams, useNavigate, useLocation, Link } from 'react-router';
+import {
+  useParams,
+  useNavigate,
+  useLocation,
+  Link,
+  Outlet,
+} from 'react-router';
 import { useQuery } from '@apollo/client/react';
 
 import {
@@ -7,14 +13,10 @@ import {
 } from '../../services/teams-graphql.service';
 import { mapServiceTeamToUITeam } from '../utils/data-mapping.utils';
 
-interface TeamLayoutProps {
-  children: React.ReactNode;
-}
-
 /**
  * Layout component that provides common navigation and header for team pages
  */
-export const TeamLayout = ({ children }: TeamLayoutProps) => {
+export const TeamLayout = () => {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -55,6 +57,12 @@ export const TeamLayout = ({ children }: TeamLayoutProps) => {
       label: 'Statistics',
       icon: '📊',
       path: `/teams/${teamId}/stats`,
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: '⚙️',
+      path: `/teams/${teamId}/settings`,
     },
   ];
 
@@ -163,7 +171,7 @@ export const TeamLayout = ({ children }: TeamLayoutProps) => {
       </div>
 
       {/* Page Content */}
-      {children}
+      <Outlet />
     </div>
   );
 };

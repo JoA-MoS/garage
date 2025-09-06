@@ -23,12 +23,16 @@ import { useTeamConfigurationManager } from './team-configuration-manager.smart'
 
 interface TeamManagementSmartProps {
   teamId?: string;
+  isInSettingsMode?: boolean;
 }
 
 /**
  * Smart component for unified team management with tabs
  */
-export const TeamManagementSmart = ({ teamId }: TeamManagementSmartProps) => {
+export const TeamManagementSmart = ({
+  teamId,
+  isInSettingsMode = false,
+}: TeamManagementSmartProps) => {
   const navigate = useNavigate();
   const isEditing = Boolean(teamId);
   const [activeTab, setActiveTab] = useState<TeamManagementTab>('basic');
@@ -99,16 +103,24 @@ export const TeamManagementSmart = ({ teamId }: TeamManagementSmartProps) => {
   );
 
   const handleCancel = useCallback(() => {
-    navigate('/teams');
-  }, [navigate]);
+    if (isInSettingsMode && teamId) {
+      navigate(`/teams/${teamId}/overview`);
+    } else {
+      navigate('/teams');
+    }
+  }, [navigate, isInSettingsMode, teamId]);
 
   const handleTabChange = useCallback((tab: TeamManagementTab) => {
     setActiveTab(tab);
   }, []);
 
   const handleComplete = useCallback(() => {
-    navigate('/teams');
-  }, [navigate]);
+    if (isInSettingsMode && teamId) {
+      navigate(`/teams/${teamId}/overview`);
+    } else {
+      navigate('/teams');
+    }
+  }, [navigate, isInSettingsMode, teamId]);
 
   // Show loading state for fetching
   if (fetchLoading) {
@@ -171,6 +183,7 @@ export const TeamManagementSmart = ({ teamId }: TeamManagementSmartProps) => {
       onComplete={handleComplete}
       loading={createLoading || updateLoading}
       error={createError?.message || updateError?.message}
+      isInSettingsMode={isInSettingsMode}
     />
   );
 };
