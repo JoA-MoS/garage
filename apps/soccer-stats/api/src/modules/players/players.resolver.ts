@@ -11,9 +11,8 @@ import {
 import { Inject } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
 
-import { Player } from '../../entities/player.entity';
+import { User } from '../../entities/user.entity';
 import { TeamPlayer } from '../../entities/team-player.entity';
-import { GameParticipation } from '../../entities/game-participation.entity';
 import { Team } from '../../entities/team.entity';
 import { TeamsService } from '../teams/teams.service';
 
@@ -21,7 +20,7 @@ import { PlayersService } from './players.service';
 import { CreatePlayerInput } from './dto/create-player.input';
 import { UpdatePlayerInput } from './dto/update-player.input';
 
-@Resolver(() => Player)
+@Resolver(() => User)
 export class PlayersResolver {
   constructor(
     private readonly playersService: PlayersService,
@@ -29,42 +28,37 @@ export class PlayersResolver {
     @Inject('PUB_SUB') private pubSub: PubSub
   ) {}
 
-  @Query(() => [Player], { name: 'players' })
+  @Query(() => [User], { name: 'players' })
   findAll() {
     return this.playersService.findAll();
   }
 
-  @Query(() => Player, { name: 'player' })
+  @Query(() => User, { name: 'player' })
   findOne(@Args('id', { type: () => ID }) id: string) {
     return this.playersService.findOne(id);
   }
 
-  @Query(() => [Player], { name: 'playersByPosition' })
+  @Query(() => [User], { name: 'playersByPosition' })
   findByPosition(@Args('position') position: string) {
     return this.playersService.findByPosition(position);
   }
 
-  @Query(() => [Player], { name: 'playersByName' })
+  @Query(() => [User], { name: 'playersByName' })
   findByName(@Args('name') name: string) {
     return this.playersService.findByName(name);
   }
 
   @ResolveField(() => [Team])
-  teams(@Parent() player: Player): Promise<Team[]> {
+  teams(@Parent() player: User): Promise<Team[]> {
     return this.teamsService.findByPlayerId(player.id);
   }
 
   @ResolveField(() => [TeamPlayer])
-  teamPlayers(@Parent() player: Player): Promise<TeamPlayer[]> {
+  teamPlayers(@Parent() player: User): Promise<TeamPlayer[]> {
     return this.playersService.getTeamPlayers(player.id);
   }
 
-  @ResolveField(() => [GameParticipation])
-  participations(@Parent() player: Player): Promise<GameParticipation[]> {
-    return this.playersService.getParticipations(player.id);
-  }
-
-  @Mutation(() => Player)
+  @Mutation(() => User)
   async createPlayer(
     @Args('createPlayerInput') createPlayerInput: CreatePlayerInput
   ) {
@@ -73,7 +67,7 @@ export class PlayersResolver {
     return player;
   }
 
-  @Mutation(() => Player)
+  @Mutation(() => User)
   async updatePlayer(
     @Args('id', { type: () => ID }) id: string,
     @Args('updatePlayerInput') updatePlayerInput: UpdatePlayerInput
@@ -88,14 +82,14 @@ export class PlayersResolver {
     return this.playersService.remove(id);
   }
 
-  @Subscription(() => Player, {
+  @Subscription(() => User, {
     name: 'playerUpdated',
   })
   playerUpdated() {
     return this.pubSub.asyncIterableIterator('playerUpdated');
   }
 
-  @Subscription(() => Player, {
+  @Subscription(() => User, {
     name: 'playerCreated',
   })
   playerCreated() {

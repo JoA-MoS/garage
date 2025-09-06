@@ -6,8 +6,8 @@ import { Team } from './team.entity';
 import { User } from './user.entity';
 
 @ObjectType()
-@Entity('team_players')
-export class TeamPlayer extends BaseEntity {
+@Entity('team_coaches')
+export class TeamCoach extends BaseEntity {
   @Field(() => ID)
   @Column('uuid')
   teamId: string;
@@ -16,35 +16,29 @@ export class TeamPlayer extends BaseEntity {
   @Column('uuid')
   userId: string;
 
-  @Field({ nullable: true })
-  @Column({ length: 10, nullable: true })
-  jerseyNumber?: string;
+  @Field()
+  @Column({ length: 100, default: 'Head Coach' })
+  role: string;
 
-  @Field({ nullable: true })
-  @Column({ length: 50, nullable: true })
-  primaryPosition?: string;
-
-  @Field({ nullable: true })
-  @Column({ type: 'date', nullable: true })
-  joinedDate?: Date;
+  @Field()
+  @Column({ type: 'date' })
+  startDate: Date;
 
   @Field({ nullable: true })
   @Column({ type: 'date', nullable: true })
-  leftDate?: Date;
+  endDate?: Date;
 
   @Field()
   @Column({ default: true })
   isActive: boolean;
 
   @Field(() => Team)
-  @ManyToOne(() => Team, (team) => team.teamPlayers, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Team, (team) => team.teamCoaches)
   @JoinColumn({ name: 'teamId' })
   team: Team;
 
   @Field(() => User)
-  @ManyToOne(() => User, (user) => user.teamPlayers, {
-    onDelete: 'CASCADE',
-  })
+  @ManyToOne(() => User, (user) => user.teamCoaches)
   @JoinColumn({ name: 'userId' })
   user: User;
 }

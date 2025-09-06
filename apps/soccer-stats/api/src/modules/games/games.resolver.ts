@@ -4,7 +4,6 @@ import {
   Mutation,
   Args,
   ID,
-  Int,
   Subscription,
 } from '@nestjs/graphql';
 import { Inject, UseGuards } from '@nestjs/common';
@@ -64,37 +63,6 @@ export class GamesResolver {
   @Mutation(() => Boolean)
   removeGame(@Args('id', { type: () => ID }) id: string) {
     return this.gamesService.remove(id);
-  }
-
-  @Mutation(() => Game)
-  async startGame(@Args('id', { type: () => ID }) id: string) {
-    const game = await this.gamesService.startGame(id);
-    this.pubSub.publish('gameUpdated', { gameUpdated: game });
-    return game;
-  }
-
-  @Mutation(() => Game)
-  async pauseGame(@Args('id', { type: () => ID }) id: string) {
-    const game = await this.gamesService.pauseGame(id);
-    this.pubSub.publish('gameUpdated', { gameUpdated: game });
-    return game;
-  }
-
-  @Mutation(() => Game)
-  async endGame(@Args('id', { type: () => ID }) id: string) {
-    const game = await this.gamesService.endGame(id);
-    this.pubSub.publish('gameUpdated', { gameUpdated: game });
-    return game;
-  }
-
-  @Mutation(() => Game)
-  async updateGameTime(
-    @Args('id', { type: () => ID }) id: string,
-    @Args('currentTime', { type: () => Int }) currentTime: number
-  ) {
-    const game = await this.gamesService.updateGameTime(id, currentTime);
-    this.pubSub.publish('gameUpdated', { gameUpdated: game });
-    return game;
   }
 
   @Subscription(() => Game, {

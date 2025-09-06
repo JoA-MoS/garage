@@ -13,7 +13,7 @@ import type { PubSub } from 'graphql-subscriptions';
 
 import { Team } from '../../entities/team.entity';
 import { GameTeam } from '../../entities/game-team.entity';
-import { Player } from '../../entities/player.entity';
+import { User } from '../../entities/user.entity';
 import { PlayersService } from '../players/players.service';
 
 import { TeamPlayerWithJersey } from './dto/team-player-with-jersey.dto';
@@ -45,9 +45,9 @@ export class TeamsResolver {
     return this.teamsService.findByName(name);
   }
 
-  @ResolveField(() => [Player])
-  players(@Parent() team: Team): Promise<Player[]> {
-    return this.playersService.findByTeamId(team.id);
+  @ResolveField(() => [User])
+  players(@Parent() team: Team): Promise<User[]> {
+    return this.teamsService.getPlayersForTeam(team.id);
   }
 
   @ResolveField(() => [TeamPlayerWithJersey])

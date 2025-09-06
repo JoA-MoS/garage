@@ -2,9 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { Player } from '../../entities/player.entity';
+import { User } from '../../entities/user.entity';
 import { TeamPlayer } from '../../entities/team-player.entity';
-import { GameParticipation } from '../../entities/game-participation.entity';
 
 import { CreatePlayerInput } from './dto/create-player.input';
 import { UpdatePlayerInput } from './dto/update-player.input';
@@ -12,85 +11,92 @@ import { UpdatePlayerInput } from './dto/update-player.input';
 @Injectable()
 export class PlayersService {
   constructor(
-    @InjectRepository(Player)
-    private readonly playerRepository: Repository<Player>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     @InjectRepository(TeamPlayer)
-    private readonly teamPlayerRepository: Repository<TeamPlayer>,
-    @InjectRepository(GameParticipation)
-    private readonly gameParticipationRepository: Repository<GameParticipation>
+    private readonly teamPlayerRepository: Repository<TeamPlayer>
   ) {}
 
-  async findAll(): Promise<Player[]> {
-    return this.playerRepository.find();
+  async findAll(): Promise<User[]> {
+    // Find users who are players (have TeamPlayer relationships)
+    return this.userRepository.find({
+      relations: ['teamPlayers'],
+      where: {
+        teamPlayers: {
+          isActive: true,
+        },
+      },
+    });
   }
 
-  async findOne(id: string): Promise<Player> {
-    const player = await this.playerRepository.findOne({
+  async findOne(id: string): Promise<User> {
+    const user = await this.userRepository.findOne({
       where: { id },
+      relations: ['teamPlayers', 'teamPlayers.team'],
     });
 
-    if (!player) {
+    if (!user) {
       throw new NotFoundException(`Player with ID "${id}" not found`);
     }
 
-    return player;
+    return user;
   }
 
-  async create(createPlayerInput: CreatePlayerInput): Promise<Player> {
-    const player = this.playerRepository.create(createPlayerInput);
-    return this.playerRepository.save(player);
+  async create(createPlayerInput: CreatePlayerInput): Promise<User> {
+    const user = this.userRepository.create(createPlayerInput);
+    return this.userRepository.save(user);
   }
 
   async update(
     id: string,
     updatePlayerInput: UpdatePlayerInput
-  ): Promise<Player> {
-    const player = await this.findOne(id);
-    Object.assign(player, updatePlayerInput);
-    return this.playerRepository.save(player);
+  ): Promise<User> {
+    const user = await this.findOne(id);
+    Object.assign(user, updatePlayerInput);
+    return this.userRepository.save(user);
   }
 
   async remove(id: string): Promise<boolean> {
-    const player = await this.findOne(id);
-    await this.playerRepository.remove(player);
+    const user = await this.findOne(id);
+    await this.userRepository.remove(user);
     return true;
   }
 
-  async findByPosition(position: string): Promise<Player[]> {
-    return this.playerRepository.find({
-      where: { position },
+  async findByPosition(position: string): Promise<User[]> {
+    return this.userRepository.find({
+      relations: ['teamPlayers'],
+      where: {
+        teamPlayers: {
+          primaryPosition: position,
+          isActive: true,
+        },
+      },
     });
   }
 
-  async findByName(name: string): Promise<Player[]> {
-    return this.playerRepository.find({
-      where: { name },
+  async findByName(name: string): Promise<User[]> {
+    return this.userRepository.find({
+      where: [{ firstName: name }, { lastName: name }],
     });
   }
 
-  async findByTeamId(teamId: string): Promise<Player[]> {
-    return this.playerRepository.find({
+  async findByTeamId(teamId: string): Promise<User[]> {
+    return this.userRepository.find({
       relations: ['teamPlayers'],
       where: {
         teamPlayers: {
           team: { id: teamId },
+          isActive: true,
         },
       },
     });
   }
 
   // ResolveField methods
-  async getTeamPlayers(playerId: string): Promise<TeamPlayer[]> {
+  async getTeamPlayers(userId: string): Promise<TeamPlayer[]> {
     return this.teamPlayerRepository.find({
-      where: { player: { id: playerId } },
+      where: { user: { id: userId } },
       relations: ['team'],
-    });
-  }
-
-  async getParticipations(playerId: string): Promise<GameParticipation[]> {
-    return this.gameParticipationRepository.find({
-      where: { player: { id: playerId } },
-      relations: ['game'],
     });
   }
 }
