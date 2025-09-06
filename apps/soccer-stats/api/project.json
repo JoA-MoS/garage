@@ -1,7 +1,7 @@
 {
   "name": "soccer-stats-api",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "apps/soccer-stats-api/src",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/soccer-stats/api/src",
   "projectType": "application",
   "tags": ["type:api", "domain:sports"],
   "targets": {
@@ -12,11 +12,11 @@
       "options": {
         "target": "node",
         "compiler": "tsc",
-        "outputPath": "dist/apps/soccer-stats-api",
-        "main": "apps/soccer-stats-api/src/main.ts",
-        "tsConfig": "apps/soccer-stats-api/tsconfig.app.json",
-        "assets": ["apps/soccer-stats-api/src/assets"],
-        "webpackConfig": "apps/soccer-stats-api/webpack.config.js",
+        "outputPath": "dist/apps/soccer-stats/api",
+        "main": "apps/soccer-stats/api/src/main.ts",
+        "tsConfig": "apps/soccer-stats/api/tsconfig.app.json",
+        "assets": ["apps/soccer-stats/api/src/assets"],
+        "webpackConfig": "apps/soccer-stats/api/webpack.config.js",
         "generatePackageJson": true
       },
       "configurations": {
@@ -51,7 +51,7 @@
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
-        "jestConfig": "apps/soccer-stats-api/jest.config.ts",
+        "jestConfig": "apps/soccer-stats/api/jest.config.ts",
         "passWithNoTests": true
       }
     },

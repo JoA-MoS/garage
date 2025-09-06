@@ -6,7 +6,7 @@ import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
 
 export default defineConfig(() => ({
   root: __dirname,
-  cacheDir: '../../node_modules/.vite/apps/soccer-stats',
+  cacheDir: '../../../node_modules/.vite/apps/soccer-stats',
   server: {
     port: 4200,
     host: 'localhost',
@@ -21,7 +21,7 @@ export default defineConfig(() => ({
   //  plugins: [ nxViteTsPaths() ],
   // },
   build: {
-    outDir: '../../dist/apps/soccer-stats',
+    outDir: '../../../dist/apps/soccer-stats',
     emptyOutDir: true,
     reportCompressedSize: true,
     commonjsOptions: {
@@ -35,7 +35,7 @@ export default defineConfig(() => ({
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],
     coverage: {
-      reportsDirectory: '../../coverage/apps/soccer-stats',
+      reportsDirectory: '../../../coverage/apps/soccer-stats',
       provider: 'v8' as const,
     },
   },

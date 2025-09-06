@@ -15,17 +15,13 @@ import {
   mapUICreateTeamToService,
   mapServiceTeamToUITeam,
 } from '../utils/data-mapping.utils';
+
 import { useTeamConfigurationManager } from './team-configuration-manager.smart';
 
 export const TeamSettingsSmart = () => {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
   const [saveSuccess, setSaveSuccess] = useState(false);
-
-  if (!teamId) {
-    navigate('/teams');
-    return null;
-  }
 
   // Team configuration manager
   const {
