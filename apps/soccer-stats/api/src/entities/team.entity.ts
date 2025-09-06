@@ -1,48 +1,50 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  OneToMany,
-  CreateDateColumn,
-  UpdateDateColumn,
-} from 'typeorm';
-import { ObjectType, Field, ID } from '@nestjs/graphql';
+import { Entity, Column, OneToMany, OneToOne } from 'typeorm';
+import { ObjectType, Field } from '@nestjs/graphql';
 
-import { TeamPosition } from '../modules/teams/dto/team-position.dto';
-
+import { BaseEntity } from './base.entity';
 import { GameTeam } from './game-team.entity';
 import { TeamPlayer } from './team-player.entity';
+import { TeamCoach } from './team-coach.entity';
+import { TeamConfiguration } from './team-configuration.entity';
 
 @ObjectType()
 @Entity('teams')
-export class Team {
-  @Field(() => ID)
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class Team extends BaseEntity {
   @Field()
   @Column({ length: 255 })
   name: string;
 
   @Field({ nullable: true })
+  @Column({ length: 50, nullable: true })
+  shortName?: string;
+
+  @Field({ nullable: true })
+  @Column({ type: 'text', nullable: true })
+  description?: string;
+
+  @Field({ nullable: true })
+  @Column({ length: 50, nullable: true })
+  homePrimaryColor?: string;
+
+  @Field({ nullable: true })
+  @Column({ length: 50, nullable: true })
+  homeSecondaryColor?: string;
+
+  @Field({ nullable: true })
+  @Column({ length: 50, nullable: true })
+  awayPrimaryColor?: string;
+
+  @Field({ nullable: true })
+  @Column({ length: 50, nullable: true })
+  awaySecondaryColor?: string;
+
+  @Field({ nullable: true })
   @Column({ length: 255, nullable: true })
-  logo?: string;
+  logoUrl?: string;
 
-  @Field({ nullable: true })
-  @Column({ length: 100, nullable: true })
-  colors?: string;
-
-  @Field({ nullable: true })
-  @Column({ length: 50, nullable: true })
-  gameFormat?: string;
-
-  @Field({ nullable: true })
-  @Column({ length: 50, nullable: true })
-  formation?: string;
-
-  @Field(() => [TeamPosition], { nullable: true })
-  @Column({ type: 'json', nullable: true })
-  customPositions?: TeamPosition[];
+  @Field()
+  @Column({ default: true })
+  isActive: boolean;
 
   @Field(() => [GameTeam])
   @OneToMany(() => GameTeam, (gameTeam) => gameTeam.team, { cascade: true })
@@ -54,11 +56,19 @@ export class Team {
   })
   teamPlayers: TeamPlayer[];
 
-  @Field()
-  @CreateDateColumn()
-  createdAt: Date;
+  @Field(() => [TeamCoach])
+  @OneToMany(() => TeamCoach, (teamCoach) => teamCoach.team, {
+    cascade: true,
+  })
+  teamCoaches: TeamCoach[];
 
-  @Field()
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @Field(() => TeamConfiguration, { nullable: true })
+  @OneToOne(
+    () => TeamConfiguration,
+    (teamConfiguration) => teamConfiguration.team,
+    {
+      cascade: true,
+    }
+  )
+  teamConfiguration?: TeamConfiguration;
 }

@@ -1,43 +1,23 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  OneToMany,
-  CreateDateColumn,
-  UpdateDateColumn,
-} from 'typeorm';
-import { ObjectType, Field, ID } from '@nestjs/graphql';
+import { Entity, Column, OneToMany } from 'typeorm';
+import { ObjectType, Field } from '@nestjs/graphql';
 
+import { BaseEntity } from './base.entity';
 import { GameEvent } from './game-event.entity';
 
 export enum EventCategory {
   SCORING = 'SCORING',
-  DISCIPLINE = 'DISCIPLINE',
+  DISCIPLINARY = 'DISCIPLINARY',
   SUBSTITUTION = 'SUBSTITUTION',
-  DEFENSIVE = 'DEFENSIVE',
-  SET_PIECE = 'SET_PIECE',
-  OFFENSIVE = 'OFFENSIVE',
+  TACTICAL = 'TACTICAL',
   GAME_FLOW = 'GAME_FLOW',
 }
 
 @ObjectType()
 @Entity('event_types')
-export class EventType {
-  @Field(() => ID)
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Field()
-  @Column({ length: 50, unique: true })
-  code: string;
-
+export class EventType extends BaseEntity {
   @Field()
   @Column({ length: 100 })
   name: string;
-
-  @Field({ nullable: true })
-  @Column({ type: 'text', nullable: true })
-  description?: string;
 
   @Field(() => String)
   @Column({
@@ -46,34 +26,19 @@ export class EventType {
   })
   category: EventCategory;
 
+  @Field({ nullable: true })
+  @Column({ type: 'text', nullable: true })
+  description?: string;
+
   @Field()
   @Column({ type: 'boolean', default: false })
-  requiresRelatedPlayer: boolean;
+  requiresPosition: boolean;
 
   @Field()
-  @Column({ type: 'boolean', default: true })
-  isTeamEvent: boolean;
-
-  @Field()
-  @Column({ type: 'boolean', default: true })
-  isPositive: boolean;
-
-  @Column({ type: 'json', nullable: true })
-  metadataSchema?: object;
-
-  @Field()
-  @Column({ type: 'boolean', default: true })
-  isActive: boolean;
+  @Column({ type: 'boolean', default: false })
+  allowsParent: boolean;
 
   @Field(() => [GameEvent])
   @OneToMany(() => GameEvent, (gameEvent) => gameEvent.eventType)
   gameEvents: GameEvent[];
-
-  @Field()
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @Field()
-  @UpdateDateColumn()
-  updatedAt: Date;
 }

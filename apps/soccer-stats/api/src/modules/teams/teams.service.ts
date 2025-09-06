@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { Team } from '../../entities/team.entity';
+import { User } from '../../entities/user.entity';
 import { TeamPlayer } from '../../entities/team-player.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 
@@ -70,10 +71,28 @@ export class TeamsService {
       relations: ['teamPlayers'],
       where: {
         teamPlayers: {
-          player: { id: playerId },
+          user: { id: playerId },
+          isActive: true,
         },
       },
     });
+  }
+
+  async getPlayersForTeam(teamId: string): Promise<User[]> {
+    const teamPlayers = await this.teamPlayerRepository.find({
+      where: {
+        team: { id: teamId },
+        isActive: true,
+      },
+      relations: ['user'],
+    });
+
+    return teamPlayers
+      .filter(
+        (teamPlayer) =>
+          teamPlayer.user !== null && teamPlayer.user !== undefined
+      )
+      .map((teamPlayer) => teamPlayer.user as User);
   }
 
   // ResolveField methods
@@ -101,8 +120,8 @@ export class TeamsService {
     // Check if player already exists in this team
     const existing = await this.teamPlayerRepository.findOne({
       where: {
-        teamId: addPlayerToTeamInput.teamId,
-        playerId: addPlayerToTeamInput.playerId,
+        team: { id: addPlayerToTeamInput.teamId },
+        user: { id: addPlayerToTeamInput.playerId },
       },
     });
 
@@ -115,8 +134,8 @@ export class TeamsService {
     // Check if jersey number is already taken
     const jerseyTaken = await this.teamPlayerRepository.findOne({
       where: {
-        teamId: addPlayerToTeamInput.teamId,
-        jersey: addPlayerToTeamInput.jersey,
+        team: { id: addPlayerToTeamInput.teamId },
+        jerseyNumber: addPlayerToTeamInput.jersey.toString(),
       },
     });
 
@@ -128,9 +147,10 @@ export class TeamsService {
 
     const teamPlayer = this.teamPlayerRepository.create({
       teamId: addPlayerToTeamInput.teamId,
-      playerId: addPlayerToTeamInput.playerId,
-      jersey: addPlayerToTeamInput.jersey,
-      depthRank: addPlayerToTeamInput.depthRank || 1,
+      userId: addPlayerToTeamInput.playerId,
+      jerseyNumber: addPlayerToTeamInput.jersey.toString(),
+      primaryPosition: 'Midfielder', // Default position
+      joinedDate: new Date(),
       isActive: addPlayerToTeamInput.isActive !== false,
     });
 
@@ -145,7 +165,10 @@ export class TeamsService {
     playerId: string
   ): Promise<boolean> {
     const teamPlayer = await this.teamPlayerRepository.findOne({
-      where: { teamId, playerId },
+      where: {
+        team: { id: teamId },
+        user: { id: playerId },
+      },
     });
 
     if (!teamPlayer) {
@@ -158,18 +181,19 @@ export class TeamsService {
 
   async getPlayersWithJersey(teamId: string): Promise<TeamPlayerWithJersey[]> {
     const teamPlayers = await this.teamPlayerRepository.find({
-      where: { teamId },
-      relations: ['player'],
-      order: { jersey: 'ASC' },
+      where: { team: { id: teamId } },
+      relations: ['user'],
+      order: { jerseyNumber: 'ASC' },
     });
 
-    return teamPlayers.map((tp) => ({
-      id: tp.player.id,
-      name: tp.player.name,
-      position: tp.player.position,
-      jersey: tp.jersey,
-      depthRank: tp.depthRank,
-      isActive: tp.isActive,
-    }));
+    return teamPlayers
+      .filter((tp) => tp.user !== null && tp.user !== undefined)
+      .map((tp) => ({
+        id: (tp.user as User).id,
+        name: `${(tp.user as User).firstName} ${(tp.user as User).lastName}`,
+        position: tp.primaryPosition || 'Unknown',
+        jersey: parseInt(tp.jerseyNumber || '0'),
+        isActive: tp.isActive,
+      }));
   }
 }

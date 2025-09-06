@@ -4,12 +4,11 @@ import { PubSub } from 'graphql-subscriptions';
 
 import { Game } from '../../entities/game.entity';
 import { Team } from '../../entities/team.entity';
-import { Player } from '../../entities/player.entity';
+import { User } from '../../entities/user.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { TeamPlayer } from '../../entities/team-player.entity';
 import { EventType } from '../../entities/event-type.entity';
 import { GameEvent } from '../../entities/game-event.entity';
-import { GameParticipation } from '../../entities/game-participation.entity';
 import { GameFormat } from '../../entities/game-format.entity';
 import { AuthModule } from '../auth/auth.module';
 
@@ -21,12 +20,11 @@ import { GamesService } from './games.service';
     TypeOrmModule.forFeature([
       Game,
       Team,
-      Player,
+      User,
       GameTeam,
       TeamPlayer,
       EventType,
       GameEvent,
-      GameParticipation,
       GameFormat,
     ]),
     AuthModule,

@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { Game, GameStatus } from '../../entities/game.entity';
+import { Game } from '../../entities/game.entity';
 import { Team } from '../../entities/team.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { GameFormat } from '../../entities/game-format.entity';
@@ -101,10 +101,7 @@ export class GamesService {
 
     // Create the game
     const game = this.gameRepository.create({
-      gameFormat,
-      duration: createGameInput.duration || gameFormat.defaultDuration,
-      status: GameStatus.NOT_STARTED,
-      currentTime: 0,
+      gameFormatId: createGameInput.gameFormatId,
     });
 
     const savedGame = await this.gameRepository.save(game);
@@ -113,13 +110,13 @@ export class GamesService {
     const homeGameTeam = this.gameTeamRepository.create({
       gameId: savedGame.id,
       teamId: createGameInput.homeTeamId,
-      isHome: true,
+      teamType: 'home',
     });
 
     const awayGameTeam = this.gameTeamRepository.create({
       gameId: savedGame.id,
       teamId: createGameInput.awayTeamId,
-      isHome: false,
+      teamType: 'away',
     });
 
     await this.gameTeamRepository.save([homeGameTeam, awayGameTeam]);
@@ -135,33 +132,5 @@ export class GamesService {
   async remove(id: string): Promise<boolean> {
     const result = await this.gameRepository.delete(id);
     return (result.affected ?? 0) > 0;
-  }
-
-  async startGame(id: string): Promise<Game> {
-    await this.gameRepository.update(id, {
-      status: GameStatus.IN_PROGRESS,
-      startTime: new Date(),
-    });
-    return this.findOne(id);
-  }
-
-  async pauseGame(id: string): Promise<Game> {
-    await this.gameRepository.update(id, {
-      status: GameStatus.PAUSED,
-    });
-    return this.findOne(id);
-  }
-
-  async endGame(id: string): Promise<Game> {
-    await this.gameRepository.update(id, {
-      status: GameStatus.FINISHED,
-      endTime: new Date(),
-    });
-    return this.findOne(id);
-  }
-
-  async updateGameTime(id: string, currentTime: number): Promise<Game> {
-    await this.gameRepository.update(id, { currentTime });
-    return this.findOne(id);
   }
 }

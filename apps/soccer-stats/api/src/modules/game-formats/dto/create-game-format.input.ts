@@ -1,5 +1,12 @@
 import { InputType, Field, Int } from '@nestjs/graphql';
-import { IsString, IsInt, Min, Max, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  Min,
+  Max,
+  IsOptional,
+  IsBoolean,
+} from 'class-validator';
 
 @InputType()
 export class CreateGameFormatInput {
@@ -15,7 +22,7 @@ export class CreateGameFormatInput {
   @IsInt()
   @Min(3)
   @Max(15)
-  playersPerSide: number;
+  playersPerTeam: number;
 
   @Field(() => Int, { nullable: true })
   @IsOptional()
@@ -35,7 +42,12 @@ export class CreateGameFormatInput {
   @IsInt()
   @Min(10)
   @Max(120)
-  defaultDuration?: number;
+  durationMinutes?: number;
+
+  @Field({ defaultValue: true })
+  @IsOptional()
+  @IsBoolean()
+  allowsSubstitutions?: boolean;
 
   @Field({ nullable: true })
   @IsOptional()
