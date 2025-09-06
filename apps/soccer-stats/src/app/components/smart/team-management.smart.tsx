@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { useNavigate } from 'react-router';
 
@@ -36,6 +36,14 @@ export const TeamManagementSmart = ({
   const navigate = useNavigate();
   const isEditing = Boolean(teamId);
   const [activeTab, setActiveTab] = useState<TeamManagementTab>('basic');
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Redirect from players tab when in settings mode
+  useEffect(() => {
+    if (isInSettingsMode && activeTab === 'players') {
+      setActiveTab('basic');
+    }
+  }, [isInSettingsMode, activeTab]);
 
   // Team configuration manager
   const {
@@ -110,9 +118,59 @@ export const TeamManagementSmart = ({
     }
   }, [navigate, isInSettingsMode, teamId]);
 
-  const handleTabChange = useCallback((tab: TeamManagementTab) => {
-    setActiveTab(tab);
-  }, []);
+  const handleTabChange = useCallback(
+    (tab: TeamManagementTab) => {
+      // Prevent switching to players tab in settings mode
+      if (isInSettingsMode && tab === 'players') {
+        return;
+      }
+      setActiveTab(tab);
+    },
+    [isInSettingsMode]
+  );
+
+  const handleSaveSettings = useCallback(async () => {
+    if (!teamId || !isEditing) return;
+
+    try {
+      // Get current team data for basic info
+      const currentTeam = teamData?.team;
+      if (!currentTeam) return;
+
+      // For now, we can only save basic team information to the backend
+      // Configuration data (game format, formation, positions) is stored client-side
+      const updateData = {
+        name: currentTeam.name,
+        colors: currentTeam.colors,
+        logo: currentTeam.logo,
+      };
+
+      await updateTeam({
+        variables: {
+          id: teamId,
+          updateTeamInput: updateData,
+        },
+      });
+
+      // Show success feedback
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+
+      // TODO: In the future, extend the backend to support saving:
+      // - gameFormat: configuration.gameFormat
+      // - formation: configuration.formation
+      // - customPositions: positions array
+
+      // For now, the configuration changes are preserved in the UI state
+      console.log('Team configuration updated (client-side):', {
+        gameFormat: configuration.gameFormat,
+        formation: configuration.formation,
+        customPositions: positions,
+      });
+    } catch (err) {
+      console.error('Error saving team settings:', err);
+    }
+  }, [teamId, isEditing, teamData, updateTeam, configuration, positions]);
 
   const handleComplete = useCallback(() => {
     if (isInSettingsMode && teamId) {
@@ -181,8 +239,10 @@ export const TeamManagementSmart = ({
       onRemovePosition={configActions.removePosition}
       onCancel={handleCancel}
       onComplete={handleComplete}
+      onSaveSettings={isInSettingsMode ? handleSaveSettings : undefined}
       loading={createLoading || updateLoading}
       error={createError?.message || updateError?.message}
+      saveSuccess={saveSuccess}
       isInSettingsMode={isInSettingsMode}
     />
   );

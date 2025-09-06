@@ -86,7 +86,7 @@ export const GameSubRoute = {
 export const TeamsSubRoute = {
   parameters: {
     reactRouter: {
-      location: { pathname: '/teams/create' },
+      location: { pathname: '/teams/manage' },
     },
   },
 };

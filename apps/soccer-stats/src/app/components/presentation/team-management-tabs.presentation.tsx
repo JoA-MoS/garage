@@ -12,6 +12,7 @@ interface TeamManagementTabsProps {
   onTabChange: (tab: TeamManagementTab) => void;
   team?: UITeam;
   isEditing: boolean;
+  isInSettingsMode?: boolean;
 }
 
 export const TeamManagementTabs = ({
@@ -19,6 +20,7 @@ export const TeamManagementTabs = ({
   onTabChange,
   team,
   isEditing,
+  isInSettingsMode = false,
 }: TeamManagementTabsProps) => {
   const tabs = [
     {
@@ -129,10 +131,15 @@ export const TeamManagementTabs = ({
     },
   ];
 
+  // Filter out players tab when in settings mode since players are managed at team level
+  const availableTabs = isInSettingsMode
+    ? tabs.filter((tab) => tab.id !== 'players')
+    : tabs;
+
   return (
     <div className="border-b border-gray-200">
       <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-        {tabs.map((tab) => {
+        {availableTabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const isCompleted = isEditing && team && tab.id === 'basic'; // Basic info is completed if we're editing
 

@@ -21,6 +21,9 @@ const meta = {
     isEditing: {
       control: 'boolean',
     },
+    isInSettingsMode: {
+      control: 'boolean',
+    },
   },
 };
 
@@ -128,13 +131,59 @@ export const TeamWithoutLogo = {
   },
 };
 
+export const SettingsMode = {
+  args: {
+    activeTab: 'basic' as TeamManagementTab,
+    team: sampleTeam,
+    isEditing: true,
+    isInSettingsMode: true,
+  },
+};
+
+export const SettingsModeAllTabs = {
+  args: {
+    activeTab: 'basic' as TeamManagementTab,
+    team: sampleTeam,
+    isEditing: true,
+    isInSettingsMode: true,
+  },
+  render: (args: any) => {
+    const allTabs: TeamManagementTab[] = [
+      'basic',
+      'format',
+      'formation',
+      'positions',
+    ]; // Note: players tab is filtered out in settings mode
+
+    return (
+      <div className="space-y-8">
+        <div>
+          <h2 className="text-xl font-bold mb-4">
+            Settings Mode - Players Tab Hidden
+          </h2>
+          <p className="text-gray-600 mb-6">
+            In settings mode, the Players tab is hidden since players are
+            managed at the team level navigation.
+          </p>
+        </div>
+        {allTabs.map((tab) => (
+          <div key={tab}>
+            <h3 className="text-lg font-semibold mb-4 capitalize">{tab} Tab</h3>
+            <TeamManagementTabs {...args} activeTab={tab} />
+          </div>
+        ))}
+      </div>
+    );
+  },
+};
+
 export const AllTabsDemo = {
   args: {
     activeTab: 'basic' as TeamManagementTab,
     team: sampleTeam,
     isEditing: true,
   },
-  render: (args) => {
+  render: (args: any) => {
     const tabs: TeamManagementTab[] = [
       'basic',
       'format',
