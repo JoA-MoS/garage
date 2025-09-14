@@ -7,17 +7,16 @@ export const GET_TEAMS = gql`
     teams {
       id
       name
-      colors
-      logo
-      gameFormat
-      formation
-      customPositions {
-        id
-        name
-        abbreviation
-        x
-        y
-      }
+      shortName
+      description
+      homePrimaryColor
+      homeSecondaryColor
+      awayPrimaryColor
+      awaySecondaryColor
+      logoUrl
+      isActive
+      isManaged
+      sourceType
       createdAt
       updatedAt
     }
@@ -29,17 +28,16 @@ export const GET_TEAM_BY_ID = gql`
     team(id: $id) {
       id
       name
-      colors
-      logo
-      gameFormat
-      formation
-      customPositions {
-        id
-        name
-        abbreviation
-        x
-        y
-      }
+      shortName
+      description
+      homePrimaryColor
+      homeSecondaryColor
+      awayPrimaryColor
+      awaySecondaryColor
+      logoUrl
+      isActive
+      isManaged
+      sourceType
       createdAt
       updatedAt
       playersWithJersey {
@@ -50,13 +48,41 @@ export const GET_TEAM_BY_ID = gql`
         depthRank
         isActive
       }
+      teamPlayers {
+        id
+        jerseyNumber
+        primaryPosition
+        isActive
+        joinedDate
+        leftDate
+        user {
+          id
+          firstName
+          lastName
+          email
+        }
+      }
+      teamConfiguration {
+        id
+        defaultFormation
+        defaultGameDuration
+        defaultPlayerCount
+        defaultGameFormat {
+          id
+          name
+          playersPerTeam
+          durationMinutes
+        }
+      }
       gameTeams {
         id
-        isHome
+        teamType
+        finalScore
+        formation
         game {
           id
-          status
-          startTime
+          name
+          scheduledStart
         }
       }
     }
@@ -68,17 +94,16 @@ export const CREATE_TEAM = gql`
     createTeam(createTeamInput: $createTeamInput) {
       id
       name
-      colors
-      logo
-      gameFormat
-      formation
-      customPositions {
-        id
-        name
-        abbreviation
-        x
-        y
-      }
+      shortName
+      description
+      homePrimaryColor
+      homeSecondaryColor
+      awayPrimaryColor
+      awaySecondaryColor
+      logoUrl
+      isActive
+      isManaged
+      sourceType
       createdAt
       updatedAt
     }
@@ -90,17 +115,15 @@ export const UPDATE_TEAM = gql`
     updateTeam(id: $id, updateTeamInput: $updateTeamInput) {
       id
       name
-      colors
-      logo
-      gameFormat
-      formation
-      customPositions {
-        id
-        name
-        abbreviation
-        x
-        y
-      }
+      shortName
+      description
+      homePrimaryColor
+      homeSecondaryColor
+      awayPrimaryColor
+      awaySecondaryColor
+      logoUrl
+      isActive
+      isManaged
       createdAt
       updatedAt
     }
@@ -112,14 +135,27 @@ export const ADD_PLAYER_TO_TEAM = gql`
     addPlayerToTeam(addPlayerToTeamInput: $addPlayerToTeamInput) {
       id
       name
-      colors
-      logo
+      shortName
+      homePrimaryColor
+      homeSecondaryColor
+      awayPrimaryColor
+      awaySecondaryColor
+      logoUrl
       createdAt
       updatedAt
       players {
         id
+        firstName
+        lastName
+        email
+      }
+      playersWithJersey {
+        id
         name
         position
+        jersey
+        depthRank
+        isActive
       }
     }
   }
@@ -146,21 +182,53 @@ export interface PlayerWithJersey {
 export interface Team {
   id: string;
   name: string;
-  colors?: string;
-  logo?: string;
-  gameFormat?: string;
-  formation?: string;
-  customPositions?: TeamPosition[];
+  shortName?: string;
+  description?: string;
+  homePrimaryColor?: string;
+  homeSecondaryColor?: string;
+  awayPrimaryColor?: string;
+  awaySecondaryColor?: string;
+  logoUrl?: string;
+  isActive: boolean;
+  isManaged: boolean;
+  sourceType: 'INTERNAL' | 'EXTERNAL';
   createdAt: string;
   updatedAt: string;
   players?: Player[];
   playersWithJersey?: PlayerWithJersey[];
+  teamPlayers?: TeamPlayer[];
+  teamConfiguration?: TeamConfiguration;
+}
+
+export interface TeamPlayer {
+  id: string;
+  jerseyNumber?: string;
+  primaryPosition?: string;
+  isActive: boolean;
+  joinedDate?: string;
+  leftDate?: string;
+  user: Player;
+}
+
+export interface TeamConfiguration {
+  id: string;
+  defaultFormation: string;
+  defaultGameDuration: number;
+  defaultPlayerCount: number;
+  defaultGameFormat: GameFormat;
+}
+
+export interface GameFormat {
+  id: string;
+  name: string;
+  playersPerTeam: number;
+  durationMinutes: number;
 }
 
 export interface Game {
   id: string;
-  status: string;
-  startTime: string;
+  name?: string;
+  scheduledStart?: string;
 }
 
 export interface GameTeam {
@@ -185,13 +253,18 @@ export interface CreateTeamInput {
   name: string;
   colors?: string;
   logo?: string;
-  gameFormat?: string;
-  formation?: string;
-  customPositions?: TeamPosition[];
 }
 
 export interface UpdateTeamInput {
   name?: string;
+  shortName?: string;
+  description?: string;
+  homePrimaryColor?: string;
+  homeSecondaryColor?: string;
+  awayPrimaryColor?: string;
+  awaySecondaryColor?: string;
+  logoUrl?: string;
+  // Legacy support
   colors?: string;
   logo?: string;
   gameFormat?: string;

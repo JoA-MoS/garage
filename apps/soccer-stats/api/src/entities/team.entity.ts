@@ -1,11 +1,22 @@
 import { Entity, Column, OneToMany, OneToOne } from 'typeorm';
-import { ObjectType, Field } from '@nestjs/graphql';
+import { ObjectType, Field, registerEnumType } from '@nestjs/graphql';
 
 import { BaseEntity } from './base.entity';
 import { GameTeam } from './game-team.entity';
 import { TeamPlayer } from './team-player.entity';
 import { TeamCoach } from './team-coach.entity';
 import { TeamConfiguration } from './team-configuration.entity';
+
+export enum SourceType {
+  INTERNAL = 'internal',
+  EXTERNAL = 'external',
+}
+
+registerEnumType(SourceType, {
+  name: 'SourceType',
+  description:
+    'The source of team data - internal (user created) or external (imported)',
+});
 
 @ObjectType()
 @Entity('teams')
@@ -41,6 +52,22 @@ export class Team extends BaseEntity {
   @Field({ nullable: true })
   @Column({ length: 255, nullable: true })
   logoUrl?: string;
+
+  @Field()
+  @Column({ default: true })
+  isManaged: boolean;
+
+  @Field(() => SourceType)
+  @Column({
+    type: 'enum',
+    enum: SourceType,
+    default: SourceType.INTERNAL,
+  })
+  sourceType: SourceType;
+
+  @Field({ nullable: true })
+  @Column({ length: 255, nullable: true })
+  externalReference?: string;
 
   @Field()
   @Column({ default: true })

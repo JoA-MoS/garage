@@ -76,8 +76,7 @@ export const TeamSettingsPresentation = ({
   const handleSaveAll = useCallback(() => {
     const basicInfo: UICreateTeamInput = {
       name: teamName,
-      primaryColor: teamColors,
-      secondaryColor: teamColors, // We can split this later if needed
+      colors: teamColors,
       logo: teamLogo,
     };
 

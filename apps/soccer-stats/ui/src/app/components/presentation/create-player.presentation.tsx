@@ -1,11 +1,11 @@
-import { CreatePlayerInput } from '../../services/players-graphql.service';
+import { UICreatePlayerInput } from '../types/ui.types';
 
 interface CreatePlayerPresentationProps {
-  formData: CreatePlayerInput;
+  formData: UICreatePlayerInput;
   loading: boolean;
   error?: string;
   isFormValid: boolean;
-  onInputChange: (field: keyof CreatePlayerInput, value: string) => void;
+  onInputChange: (field: keyof UICreatePlayerInput, value: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
 }
@@ -57,27 +57,79 @@ export const CreatePlayerPresentation = ({
       <form onSubmit={onSubmit} className="space-y-4">
         {/* Name Input */}
         <div>
-          <label
-            htmlFor="player-name"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
-            Player Name *
-          </label>
-          <input
-            id="player-name"
-            type="text"
-            value={formData.name}
-            onChange={(e) => onInputChange('name', e.target.value)}
-            placeholder="Enter player name"
-            disabled={loading}
-            className="
-              w-full px-3 py-2 border border-gray-300 rounded-md 
-              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-              disabled:bg-gray-100 disabled:cursor-not-allowed
-              min-h-[44px]
-            "
-            required
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="player-firstName"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                First Name *
+              </label>
+              <input
+                id="player-firstName"
+                type="text"
+                value={formData.firstName}
+                onChange={(e) => onInputChange('firstName', e.target.value)}
+                placeholder="First name"
+                disabled={loading}
+                className="
+                  w-full px-3 py-2 border border-gray-300 rounded-md 
+                  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                  disabled:bg-gray-100 disabled:cursor-not-allowed
+                  min-h-[44px]
+                "
+                required
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="player-lastName"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Last Name *
+              </label>
+              <input
+                id="player-lastName"
+                type="text"
+                value={formData.lastName}
+                onChange={(e) => onInputChange('lastName', e.target.value)}
+                placeholder="Last name"
+                disabled={loading}
+                className="
+                  w-full px-3 py-2 border border-gray-300 rounded-md 
+                  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                  disabled:bg-gray-100 disabled:cursor-not-allowed
+                  min-h-[44px]
+                "
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="player-email"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Email *
+            </label>
+            <input
+              id="player-email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => onInputChange('email', e.target.value)}
+              placeholder="Email address"
+              disabled={loading}
+              className="
+                w-full px-3 py-2 border border-gray-300 rounded-md 
+                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                disabled:bg-gray-100 disabled:cursor-not-allowed
+                min-h-[44px]
+              "
+              required
+            />
+          </div>
         </div>
 
         {/* Position Select */}
@@ -86,11 +138,11 @@ export const CreatePlayerPresentation = ({
             htmlFor="player-position"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            Position *
+            Preferred Position (Optional)
           </label>
           <select
             id="player-position"
-            value={formData.position}
+            value={formData.position || ''}
             onChange={(e) => onInputChange('position', e.target.value)}
             disabled={loading}
             className="
@@ -99,7 +151,6 @@ export const CreatePlayerPresentation = ({
               disabled:bg-gray-100 disabled:cursor-not-allowed
               min-h-[44px]
             "
-            required
           >
             <option value="">Select a position</option>
             {positions.map((position) => (

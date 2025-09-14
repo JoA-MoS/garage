@@ -7,30 +7,54 @@ const GAME_FORMATS: UIGameFormat[] = [
   {
     id: '11v11',
     name: '11v11',
+    playersPerTeam: 11,
+    durationMinutes: 90,
+    allowsSubstitutions: true,
+    maxSubstitutions: 5,
+    description: 'Traditional full-field soccer with 11 players per side',
+    // Legacy support
     displayName: 'Full Field',
     playersPerSide: 11,
-    description: 'Traditional full-field soccer with 11 players per side',
+    defaultDuration: 90,
   },
   {
     id: '9v9',
     name: '9v9',
+    playersPerTeam: 9,
+    durationMinutes: 80,
+    allowsSubstitutions: true,
+    maxSubstitutions: 5,
+    description: 'Youth leagues and recreational play with 9 players per side',
+    // Legacy support
     displayName: 'Medium Field',
     playersPerSide: 9,
-    description: 'Youth leagues and recreational play with 9 players per side',
+    defaultDuration: 80,
   },
   {
     id: '7v7',
     name: '7v7',
+    playersPerTeam: 7,
+    durationMinutes: 60,
+    allowsSubstitutions: true,
+    maxSubstitutions: 3,
+    description: 'Youth development with 7 players per side',
+    // Legacy support
     displayName: 'Small Field',
     playersPerSide: 7,
-    description: 'Youth development with 7 players per side',
+    defaultDuration: 60,
   },
   {
     id: '5v5',
     name: '5v5',
+    playersPerTeam: 5,
+    durationMinutes: 40,
+    allowsSubstitutions: true,
+    maxSubstitutions: 3,
+    description: 'Indoor futsal or small-sided games',
+    // Legacy support
     displayName: 'Futsal',
     playersPerSide: 5,
-    description: 'Indoor futsal or small-sided games',
+    defaultDuration: 40,
   },
 ];
 

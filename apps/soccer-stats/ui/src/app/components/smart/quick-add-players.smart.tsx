@@ -11,6 +11,7 @@ import {
   AddPlayerToTeamInput,
   GET_TEAM_BY_ID,
 } from '../../services/teams-graphql.service';
+import { mapServicePlayersToUIPlayers } from '../utils/data-mapping.utils';
 import { QuickAddPlayersPresentation } from '../presentation/quick-add-players.presentation';
 
 interface QuickAddPlayersSmartProps {
@@ -112,7 +113,7 @@ export const QuickAddPlayersSmart = ({
 
   return (
     <QuickAddPlayersPresentation
-      players={playersData?.players || []}
+      players={mapServicePlayersToUIPlayers(playersData?.players || [])}
       selectedPlayersWithJerseys={selectedPlayersWithJerseys}
       playersLoading={playersLoading}
       addPlayerLoading={addPlayerLoading}

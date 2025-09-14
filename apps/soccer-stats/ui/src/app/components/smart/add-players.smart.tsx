@@ -17,6 +17,11 @@ import {
   CreatePlayerInput,
   Player,
 } from '../../services/players-graphql.service';
+import { UIPlayer, UICreatePlayerInput } from '../types/ui.types';
+import {
+  mapServicePlayersToUIPlayers,
+  mapUICreatePlayerToService,
+} from '../utils/data-mapping.utils';
 import { AddPlayersPresentation } from '../presentation/add-players.presentation';
 
 interface AddPlayersSmartProps {
@@ -71,11 +76,12 @@ export const AddPlayersSmart = ({ teamId }: AddPlayersSmartProps) => {
   });
 
   const handleCreatePlayer = useCallback(
-    async (playerData: CreatePlayerInput) => {
+    async (playerData: UICreatePlayerInput) => {
       try {
+        const serviceData = mapUICreatePlayerToService(playerData);
         const result = await createPlayer({
           variables: {
-            createPlayerInput: playerData,
+            createPlayerInput: serviceData,
           },
         });
 
@@ -206,7 +212,7 @@ export const AddPlayersSmart = ({ teamId }: AddPlayersSmartProps) => {
   return (
     <AddPlayersPresentation
       team={teamData.team}
-      players={playersData?.players || []}
+      players={mapServicePlayersToUIPlayers(playersData?.players || [])}
       selectedPlayersWithJerseys={selectedPlayersWithJerseys}
       playersLoading={playersLoading}
       createPlayerLoading={createPlayerLoading}
