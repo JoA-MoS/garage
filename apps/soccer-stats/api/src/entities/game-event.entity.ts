@@ -1,4 +1,12 @@
-import { Entity, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  ManyToOne,
+  OneToMany,
+  JoinColumn,
+  BeforeInsert,
+  BeforeUpdate,
+} from 'typeorm';
 import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
 
 import { BaseEntity } from './base.entity';
@@ -18,9 +26,17 @@ export class GameEvent extends BaseEntity {
   @Column('uuid')
   eventTypeId: string;
 
-  @Field(() => ID)
-  @Column('uuid')
-  playerId: string;
+  @Field(() => ID, { nullable: true })
+  @Column('uuid', { nullable: true })
+  playerId?: string;
+
+  @Field({ nullable: true })
+  @Column({ length: 100, nullable: true })
+  externalPlayerName?: string;
+
+  @Field({ nullable: true })
+  @Column({ length: 10, nullable: true })
+  externalPlayerNumber?: string;
 
   @Field(() => ID)
   @Column('uuid')
@@ -50,7 +66,7 @@ export class GameEvent extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   description?: string;
 
-  @Field({ nullable: true })
+  // Note: metadata field is excluded from GraphQL schema to avoid type complexity
   @Column({ type: 'json', nullable: true })
   metadata?: object;
 
@@ -66,12 +82,13 @@ export class GameEvent extends BaseEntity {
   @JoinColumn({ name: 'eventTypeId' })
   eventType: EventType;
 
-  @Field(() => User)
+  @Field(() => User, { nullable: true })
   @ManyToOne(() => User, (user) => user.performedEvents, {
     onDelete: 'CASCADE',
+    nullable: true,
   })
   @JoinColumn({ name: 'playerId' })
-  player: User;
+  player?: User;
 
   @Field(() => User)
   @ManyToOne(() => User, (user) => user.recordedEvents, { onDelete: 'CASCADE' })
@@ -96,4 +113,19 @@ export class GameEvent extends BaseEntity {
   @Field(() => [GameEvent])
   @OneToMany(() => GameEvent, (gameEvent) => gameEvent.parentEvent)
   childEvents: GameEvent[];
+
+  @BeforeInsert()
+  @BeforeUpdate()
+  validatePlayerReference() {
+    const hasInternalPlayer = !!this.playerId;
+    const hasExternalPlayer = !!this.externalPlayerName;
+
+    if (!hasInternalPlayer && !hasExternalPlayer) {
+      throw new Error('Either playerId or externalPlayerName must be provided');
+    }
+
+    if (hasInternalPlayer && hasExternalPlayer) {
+      throw new Error('Cannot have both playerId and externalPlayerName');
+    }
+  }
 }

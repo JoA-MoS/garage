@@ -20,8 +20,7 @@ export const EditTeamPresentation = ({
 }: EditTeamPresentationProps) => {
   const [formData, setFormData] = useState<UICreateTeamInput>({
     name: initialTeamData.name,
-    primaryColor: initialTeamData.primaryColor,
-    secondaryColor: initialTeamData.secondaryColor,
+    colors: initialTeamData.colors,
     logo: initialTeamData.logo || '',
   });
 
@@ -29,8 +28,7 @@ export const EditTeamPresentation = ({
   useEffect(() => {
     setFormData({
       name: initialTeamData.name,
-      primaryColor: initialTeamData.primaryColor,
-      secondaryColor: initialTeamData.secondaryColor,
+      colors: initialTeamData.colors,
       logo: initialTeamData.logo || '',
     });
   }, [initialTeamData]);
@@ -40,8 +38,7 @@ export const EditTeamPresentation = ({
     if (formData.name.trim()) {
       onSubmit({
         name: formData.name.trim(),
-        primaryColor: formData.primaryColor,
-        secondaryColor: formData.secondaryColor,
+        colors: formData.colors,
         logo: formData.logo?.trim() || undefined,
       });
     }
@@ -106,105 +103,26 @@ export const EditTeamPresentation = ({
 
             {/* Team Colors */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Team Colors
+              <label
+                htmlFor="teamColors"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Team Colors (Optional)
               </label>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label
-                    htmlFor="primaryColor"
-                    className="block text-sm font-medium text-gray-600 mb-2"
-                  >
-                    Primary Color
-                  </label>
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="color"
-                      id="primaryColor"
-                      value={formData.primaryColor}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          primaryColor: e.target.value,
-                        })
-                      }
-                      className="w-12 h-10 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                      disabled={loading}
-                    />
-                    <input
-                      type="text"
-                      value={formData.primaryColor}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          primaryColor: e.target.value,
-                        })
-                      }
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      placeholder="#3b82f6"
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label
-                    htmlFor="secondaryColor"
-                    className="block text-sm font-medium text-gray-600 mb-2"
-                  >
-                    Secondary Color
-                  </label>
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="color"
-                      id="secondaryColor"
-                      value={formData.secondaryColor}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          secondaryColor: e.target.value,
-                        })
-                      }
-                      className="w-12 h-10 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                      disabled={loading}
-                    />
-                    <input
-                      type="text"
-                      value={formData.secondaryColor}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          secondaryColor: e.target.value,
-                        })
-                      }
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      placeholder="#1e40af"
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-              </div>
-              <p className="text-sm text-gray-500 mt-2">
-                Choose your team's primary and secondary colors for jerseys and
-                branding
+              <input
+                type="text"
+                id="teamColors"
+                value={formData.colors || ''}
+                onChange={(e) =>
+                  setFormData({ ...formData, colors: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                placeholder="e.g., #3b82f6,#1e40af or Blue,White"
+                disabled={loading}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Enter team colors separated by commas (hex codes or color names)
               </p>
-              {/* Color Preview */}
-              <div className="mt-3 flex items-center space-x-3">
-                <span className="text-sm font-medium text-gray-700">
-                  Preview:
-                </span>
-                <div className="flex space-x-2">
-                  <div
-                    className="w-8 h-8 rounded-full border border-gray-300"
-                    style={{ backgroundColor: formData.primaryColor }}
-                    title="Primary Color"
-                  />
-                  <div
-                    className="w-8 h-8 rounded-full border border-gray-300"
-                    style={{ backgroundColor: formData.secondaryColor }}
-                    title="Secondary Color"
-                  />
-                </div>
-              </div>
             </div>
 
             {/* Team Logo */}

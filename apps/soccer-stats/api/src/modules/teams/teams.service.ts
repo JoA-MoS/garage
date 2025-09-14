@@ -6,7 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { Team } from '../../entities/team.entity';
+import { Team, SourceType } from '../../entities/team.entity';
 import { User } from '../../entities/user.entity';
 import { TeamPlayer } from '../../entities/team-player.entity';
 import { GameTeam } from '../../entities/game-team.entity';
@@ -195,5 +195,106 @@ export class TeamsService {
         jersey: parseInt(tp.jerseyNumber || '0'),
         isActive: tp.isActive,
       }));
+  }
+
+  // Unmanaged team support methods
+
+  /**
+   * Create a new unmanaged (opponent) team with minimal information
+   */
+  async createUnmanagedTeam(name: string, shortName?: string): Promise<Team> {
+    const team = this.teamRepository.create({
+      name: name.trim(),
+      shortName,
+      isManaged: false,
+      sourceType: SourceType.EXTERNAL,
+      isActive: true,
+    });
+
+    return this.teamRepository.save(team);
+  }
+
+  /**
+   * Find an unmanaged team by name or create it if it doesn't exist
+   */
+  async findOrCreateUnmanagedTeam(
+    name: string,
+    shortName?: string
+  ): Promise<Team> {
+    const trimmedName = name.trim();
+
+    // First check if we already have this unmanaged team
+    const existing = await this.teamRepository.findOne({
+      where: {
+        name: trimmedName,
+        isManaged: false,
+        sourceType: SourceType.EXTERNAL,
+      },
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    // Create new unmanaged team
+    return this.createUnmanagedTeam(trimmedName, shortName);
+  }
+
+  /**
+   * Get all managed teams (teams with full data)
+   */
+  async findManagedTeams(): Promise<Team[]> {
+    return this.teamRepository.find({
+      where: { isManaged: true },
+    });
+  }
+
+  /**
+   * Get all unmanaged teams (opponent teams)
+   */
+  async findUnmanagedTeams(): Promise<Team[]> {
+    return this.teamRepository.find({
+      where: { isManaged: false },
+    });
+  }
+
+  /**
+   * Upgrade an unmanaged team to a managed team with full details
+   */
+  async upgradeToManagedTeam(
+    teamId: string,
+    updateData: Partial<Team>
+  ): Promise<Team> {
+    const team = await this.findOne(teamId);
+
+    if (team.isManaged) {
+      throw new ConflictException('Team is already managed');
+    }
+
+    // Apply the update data
+    Object.assign(team, updateData);
+
+    // Change to managed
+    team.isManaged = true;
+
+    return this.teamRepository.save(team);
+  }
+
+  /**
+   * Find teams by managed status
+   */
+  async findByManagedStatus(isManaged: boolean): Promise<Team[]> {
+    return this.teamRepository.find({
+      where: { isManaged },
+    });
+  }
+
+  /**
+   * Find teams by source type
+   */
+  async findBySourceType(sourceType: SourceType): Promise<Team[]> {
+    return this.teamRepository.find({
+      where: { sourceType },
+    });
   }
 }

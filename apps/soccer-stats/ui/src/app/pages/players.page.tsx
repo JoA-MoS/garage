@@ -6,6 +6,7 @@ import {
   GET_PLAYERS,
   PlayersResponse,
 } from '../services/players-graphql.service';
+import { mapServicePlayersToUIPlayers } from '../components/utils/data-mapping.utils';
 import { CreatePlayerSmart } from '../components/smart/create-player.smart';
 
 /**
@@ -74,7 +75,7 @@ export const PlayersPage = () => {
     );
   }
 
-  const players = data?.players || [];
+  const players = mapServicePlayersToUIPlayers(data?.players || []);
 
   // Show create player form
   if (showCreatePlayer) {
@@ -183,11 +184,13 @@ export const PlayersPage = () => {
                     text-white font-semibold text-lg
                   "
                   >
-                    {player.name.charAt(0).toUpperCase()}
+                    {(player.name || `${player.firstName} ${player.lastName}`)
+                      .charAt(0)
+                      .toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium text-gray-900 truncate">
-                      {player.name}
+                      {player.name || `${player.firstName} ${player.lastName}`}
                     </h3>
                     <p className="text-sm text-gray-500 truncate">
                       {player.position}

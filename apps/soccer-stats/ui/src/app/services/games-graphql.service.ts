@@ -5,13 +5,13 @@ export const GET_GAME_FORMATS = gql`
     gameFormats {
       id
       name
-      displayName
-      playersPerSide
-      minPlayers
-      maxSubstitutions
-      defaultDuration
+      playersPerTeam
+      durationMinutes
       description
-      isActive
+      allowsSubstitutions
+      maxSubstitutions
+      createdAt
+      updatedAt
     }
   }
 `;
@@ -20,37 +20,43 @@ export const GET_GAMES = gql`
   query GetGames {
     games {
       id
-      startTime
-      endTime
-      status
+      name
+      scheduledStart
+      notes
+      venue
+      weatherConditions
       gameFormat {
         id
         name
-        displayName
-        playersPerSide
-        defaultDuration
+        playersPerTeam
+        durationMinutes
       }
-      currentTime
-      duration
       createdAt
       updatedAt
       gameTeams {
         id
-        isHome
+        teamType
         formation
+        finalScore
+        tacticalNotes
         team {
           id
           name
-          colors
-          logo
+          homePrimaryColor
+          homeSecondaryColor
+          awayPrimaryColor
+          awaySecondaryColor
+          logoUrl
         }
       }
       gameEvents {
         id
-        minute
-        timestamp
-        realTime
-        notes
+        gameMinute
+        gameSecond
+        description
+        position
+        externalPlayerName
+        externalPlayerNumber
         eventType {
           id
           name
@@ -58,26 +64,14 @@ export const GET_GAMES = gql`
         }
         player {
           id
-          name
-          position
+          firstName
+          lastName
+          email
         }
-        relatedPlayer {
+        recordedByUser {
           id
-          name
-          position
-        }
-      }
-      participations {
-        id
-        startMinute
-        endMinute
-        isStarter
-        isOnField
-        minutesPlayed
-        player {
-          id
-          name
-          position
+          firstName
+          lastName
         }
       }
     }
@@ -88,87 +82,81 @@ export const GET_GAME_BY_ID = gql`
   query GetGameById($id: ID!) {
     game(id: $id) {
       id
-      startTime
-      endTime
-      status
+      name
+      scheduledStart
+      notes
+      venue
+      weatherConditions
       gameFormat {
         id
         name
-        displayName
-        playersPerSide
-        minPlayers
+        playersPerTeam
+        durationMinutes
+        allowsSubstitutions
         maxSubstitutions
-        defaultDuration
         description
-        isActive
       }
-      currentTime
-      duration
       createdAt
       updatedAt
       gameTeams {
         id
-        isHome
+        teamType
         formation
+        finalScore
+        tacticalNotes
         team {
           id
           name
-          colors
-          logo
-          teamPlayers {
+          homePrimaryColor
+          homeSecondaryColor
+          awayPrimaryColor
+          awaySecondaryColor
+          logoUrl
+          playersWithJersey {
             id
             jersey
             depthRank
             isActive
-            player {
-              id
-              name
-              position
-            }
+            name
+            position
           }
         }
       }
       gameEvents {
         id
-        minute
-        timestamp
-        realTime
-        notes
+        gameMinute
+        gameSecond
+        description
+        position
+        externalPlayerName
+        externalPlayerNumber
         eventType {
           id
           name
           category
+          requiresPosition
+          allowsParent
         }
         player {
           id
-          name
-          position
+          firstName
+          lastName
+          email
         }
-        relatedPlayer {
+        recordedByUser {
           id
-          name
-          position
+          firstName
+          lastName
         }
-      }
-      participations {
-        id
-        startMinute
-        endMinute
-        isStarter
-        isOnField
-        minutesPlayed
-        player {
+        parentEvent {
           id
-          name
-          position
+          gameMinute
+          gameSecond
         }
-        gameTeam {
+        childEvents {
           id
-          isHome
-          team {
-            id
-            name
-          }
+          gameMinute
+          gameSecond
         }
       }
     }
@@ -179,29 +167,32 @@ export const CREATE_GAME = gql`
   mutation CreateGame($createGameInput: CreateGameInput!) {
     createGame(createGameInput: $createGameInput) {
       id
-      startTime
-      endTime
-      status
+      name
+      scheduledStart
+      notes
+      venue
+      weatherConditions
       gameFormat {
         id
         name
-        displayName
-        playersPerSide
-        defaultDuration
+        playersPerTeam
+        durationMinutes
       }
-      currentTime
-      duration
       createdAt
       updatedAt
       gameTeams {
         id
-        isHome
+        teamType
         formation
+        finalScore
         team {
           id
           name
-          colors
-          logo
+          homePrimaryColor
+          homeSecondaryColor
+          awayPrimaryColor
+          awaySecondaryColor
+          logoUrl
         }
       }
     }
@@ -212,96 +203,20 @@ export const UPDATE_GAME = gql`
   mutation UpdateGame($id: ID!, $updateGameInput: UpdateGameInput!) {
     updateGame(id: $id, updateGameInput: $updateGameInput) {
       id
-      startTime
-      endTime
-      status
-      format
-      currentTime
-      duration
+      name
+      scheduledStart
+      notes
+      venue
+      weatherConditions
       createdAt
       updatedAt
     }
   }
 `;
 
-export const START_GAME = gql`
-  mutation StartGame($id: ID!) {
-    startGame(id: $id) {
-      id
-      startTime
-      status
-      currentTime
-    }
-  }
-`;
-
-export const PAUSE_GAME = gql`
-  mutation PauseGame($id: ID!) {
-    pauseGame(id: $id) {
-      id
-      status
-      currentTime
-    }
-  }
-`;
-
-export const RESUME_GAME = gql`
-  mutation ResumeGame($id: ID!) {
-    resumeGame(id: $id) {
-      id
-      status
-      currentTime
-    }
-  }
-`;
-
-export const FINISH_GAME = gql`
-  mutation FinishGame($id: ID!) {
-    finishGame(id: $id) {
-      id
-      endTime
-      status
-      currentTime
-    }
-  }
-`;
-
-export const RECORD_GOAL = gql`
-  mutation RecordGoal($recordGoalInput: RecordGoalInput!) {
-    recordGoal(recordGoalInput: $recordGoalInput) {
-      id
-      minute
-      timestamp
-      realTime
-      notes
-      eventType {
-        id
-        name
-        category
-      }
-      player {
-        id
-        name
-        position
-      }
-      relatedPlayer {
-        id
-        name
-        position
-      }
-      game {
-        id
-        status
-      }
-      gameTeam {
-        id
-        isHome
-        team {
-          id
-          name
-        }
-      }
-    }
+export const REMOVE_GAME = gql`
+  mutation RemoveGame($id: ID!) {
+    removeGame(id: $id)
   }
 `;
 
@@ -349,6 +264,7 @@ export interface GameEvent {
 }
 
 export interface GameTeam {
+  __typename?: 'GameTeam';
   id: string;
   isHome: boolean;
   formation?: string;
@@ -394,7 +310,13 @@ export interface GameFormat {
 }
 
 export interface Game {
+  __typename?: 'Game';
   id: string;
+  name?: string;
+  scheduledStart?: string;
+  notes?: string;
+  venue?: string;
+  weatherConditions?: string;
   startTime?: string;
   endTime?: string;
   status: GameStatus;
@@ -406,19 +328,23 @@ export interface Game {
   gameTeams: GameTeam[];
   gameEvents?: GameEvent[];
   participations?: GameParticipation[];
+  [key: string]: unknown; // Index signature for Apollo cache
 }
 
 export interface CreateGameInput {
   homeTeamId: string;
   awayTeamId: string;
   gameFormatId: string;
-  duration?: number;
+  duration: number; // Required with default 90
 }
 
 export interface UpdateGameInput {
-  status?: GameStatus;
+  awayTeamId?: string;
   currentTime?: number;
-  endTime?: string;
+  duration?: number;
+  gameFormatId?: string;
+  homeTeamId?: string;
+  status?: GameStatus;
 }
 
 export interface RecordGoalInput {

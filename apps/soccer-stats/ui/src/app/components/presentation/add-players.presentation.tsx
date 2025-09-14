@@ -1,19 +1,16 @@
 import { TeamWithGames } from '../../services/teams-graphql.service';
-import {
-  Player,
-  CreatePlayerInput,
-} from '../../services/players-graphql.service';
+import { UIPlayer, UICreatePlayerInput } from '../types/ui.types';
 
 interface AddPlayersPresentationProps {
   team: TeamWithGames;
-  players: Player[];
+  players: UIPlayer[];
   selectedPlayersWithJerseys: { playerId: string; jersey: number }[];
   playersLoading: boolean;
   createPlayerLoading: boolean;
   addPlayerLoading: boolean;
   createPlayerError?: string;
   addPlayerError?: string;
-  onCreatePlayer: (playerData: CreatePlayerInput) => void;
+  onCreatePlayer: (playerData: UICreatePlayerInput) => void;
   onPlayerSelection: (
     playerId: string,
     isSelected: boolean,
@@ -194,7 +191,8 @@ export const AddPlayersPresentation = ({
                           className="ml-3 flex-1 cursor-pointer"
                         >
                           <div className="text-sm font-medium text-gray-900">
-                            {player.name}
+                            {player.name ||
+                              `${player.firstName} ${player.lastName}`}
                           </div>
                           {player.position && (
                             <div className="text-xs text-gray-500">

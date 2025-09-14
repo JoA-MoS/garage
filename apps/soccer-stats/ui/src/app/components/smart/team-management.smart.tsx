@@ -147,8 +147,9 @@ export const TeamManagementSmart = ({
       // Now we can save all team configuration data to the backend
       const updateData = {
         name: currentTeam.name,
-        colors: currentTeam.colors,
-        logo: currentTeam.logo,
+        homePrimaryColor: currentTeam.homePrimaryColor,
+        homeSecondaryColor: currentTeam.homeSecondaryColor,
+        logoUrl: currentTeam.logoUrl,
         gameFormat: selectedGameFormat,
         formation: selectedFormation,
         customPositions: positions.map((pos: UIPosition) => ({

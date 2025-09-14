@@ -1,7 +1,7 @@
-import { Player } from '../../services/players-graphql.service';
+import { UIPlayer } from '../types/ui.types';
 
 interface QuickAddPlayersPresentationProps {
-  players: Player[];
+  players: UIPlayer[];
   selectedPlayersWithJerseys: { playerId: string; jersey: number }[];
   playersLoading: boolean;
   addPlayerLoading: boolean;
@@ -117,7 +117,8 @@ export const QuickAddPlayersPresentation = ({
                           />
                           <div className="ml-3">
                             <div className="text-sm font-medium text-gray-900">
-                              {player.name}
+                              {player.name ||
+                                `${player.firstName} ${player.lastName}`}
                             </div>
                             <div className="text-sm text-gray-500">
                               {player.position}

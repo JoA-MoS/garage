@@ -50,8 +50,11 @@ export const TeamPlayersPresentation = ({
         <div className="flex items-center space-x-4">
           <div>
             <h3 className="font-medium text-gray-900">{team.name}</h3>
-            {team.colors && (
-              <p className="text-sm text-gray-600">Colors: {team.colors}</p>
+            {(team.homePrimaryColor || team.homeSecondaryColor) && (
+              <p className="text-sm text-gray-600">
+                Colors: {team.homePrimaryColor || 'N/A'} /{' '}
+                {team.homeSecondaryColor || 'N/A'}
+              </p>
             )}
             <p className="text-sm text-gray-500">
               Created: {new Date(team.createdAt).toLocaleDateString()}

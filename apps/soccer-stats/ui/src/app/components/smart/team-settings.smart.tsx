@@ -59,21 +59,22 @@ export const TeamSettingsSmart = () => {
     if (teamData?.team) {
       const team = teamData.team;
 
+      // TODO: These fields may have been moved to a separate team configuration entity
       // Set game format if it exists
-      if (team.gameFormat) {
-        selectGameFormat(team.gameFormat);
-      }
+      // if (team.gameFormat) {
+      //   selectGameFormat(team.gameFormat);
+      // }
 
       // Set formation if it exists
-      if (team.formation) {
-        selectFormation(team.formation);
-      }
+      // if (team.formation) {
+      //   selectFormation(team.formation);
+      // }
 
       // Set custom positions if they exist
-      if (team.customPositions && team.customPositions.length > 0) {
-        // Set positions directly - need to update the configuration manager to support this
-        // For now, we'll handle this in the save handler
-      }
+      // if (team.customPositions && team.customPositions.length > 0) {
+      //   // Set positions directly - need to update the configuration manager to support this
+      //   // For now, we'll handle this in the save handler
+      // }
     }
   }, [teamData, selectGameFormat, selectFormation]);
 

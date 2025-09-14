@@ -7,13 +7,16 @@ import {
   CreatePlayerResponse,
   CreatePlayerInput,
 } from '../../services/players-graphql.service';
+import { UICreatePlayerInput } from '../types/ui.types';
+import { mapUICreatePlayerToService } from '../utils/data-mapping.utils';
 import { CreatePlayerPresentation } from '../presentation/create-player.presentation';
 
 interface CreatePlayerSmartProps {
   onPlayerCreated?: (player: {
     id: string;
-    name: string;
-    position: string;
+    firstName: string;
+    lastName: string;
+    email: string;
   }) => void;
   onCancel?: () => void;
 }
@@ -25,8 +28,11 @@ export const CreatePlayerSmart = ({
   onPlayerCreated,
   onCancel,
 }: CreatePlayerSmartProps) => {
-  const [formData, setFormData] = useState<CreatePlayerInput>({
-    name: '',
+  const [formData, setFormData] = useState<UICreatePlayerInput>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    passwordHash: 'temporary', // TODO: Implement proper password handling
     position: '',
   });
 
@@ -38,7 +44,7 @@ export const CreatePlayerSmart = ({
   });
 
   const handleInputChange = useCallback(
-    (field: keyof CreatePlayerInput, value: string) => {
+    (field: keyof UICreatePlayerInput, value: string) => {
       setFormData((prev) => ({ ...prev, [field]: value }));
     },
     []
@@ -48,23 +54,31 @@ export const CreatePlayerSmart = ({
     async (e: React.FormEvent) => {
       e.preventDefault();
 
-      if (!formData.name.trim() || !formData.position.trim()) {
+      if (
+        !formData.firstName.trim() ||
+        !formData.lastName.trim() ||
+        !formData.email.trim()
+      ) {
         return;
       }
 
       try {
+        const serviceInput = mapUICreatePlayerToService(formData);
         const result = await createPlayer({
           variables: {
-            createPlayerInput: {
-              name: formData.name.trim(),
-              position: formData.position.trim(),
-            },
+            createPlayerInput: serviceInput,
           },
         });
 
         if (result.data?.createPlayer) {
           // Reset form
-          setFormData({ name: '', position: '' });
+          setFormData({
+            firstName: '',
+            lastName: '',
+            email: '',
+            passwordHash: 'temporary',
+            position: '',
+          });
 
           // Notify parent component
           onPlayerCreated?.(result.data.createPlayer);
@@ -77,12 +91,20 @@ export const CreatePlayerSmart = ({
   );
 
   const handleCancel = useCallback(() => {
-    setFormData({ name: '', position: '' });
+    setFormData({
+      firstName: '',
+      lastName: '',
+      email: '',
+      passwordHash: 'temporary',
+      position: '',
+    });
     onCancel?.();
   }, [onCancel]);
 
   const isFormValid =
-    formData.name.trim().length > 0 && formData.position.trim().length > 0;
+    formData.firstName.trim().length > 0 &&
+    formData.lastName.trim().length > 0 &&
+    formData.email.trim().length > 0;
 
   return (
     <CreatePlayerPresentation

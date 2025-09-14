@@ -116,8 +116,9 @@ export class TeamsApiService {
                 id: teamRef,
                 fields: {
                   name: () => data.updateTeam.name,
-                  colors: () => data.updateTeam.colors,
-                  logo: () => data.updateTeam.logo,
+                  homePrimaryColor: () => data.updateTeam.homePrimaryColor,
+                  homeSecondaryColor: () => data.updateTeam.homeSecondaryColor,
+                  logoUrl: () => data.updateTeam.logoUrl,
                   updatedAt: () => data.updateTeam.updatedAt,
                 },
               });

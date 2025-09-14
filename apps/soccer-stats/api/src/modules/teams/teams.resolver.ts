@@ -21,6 +21,7 @@ import { TeamsService } from './teams.service';
 import { CreateTeamInput } from './dto/create-team.input';
 import { UpdateTeamInput } from './dto/update-team.input';
 import { AddPlayerToTeamInput } from './dto/add-player-to-team.input';
+import { UpgradeTeamInput } from './dto/upgrade-team.input';
 
 @Resolver(() => Team)
 export class TeamsResolver {
@@ -43,6 +44,21 @@ export class TeamsResolver {
   @Query(() => [Team], { name: 'teamsByName' })
   findByName(@Args('name') name: string) {
     return this.teamsService.findByName(name);
+  }
+
+  @Query(() => [Team], { name: 'managedTeams' })
+  findManagedTeams() {
+    return this.teamsService.findManagedTeams();
+  }
+
+  @Query(() => [Team], { name: 'unmanagedTeams' })
+  findUnmanagedTeams() {
+    return this.teamsService.findUnmanagedTeams();
+  }
+
+  @Query(() => [Team], { name: 'teamsByManagedStatus' })
+  findByManagedStatus(@Args('isManaged') isManaged: boolean) {
+    return this.teamsService.findByManagedStatus(isManaged);
   }
 
   @ResolveField(() => [User])
@@ -80,6 +96,30 @@ export class TeamsResolver {
   @Mutation(() => Boolean)
   removeTeam(@Args('id', { type: () => ID }) id: string) {
     return this.teamsService.remove(id);
+  }
+
+  @Mutation(() => Team)
+  async createUnmanagedTeam(
+    @Args('name') name: string,
+    @Args('shortName', { nullable: true }) shortName?: string
+  ) {
+    return this.teamsService.createUnmanagedTeam(name, shortName);
+  }
+
+  @Mutation(() => Team)
+  async findOrCreateUnmanagedTeam(
+    @Args('name') name: string,
+    @Args('shortName', { nullable: true }) shortName?: string
+  ) {
+    return this.teamsService.findOrCreateUnmanagedTeam(name, shortName);
+  }
+
+  @Mutation(() => Team)
+  async upgradeToManagedTeam(
+    @Args('id', { type: () => ID }) id: string,
+    @Args('upgradeTeamInput') upgradeTeamInput: UpgradeTeamInput
+  ) {
+    return this.teamsService.upgradeToManagedTeam(id, upgradeTeamInput);
   }
 
   @Mutation(() => Team)
