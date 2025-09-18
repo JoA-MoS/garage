@@ -1,6 +1,6 @@
-import { gql } from '@apollo/client';
+import { graphql } from '../generated';
 
-export const GET_PLAYERS = gql`
+export const GET_PLAYERS = graphql(`
   query GetPlayers {
     players {
       id
@@ -29,9 +29,9 @@ export const GET_PLAYERS = gql`
       }
     }
   }
-`;
+`);
 
-export const CREATE_PLAYER = gql`
+export const CREATE_PLAYER = graphql(`
   mutation CreatePlayer($createPlayerInput: CreatePlayerInput!) {
     createPlayer(createPlayerInput: $createPlayerInput) {
       id
@@ -45,20 +45,18 @@ export const CREATE_PLAYER = gql`
       updatedAt
     }
   }
-`;
+`);
 
-export const ADD_PLAYER_TO_TEAM = gql`
-  mutation AddPlayerToTeam($addPlayerToTeamInput: AddPlayerToTeamInput!) {
+export const ADD_PLAYER_TO_TEAM = graphql(`
+  mutation AddPlayerToTeamBasic($addPlayerToTeamInput: AddPlayerToTeamInput!) {
     addPlayerToTeam(addPlayerToTeamInput: $addPlayerToTeamInput) {
       id
       name
-      colors
-      logo
     }
   }
-`;
+`);
 
-export const GET_PLAYER_BY_ID = gql`
+export const GET_PLAYER_BY_ID = graphql(`
   query GetPlayerById($id: ID!) {
     player(id: $id) {
       id
@@ -111,9 +109,9 @@ export const GET_PLAYER_BY_ID = gql`
       }
     }
   }
-`;
+`);
 
-export const UPDATE_PLAYER = gql`
+export const UPDATE_PLAYER = graphql(`
   mutation UpdatePlayer($id: ID!, $updatePlayerInput: UpdatePlayerInput!) {
     updatePlayer(id: $id, updatePlayerInput: $updatePlayerInput) {
       id
@@ -126,15 +124,15 @@ export const UPDATE_PLAYER = gql`
       updatedAt
     }
   }
-`;
+`);
 
-export const REMOVE_PLAYER = gql`
+export const REMOVE_PLAYER = graphql(`
   mutation RemovePlayer($id: ID!) {
     removePlayer(id: $id)
   }
-`;
+`);
 
-export const REMOVE_PLAYER_FROM_TEAM = gql`
+export const REMOVE_PLAYER_FROM_TEAM = graphql(`
   mutation RemovePlayerFromTeam($playerId: ID!, $teamId: ID!) {
     removePlayerFromTeam(playerId: $playerId, teamId: $teamId) {
       id
@@ -146,9 +144,23 @@ export const REMOVE_PLAYER_FROM_TEAM = gql`
       }
     }
   }
-`;
+`);
 
 // TypeScript interfaces
+export interface TeamPlayer {
+  id: string;
+  jerseyNumber: number;
+  primaryPosition?: string;
+  isActive: boolean;
+  joinedDate?: string;
+  leftDate?: string;
+  team: {
+    id: string;
+    name: string;
+    shortName?: string;
+  };
+}
+
 export interface Player {
   id: string;
   firstName: string;
@@ -159,6 +171,7 @@ export interface Player {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  teamPlayers?: TeamPlayer[];
 }
 
 export interface CreatePlayerInput {
@@ -202,4 +215,18 @@ export interface AddPlayerToTeamResponse {
     colors?: string;
     logo?: string;
   };
+}
+
+// Simplified interfaces for game setup
+export interface GameSetupPlayerInput {
+  firstName: string;
+  lastName: string;
+  jerseyNumber: number;
+}
+
+export interface CreateQuickPlayerInput {
+  firstName: string;
+  lastName: string;
+  teamId: string;
+  jerseyNumber: number;
 }

@@ -1,3 +1,4 @@
+import { AddPlayerToTeamBasicDocument } from '../../generated/graphql';
 import { apolloClient } from '../apollo-client';
 import {
   GET_PLAYERS,
@@ -17,11 +18,12 @@ export class PlayersApiService {
    */
   static async getPlayers(): Promise<Player[]> {
     try {
-      const { data } = await apolloClient.query<PlayersResponse>({
-        query: GET_PLAYERS,
-        fetchPolicy: 'cache-first',
-      });
-      return data?.players || [];
+      // const { data } = await apolloClient.query<PlayersResponse>({
+      //   query: GET_PLAYERS,
+      //   fetchPolicy: 'cache-first',
+      // });
+      // return data?.players || [];
+      return []; // Placeholder until query is enabled
     } catch (error) {
       console.error('Error fetching players:', error);
       throw new Error('Failed to fetch players');
@@ -33,33 +35,31 @@ export class PlayersApiService {
    */
   static async createPlayer(playerInput: CreatePlayerInput): Promise<Player> {
     try {
-      const { data } = await apolloClient.mutate<CreatePlayerResponse>({
-        mutation: CREATE_PLAYER,
-        variables: { createPlayerInput: playerInput },
-        update: (cache, { data }) => {
-          if (data?.createPlayer) {
-            // Update the cache to include the new player
-            const existingPlayers = cache.readQuery<PlayersResponse>({
-              query: GET_PLAYERS,
-            });
-
-            if (existingPlayers) {
-              cache.writeQuery({
-                query: GET_PLAYERS,
-                data: {
-                  players: [...existingPlayers.players, data.createPlayer],
-                },
-              });
-            }
-          }
-        },
-      });
-
-      if (!data?.createPlayer) {
-        throw new Error('No data returned from create player mutation');
-      }
-
-      return data.createPlayer;
+      // const { data } = await apolloClient.mutate<CreatePlayerResponse>({
+      //   mutation: CREATE_PLAYER,
+      //   variables: { createPlayerInput: playerInput },
+      //   update: (cache, { data }) => {
+      //     if (data?.createPlayer) {
+      //       // Update the cache to include the new player
+      //       const existingPlayers = cache.readQuery<PlayersResponse>({
+      //         query: GET_PLAYERS,
+      //       });
+      //       if (existingPlayers) {
+      //         cache.writeQuery({
+      //           query: GET_PLAYERS,
+      //           data: {
+      //             players: [...existingPlayers.players, data.createPlayer],
+      //           },
+      //         });
+      //       }
+      //     }
+      //   },
+      // });
+      // if (!data?.createPlayer) {
+      //   throw new Error('No data returned from create player mutation');
+      // }
+      // return data.createPlayer;
+      return {} as Player; // Placeholder until mutation is enabled
     } catch (error) {
       console.error('Error creating player:', error);
       throw new Error('Failed to create player');
@@ -71,10 +71,11 @@ export class PlayersApiService {
    */
   static async addPlayerToTeam(input: AddPlayerToTeamInput): Promise<void> {
     try {
-      await apolloClient.mutate<AddPlayerToTeamResponse>({
-        mutation: ADD_PLAYER_TO_TEAM,
-        variables: { addPlayerToTeamInput: input },
-      });
+      // await apolloClient.mutate({ mutation: AddPlayerToTeamBasicDocument, variables: { addPlayerToTeamInput: input },}))
+      // await apolloClient.mutate<AddPlayerToTeamResponse>({
+      //   mutation: ADD_PLAYER_TO_TEAM,
+      //   variables: { addPlayerToTeamInput: input },
+      // });
     } catch (error) {
       console.error('Error adding player to team:', error);
       throw new Error('Failed to add player to team');

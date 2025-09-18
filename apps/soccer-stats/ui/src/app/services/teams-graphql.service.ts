@@ -130,8 +130,10 @@ export const UPDATE_TEAM = gql`
   }
 `;
 
-export const ADD_PLAYER_TO_TEAM = gql`
-  mutation AddPlayerToTeam($addPlayerToTeamInput: AddPlayerToTeamInput!) {
+export const ADD_PLAYER_TO_TEAM_WITH_DETAILS = gql`
+  mutation AddPlayerToTeamWithDetails(
+    $addPlayerToTeamInput: AddPlayerToTeamInput!
+  ) {
     addPlayerToTeam(addPlayerToTeamInput: $addPlayerToTeamInput) {
       id
       name
@@ -157,6 +159,90 @@ export const ADD_PLAYER_TO_TEAM = gql`
         depthRank
         isActive
       }
+    }
+  }
+`;
+
+// MVP-specific mutations for managed/unmanaged team workflow
+export const CREATE_UNMANAGED_TEAM = gql`
+  mutation CreateUnmanagedTeam($name: String!, $shortName: String) {
+    createUnmanagedTeam(name: $name, shortName: $shortName) {
+      id
+      name
+      shortName
+      isManaged
+      sourceType
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const FIND_OR_CREATE_UNMANAGED_TEAM = gql`
+  mutation FindOrCreateUnmanagedTeam($name: String!, $shortName: String) {
+    findOrCreateUnmanagedTeam(name: $name, shortName: $shortName) {
+      id
+      name
+      shortName
+      isManaged
+      sourceType
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+// MVP-specific queries for team filtering
+export const GET_MANAGED_TEAMS = gql`
+  query GetManagedTeams {
+    managedTeams {
+      id
+      name
+      shortName
+      homePrimaryColor
+      homeSecondaryColor
+      awayPrimaryColor
+      awaySecondaryColor
+      logoUrl
+      isActive
+      isManaged
+      sourceType
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const GET_UNMANAGED_TEAMS = gql`
+  query GetUnmanagedTeams {
+    unmanagedTeams {
+      id
+      name
+      shortName
+      isManaged
+      sourceType
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const GET_TEAMS_BY_MANAGED_STATUS = gql`
+  query GetTeamsByManagedStatus($isManaged: Boolean!) {
+    teamsByManagedStatus(isManaged: $isManaged) {
+      id
+      name
+      shortName
+      homePrimaryColor
+      homeSecondaryColor
+      awayPrimaryColor
+      awaySecondaryColor
+      logoUrl
+      isActive
+      isManaged
+      sourceType
+      createdAt
+      updatedAt
     }
   }
 `;
@@ -296,4 +382,35 @@ export interface AddPlayerToTeamResponse {
       position: string;
     }>;
   };
+}
+
+// MVP-specific interfaces for managed/unmanaged team workflow
+export interface CreateUnmanagedTeamVariables {
+  name: string;
+  shortName?: string;
+}
+
+export interface FindOrCreateUnmanagedTeamVariables {
+  name: string;
+  shortName?: string;
+}
+
+export interface CreateUnmanagedTeamResponse {
+  createUnmanagedTeam: Team;
+}
+
+export interface FindOrCreateUnmanagedTeamResponse {
+  findOrCreateUnmanagedTeam: Team;
+}
+
+export interface ManagedTeamsResponse {
+  managedTeams: Team[];
+}
+
+export interface UnmanagedTeamsResponse {
+  unmanagedTeams: Team[];
+}
+
+export interface TeamsByManagedStatusResponse {
+  teamsByManagedStatus: Team[];
 }

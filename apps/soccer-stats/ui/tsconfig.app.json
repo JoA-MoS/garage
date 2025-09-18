@@ -7,6 +7,12 @@
       "@nx/react/typings/cssmodule.d.ts",
       "@nx/react/typings/image.d.ts",
       "vite/client"
+    ],
+    "plugins": [
+      {
+        "name": "@0no-co/graphqlsp",
+        "schema": "../../../dist/apps/soccer-stats/api/schema.gql"
+      }
     ]
   },
   "exclude": [
