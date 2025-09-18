@@ -1,5 +1,6 @@
 onlyBuiltDependencies:
   - '@apollo/protobufjs'
+  - '@clerk/shared'
   - '@nestjs/core'
   - '@parcel/watcher'
   - '@swc/core'
@@ -16,5 +17,6 @@ onlyBuiltDependencies:
   - nx
   - serverless
   - ssh2
+  - storybook-addon-remix-react-router
   - unrs-resolver
   - utf-8-validate

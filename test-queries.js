@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Simple test script to verify our updated GraphQL queries
-const fetch = require('node-fetch');
+// Using built-in fetch (Node.js 18+)
 
 const GRAPHQL_ENDPOINT = 'http://localhost:3333/graphql';
 

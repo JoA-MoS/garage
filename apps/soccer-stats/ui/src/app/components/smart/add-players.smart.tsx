@@ -5,7 +5,7 @@ import { useCallback, useState } from 'react';
 import {
   GET_TEAM_BY_ID,
   TeamResponse,
-  ADD_PLAYER_TO_TEAM,
+  ADD_PLAYER_TO_TEAM_WITH_DETAILS,
   AddPlayerToTeamResponse,
   AddPlayerToTeamInput,
 } from '../../services/teams-graphql.service';
@@ -48,10 +48,7 @@ export const AddPlayersSmart = ({ teamId }: AddPlayersSmartProps) => {
   });
 
   // Get all players
-  const { data: playersData, loading: playersLoading } =
-    useQuery<PlayersResponse>(GET_PLAYERS, {
-      fetchPolicy: 'cache-first',
-    });
+  const { data, loading: playersLoading } = useQuery(GET_PLAYERS);
 
   // Create player mutation
   const [
@@ -71,7 +68,7 @@ export const AddPlayersSmart = ({ teamId }: AddPlayersSmartProps) => {
   ] = useMutation<
     AddPlayerToTeamResponse,
     { addPlayerToTeamInput: AddPlayerToTeamInput }
-  >(ADD_PLAYER_TO_TEAM, {
+  >(ADD_PLAYER_TO_TEAM_WITH_DETAILS, {
     refetchQueries: [{ query: GET_TEAM_BY_ID, variables: { id: teamId } }],
   });
 

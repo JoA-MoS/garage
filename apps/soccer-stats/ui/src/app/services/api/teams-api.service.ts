@@ -4,7 +4,7 @@ import {
   GET_TEAM_BY_ID,
   CREATE_TEAM,
   UPDATE_TEAM,
-  ADD_PLAYER_TO_TEAM,
+  ADD_PLAYER_TO_TEAM_WITH_DETAILS,
   type Team,
   type TeamWithGames,
   type CreateTeamInput,
@@ -144,7 +144,7 @@ export class TeamsApiService {
   static async addPlayerToTeam(input: AddPlayerToTeamInput): Promise<void> {
     try {
       await apolloClient.mutate<AddPlayerToTeamResponse>({
-        mutation: ADD_PLAYER_TO_TEAM,
+        mutation: ADD_PLAYER_TO_TEAM_WITH_DETAILS,
         variables: { addPlayerToTeamInput: input },
         // Invalidate team cache to refetch with updated players
         refetchQueries: [

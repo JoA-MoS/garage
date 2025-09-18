@@ -6,7 +6,7 @@ import {
   PlayersResponse,
 } from '../../services/players-graphql.service';
 import {
-  ADD_PLAYER_TO_TEAM,
+  ADD_PLAYER_TO_TEAM_WITH_DETAILS,
   AddPlayerToTeamResponse,
   AddPlayerToTeamInput,
   GET_TEAM_BY_ID,
@@ -33,24 +33,24 @@ export const QuickAddPlayersSmart = ({
   >([]);
 
   // Get all players
-  const {
-    data: playersData,
-    loading: playersLoading,
-    error: playersError,
-  } = useQuery<PlayersResponse>(GET_PLAYERS, {
-    fetchPolicy: 'cache-first',
-  });
+  // const {
+  //   data: playersData,
+  //   loading: playersLoading,
+  //   error: playersError,
+  // } = useQuery<PlayersResponse>(GET_PLAYERS, {
+  //   fetchPolicy: 'cache-first',
+  // });
 
   // Add player to team mutation
-  const [
-    addPlayerToTeam,
-    { loading: addPlayerLoading, error: addPlayerError },
-  ] = useMutation<
-    AddPlayerToTeamResponse,
-    { addPlayerToTeamInput: AddPlayerToTeamInput }
-  >(ADD_PLAYER_TO_TEAM, {
-    refetchQueries: [{ query: GET_TEAM_BY_ID, variables: { id: teamId } }],
-  });
+  // const [
+  //   addPlayerToTeam,
+  //   { loading: addPlayerLoading, error: addPlayerError },
+  // ] = useMutation<
+  //   AddPlayerToTeamResponse,
+  //   { addPlayerToTeamInput: AddPlayerToTeamInput }
+  // >(ADD_PLAYER_TO_TEAM_WITH_DETAILS, {
+  //   refetchQueries: [{ query: GET_TEAM_BY_ID, variables: { id: teamId } }],
+  // });
 
   const handlePlayerToggle = useCallback(
     (playerId: string, isSelected: boolean, jersey?: number) => {
@@ -112,17 +112,17 @@ export const QuickAddPlayersSmart = ({
   }, [selectedPlayersWithJerseys, addPlayerToTeam, teamId, onSuccess, onClose]);
 
   return (
-    <QuickAddPlayersPresentation
-      players={mapServicePlayersToUIPlayers(playersData?.players || [])}
-      selectedPlayersWithJerseys={selectedPlayersWithJerseys}
-      playersLoading={playersLoading}
-      addPlayerLoading={addPlayerLoading}
-      playersError={playersError?.message}
-      addPlayerError={addPlayerError?.message}
-      onPlayerSelection={handlePlayerToggle}
-      onJerseyChange={handleJerseyChange}
-      onAddPlayers={handleAddPlayers}
-      onClose={onClose}
-    />
+    // <QuickAddPlayersPresentation
+    //   players={mapServicePlayersToUIPlayers([])}
+    //   selectedPlayersWithJerseys={selectedPlayersWithJerseys}
+    //   playersLoading={playersLoading}
+    //   addPlayerLoading={addPlayerLoading}
+    //   playersError={playersError?.message}
+    //   addPlayerError={addPlayerError?.message}
+    //   onPlayerSelection={handlePlayerToggle}
+    //   onJerseyChange={handleJerseyChange}
+    //   onAddPlayers={handleAddPlayers}
+    //   onClose={onClose}
+    // />
   );
 };

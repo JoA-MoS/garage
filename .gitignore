@@ -63,4 +63,15 @@ vitest.config.*.timestamp*
 graph.html
 static/
 
+# Playwright authentication state (contains sensitive cookies)
+.auth/
+
 .vercel/
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+.clerk/
