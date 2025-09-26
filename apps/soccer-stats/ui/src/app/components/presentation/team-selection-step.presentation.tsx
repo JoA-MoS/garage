@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { Plus, Home, Users } from 'lucide-react';
 
 import { Team } from '../../services/teams-graphql.service';
-import { SelectedTeams } from '../smart/game-setup-wizard.smart';
+// import { SelectedTeams } from '../smart/game-setup-wizard.smart';
 
 interface TeamSelectionStepProps {
-  selectedTeams: SelectedTeams;
+  // selectedTeams: SelectedTeams;
   managedTeams: Team[];
   isLoading: boolean;
   onSelectManagedTeam: (team: Team, side: 'home' | 'away') => void;
@@ -13,7 +13,7 @@ interface TeamSelectionStepProps {
 }
 
 export const TeamSelectionStep = ({
-  selectedTeams,
+  // selectedTeams,
   managedTeams,
   isLoading,
   onSelectManagedTeam,
@@ -137,8 +137,8 @@ export const TeamSelectionStep = ({
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-gray-900">Selected Teams</h2>
         <div className="space-y-3">
-          <SelectedTeamDisplay team={selectedTeams.homeTeam} side="home" />
-          <SelectedTeamDisplay team={selectedTeams.awayTeam} side="away" />
+          {/* <SelectedTeamDisplay team={selectedTeams.homeTeam} side="home" />
+          <SelectedTeamDisplay team={selectedTeams.awayTeam} side="away" /> */}
         </div>
       </div>
 

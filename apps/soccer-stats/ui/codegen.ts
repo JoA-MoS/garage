@@ -11,7 +11,8 @@ const config: CodegenConfig = {
     './src/app/generated/': {
       preset: 'client',
       config: {
-        documentMode: 'string',
+        // Remove documentMode: 'string' to use the default DocumentNode mode for Apollo Client
+        // This generates proper TypedDocumentNode objects that work with Apollo Client
       },
     },
   },
