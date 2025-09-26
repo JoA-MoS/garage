@@ -8,7 +8,7 @@ setup.describe.configure({
 });
 
 // Configure Playwright with Clerk
-setup('global setup', async ({}) => {
+setup('global setup', async () => {
   console.log('Running global setup to authenticate user with Clerk...');
   await clerkSetup({
     debug: true,

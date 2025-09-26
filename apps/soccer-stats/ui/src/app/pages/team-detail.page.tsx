@@ -1,6 +1,6 @@
 import { useParams } from 'react-router';
 
-import { TeamDetailSmart } from '../components/smart/team-detail.smart';
+// import { TeamDetailSmart } from '../components/smart/team-detail.smart';
 
 /**
  * Team detail page - View team information and statistics
@@ -18,5 +18,5 @@ export const TeamDetailPage = () => {
     );
   }
 
-  return <TeamDetailSmart teamId={teamId} />;
+  // return <TeamDetailSmart teamId={teamId} />;
 };

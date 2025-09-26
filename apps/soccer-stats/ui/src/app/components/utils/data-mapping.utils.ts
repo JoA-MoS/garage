@@ -17,6 +17,10 @@ import {
   Player as ServicePlayer,
   CreatePlayerInput as ServiceCreatePlayerInput,
 } from '../../services/players-graphql.service';
+import { GetTeamsQuery } from '../../generated/graphql';
+
+// Type for individual team from GetTeamsQuery
+type GeneratedTeam = GetTeamsQuery['teams'][0];
 
 /**
  * Maps a service Team object to a UI-friendly UITeam object
@@ -47,6 +51,39 @@ export const mapServiceTeamToUITeam = (serviceTeam: ServiceTeam): UITeam => {
     // Player count would come from players array if available
     playerCount: serviceTeam.players?.length || 0,
   };
+};
+
+/**
+ * Maps a generated Team object (from GraphQL CodeGen) to a UI-friendly UITeam object
+ */
+export const mapGeneratedTeamToUITeam = (
+  generatedTeam: GeneratedTeam
+): UITeam => {
+  return {
+    id: generatedTeam.id,
+    name: generatedTeam.name,
+    shortName: generatedTeam.shortName ?? undefined,
+    description: generatedTeam.description ?? undefined,
+    homePrimaryColor: generatedTeam.homePrimaryColor ?? undefined,
+    homeSecondaryColor: generatedTeam.homeSecondaryColor ?? undefined,
+    awayPrimaryColor: generatedTeam.awayPrimaryColor ?? undefined,
+    awaySecondaryColor: generatedTeam.awaySecondaryColor ?? undefined,
+    logoUrl: generatedTeam.logoUrl ?? undefined,
+    isActive: generatedTeam.isActive,
+    isManaged: generatedTeam.isManaged,
+    sourceType: generatedTeam.sourceType,
+    createdAt: generatedTeam.createdAt,
+    updatedAt: generatedTeam.updatedAt,
+  };
+};
+
+/**
+ * Maps an array of generated teams to UI teams
+ */
+export const mapGeneratedTeamsToUITeams = (
+  generatedTeams: GeneratedTeam[]
+): UITeam[] => {
+  return generatedTeams.map(mapGeneratedTeamToUITeam);
 };
 
 /**
