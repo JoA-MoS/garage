@@ -18,27 +18,40 @@ When generating code, always follow these patterns and conventions established i
 
 ## Component Generation Decision Tree
 
-**When creating React components:**
+**When creating React components for GraphQL applications:**
 
-1. **Determine component type first:**
+1. **Determine architecture pattern:**
 
-   - If the component needs data fetching, state management, or business logic → Create a Smart component
-   - If the component is purely for UI display → Create a Presentation component
-   - If unsure, ask the user or default to Smart component with a Presentation component
+   - For GraphQL applications → Use **Three-Layer Fragment Architecture**
+   - For non-GraphQL applications → Use **Standard Smart/Presentation Pattern**
 
-2. **Use proper file naming:**
+2. **Three-Layer Fragment Architecture components:**
+
+   - **Presentation**: `{feature-name}.presentation.tsx` - Pure UI with individual props
+   - **Smart (Fragment)**: `{feature-name}.smart.tsx` - Fragment wrapper with `FragmentType`
+   - **Composition**: `{feature-name}.composition.tsx` - Query orchestration
+
+3. **Use The Guild's GraphQL patterns:**
+
+   - Import `FragmentType, useFragment` from `generated/gql/fragment-masking`
+   - Import `graphql` from `generated/gql`
+   - Use `graphql(/* GraphQL */ \`...\`)` syntax for fragments and queries
+   - Use collocated fragment spreading: `...FragmentName`
+
+4. **Standard Smart/Presentation Pattern components:**
 
    - Smart components: `{feature-name}.smart.tsx`
    - Presentation components: `{feature-name}.presentation.tsx`
    - Common components: `{component-name}.tsx`
 
-3. **Follow the established architecture:**
+5. **Follow proper directory structure:**
 
-   - Place Smart components in `components/smart/`
-   - Place Presentation components in `components/presentation/`
-   - Extract business logic into custom hooks when appropriate
+   - Presentation: `components/presentation/`
+   - Smart: `components/smart/`
+   - Composition: `components/composition/`
+   - Common: `components/common/`
 
-4. **Apply mobile-first design:**
+6. **Apply mobile-first design:**
    - Start with mobile styles using Tailwind classes
    - Use progressive enhancement for larger screens
    - Ensure touch targets are minimum 44px × 44px

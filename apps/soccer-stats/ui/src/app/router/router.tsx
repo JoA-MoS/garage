@@ -4,7 +4,8 @@ import { Layout } from '../components/layout/layout';
 import { DashboardPage } from '../pages/dashboard.page';
 // import { NewGamePage } from '../pages/new-game.page';
 import { HistoryPage } from '../pages/history.page';
-// import { PlayersPage } from '../pages/players.page';
+import { PlayersPage } from '../pages/players.page';
+import { UsersPage } from '../pages/users.page';
 import { TeamsPage } from '../pages/teams.page';
 import { EditTeamPage } from '../pages/edit-team.page';
 import { TeamConfigurationPage } from '../pages/team-configuration.page';
@@ -88,7 +89,11 @@ export const router = createBrowserRouter([
       },
       {
         path: 'players',
-        // element: <PlayersPage />,
+        element: <PlayersPage />,
+      },
+      {
+        path: 'users',
+        element: <UsersPage />,
       },
       {
         path: 'teams',

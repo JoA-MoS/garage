@@ -9,7 +9,7 @@ import { Request } from 'express';
 
 import { GamesModule } from '../modules/games/games.module';
 import { TeamsModule } from '../modules/teams/teams.module';
-import { PlayersModule } from '../modules/players/players.module';
+import { UsersModule } from '../modules/users/users.module';
 import { AuthModule } from '../modules/auth/auth.module';
 import { GameFormatsModule } from '../modules/game-formats/game-formats.module';
 import { ClerkUser } from '../modules/auth/clerk.service';
@@ -66,7 +66,7 @@ console.log(con);
     }),
     GamesModule,
     TeamsModule,
-    PlayersModule,
+    UsersModule,
     AuthModule,
     GameFormatsModule,
   ],

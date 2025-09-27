@@ -1,25 +1,37 @@
-import { Player } from '../../types';
 import { formatTime } from '../../utils';
 
 /**
- * Dumb Component: Pure presentation of player data
+ * Pure Presentation Component: No GraphQL dependencies
  * Receives all computed data as props - no calculations here
+ * Mobile-first responsive design
  */
 
-interface PlayerCardPresentationProps {
-  player: Player;
-  isOnField: boolean;
+interface PlayerStats {
   goals: number;
   assists: number;
-  // Phase 1 stats
-  yellowCards?: number;
-  redCards?: number;
-  foulsCommitted?: number;
-  foulsReceived?: number;
-  shotsOnTarget?: number;
-  shotsOffTarget?: number;
-  saves?: number;
-  // Phase 1 stat handlers
+  yellowCards: number;
+  redCards: number;
+  foulsCommitted: number;
+  foulsReceived: number;
+  shotsOnTarget: number;
+  shotsOffTarget: number;
+  saves: number;
+}
+
+interface PlayerCardPresentationProps {
+  // Basic player info
+  id: string;
+  name: string;
+  jersey: number;
+  position: string;
+  photo?: string;
+  playTime: number;
+  isOnField: boolean;
+
+  // Stats
+  stats: PlayerStats;
+
+  // Event handlers
   onYellowCardClick?: () => void;
   onRedCardClick?: () => void;
   onFoulCommittedClick?: () => void;
@@ -27,24 +39,21 @@ interface PlayerCardPresentationProps {
   onShotOnTargetClick?: () => void;
   onShotOffTargetClick?: () => void;
   onSaveClick?: () => void;
+
+  // UI state
   showStatButtons?: boolean;
   showPhase1Stats?: boolean;
 }
 
 export const PlayerCardPresentation = ({
-  player,
+  id,
+  name,
+  jersey,
+  position,
+  photo,
+  playTime,
   isOnField,
-  goals,
-  assists,
-  // Phase 1 stats
-  yellowCards = 0,
-  redCards = 0,
-  foulsCommitted = 0,
-  foulsReceived = 0,
-  shotsOnTarget = 0,
-  shotsOffTarget = 0,
-  saves = 0,
-  // Phase 1 stat handlers
+  stats,
   onYellowCardClick,
   onRedCardClick,
   onFoulCommittedClick,
@@ -72,117 +81,170 @@ export const PlayerCardPresentation = ({
     : 'text-sm font-mono text-gray-700';
 
   return (
-    <div className={`${cardClass} rounded-lg p-4`}>
-      <div className="flex space-x-4">
-        {/* Player Photo - Enhanced for better visibility */}
+    <div className={`${cardClass} rounded-lg p-3 sm:p-4`}>
+      <div className="flex space-x-3 sm:space-x-4">
+        {/* Player Photo - Mobile-first responsive */}
         <div className="flex-shrink-0">
-          {player.photo ? (
+          {photo ? (
             <img
-              src={player.photo}
-              alt={`${player.name} photo`}
-              className="w-20 h-24 rounded-lg object-cover border-2 border-gray-300 shadow-md"
+              src={photo}
+              alt={`${name} photo`}
+              className="
+                h-20 w-16 rounded-lg border-2 border-gray-300 object-cover shadow-md
+                sm:h-24 sm:w-20
+              "
             />
           ) : (
-            <div className="w-20 h-24 rounded-lg bg-gray-300 flex flex-col items-center justify-center text-gray-600 border-2 border-gray-400 shadow-md">
-              <span className="text-2xl font-bold">#{player.jersey}</span>
-              <span className="text-xs mt-1">No Photo</span>
+            <div
+              className="
+              flex h-20 w-16 flex-col items-center justify-center rounded-lg border-2 border-gray-400 bg-gray-300 text-gray-600 shadow-md
+              sm:h-24 sm:w-20
+            "
+            >
+              <span className="text-xl font-bold sm:text-2xl">#{jersey}</span>
+              <span className="mt-1 text-xs">No Photo</span>
             </div>
           )}
         </div>
 
-        {/* Player Info and Stats */}
-        <div className="flex-1 min-w-0">
+        {/* Player Info and Stats - Mobile-first layout */}
+        <div className="min-w-0 flex-1">
           {/* Top row: Name, Position, and Play Time */}
-          <div className="flex justify-between items-start mb-2">
+          <div
+            className="
+            mb-2 flex flex-col items-start
+            justify-between space-y-1
+            sm:flex-row sm:space-y-0
+          "
+          >
             <div>
-              <h4 className={nameClass}>
-                <span className="font-bold text-lg">#{player.jersey}</span>{' '}
-                {player.name}
+              <h4 className={`${nameClass} text-base sm:text-lg`}>
+                <span className="font-bold">#{jersey}</span>{' '}
+                <span className="block text-sm sm:inline sm:text-base">
+                  {name}
+                </span>
               </h4>
-              <p className={positionClass}>{player.position}</p>
+              <p className={positionClass}>{position}</p>
             </div>
-            <div className="text-right">
-              <p className={timeClass}>{formatTime(player.playTime)}</p>
+            <div className="text-left sm:text-right">
+              <p className={timeClass}>{formatTime(playTime)}</p>
             </div>
           </div>
 
-          {/* Bottom row: Stats and Action Buttons */}
+          {/* Stats and Action Buttons */}
           <div className="space-y-2">
             {/* Basic Stats */}
             <div className="flex space-x-4 text-sm">
-              <span className="text-gray-600">Goals: {goals}</span>
-              <span className="text-gray-600">Assists: {assists}</span>
+              <span className="text-gray-600">Goals: {stats.goals}</span>
+              <span className="text-gray-600">Assists: {stats.assists}</span>
             </div>
 
             {/* Phase 1 Stats */}
             {showPhase1Stats && (
               <div className="grid grid-cols-2 gap-1 text-xs text-gray-500">
                 <span
-                  aria-label={`Yellow Cards: ${yellowCards}, Red Cards: ${redCards}`}
+                  aria-label={`Yellow Cards: ${stats.yellowCards}, Red Cards: ${stats.redCards}`}
                 >
-                  Cards: {yellowCards}Y {redCards}R
+                  Cards: {stats.yellowCards}Y {stats.redCards}R
                 </span>
                 <span
-                  aria-label={`Fouls Committed: ${foulsCommitted}, Fouls Received: ${foulsReceived}`}
+                  aria-label={`Fouls Committed: ${stats.foulsCommitted}, Fouls Received: ${stats.foulsReceived}`}
                 >
-                  Fouls: {foulsCommitted}C {foulsReceived}R
+                  Fouls: {stats.foulsCommitted}C {stats.foulsReceived}R
                 </span>
                 <span
                   title="Shots On Target (includes goals) / Shots Off Target"
-                  aria-label={`Shots On Target: ${shotsOnTarget}, Shots Off Target: ${shotsOffTarget}`}
+                  aria-label={`Shots On Target: ${stats.shotsOnTarget}, Shots Off Target: ${stats.shotsOffTarget}`}
                 >
-                  Shots: {shotsOnTarget}ON {shotsOffTarget}OFF
+                  Shots: {stats.shotsOnTarget}ON {stats.shotsOffTarget}OFF
                 </span>
-                {player.position === 'Goalkeeper' && (
-                  <span aria-label={`Saves: ${saves}`}>Saves: {saves}</span>
+                {position === 'Goalkeeper' && (
+                  <span aria-label={`Saves: ${stats.saves}`}>
+                    Saves: {stats.saves}
+                  </span>
                 )}
               </div>
             )}
 
-            {/* Action Buttons */}
+            {/* Action Buttons - Mobile-first touch targets */}
             {showStatButtons && (
               <div className="space-y-1">
-                {/* Phase 1 stat buttons */}
                 <div className="flex flex-wrap gap-1">
                   <button
                     onClick={onYellowCardClick}
-                    className="bg-yellow-500 hover:bg-yellow-600 text-white px-1 py-0.5 rounded text-xs"
+                    className="
+                      min-h-[32px] min-w-[32px] rounded
+                      bg-yellow-500 px-2 py-1 text-xs text-white
+                      transition-transform hover:bg-yellow-600
+                      active:scale-95 active:bg-yellow-700
+                      sm:px-1 sm:py-0.5
+                    "
                     title="Yellow Card"
                   >
                     YC
                   </button>
                   <button
                     onClick={onRedCardClick}
-                    className="bg-red-500 hover:bg-red-600 text-white px-1 py-0.5 rounded text-xs"
+                    className="
+                      min-h-[32px] min-w-[32px] rounded
+                      bg-red-500 px-2 py-1 text-xs text-white
+                      transition-transform hover:bg-red-600
+                      active:scale-95 active:bg-red-700
+                      sm:px-1 sm:py-0.5
+                    "
                     title="Red Card"
                   >
                     RC
                   </button>
                   <button
                     onClick={onFoulCommittedClick}
-                    className="bg-orange-500 hover:bg-orange-600 text-white px-1 py-0.5 rounded text-xs"
+                    className="
+                      min-h-[32px] min-w-[32px] rounded
+                      bg-orange-500 px-2 py-1 text-xs text-white
+                      transition-transform hover:bg-orange-600
+                      active:scale-95 active:bg-orange-700
+                      sm:px-1 sm:py-0.5
+                    "
                     title="Foul Committed"
                   >
                     FC
                   </button>
                   <button
                     onClick={onShotOnTargetClick}
-                    className="bg-purple-500 hover:bg-purple-600 text-white px-1 py-0.5 rounded text-xs"
-                    title="Shot On Target (goals auto-added)"
+                    className="
+                      min-h-[32px] min-w-[32px] rounded
+                      bg-purple-500 px-2 py-1 text-xs text-white
+                      transition-transform hover:bg-purple-600
+                      active:scale-95 active:bg-purple-700
+                      sm:px-1 sm:py-0.5
+                    "
+                    title="Shot On Target"
                   >
                     SOT
                   </button>
                   <button
                     onClick={onShotOffTargetClick}
-                    className="bg-gray-500 hover:bg-gray-600 text-white px-1 py-0.5 rounded text-xs"
+                    className="
+                      min-h-[32px] min-w-[32px] rounded
+                      bg-gray-500 px-2 py-1 text-xs text-white
+                      transition-transform hover:bg-gray-600
+                      active:scale-95 active:bg-gray-700
+                      sm:px-1 sm:py-0.5
+                    "
                     title="Shot Off Target"
                   >
                     SOF
                   </button>
-                  {player.position === 'Goalkeeper' && (
+                  {position === 'Goalkeeper' && (
                     <button
                       onClick={onSaveClick}
-                      className="bg-teal-500 hover:bg-teal-600 text-white px-1 py-0.5 rounded text-xs"
+                      className="
+                        min-h-[32px] min-w-[32px] rounded
+                        bg-teal-500 px-2 py-1 text-xs text-white
+                        transition-transform hover:bg-teal-600
+                        active:scale-95 active:bg-teal-700
+                        sm:px-1 sm:py-0.5
+                      "
                       title="Save"
                     >
                       SAV

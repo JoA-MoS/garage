@@ -21,6 +21,7 @@ export const NavigationPresentation = () => {
     { path: '/game/new', label: 'New Game', icon: '⚽' },
     { path: '/history', label: 'History', icon: '📈' },
     { path: '/players', label: 'Players', icon: '👥' },
+    { path: '/users', label: 'Users', icon: '👤' },
     { path: '/teams', label: 'Teams', icon: '🏆' },
     { path: '/analytics', label: 'Analytics', icon: '📊' },
     { path: '/settings', label: 'Settings', icon: '⚙️' },
@@ -42,9 +43,9 @@ export const NavigationPresentation = () => {
   };
 
   return (
-    <nav className="bg-white shadow-sm border-b">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+    <nav className="border-b bg-white shadow-sm">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 justify-between">
           {/* Logo and brand */}
           <div className="flex items-center">
             <Link
@@ -61,15 +62,15 @@ export const NavigationPresentation = () => {
 
           {/* Desktop navigation */}
           <SignedIn>
-            <div className="hidden md:flex items-center space-x-4">
+            <div className="hidden items-center space-x-4 md:flex">
               {navigationItems.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                  className={`rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 ${
                     isActive(item.path)
                       ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
                 >
                   <span className="mr-1">{item.icon}</span>
@@ -82,15 +83,15 @@ export const NavigationPresentation = () => {
           {/* Right side: Auth buttons and mobile menu button */}
           <div className="flex items-center space-x-4">
             {/* Desktop auth buttons */}
-            <div className="hidden md:flex items-center space-x-4">
+            <div className="hidden items-center space-x-4 md:flex">
               <SignedOut>
                 <SignInButton>
-                  <button className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                  <button className="rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">
                     Sign In
                   </button>
                 </SignInButton>
                 <SignUpButton>
-                  <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                  <button className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
                     Sign Up
                   </button>
                 </SignUpButton>
@@ -101,13 +102,13 @@ export const NavigationPresentation = () => {
             </div>
 
             {/* Mobile auth and menu button */}
-            <div className="flex md:hidden items-center space-x-2">
+            <div className="flex items-center space-x-2 md:hidden">
               <SignedIn>
                 <UserButton afterSignOutUrl="/" />
               </SignedIn>
               <SignedOut>
                 <SignInButton>
-                  <button className="text-gray-600 hover:text-gray-900 p-2 rounded-md text-sm font-medium">
+                  <button className="rounded-md p-2 text-sm font-medium text-gray-600 hover:text-gray-900">
                     Sign In
                   </button>
                 </SignInButton>
@@ -117,12 +118,12 @@ export const NavigationPresentation = () => {
               <SignedIn>
                 <button
                   onClick={toggleMobileMenu}
-                  className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] min-w-[44px]"
+                  className="min-h-[44px] min-w-[44px] rounded-md p-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   aria-label="Toggle navigation menu"
                   aria-expanded={isMobileMenuOpen}
                 >
                   <svg
-                    className="w-6 h-6"
+                    className="h-6 w-6"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -152,17 +153,17 @@ export const NavigationPresentation = () => {
         {/* Mobile navigation menu */}
         <SignedIn>
           {isMobileMenuOpen && (
-            <div className="md:hidden py-4 border-t border-gray-200">
+            <div className="border-t border-gray-200 py-4 md:hidden">
               <div className="space-y-1">
                 {navigationItems.map((item) => (
                   <Link
                     key={item.path}
                     to={item.path}
                     onClick={closeMobileMenu}
-                    className={`block px-4 py-3 text-base font-medium transition-colors duration-200 min-h-[44px] ${
+                    className={`block min-h-[44px] px-4 py-3 text-base font-medium transition-colors duration-200 ${
                       isActive(item.path)
-                        ? 'bg-blue-100 text-blue-700 border-l-4 border-blue-500'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        ? 'border-l-4 border-blue-500 bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     }`}
                   >
                     <span className="mr-2">{item.icon}</span>
@@ -173,9 +174,9 @@ export const NavigationPresentation = () => {
 
               {/* Mobile auth section */}
               <SignedOut>
-                <div className="pt-4 border-t border-gray-200 mt-4 space-y-2">
+                <div className="mt-4 space-y-2 border-t border-gray-200 pt-4">
                   <SignUpButton>
-                    <button className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-md text-base font-medium min-h-[44px]">
+                    <button className="min-h-[44px] w-full rounded-md bg-blue-600 px-4 py-3 text-base font-medium text-white hover:bg-blue-700">
                       Sign Up
                     </button>
                   </SignUpButton>

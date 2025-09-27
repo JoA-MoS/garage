@@ -42,20 +42,20 @@ export const MobileFirstComponent = ({ data }: ComponentProps) => {
     <div
       className="
       /* Mobile styles first (default) */
-      p-4 space-y-3 text-base
+      /* Progressive enhancement
       
-      /* Progressive enhancement for larger screens */
-      sm:p-6 sm:space-y-4 sm:text-lg
-      md:p-8 md:space-y-6 md:text-xl
-      lg:flex lg:space-y-0 lg:space-x-8
+      for larger screens */ space-y-3 p-4 text-base
+      sm:space-y-4 sm:p-6 sm:text-lg
+      md:space-y-6 md:p-8 md:text-xl
+      lg:flex lg:space-x-8 lg:space-y-0
     "
     >
       <div
         className="
         /* Mobile: full width, stacked */
-        w-full
+        /*
         
-        /* Tablet and up: constrained width, side-by-side */
+        Tablet and up: constrained width, side-by-side */ w-full
         md:w-1/2 lg:w-1/3
       "
       >
@@ -106,6 +106,109 @@ export const MobileFirstComponent = ({ data }: ComponentProps) => {
 - Use efficient animations that perform well on mobile devices
 
 ## Smart/Presentation Component Pattern
+
+### Three-Layer Fragment Architecture (GraphQL Applications)
+
+**For GraphQL-powered applications, use the advanced three-layer fragment architecture following The Guild's GraphQL Code Generator approach:**
+
+#### Layer 1: Presentation Components (Pure UI)
+
+- **Purpose**: Pure UI components with zero business logic
+- **GraphQL Role**: No GraphQL dependencies - receives individual typed props
+- **Mobile-First**: All components start with mobile design (320px+) with progressive enhancement
+- **Naming**: End with `.presentation.tsx` suffix
+
+#### Layer 2: Smart Components (Fragment Wrappers)
+
+- **Purpose**: GraphQL fragment containers using The Guild's `FragmentType` pattern
+- **GraphQL Role**: Defines fragments, maps fragment data to presentation props
+- **Fragment Masking**: Uses `useFragment` from generated fragment-masking module
+- **Naming**: End with `.smart.tsx` suffix
+
+#### Layer 3: Composition Components (Query Orchestration)
+
+- **Purpose**: Query orchestration with collocated fragment spreading
+- **GraphQL Role**: Defines queries, handles loading/error states, spreads fragments
+- **Layout Management**: Responsive grid layouts, list management, empty states
+- **Naming**: End with `.composition.tsx` suffix
+
+**Three-Layer Fragment Architecture Example:**
+
+```tsx
+// Layer 1: Pure Presentation Component
+interface UserCardPresentationProps {
+  id: string;
+  firstName: string;
+  lastName: string;
+  // Individual props, not objects
+}
+
+export const UserCardPresentation = ({ id, firstName, lastName }: UserCardPresentationProps) => {
+  return (
+    <div className="p-4 sm:p-6 md:p-8">
+      {' '}
+      {/* Mobile-first styling */}
+      <h3>
+        {firstName} {lastName}
+      </h3>
+    </div>
+  );
+};
+
+// Layer 2: Fragment Wrapper (Smart Component)
+import { FragmentType, useFragment } from '../../generated/gql/fragment-masking';
+import { graphql } from '../../generated/gql';
+
+export const UserCardFragment = graphql(/* GraphQL */ `
+  fragment UserCard on User {
+    id
+    firstName
+    lastName
+    email
+    isActive
+  }
+`);
+
+interface UserCardSmartProps {
+  user: FragmentType<typeof UserCardFragment>; // Type-safe fragment
+  onEdit: (userId: string) => void;
+}
+
+export const UserCardSmart = ({ user: userFragment, onEdit }: UserCardSmartProps) => {
+  const user = useFragment(UserCardFragment, userFragment); // Fragment masking
+
+  return <UserCardPresentation id={user.id} firstName={user.firstName} lastName={user.lastName} />;
+};
+
+// Layer 3: Query Orchestration (Composition Component)
+import { useQuery } from '@apollo/client';
+import { UserCardSmart, UserCardFragment } from '../smart/user-card.smart';
+
+const GetUsersQuery = graphql(/* GraphQL */ `
+  query GetUsers {
+    users {
+      id
+      ...UserCard # Collocated fragment spreading
+    }
+  }
+`);
+
+export const UsersListComposition = () => {
+  const { data, loading, error } = useQuery(GetUsersQuery);
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+      {data?.users?.map((user) => (
+        <UserCardSmart key={user.id} user={user} onEdit={handleEdit} />
+      ))}
+    </div>
+  );
+};
+```
+
+### Standard Smart/Presentation Pattern (Non-GraphQL Applications)
+
+For applications not using GraphQL, use the standard two-layer pattern:
 
 ### Smart Components (Container Components)
 

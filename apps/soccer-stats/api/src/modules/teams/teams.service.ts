@@ -78,6 +78,18 @@ export class TeamsService {
     });
   }
 
+  async findByCoachId(coachId: string): Promise<Team[]> {
+    return this.teamRepository.find({
+      relations: ['teamCoaches'],
+      where: {
+        teamCoaches: {
+          user: { id: coachId },
+          isActive: true,
+        },
+      },
+    });
+  }
+
   async getPlayersForTeam(teamId: string): Promise<User[]> {
     const teamPlayers = await this.teamPlayerRepository.find({
       where: {
