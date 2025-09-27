@@ -1,6 +1,6 @@
-import { gql } from '@apollo/client';
+import { graphql } from '../generated/gql';
 
-export const GET_GAME_FORMATS = gql`
+export const GET_GAME_FORMATS = graphql(/* GraphQL */ `
   query GetGameFormats {
     gameFormats {
       id
@@ -14,9 +14,9 @@ export const GET_GAME_FORMATS = gql`
       updatedAt
     }
   }
-`;
+`);
 
-export const GET_GAMES = gql`
+export const GET_GAMES = graphql(/* GraphQL */ `
   query GetGames {
     games {
       id
@@ -31,54 +31,26 @@ export const GET_GAMES = gql`
         playersPerTeam
         durationMinutes
       }
-      createdAt
-      updatedAt
       gameTeams {
         id
         teamType
-        formation
         finalScore
-        tacticalNotes
+        formation
         team {
           id
           name
+          shortName
           homePrimaryColor
           homeSecondaryColor
-          awayPrimaryColor
-          awaySecondaryColor
-          logoUrl
         }
       }
-      gameEvents {
-        id
-        gameMinute
-        gameSecond
-        description
-        position
-        externalPlayerName
-        externalPlayerNumber
-        eventType {
-          id
-          name
-          category
-        }
-        player {
-          id
-          firstName
-          lastName
-          email
-        }
-        recordedByUser {
-          id
-          firstName
-          lastName
-        }
-      }
+      createdAt
+      updatedAt
     }
   }
-`;
+`);
 
-export const GET_GAME_BY_ID = gql`
+export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
   query GetGameById($id: ID!) {
     game(id: $id) {
       id
@@ -92,78 +64,27 @@ export const GET_GAME_BY_ID = gql`
         name
         playersPerTeam
         durationMinutes
-        allowsSubstitutions
-        maxSubstitutions
-        description
       }
-      createdAt
-      updatedAt
       gameTeams {
         id
         teamType
-        formation
         finalScore
-        tacticalNotes
+        formation
         team {
           id
           name
+          shortName
           homePrimaryColor
           homeSecondaryColor
-          awayPrimaryColor
-          awaySecondaryColor
-          logoUrl
-          playersWithJersey {
-            id
-            jersey
-            depthRank
-            isActive
-            name
-            position
-          }
         }
       }
-      gameEvents {
-        id
-        gameMinute
-        gameSecond
-        description
-        position
-        externalPlayerName
-        externalPlayerNumber
-        eventType {
-          id
-          name
-          category
-          requiresPosition
-          allowsParent
-        }
-        player {
-          id
-          firstName
-          lastName
-          email
-        }
-        recordedByUser {
-          id
-          firstName
-          lastName
-        }
-        parentEvent {
-          id
-          gameMinute
-          gameSecond
-        }
-        childEvents {
-          id
-          gameMinute
-          gameSecond
-        }
-      }
+      createdAt
+      updatedAt
     }
   }
-`;
+`);
 
-export const CREATE_GAME = gql`
+export const CREATE_GAME = graphql(/* GraphQL */ `
   mutation CreateGame($createGameInput: CreateGameInput!) {
     createGame(createGameInput: $createGameInput) {
       id
@@ -172,34 +93,13 @@ export const CREATE_GAME = gql`
       notes
       venue
       weatherConditions
-      gameFormat {
-        id
-        name
-        playersPerTeam
-        durationMinutes
-      }
       createdAt
       updatedAt
-      gameTeams {
-        id
-        teamType
-        formation
-        finalScore
-        team {
-          id
-          name
-          homePrimaryColor
-          homeSecondaryColor
-          awayPrimaryColor
-          awaySecondaryColor
-          logoUrl
-        }
-      }
     }
   }
-`;
+`);
 
-export const UPDATE_GAME = gql`
+export const UPDATE_GAME = graphql(/* GraphQL */ `
   mutation UpdateGame($id: ID!, $updateGameInput: UpdateGameInput!) {
     updateGame(id: $id, updateGameInput: $updateGameInput) {
       id
@@ -212,151 +112,72 @@ export const UPDATE_GAME = gql`
       updatedAt
     }
   }
-`;
+`);
 
-export const REMOVE_GAME = gql`
+export const REMOVE_GAME = graphql(/* GraphQL */ `
   mutation RemoveGame($id: ID!) {
     removeGame(id: $id)
   }
-`;
+`);
 
-// TypeScript interfaces for the GraphQL responses
-export interface Player {
+// TypeScript types - these would normally be generated
+export interface Game {
   id: string;
   name: string;
-  position: string;
-}
-
-export interface Team {
-  id: string;
-  name: string;
-  colors?: string;
-  logo?: string;
-}
-
-export interface TeamPlayer {
-  id: string;
-  jersey: number;
-  depthRank: number;
-  isActive: boolean;
-  player: Player;
-}
-
-export interface TeamWithPlayers extends Team {
-  teamPlayers: TeamPlayer[];
-}
-
-export interface EventType {
-  id: string;
-  name: string;
-  category: string;
-}
-
-export interface GameEvent {
-  id: string;
-  minute: number;
-  timestamp: number;
-  realTime: string;
+  scheduledStart: string;
   notes?: string;
-  eventType: EventType;
-  player: Player;
-  relatedPlayer?: Player;
-}
-
-export interface GameTeam {
-  __typename?: 'GameTeam';
-  id: string;
-  isHome: boolean;
-  formation?: string;
-  team: Team | TeamWithPlayers;
-}
-
-export interface GameParticipation {
-  id: string;
-  startMinute: number;
-  endMinute?: number;
-  isStarter: boolean;
-  isOnField: boolean;
-  minutesPlayed: number;
-  player: Player;
-  gameTeam?: {
-    id: string;
-    isHome: boolean;
-    team: {
-      id: string;
-      name: string;
-    };
-  };
-}
-
-export enum GameStatus {
-  NOT_STARTED = 'NOT_STARTED',
-  IN_PROGRESS = 'IN_PROGRESS',
-  PAUSED = 'PAUSED',
-  FINISHED = 'FINISHED',
-  CANCELLED = 'CANCELLED',
+  venue?: string;
+  weatherConditions?: string;
+  gameFormat?: GameFormat;
+  gameTeams?: GameTeam[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface GameFormat {
   id: string;
   name: string;
-  displayName: string;
-  playersPerSide: number;
-  minPlayers?: number;
-  maxSubstitutions?: number;
-  defaultDuration: number;
+  playersPerTeam: number;
+  durationMinutes: number;
   description?: string;
-  isActive: boolean;
+  allowsSubstitutions: boolean;
+  maxSubstitutions?: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface Game {
-  __typename?: 'Game';
+export interface GameTeam {
   id: string;
+  teamType: string;
+  finalScore?: number;
+  formation?: string;
+  team: {
+    id: string;
+    name: string;
+    shortName?: string;
+    homePrimaryColor?: string;
+    homeSecondaryColor?: string;
+  };
+}
+
+export interface CreateGameInput {
+  name: string;
+  scheduledStart: string;
+  notes?: string;
+  venue?: string;
+  weatherConditions?: string;
+  gameFormatId: string;
+}
+
+export interface UpdateGameInput {
   name?: string;
   scheduledStart?: string;
   notes?: string;
   venue?: string;
   weatherConditions?: string;
-  startTime?: string;
-  endTime?: string;
-  status: GameStatus;
-  gameFormat: GameFormat;
-  currentTime: number;
-  duration: number;
-  createdAt: string;
-  updatedAt: string;
-  gameTeams: GameTeam[];
-  gameEvents?: GameEvent[];
-  participations?: GameParticipation[];
-  [key: string]: unknown; // Index signature for Apollo cache
 }
 
-export interface CreateGameInput {
-  homeTeamId: string;
-  awayTeamId: string;
-  gameFormatId: string;
-  duration: number; // Required with default 90
-}
-
-export interface UpdateGameInput {
-  awayTeamId?: string;
-  currentTime?: number;
-  duration?: number;
-  gameFormatId?: string;
-  homeTeamId?: string;
-  status?: GameStatus;
-}
-
-export interface RecordGoalInput {
-  gameId: string;
-  gameTeamId: string;
-  playerId: string;
-  assistPlayerId?: string;
-  minute: number;
-  timestamp: number;
-  notes?: string;
-}
-
+// Response types
 export interface GamesResponse {
   games: Game[];
 }
@@ -373,29 +194,10 @@ export interface UpdateGameResponse {
   updateGame: Game;
 }
 
-export interface StartGameResponse {
-  startGame: Pick<Game, 'id' | 'startTime' | 'status' | 'currentTime'>;
-}
-
-export interface PauseGameResponse {
-  pauseGame: Pick<Game, 'id' | 'status' | 'currentTime'>;
-}
-
-export interface ResumeGameResponse {
-  resumeGame: Pick<Game, 'id' | 'status' | 'currentTime'>;
-}
-
-export interface FinishGameResponse {
-  finishGame: Pick<Game, 'id' | 'endTime' | 'status' | 'currentTime'>;
-}
-
-export interface RecordGoalResponse {
-  recordGoal: GameEvent & {
-    game: Pick<Game, 'id' | 'status'>;
-    gameTeam: {
-      id: string;
-      isHome: boolean;
-      team: Pick<Team, 'id' | 'name'>;
-    };
-  };
+// Enums
+export enum GameStatus {
+  SCHEDULED = 'SCHEDULED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
 }

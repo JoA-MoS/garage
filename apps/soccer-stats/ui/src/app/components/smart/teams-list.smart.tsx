@@ -9,7 +9,7 @@ import {
   GetTeamsDocument,
   GetTeamsQuery,
 } from '../../generated/graphql';
-import { graphql } from '../../generated';
+import { graphql } from '../../generated/gql';
 
 interface TeamsListSmartProps {
   onCreateTeam?: () => void;

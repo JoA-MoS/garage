@@ -19,20 +19,37 @@ Follow these coding standards consistently across the entire workspace.
 
 ### Component Architecture (React/UI Applications)
 
-- Use **Smart/Presentation Component Pattern** for all UI applications
+- Use **Three-Layer Fragment Architecture** for GraphQL applications following The Guild's pattern
+- Use **Smart/Presentation Component Pattern** for non-GraphQL applications
 - **Mobile-First Development**: ALL UI components must be designed for mobile devices first, then enhanced for larger screens
-- Smart components handle data, state, and business logic
-- Presentation components are pure UI components that receive props
+- **Fragment Masking**: Use `FragmentType` and `useFragment` for type-safe GraphQL data access
+- **Collocated Fragments**: Define fragments in smart components and spread them in queries
 - Keep components focused on a single responsibility
 - Ensure touch-friendly interfaces with adequate touch targets (minimum 44px × 44px)
 
+**Three-Layer Architecture:**
+
+1. **Presentation Layer**: Pure UI components with individual props
+2. **Smart Layer**: Fragment wrappers using The Guild's `FragmentType` pattern
+3. **Composition Layer**: Query orchestration with collocated fragment spreading
+
 **For detailed React patterns, see:** `react-component-patterns.instructions.md`
+
+### GraphQL Best Practices
+
+- Use **The Guild's GraphQL Code Generator** with client preset
+- Import `FragmentType` and `useFragment` from generated `fragment-masking` module
+- Import `graphql` function from generated `gql` directory
+- Define fragments using `graphql(/* GraphQL */ \`...\`)` syntax
+- Use fragment masking to prevent access to non-fragment fields
+- Implement collocated fragment spreading for optimal query structure
 
 ### File Organization
 
 - Group related files by feature/domain, not by file type
 - Use consistent directory structures across projects
 - Keep components, tests, and stories co-located when possible
+- Place generated GraphQL files in `generated/gql/` directory
 
 **For detailed naming conventions, see:** `file-naming-conventions.instructions.md`
 
@@ -45,6 +62,15 @@ Follow these coding standards consistently across the entire workspace.
 - Avoid `any` type - use proper typing
 - Use generic types where appropriate
 - Document complex types with JSDoc comments
+
+### GraphQL TypeScript Standards
+
+- Use `FragmentType<typeof Fragment>` for component props that receive fragment data
+- Import types from generated `gql` modules, not manual definitions
+- Use fragment masking with `useFragment` to ensure type safety
+- Define fragments with `graphql(/* GraphQL */ \`...\`)` syntax for proper codegen
+- Avoid accessing fields not defined in fragments (TypeScript will prevent this)
+- Use generated query/mutation hooks for proper typing
 
 ### Error Handling
 

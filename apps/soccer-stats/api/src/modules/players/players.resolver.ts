@@ -82,6 +82,32 @@ export class PlayersResolver {
     return this.playersService.remove(id);
   }
 
+  @Mutation(() => TeamPlayer)
+  addPlayerToTeam(
+    @Args('userId', { type: () => ID }) userId: string,
+    @Args('teamId', { type: () => ID }) teamId: string,
+    @Args('jerseyNumber', { nullable: true }) jerseyNumber?: string,
+    @Args('primaryPosition', { nullable: true }) primaryPosition?: string,
+    @Args('joinedDate', { nullable: true }) joinedDate?: Date
+  ) {
+    return this.playersService.addPlayerToTeam(
+      userId,
+      teamId,
+      jerseyNumber,
+      primaryPosition,
+      joinedDate
+    );
+  }
+
+  @Mutation(() => Boolean)
+  removePlayerFromTeam(
+    @Args('userId', { type: () => ID }) userId: string,
+    @Args('teamId', { type: () => ID }) teamId: string,
+    @Args('leftDate', { nullable: true }) leftDate?: Date
+  ) {
+    return this.playersService.removePlayerFromTeam(userId, teamId, leftDate);
+  }
+
   @Subscription(() => User, {
     name: 'playerUpdated',
   })

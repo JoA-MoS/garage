@@ -58,7 +58,14 @@ export class PlayersService {
 
   async remove(id: string): Promise<boolean> {
     const user = await this.findOne(id);
-    await this.userRepository.remove(user);
+
+    // Set player as inactive instead of deleting
+    user.isActive = false;
+    await this.userRepository.save(user);
+
+    // Also deactivate all team relationships
+    await this.teamPlayerRepository.update({ userId: id }, { isActive: false });
+
     return true;
   }
 
@@ -75,9 +82,15 @@ export class PlayersService {
   }
 
   async findByName(name: string): Promise<User[]> {
-    return this.userRepository.find({
-      where: [{ firstName: name }, { lastName: name }],
-    });
+    return this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.teamPlayers', 'teamPlayer')
+      .where('teamPlayer.isActive = :isActive', { isActive: true })
+      .andWhere(
+        "(LOWER(user.firstName) LIKE LOWER(:name) OR LOWER(user.lastName) LIKE LOWER(:name) OR LOWER(CONCAT(user.firstName, ' ', user.lastName)) LIKE LOWER(:name))",
+        { name: `%${name}%` }
+      )
+      .getMany();
   }
 
   async findByTeamId(teamId: string): Promise<User[]> {
@@ -92,11 +105,45 @@ export class PlayersService {
     });
   }
 
-  // ResolveField methods
   async getTeamPlayers(userId: string): Promise<TeamPlayer[]> {
     return this.teamPlayerRepository.find({
-      where: { user: { id: userId } },
+      where: { userId, isActive: true },
       relations: ['team'],
     });
+  }
+
+  async addPlayerToTeam(
+    userId: string,
+    teamId: string,
+    jerseyNumber?: string,
+    primaryPosition?: string,
+    joinedDate?: Date
+  ): Promise<TeamPlayer> {
+    const teamPlayer = this.teamPlayerRepository.create({
+      userId,
+      teamId,
+      jerseyNumber,
+      primaryPosition,
+      joinedDate: joinedDate || new Date(),
+      isActive: true,
+    });
+
+    return this.teamPlayerRepository.save(teamPlayer);
+  }
+
+  async removePlayerFromTeam(
+    userId: string,
+    teamId: string,
+    leftDate?: Date
+  ): Promise<boolean> {
+    const result = await this.teamPlayerRepository.update(
+      { userId, teamId, isActive: true },
+      {
+        isActive: false,
+        leftDate: leftDate || new Date(),
+      }
+    );
+
+    return (result.affected ?? 0) > 0;
   }
 }

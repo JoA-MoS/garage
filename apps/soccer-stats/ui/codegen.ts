@@ -1,10 +1,7 @@
-import { join } from 'node:path';
-
 import { CodegenConfig } from '@graphql-codegen/cli';
-import { workspaceRoot } from '@nx/devkit';
 
 const config: CodegenConfig = {
-  schema: join(workspaceRoot, './dist/apps/soccer-stats/api/schema.gql'),
+  schema: 'http://localhost:3333/graphql',
   documents: ['src/**/*.tsx', 'src/**/*.ts'],
   ignoreNoDocuments: true,
   generates: {

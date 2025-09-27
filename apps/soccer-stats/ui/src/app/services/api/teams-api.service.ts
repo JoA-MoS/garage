@@ -4,7 +4,7 @@ import {
   GET_TEAM_BY_ID,
   CREATE_TEAM,
   UPDATE_TEAM,
-  ADD_PLAYER_TO_TEAM_WITH_DETAILS,
+  // ADD_PLAYER_TO_TEAM_WITH_DETAILS, // Disabled - not available in current GraphQL schema
   type Team,
   type TeamWithGames,
   type CreateTeamInput,

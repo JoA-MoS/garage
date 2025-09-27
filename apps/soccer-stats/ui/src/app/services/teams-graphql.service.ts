@@ -1,8 +1,6 @@
-import { gql } from '@apollo/client';
+import { graphql } from '../generated/gql';
 
-import { Player } from './players-graphql.service';
-
-export const GET_TEAMS = gql`
+export const GET_TEAMS = graphql(/* GraphQL */ `
   query GetTeams {
     teams {
       id
@@ -21,9 +19,9 @@ export const GET_TEAMS = gql`
       updatedAt
     }
   }
-`;
+`);
 
-export const GET_TEAM_BY_ID = gql`
+export const GET_TEAM_BY_ID = graphql(/* GraphQL */ `
   query GetTeamById($id: ID!) {
     team(id: $id) {
       id
@@ -87,9 +85,9 @@ export const GET_TEAM_BY_ID = gql`
       }
     }
   }
-`;
+`);
 
-export const CREATE_TEAM = gql`
+export const CREATE_TEAM = graphql(/* GraphQL */ `
   mutation CreateTeam($createTeamInput: CreateTeamInput!) {
     createTeam(createTeamInput: $createTeamInput) {
       id
@@ -108,9 +106,9 @@ export const CREATE_TEAM = gql`
       updatedAt
     }
   }
-`;
+`);
 
-export const UPDATE_TEAM = gql`
+export const UPDATE_TEAM = graphql(/* GraphQL */ `
   mutation UpdateTeam($id: ID!, $updateTeamInput: UpdateTeamInput!) {
     updateTeam(id: $id, updateTeamInput: $updateTeamInput) {
       id
@@ -128,43 +126,42 @@ export const UPDATE_TEAM = gql`
       updatedAt
     }
   }
-`;
+`);
 
-export const ADD_PLAYER_TO_TEAM_WITH_DETAILS = gql`
-  mutation AddPlayerToTeamWithDetails(
-    $addPlayerToTeamInput: AddPlayerToTeamInput!
-  ) {
-    addPlayerToTeam(addPlayerToTeamInput: $addPlayerToTeamInput) {
-      id
-      name
-      shortName
-      homePrimaryColor
-      homeSecondaryColor
-      awayPrimaryColor
-      awaySecondaryColor
-      logoUrl
-      createdAt
-      updatedAt
-      players {
-        id
-        firstName
-        lastName
-        email
-      }
-      playersWithJersey {
-        id
-        name
-        position
-        jersey
-        depthRank
-        isActive
-      }
-    }
-  }
-`;
+// Temporarily disable problematic mutation until schema is fixed
+// export const ADD_PLAYER_TO_TEAM_WITH_DETAILS = graphql(/* GraphQL */ `
+//   mutation AddPlayerToTeamWithDetails($addPlayerToTeamInput: AddPlayerToTeamInput!) {
+//     addPlayerToTeam(addPlayerToTeamInput: $addPlayerToTeamInput) {
+//       id
+//       name
+//       shortName
+//       homePrimaryColor
+//       homeSecondaryColor
+//       awayPrimaryColor
+//       awaySecondaryColor
+//       logoUrl
+//       createdAt
+//       updatedAt
+//       players {
+//         id
+//         firstName
+//         lastName
+//         email
+//       }
+//       playersWithJersey {
+//         id
+//         name
+//         position
+//         jersey
+//         depthRank
+//         isActive
+//       }
+//     }
+//   }
+// `);
 
 // MVP-specific mutations for managed/unmanaged team workflow
-export const CREATE_UNMANAGED_TEAM = gql`
+export const CREATE_UNMANAGED_TEAM = graphql(/* GraphQL */ `
   mutation CreateUnmanagedTeam($name: String!, $shortName: String) {
     createUnmanagedTeam(name: $name, shortName: $shortName) {
       id
@@ -176,9 +173,9 @@ export const CREATE_UNMANAGED_TEAM = gql`
       updatedAt
     }
   }
-`;
+`);
 
-export const FIND_OR_CREATE_UNMANAGED_TEAM = gql`
+export const FIND_OR_CREATE_UNMANAGED_TEAM = graphql(/* GraphQL */ `
   mutation FindOrCreateUnmanagedTeam($name: String!, $shortName: String) {
     findOrCreateUnmanagedTeam(name: $name, shortName: $shortName) {
       id
@@ -190,10 +187,10 @@ export const FIND_OR_CREATE_UNMANAGED_TEAM = gql`
       updatedAt
     }
   }
-`;
+`);
 
 // MVP-specific queries for team filtering
-export const GET_MANAGED_TEAMS = gql`
+export const GET_MANAGED_TEAMS = graphql(/* GraphQL */ `
   query GetManagedTeams {
     managedTeams {
       id
@@ -211,9 +208,9 @@ export const GET_MANAGED_TEAMS = gql`
       updatedAt
     }
   }
-`;
+`);
 
-export const GET_UNMANAGED_TEAMS = gql`
+export const GET_UNMANAGED_TEAMS = graphql(/* GraphQL */ `
   query GetUnmanagedTeams {
     unmanagedTeams {
       id
@@ -225,9 +222,9 @@ export const GET_UNMANAGED_TEAMS = gql`
       updatedAt
     }
   }
-`;
+`);
 
-export const GET_TEAMS_BY_MANAGED_STATUS = gql`
+export const GET_TEAMS_BY_MANAGED_STATUS = graphql(/* GraphQL */ `
   query GetTeamsByManagedStatus($isManaged: Boolean!) {
     teamsByManagedStatus(isManaged: $isManaged) {
       id
@@ -245,26 +242,9 @@ export const GET_TEAMS_BY_MANAGED_STATUS = gql`
       updatedAt
     }
   }
-`;
+`);
 
-// TypeScript interfaces for the GraphQL responses
-export interface TeamPosition {
-  id: string;
-  name: string;
-  abbreviation: string;
-  x: number;
-  y: number;
-}
-
-export interface PlayerWithJersey {
-  id: string;
-  name: string;
-  position: string;
-  jersey: number;
-  depthRank?: number;
-  isActive: boolean;
-}
-
+// TypeScript types - these would normally be generated
 export interface Team {
   id: string;
   name: string;
@@ -277,23 +257,41 @@ export interface Team {
   logoUrl?: string;
   isActive: boolean;
   isManaged: boolean;
-  sourceType: 'INTERNAL' | 'EXTERNAL';
+  sourceType: string;
   createdAt: string;
   updatedAt: string;
-  players?: Player[];
   playersWithJersey?: PlayerWithJersey[];
   teamPlayers?: TeamPlayer[];
   teamConfiguration?: TeamConfiguration;
+  gameTeams?: GameTeam[];
+}
+
+export interface TeamWithGames extends Team {
+  gameTeams: GameTeam[];
+}
+
+export interface PlayerWithJersey {
+  id: string;
+  name: string;
+  position: string;
+  jersey: string;
+  depthRank: number;
+  isActive: boolean;
 }
 
 export interface TeamPlayer {
   id: string;
   jerseyNumber?: string;
-  primaryPosition?: string;
+  primaryPosition: string;
   isActive: boolean;
-  joinedDate?: string;
+  joinedDate: string;
   leftDate?: string;
-  user: Player;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
 }
 
 export interface TeamConfiguration {
@@ -301,44 +299,35 @@ export interface TeamConfiguration {
   defaultFormation: string;
   defaultGameDuration: number;
   defaultPlayerCount: number;
-  defaultGameFormat: GameFormat;
-}
-
-export interface GameFormat {
-  id: string;
-  name: string;
-  playersPerTeam: number;
-  durationMinutes: number;
-}
-
-export interface Game {
-  id: string;
-  name?: string;
-  scheduledStart?: string;
+  defaultGameFormat: {
+    id: string;
+    name: string;
+    playersPerTeam: number;
+    durationMinutes: number;
+  };
 }
 
 export interface GameTeam {
   id: string;
-  isHome: boolean;
-  game: Game;
-}
-
-export interface TeamWithGames extends Team {
-  gameTeams: GameTeam[];
-}
-
-export interface TeamsResponse {
-  teams: Team[];
-}
-
-export interface TeamResponse {
-  team: TeamWithGames;
+  teamType: string;
+  finalScore?: number;
+  formation?: string;
+  game: {
+    id: string;
+    name: string;
+    scheduledStart: string;
+  };
 }
 
 export interface CreateTeamInput {
   name: string;
-  colors?: string;
-  logo?: string;
+  shortName?: string;
+  description?: string;
+  homePrimaryColor?: string;
+  homeSecondaryColor?: string;
+  awayPrimaryColor?: string;
+  awaySecondaryColor?: string;
+  logoUrl?: string;
 }
 
 export interface UpdateTeamInput {
@@ -350,12 +339,22 @@ export interface UpdateTeamInput {
   awayPrimaryColor?: string;
   awaySecondaryColor?: string;
   logoUrl?: string;
-  // Legacy support
-  colors?: string;
-  logo?: string;
-  gameFormat?: string;
-  formation?: string;
-  customPositions?: TeamPosition[];
+}
+
+export interface AddPlayerToTeamInput {
+  teamId: string;
+  playerId: string;
+  jerseyNumber?: string;
+  primaryPosition: string;
+}
+
+// Response types
+export interface TeamsResponse {
+  teams: Team[];
+}
+
+export interface TeamResponse {
+  team: Team;
 }
 
 export interface CreateTeamResponse {
@@ -366,51 +365,6 @@ export interface UpdateTeamResponse {
   updateTeam: Team;
 }
 
-export interface AddPlayerToTeamInput {
-  teamId: string;
-  playerId: string;
-  jersey: number;
-  depthRank?: number;
-  isActive?: boolean;
-}
-
 export interface AddPlayerToTeamResponse {
-  addPlayerToTeam: Team & {
-    players: Array<{
-      id: string;
-      name: string;
-      position: string;
-    }>;
-  };
-}
-
-// MVP-specific interfaces for managed/unmanaged team workflow
-export interface CreateUnmanagedTeamVariables {
-  name: string;
-  shortName?: string;
-}
-
-export interface FindOrCreateUnmanagedTeamVariables {
-  name: string;
-  shortName?: string;
-}
-
-export interface CreateUnmanagedTeamResponse {
-  createUnmanagedTeam: Team;
-}
-
-export interface FindOrCreateUnmanagedTeamResponse {
-  findOrCreateUnmanagedTeam: Team;
-}
-
-export interface ManagedTeamsResponse {
-  managedTeams: Team[];
-}
-
-export interface UnmanagedTeamsResponse {
-  unmanagedTeams: Team[];
-}
-
-export interface TeamsByManagedStatusResponse {
-  teamsByManagedStatus: Team[];
+  addPlayerToTeam: Team;
 }
