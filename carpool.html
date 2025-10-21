@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Soccer Team Carpool Routes</title>
+
+    <!-- Leaflet CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f5f5f5;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        text-align: center;
+        color: #2c3e50;
+        margin-bottom: 30px;
+        font-size: 2em;
+      }
+
+      .loading {
+        text-align: center;
+        padding: 40px;
+        font-size: 1.2em;
+        color: #666;
+      }
+
+      .loading-spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .content {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+      }
+
+      #map {
+        height: 700px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .sidebar {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        height: 700px;
+        overflow-y: auto;
+      }
+
+      .sidebar h2 {
+        color: #34495e;
+        margin-bottom: 15px;
+        font-size: 1.5em;
+      }
+
+      .carpool-section {
+        margin-bottom: 20px;
+      }
+
+      .carpool-header {
+        font-size: 1.1em;
+        font-weight: bold;
+        margin-bottom: 10px;
+        padding: 8px;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+      }
+
+      .player-card {
+        padding: 12px;
+        margin-bottom: 8px;
+        background-color: #f8f9fa;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .player-card:hover {
+        background-color: #e8f4f8;
+        transform: translateX(4px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .player-card.selected {
+        background-color: #e8f4f8;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
+
+      .player-name {
+        font-weight: bold;
+        margin-bottom: 4px;
+        font-size: 1em;
+      }
+
+      .player-address {
+        font-size: 0.85em;
+        color: #666;
+      }
+
+      .destination-box {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #fff3cd;
+        border-radius: 6px;
+        border: 1px solid #ffc107;
+      }
+
+      .destination-box strong {
+        color: #856404;
+      }
+
+      .legend {
+        margin-top: 15px;
+        padding: 15px;
+        background-color: #e7f3ff;
+        border-radius: 6px;
+      }
+
+      .legend-title {
+        font-weight: bold;
+        margin-bottom: 8px;
+        color: #2c3e50;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 6px;
+        font-size: 0.9em;
+      }
+
+      .legend-color {
+        width: 20px;
+        height: 3px;
+        margin-right: 8px;
+        border-radius: 2px;
+      }
+
+      .custom-marker {
+        background: none;
+        border: none;
+      }
+
+      .leaflet-popup-content-wrapper {
+        border-radius: 8px;
+      }
+
+      @media (max-width: 1024px) {
+        .content {
+          grid-template-columns: 1fr;
+        }
+
+        #map {
+          height: 500px;
+        }
+
+        .sidebar {
+          height: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🚗 Soccer Team Carpool Routes</h1>
+
+      <div id="loading-container" class="loading">
+        <div class="loading-spinner"></div>
+        <p>Loading map...</p>
+      </div>
+
+      <div id="main-content" class="content" style="display: none">
+        <div id="map"></div>
+
+        <div class="sidebar">
+          <h2>Players by Carpool</h2>
+          <div id="player-list"></div>
+
+          <div class="destination-box">
+            <strong>🏟️ Destination:</strong><br />
+            Husky Soccer Stadium<br />
+            <span style="font-size: 0.85em; color: #666"
+              >University of Washington, Seattle, WA 98195</span
+            >
+          </div>
+
+          <div
+            class="destination-box"
+            style="
+              background-color: #e7f3ff;
+              border-color: #2196f3;
+              margin-top: 15px;
+            "
+          >
+            <strong>📍 Meeting Points:</strong><br />
+            <div style="margin-top: 8px">
+              <strong>🅿️ Petrovitsky Park</strong> (Renton)<br />
+              <span style="font-size: 0.85em; color: #666">Carpool 1</span>
+            </div>
+            <div style="margin-top: 8px">
+              <strong>🅿️ Summit Park</strong> (Maple Valley)<br />
+              <span style="font-size: 0.85em; color: #666"
+                >Carpools 2, 3, 4</span
+              >
+            </div>
+          </div>
+
+          <div class="legend">
+            <div class="legend-title">📍 Legend</div>
+            <div class="legend-item">
+              <div class="legend-color" style="background-color: #ff6b6b"></div>
+              <span>Carpool 1 - Trevor & Justin (3/5 kids - 2 spots open)</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background-color: #4ecdc4"></div>
+              <span>Carpool 2 - Jesse (5/5 kids - FULL)</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background-color: #95e1d3"></div>
+              <span>Carpool 3 - Leo (3/3 kids)</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background-color: #f38181"></div>
+              <span>Carpool 4 - Mr. Saefung (1 + 2 cousins)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+      // Player data with addresses from B15 Select - Airey team (pre-geocoded)
+      const playersData = [
+        // Carpool 1 - Trevor & Justin (Coaches) - 3 kids + 2 adults
+        {
+          name: 'Deacon Airey',
+          address: '18811 175th Pl SE, Renton, WA 98058',
+          lat: 47.43355,
+          lng: -122.1081164,
+          carpool: 'Carpool 1',
+          driver: 'Trevor & Justin (Coaches)',
+          driverColor: '#FF6B6B',
+          capacity: '3/5 kids',
+        },
+        {
+          name: 'Brayden Dietz',
+          address: '18628 176th PL SE, Renton, WA 98058',
+          lat: 47.4340362,
+          lng: -122.1058501,
+          carpool: 'Carpool 1',
+          driver: 'Trevor & Justin (Coaches)',
+          driverColor: '#FF6B6B',
+          capacity: '3/5 kids',
+        },
+        {
+          name: 'Krishiv Kapoor',
+          address: '18719 136th PL SE, Renton, WA 98058',
+          lat: 47.4341445,
+          lng: -122.1595615,
+          carpool: 'Carpool 1',
+          driver: 'Trevor & Justin (Coaches)',
+          driverColor: '#FF6B6B',
+          capacity: '3/5 kids',
+        },
+
+        // Carpool 2 - Jesse Massart - 5 kids + 1 adult
+        {
+          name: 'Logan Massart',
+          address: '27745 215th Ave SE, Maple Valley, WA 98038',
+          lat: 47.3526727,
+          lng: -122.0556055,
+          carpool: 'Carpool 2',
+          driver: 'Jesse Massart',
+          driverColor: '#4ECDC4',
+          capacity: '5/5 kids',
+        },
+        {
+          name: 'Jerry Pham',
+          address: '27430 254th Ct SE, Maple Valley, WA 98038',
+          lat: 47.3565914,
+          lng: -122.003304,
+          carpool: 'Carpool 2',
+          driver: 'Jesse Massart',
+          driverColor: '#4ECDC4',
+          capacity: '5/5 kids',
+        },
+        {
+          name: 'Alan Nazarov',
+          address: '27424 227th Pl SE, Maple Valley, WA 98038',
+          lat: 47.3558204,
+          lng: -122.0380609,
+          carpool: 'Carpool 2',
+          driver: 'Jesse Massart',
+          driverColor: '#4ECDC4',
+          capacity: '5/5 kids',
+        },
+        {
+          name: 'Skye Lee',
+          address: '23515 SE 243rd St, Maple Valley, WA 98038',
+          lat: 47.3840723,
+          lng: -122.0275708,
+          carpool: 'Carpool 2',
+          driver: 'Jesse Massart',
+          driverColor: '#4ECDC4',
+          capacity: '5/5 kids',
+        },
+        {
+          name: 'Griffin Hammer',
+          address: '27019 216th Ave SE, Maple Valley, WA 98038',
+          lat: 47.3594718,
+          lng: -122.0546496,
+          carpool: 'Carpool 2',
+          driver: 'Jesse Massart',
+          driverColor: '#4ECDC4',
+          capacity: '5/5 kids',
+        },
+
+        // Carpool 3 - Leo Castañeda - 3 kids + 1 adult
+        {
+          name: 'Matteo Castañeda',
+          address: '28221 225th Pl SE, Maple Valley, WA 98038',
+          lat: 47.3483456,
+          lng: -122.0415891,
+          carpool: 'Carpool 3',
+          driver: 'Leo Castañeda',
+          driverColor: '#95E1D3',
+          capacity: '3/3 kids',
+        },
+        {
+          name: 'Lukas Kephart',
+          address: '22518 SE 286th St, Maple Valley, WA 98038',
+          lat: 47.3457289,
+          lng: -122.0410441,
+          carpool: 'Carpool 3',
+          driver: 'Leo Castañeda',
+          driverColor: '#95E1D3',
+          capacity: '3/3 kids',
+        },
+        {
+          name: 'William Hawks',
+          address: '30050 329th pl se, Ravensdale, WA 98051',
+          lat: 47.3300787,
+          lng: -121.9055319,
+          carpool: 'Carpool 3',
+          driver: 'Leo Castañeda',
+          driverColor: '#95E1D3',
+          capacity: '3/3 kids',
+        },
+
+        // Carpool 4 - Mr. Saefung - 1 team kid + 2 cousins + 1 adult
+        {
+          name: 'Luke Saefung',
+          address: '27313 264th Ave SE, Ravensdale, WA 98051',
+          lat: 47.351,
+          lng: -121.977,
+          carpool: 'Carpool 4',
+          driver: 'Mr. Saefung',
+          driverColor: '#F38181',
+          capacity: '1/3 kids (+2 cousins)',
+        },
+      ];
+
+      // Meeting points where players gather before carpooling
+      const meetingPoints = {
+        petrovitsky: {
+          name: 'Petrovitsky Park',
+          address: 'Renton, WA',
+          lat: 47.44107540194551,
+          lng: -122.11985626145515,
+          carpools: ['Carpool 1'], // Coaches pick up here (Renton area)
+        },
+        summit: {
+          name: 'Summit Park',
+          address: 'Maple Valley, WA',
+          lat: 47.357542378240915,
+          lng: -122.02303701220136,
+          carpools: ['Carpool 2', 'Carpool 3', 'Carpool 4'], // All Maple Valley area carpools
+        },
+      };
+
+      const destination = {
+        name: 'Husky Soccer Stadium',
+        address: 'University of Washington, Seattle, WA 98195',
+        lat: 47.655733551009945,
+        lng: -122.298516993176,
+      };
+
+      // Geocode an address using Nominatim
+      async function geocodeAddress(address) {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          address
+        )}&limit=1`;
+        try {
+          const response = await fetch(url, {
+            headers: {
+              'User-Agent': 'Soccer Carpool Map App',
+            },
+          });
+          const data = await response.json();
+          console.log(`Geocoding "${address}":`, data); // Debug log
+          if (data && data.length > 0) {
+            const coords = {
+              lat: parseFloat(data[0].lat),
+              lng: parseFloat(data[0].lon),
+            };
+            console.log(`✓ Result: lat=${coords.lat}, lng=${coords.lng}`); // Debug log
+            return coords;
+          }
+          console.warn(`✗ No results for "${address}"`); // Debug log
+        } catch (error) {
+          console.error(`Error geocoding ${address}:`, error);
+        }
+        return null;
+      }
+
+      // Delay function to respect rate limits
+      function delay(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      // Initialize the map
+      async function initMap() {
+        // Using pre-geocoded coordinates - no need to fetch from API
+        console.log('Initializing map with pre-geocoded coordinates...');
+        console.log(
+          `🏟️ Destination coords: [${destination.lat}, ${destination.lng}]`
+        );
+        playersData.forEach((player) => {
+          console.log(`🏠 ${player.name}: [${player.lat}, ${player.lng}]`);
+        });
+
+        // Hide loading, show content
+        document.getElementById('loading-container').style.display = 'none';
+        document.getElementById('main-content').style.display = 'grid';
+
+        // Initialize map centered on the area
+        const map = L.map('map').setView([47.39, -122.04], 12);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors',
+          maxZoom: 19,
+        }).addTo(map);
+
+        // Create custom icons
+        const homeIcon = L.divIcon({
+          html: '<div style="font-size: 28px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">🏠</div>',
+          className: 'custom-marker',
+          iconSize: [30, 30],
+          iconAnchor: [15, 30],
+        });
+
+        const destinationIcon = L.divIcon({
+          html: '<div style="font-size: 36px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">🏟️</div>',
+          className: 'custom-marker',
+          iconSize: [40, 40],
+          iconAnchor: [20, 40],
+        });
+
+        const meetingPointIcon = L.divIcon({
+          html: '<div style="font-size: 32px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">🅿️</div>',
+          className: 'custom-marker',
+          iconSize: [36, 36],
+          iconAnchor: [18, 36],
+        });
+
+        // Add destination marker
+        if (destination.lat && destination.lng) {
+          L.marker([destination.lat, destination.lng], {
+            icon: destinationIcon,
+          })
+            .addTo(map)
+            .bindPopup(`<b>${destination.name}</b><br>${destination.address}`);
+        }
+
+        // Add meeting point markers
+        Object.keys(meetingPoints).forEach((key) => {
+          const point = meetingPoints[key];
+          const carpoolList = point.carpools.join(', ');
+          L.marker([point.lat, point.lng], { icon: meetingPointIcon })
+            .addTo(map)
+            .bindPopup(
+              `<b>📍 ${point.name}</b><br>${point.address}<br><em>Pickup: ${carpoolList}</em>`
+            );
+        });
+
+        // Calculate distance between two lat/lng points in miles using Haversine formula
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+          const R = 3959; // Earth's radius in miles
+          const dLat = ((lat2 - lat1) * Math.PI) / 180;
+          const dLng = ((lng2 - lng1) * Math.PI) / 180;
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos((lat1 * Math.PI) / 180) *
+              Math.cos((lat2 * Math.PI) / 180) *
+              Math.sin(dLng / 2) *
+              Math.sin(dLng / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          return R * c;
+        }
+
+        // Calculate which meeting point each player should go to
+        function getClosestMeetingPoint(playerLat, playerLng) {
+          let closest = null;
+          let minDistance = Infinity;
+
+          Object.keys(meetingPoints).forEach((key) => {
+            const point = meetingPoints[key];
+            const distance = calculateDistance(
+              playerLat,
+              playerLng,
+              point.lat,
+              point.lng
+            );
+            if (distance < minDistance) {
+              minDistance = distance;
+              closest = key;
+            }
+          });
+
+          return meetingPoints[closest];
+        }
+
+        // Calculate distances to both meeting points for a player
+        function getDistancesToMeetingPoints(playerLat, playerLng) {
+          const distances = {};
+          Object.keys(meetingPoints).forEach((key) => {
+            const point = meetingPoints[key];
+            distances[key] = calculateDistance(
+              playerLat,
+              playerLng,
+              point.lat,
+              point.lng
+            );
+          });
+          return distances;
+        }
+
+        // Group players by carpool
+        const carpoolGroups = {};
+        playersData.forEach((player) => {
+          if (!carpoolGroups[player.carpool]) {
+            carpoolGroups[player.carpool] = [];
+          }
+          // Add meeting point info and distances to each player
+          player.meetingPoint = getClosestMeetingPoint(player.lat, player.lng);
+          player.distances = getDistancesToMeetingPoints(
+            player.lat,
+            player.lng
+          );
+          player.distanceToMeetingPoint =
+            player.distances[
+              Object.keys(meetingPoints).find(
+                (key) => meetingPoints[key] === player.meetingPoint
+              )
+            ];
+          carpoolGroups[player.carpool].push(player);
+        });
+
+        // Store markers for later reference
+        const playerMarkers = {};
+
+        // Add markers and routes for each carpool
+        Object.keys(carpoolGroups).forEach((carpoolName) => {
+          const players = carpoolGroups[carpoolName].filter(
+            (p) => p.lat && p.lng
+          );
+          if (players.length === 0) return;
+
+          const color = players[0].driverColor;
+
+          // Determine meeting point for this carpool (use first player's meeting point)
+          const carpoolMeetingPoint = players[0].meetingPoint;
+
+          // Create route: Meeting Point → Destination
+          const routeCoords = [
+            [carpoolMeetingPoint.lat, carpoolMeetingPoint.lng],
+            [destination.lat, destination.lng],
+          ];
+
+          // Draw main carpool route (meeting point to destination)
+          L.polyline(routeCoords, {
+            color: color,
+            weight: 6,
+            opacity: 0.8,
+            lineJoin: 'round',
+          }).addTo(map);
+
+          // Draw dashed lines from each home to their meeting point
+          players.forEach((player) => {
+            L.polyline(
+              [
+                [player.lat, player.lng],
+                [player.meetingPoint.lat, player.meetingPoint.lng],
+              ],
+              {
+                color: color,
+                weight: 2,
+                opacity: 0.4,
+                dashArray: '5, 10',
+                lineJoin: 'round',
+              }
+            ).addTo(map);
+          });
+
+          // Add player home markers (smaller, less prominent)
+          players.forEach((player) => {
+            const smallHomeIcon = L.divIcon({
+              html: '<div style="font-size: 18px; opacity: 0.7;">🏠</div>',
+              className: 'custom-marker',
+              iconSize: [20, 20],
+              iconAnchor: [10, 20],
+            });
+
+            const marker = L.marker([player.lat, player.lng], {
+              icon: smallHomeIcon,
+            })
+              .addTo(map)
+              .bindPopup(
+                `<b>${player.name}</b><br>${player.address}<br><em>${player.carpool} (Driver: ${player.driver})</em><br>→ Drives to ${player.meetingPoint.name}`
+              );
+
+            playerMarkers[player.name] = marker;
+          });
+        });
+
+        // Fit map to show all markers (homes, meeting points, and destination)
+        const allCoords = playersData
+          .filter((p) => p.lat && p.lng)
+          .map((p) => [p.lat, p.lng]);
+
+        // Add meeting points to bounds
+        Object.keys(meetingPoints).forEach((key) => {
+          const point = meetingPoints[key];
+          allCoords.push([point.lat, point.lng]);
+        });
+
+        // Add destination to bounds
+        if (destination.lat && destination.lng) {
+          allCoords.push([destination.lat, destination.lng]);
+        }
+        console.log('📍 All coordinates for map bounds:', allCoords);
+        if (allCoords.length > 0) {
+          map.fitBounds(allCoords, { padding: [50, 50] });
+        }
+
+        // Build player list
+        const playerListElement = document.getElementById('player-list');
+
+        Object.keys(carpoolGroups).forEach((carpoolName) => {
+          const players = carpoolGroups[carpoolName];
+          const color = players[0].driverColor;
+          const meetingPoint = players[0].meetingPoint;
+
+          const section = document.createElement('div');
+          section.className = 'carpool-section';
+
+          const header = document.createElement('div');
+          header.className = 'carpool-header';
+          header.style.borderLeft = `4px solid ${color}`;
+          header.innerHTML = `
+            ${carpoolName} - Driver: ${players[0].driver}<br>
+            <span style="font-size: 0.85em; color: #666;">📍 Pickup: ${meetingPoint.name}</span>
+          `;
+          section.appendChild(header);
+
+          players.forEach((player) => {
+            const card = document.createElement('div');
+            card.className = 'player-card';
+            card.style.borderLeft = `4px solid ${color}`;
+
+            // Get distances to both meeting points
+            const petrovitskyDist = player.distances.petrovitsky.toFixed(1);
+            const summitDist = player.distances.summit.toFixed(1);
+            const assignedDist = player.distanceToMeetingPoint.toFixed(1);
+
+            card.innerHTML = `
+                        <div class="player-name">${player.name}</div>
+                        <div class="player-address">${player.address}</div>
+                        <div style="font-size: 0.8em; color: #333; margin-top: 4px; font-weight: 500;">
+                          → ${player.meetingPoint.name}: ${assignedDist} mi
+                        </div>
+                        <div style="font-size: 0.75em; color: #999; margin-top: 2px;">
+                          📍 Petrovitsky: ${petrovitskyDist} mi | Summit: ${summitDist} mi
+                        </div>
+                    `;
+
+            if (player.lat && player.lng) {
+              card.addEventListener('click', () => {
+                map.setView([player.lat, player.lng], 16);
+                playerMarkers[player.name].openPopup();
+
+                document
+                  .querySelectorAll('.player-card')
+                  .forEach((c) => c.classList.remove('selected'));
+                card.classList.add('selected');
+              });
+            }
+
+            section.appendChild(card);
+          });
+
+          playerListElement.appendChild(section);
+        });
+      }
+
+      // Start the app
+      initMap();
+    </script>
+  </body>
+</html>

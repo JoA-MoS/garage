@@ -11,10 +11,6 @@ import {
 } from '../../services/teams-graphql.service';
 import { TeamSettingsPresentation } from '../presentation/team-settings.presentation';
 import { UICreateTeamInput, UIPosition } from '../types/ui.types';
-import {
-  mapUICreateTeamToService,
-  mapServiceTeamToUITeam,
-} from '../utils/data-mapping.utils';
 
 import { useTeamConfigurationManager } from './team-configuration-manager.smart';
 
@@ -93,9 +89,7 @@ export const TeamSettingsSmart = () => {
     }) => {
       try {
         // Map UI data to service format
-        const serviceTeamData = mapUICreateTeamToService(
-          settingsData.basicInfo
-        );
+        const serviceTeamData = settingsData.basicInfo;
 
         // Add configuration data
         const updateData = {
@@ -133,12 +127,12 @@ export const TeamSettingsSmart = () => {
   // Show loading state for fetching
   if (fetchLoading) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="mx-auto max-w-6xl p-6">
+        <div className="rounded-lg bg-white p-6 shadow-lg">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded mb-4"></div>
-            <div className="h-4 bg-gray-200 rounded mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+            <div className="mb-4 h-8 rounded bg-gray-200"></div>
+            <div className="mb-2 h-4 rounded bg-gray-200"></div>
+            <div className="h-4 w-2/3 rounded bg-gray-200"></div>
           </div>
         </div>
       </div>
@@ -148,8 +142,8 @@ export const TeamSettingsSmart = () => {
   // Show error state
   if (fetchError || !teamData?.team) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+      <div className="mx-auto max-w-6xl p-6">
+        <div className="rounded-md border border-red-200 bg-red-50 p-4">
           <p className="text-red-800">
             {fetchError?.message || 'Team not found'}
           </p>
@@ -158,7 +152,7 @@ export const TeamSettingsSmart = () => {
     );
   }
 
-  const team = mapServiceTeamToUITeam(teamData.team);
+  const team = teamData.team;
 
   // Wrapper functions to match presentation component expectations
   const handleAddPosition = () => {
@@ -173,9 +167,9 @@ export const TeamSettingsSmart = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="mx-auto max-w-6xl p-6">
       <TeamSettingsPresentation
-        team={team}
+        team={team as any} // TODO: Fix type when migrating to new architecture
         selectedGameFormat={selectedGameFormat}
         selectedFormation={selectedFormation}
         gameFormats={gameFormats}

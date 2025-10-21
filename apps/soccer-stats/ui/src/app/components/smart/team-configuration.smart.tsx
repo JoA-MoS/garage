@@ -155,15 +155,15 @@ export const TeamConfigurationSmart = ({
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="mx-auto max-w-4xl p-6">
+        <div className="rounded-lg bg-white p-6 shadow-lg">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-            <div className="h-4 bg-gray-200 rounded w-2/3 mb-8"></div>
+            <div className="mb-4 h-8 w-1/3 rounded bg-gray-200"></div>
+            <div className="mb-8 h-4 w-2/3 rounded bg-gray-200"></div>
             <div className="space-y-4">
-              <div className="h-10 bg-gray-200 rounded"></div>
-              <div className="h-10 bg-gray-200 rounded"></div>
-              <div className="h-40 bg-gray-200 rounded"></div>
+              <div className="h-10 rounded bg-gray-200"></div>
+              <div className="h-10 rounded bg-gray-200"></div>
+              <div className="h-40 rounded bg-gray-200"></div>
             </div>
           </div>
         </div>
@@ -173,18 +173,18 @@ export const TeamConfigurationSmart = ({
 
   if (error || !data?.team) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="mx-auto max-w-4xl p-6">
+        <div className="rounded-lg bg-white p-6 shadow-lg">
           <div className="text-center">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            <h2 className="mb-2 text-xl font-semibold text-gray-900">
               Team Not Found
             </h2>
-            <p className="text-gray-600 mb-4">
+            <p className="mb-4 text-gray-600">
               {error?.message || 'The team you are looking for does not exist.'}
             </p>
             <button
               onClick={() => navigate('/teams')}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+              className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
             >
               Back to Teams
             </button>
@@ -196,7 +196,7 @@ export const TeamConfigurationSmart = ({
 
   return (
     <TeamConfigurationPresentation
-      team={data.team}
+      team={data.team as any} // TODO: Fix type mismatch when migrating
       configuration={configuration}
       formations={Object.keys(DEFAULT_FORMATIONS)}
       onFormationChange={handleFormationChange}
