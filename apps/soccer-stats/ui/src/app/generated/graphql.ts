@@ -533,6 +533,17 @@ export type User = {
   updatedAt: Scalars['DateTime']['output'];
 };
 
+export type GetUsersForListQueryVariables = Exact<{ [key: string]: never }>;
+
+export type GetUsersForListQuery = {
+  __typename?: 'Query';
+  users: Array<
+    { __typename?: 'User' } & {
+      ' $fragmentRefs'?: { UserCardFragment: UserCardFragment };
+    }
+  >;
+};
+
 export type PlayerCardDataFragment = {
   __typename?: 'User';
   id: string;
@@ -574,6 +585,28 @@ export type DebugGetTeamsQuery = {
     updatedAt: any;
   }>;
 };
+
+export type UserCardFragment = {
+  __typename?: 'User';
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string | null;
+  isActive: boolean;
+  teamPlayers: Array<{
+    __typename?: 'TeamPlayer';
+    id: string;
+    jerseyNumber?: string | null;
+    primaryPosition?: string | null;
+    team: {
+      __typename?: 'Team';
+      id: string;
+      name: string;
+      shortName?: string | null;
+    };
+  }>;
+} & { ' $fragmentName'?: 'UserCardFragment' };
 
 export type GetGameFormatsQueryVariables = Exact<{ [key: string]: never }>;
 
@@ -1611,6 +1644,146 @@ export const PlayerCardDataFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<PlayerCardDataFragment, unknown>;
+export const UserCardFragmentDoc = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'FragmentDefinition',
+      name: { kind: 'Name', value: 'UserCard' },
+      typeCondition: {
+        kind: 'NamedType',
+        name: { kind: 'Name', value: 'User' },
+      },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'firstName' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'lastName' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'email' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'phone' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'isActive' } },
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'teamPlayers' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'jerseyNumber' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'primaryPosition' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'team' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'shortName' },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<UserCardFragment, unknown>;
+export const GetUsersForListDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'query',
+      name: { kind: 'Name', value: 'GetUsersForList' },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'users' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                {
+                  kind: 'FragmentSpread',
+                  name: { kind: 'Name', value: 'UserCard' },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: 'FragmentDefinition',
+      name: { kind: 'Name', value: 'UserCard' },
+      typeCondition: {
+        kind: 'NamedType',
+        name: { kind: 'Name', value: 'User' },
+      },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'firstName' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'lastName' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'email' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'phone' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'isActive' } },
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'teamPlayers' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'jerseyNumber' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'primaryPosition' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'team' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'shortName' },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  GetUsersForListQuery,
+  GetUsersForListQueryVariables
+>;
 export const DebugGetTeamsDocument = {
   kind: 'Document',
   definitions: [

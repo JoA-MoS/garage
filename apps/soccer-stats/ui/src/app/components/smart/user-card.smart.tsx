@@ -1,10 +1,34 @@
 import { useCallback } from 'react';
 
+import { FragmentType, useFragment } from '../../generated/fragment-masking';
+import { graphql } from '../../generated/gql';
 import { UserCardPresentation } from '../presentation/user-card.presentation';
 
-// TODO: Fix GraphQL fragment masking - temporarily using any type
+// Layer 2: Fragment Wrapper (Smart Component)
+// Define the fragment for user card data
+export const UserCardFragment = graphql(/* GraphQL */ `
+  fragment UserCard on User {
+    id
+    firstName
+    lastName
+    email
+    phone
+    isActive
+    teamPlayers {
+      id
+      jerseyNumber
+      primaryPosition
+      team {
+        id
+        name
+        shortName
+      }
+    }
+  }
+`);
+
 interface UserCardSmartProps {
-  user: any;
+  user: FragmentType<typeof UserCardFragment>;
   onEdit: (userId: string) => void;
   onView: (userId: string) => void;
   onToggleActive: (userId: string, isActive: boolean) => void;
@@ -16,7 +40,8 @@ export const UserCardSmartComponent = ({
   onView,
   onToggleActive,
 }: UserCardSmartProps) => {
-  const user = userFragment;
+  // Use fragment masking to extract typed data
+  const user = useFragment(UserCardFragment, userFragment);
 
   const handleEdit = useCallback(() => {
     onEdit(user.id);
@@ -51,4 +76,5 @@ export const UserCardSmartComponent = ({
   );
 };
 
-export { UserCardSmartComponent as UserCardSmart };
+// Export as UserCardSmart for composition layer
+export const UserCardSmart = UserCardSmartComponent;

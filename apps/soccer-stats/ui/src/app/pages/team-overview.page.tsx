@@ -5,7 +5,6 @@ import {
   GET_TEAM_BY_ID,
   TeamResponse,
 } from '../services/teams-graphql.service';
-import { mapServiceTeamToUITeam } from '../components/utils/data-mapping.utils';
 
 /**
  * Page component for team overview information
@@ -33,7 +32,7 @@ export const TeamOverviewPage = () => {
 
   if (loading && !data) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="flex h-64 items-center justify-center">
         <div className="text-lg">Loading team details...</div>
       </div>
     );
@@ -41,12 +40,12 @@ export const TeamOverviewPage = () => {
 
   if (error && !data) {
     return (
-      <div className="text-center text-red-600 p-4">
+      <div className="p-4 text-center text-red-600">
         <div className="text-lg font-semibold">Error loading team</div>
-        <div className="text-sm mt-2">{error.message}</div>
+        <div className="mt-2 text-sm">{error.message}</div>
         <button
           onClick={() => refetch()}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="mt-4 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
         >
           Try Again
         </button>
@@ -54,22 +53,24 @@ export const TeamOverviewPage = () => {
     );
   }
 
-  const team = data?.team ? mapServiceTeamToUITeam(data.team) : null;
+  // TODO: Implement mapServiceTeamToUITeam when migrating to new architecture
+  // For now, use data.team directly
+  const team = data?.team || null;
 
   if (!team) {
     return (
-      <div className="text-center p-4">
+      <div className="p-4 text-center">
         <div className="text-lg">Team not found</div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+    <div className="rounded-lg bg-white p-4 shadow-lg sm:p-6">
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-lg bg-gray-50 p-4">
+            <h3 className="mb-2 text-lg font-semibold text-gray-900">
               Team Information
             </h3>
             <div className="space-y-2 text-sm">
@@ -92,14 +93,18 @@ export const TeamOverviewPage = () => {
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <div className="rounded-lg bg-gray-50 p-4">
+            <h3 className="mb-2 text-lg font-semibold text-gray-900">
               Quick Stats
             </h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Total Players:</span>
-                <span className="font-medium">{team.playerCount || 0}</span>
+                <span className="font-medium">
+                  {
+                    0 /* TODO: Calculate player count when migrating to new architecture */
+                  }
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Games Played:</span>
@@ -112,33 +117,33 @@ export const TeamOverviewPage = () => {
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <div className="rounded-lg bg-gray-50 p-4">
+            <h3 className="mb-2 text-lg font-semibold text-gray-900">
               Team Colors
             </h3>
             <div className="space-y-3">
               <div className="flex items-center space-x-3">
                 <div
-                  className="w-8 h-8 rounded border border-gray-300"
-                  style={{ backgroundColor: team.primaryColor }}
+                  className="h-8 w-8 rounded border border-gray-300"
+                  style={{ backgroundColor: team.homePrimaryColor }}
                 />
                 <div>
                   <div className="text-sm font-medium">Primary</div>
                   <div className="text-xs text-gray-600">
-                    {team.primaryColor}
+                    {team.homePrimaryColor}
                   </div>
                 </div>
               </div>
-              {team.secondaryColor && (
+              {team.homeSecondaryColor && (
                 <div className="flex items-center space-x-3">
                   <div
-                    className="w-8 h-8 rounded border border-gray-300"
-                    style={{ backgroundColor: team.secondaryColor }}
+                    className="h-8 w-8 rounded border border-gray-300"
+                    style={{ backgroundColor: team.homeSecondaryColor }}
                   />
                   <div>
                     <div className="text-sm font-medium">Secondary</div>
                     <div className="text-xs text-gray-600">
-                      {team.secondaryColor}
+                      {team.homeSecondaryColor}
                     </div>
                   </div>
                 </div>
