@@ -19,6 +19,7 @@ import { TeamGamesPage } from '../pages/team-games.page';
 import { TeamOverviewPage } from '../pages/team-overview.page';
 import { TeamStatsPage } from '../pages/team-stats.page';
 import { TeamSettingsPage } from '../pages/team-settings.page';
+import { AllGamesPage } from '../pages/all-games.page';
 import { GameLayout } from '../components/layout/game-layout';
 import { TeamLayout } from '../components/layout/team-layout';
 import { HomeLineupView } from '../components/views/home-lineup.view';
@@ -98,6 +99,10 @@ export const router = createBrowserRouter([
       {
         path: 'teams',
         element: <TeamsPage />,
+      },
+      {
+        path: 'games',
+        element: <AllGamesPage />,
       },
       {
         path: 'teams/manage',

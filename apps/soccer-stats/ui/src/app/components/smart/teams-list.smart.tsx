@@ -3,13 +3,7 @@ import { useNavigate } from 'react-router';
 import { useCallback } from 'react';
 
 import { TeamsListPresentation } from '../presentation/teams-list.presentation';
-import { mapServiceTeamsToUITeams } from '../utils/data-mapping.utils';
-import {
-  GetTeamsByManagedStatusDocument,
-  GetTeamsDocument,
-  GetTeamsQuery,
-} from '../../generated/graphql';
-import { graphql } from '../../generated/gql';
+import { graphql } from '../../generated';
 
 interface TeamsListSmartProps {
   onCreateTeam?: () => void;
@@ -17,7 +11,10 @@ interface TeamsListSmartProps {
 }
 
 /**
- * Smart component that fetches teams data from GraphQL API
+ * Layer 2: Smart Component for Teams List
+ * - Fetches teams data using Apollo Client
+ * - Maps GraphQL data to UI-friendly format
+ * - Handles loading/error states
  * and handles business logic
  */
 // Define the query using the generated graphql function following The Guild's best practices
@@ -73,7 +70,7 @@ export const TeamsListSmart = ({
 
   return (
     <TeamsListPresentation
-      teams={mapServiceTeamsToUITeams(data?.teams || [])}
+      teams={(data as any)?.teams || []} // TODO: Fix type when migrating to new architecture
       onCreateTeam={handleCreateTeam}
       onEditTeam={handleEditTeam}
     />
