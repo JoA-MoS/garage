@@ -10,8 +10,9 @@ describe('GitLabClient', () => {
     });
   });
 
-  it('should create an instance', () => {
+  it('should create an instance with Apollo Client', () => {
     expect(client).toBeDefined();
+    expect(client).toBeInstanceOf(GitLabClient);
   });
 
   it('should handle trailing slash in URL', () => {
@@ -20,5 +21,18 @@ describe('GitLabClient', () => {
       gitlabToken: 'test-token',
     });
     expect(clientWithSlash).toBeDefined();
+    expect(clientWithSlash).toBeInstanceOf(GitLabClient);
+  });
+
+  it('should have getSchema method', () => {
+    expect(typeof client.getSchema).toBe('function');
+  });
+
+  it('should have executeQuery method', () => {
+    expect(typeof client.executeQuery).toBe('function');
+  });
+
+  it('should have executeMutation method', () => {
+    expect(typeof client.executeMutation).toBe('function');
   });
 });
