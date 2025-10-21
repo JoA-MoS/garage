@@ -1,0 +1,86 @@
+{
+  "name": "gitlab-mcp-server",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/gitlab-mcp-server/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "target": "node",
+        "compiler": "tsc",
+        "outputPath": "dist/apps/gitlab-mcp-server",
+        "main": "apps/gitlab-mcp-server/src/main.ts",
+        "tsConfig": "apps/gitlab-mcp-server/tsconfig.app.json",
+        "assets": ["apps/gitlab-mcp-server/src/assets"],
+        "webpackConfig": "apps/gitlab-mcp-server/webpack.config.js",
+        "generatePackageJson": true
+      },
+      "configurations": {
+        "development": {
+          "outputHashing": "none"
+        },
+        "production": {}
+      }
+    },
+    "prune-lockfile": {
+      "dependsOn": ["build"],
+      "cache": true,
+      "executor": "@nx/js:prune-lockfile",
+      "outputs": [
+        "{workspaceRoot}/dist/apps/gitlab-mcp-server/package.json",
+        "{workspaceRoot}/dist/apps/gitlab-mcp-server/pnpm-lock.yaml"
+      ],
+      "options": {
+        "buildTarget": "build"
+      }
+    },
+    "copy-workspace-modules": {
+      "dependsOn": ["build"],
+      "cache": true,
+      "outputs": [
+        "{workspaceRoot}/dist/apps/gitlab-mcp-server/workspace_modules"
+      ],
+      "executor": "@nx/js:copy-workspace-modules",
+      "options": {
+        "buildTarget": "build"
+      }
+    },
+    "prune": {
+      "dependsOn": ["prune-lockfile", "copy-workspace-modules"],
+      "executor": "nx:noop"
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "gitlab-mcp-server:build",
+        "runBuildTargetDependencies": false
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "gitlab-mcp-server:build:development"
+        },
+        "production": {
+          "buildTarget": "gitlab-mcp-server:build:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "apps/gitlab-mcp-server/jest.config.ts",
+        "passWithNoTests": true
+      }
+    }
+  }
+}
