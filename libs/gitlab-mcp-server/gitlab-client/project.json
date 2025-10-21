@@ -1,0 +1,29 @@
+{
+  "name": "gitlab-client",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/gitlab-mcp-server/gitlab-client/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/gitlab-mcp-server/gitlab-client",
+        "main": "libs/gitlab-mcp-server/gitlab-client/src/index.ts",
+        "tsConfig": "libs/gitlab-mcp-server/gitlab-client/tsconfig.lib.json",
+        "assets": ["libs/gitlab-mcp-server/gitlab-client/*.md"]
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "libs/gitlab-mcp-server/gitlab-client/jest.config.ts"
+      }
+    }
+  }
+}
