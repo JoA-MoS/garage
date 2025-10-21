@@ -1,18 +1,18 @@
 # GitLab MCP Server
 
-A Model Context Protocol (MCP) server that provides integration with GitLab's GraphQL API.
+A Model Context Protocol (MCP) server that provides schema-driven integration with GitLab's GraphQL API using Apollo Client.
 
 ## Overview
 
-This MCP server allows AI assistants and other MCP clients to interact with GitLab repositories, issues, merge requests, and pipelines through a standardized protocol.
+This MCP server enables AI assistants and other MCP clients to interact with GitLab through a flexible, schema-driven approach. Instead of multiple static tools, it provides direct access to the GitLab GraphQL API, allowing the LLM to construct queries dynamically based on the schema.
 
-## Features
+## Key Features
 
-- **List Projects**: Get a list of GitLab projects
-- **Get Project**: Retrieve details for a specific project
-- **List Issues**: Get issues for a project
-- **List Merge Requests**: Get merge requests for a project
-- **List Pipelines**: Get CI/CD pipelines for a project
+- **Schema Introspection**: Fetch the complete GitLab GraphQL schema to understand all available operations
+- **Dynamic Query Construction**: LLM can construct exact queries for needed data based on the schema
+- **Flexible Data Retrieval**: Fetch related data in single requests via nested GraphQL queries
+- **Mutation Support**: Create, update, and delete GitLab resources using GraphQL mutations
+- **Apollo Client Integration**: Leverages Apollo Client for robust GraphQL operations
 
 ## Prerequisites
 
@@ -59,93 +59,85 @@ GITLAB_TOKEN=your_token node dist/apps/gitlab-mcp-server/main.js
 
 ## Available Tools
 
-### list_projects
+### get_gitlab_schema
 
-List GitLab projects.
+Get the complete GitLab GraphQL schema in SDL (Schema Definition Language) format. This is the starting point - use this to discover all available queries, mutations, types, and fields.
 
-**Parameters:**
-- `first` (optional): Number of projects to return (default: 20)
+**Parameters:** None
 
 **Example:**
 ```json
 {
-  "name": "list_projects",
+  "name": "get_gitlab_schema",
+  "arguments": {}
+}
+```
+
+**Response:** The complete GitLab GraphQL schema as a string, showing all types, queries, and mutations available.
+
+### graphql_query
+
+Execute a GraphQL query against the GitLab API. Construct queries based on the schema to fetch exactly the data you need.
+
+**Parameters:**
+- `query` (required): The GraphQL query string
+- `variables` (optional): Variables for parameterized queries
+
+**Example - Get Current User:**
+```json
+{
+  "name": "graphql_query",
   "arguments": {
-    "first": 10
+    "query": "query { currentUser { id name username email } }"
   }
 }
 ```
 
-### get_project
-
-Get a specific GitLab project by full path.
-
-**Parameters:**
-- `fullPath` (required): Full path of the project (e.g., "username/project-name")
-
-**Example:**
+**Example - Get Project with Issues:**
 ```json
 {
-  "name": "get_project",
+  "name": "graphql_query",
   "arguments": {
-    "fullPath": "gitlab-org/gitlab"
+    "query": "query($fullPath: ID!, $first: Int!) { project(fullPath: $fullPath) { id name description issues(first: $first) { nodes { id title state } } } }",
+    "variables": {
+      "fullPath": "gitlab-org/gitlab",
+      "first": 10
+    }
   }
 }
 ```
 
-### list_issues
-
-List issues for a GitLab project.
-
-**Parameters:**
-- `projectPath` (required): Full path of the project
-- `first` (optional): Number of issues to return (default: 20)
-
-**Example:**
+**Example - Get Projects with Nested Data:**
 ```json
 {
-  "name": "list_issues",
+  "name": "graphql_query",
   "arguments": {
-    "projectPath": "gitlab-org/gitlab",
-    "first": 10
+    "query": "query { projects(first: 5) { nodes { id name namespace { fullPath } repository { rootRef } } } }"
   }
 }
 ```
 
-### list_merge_requests
+### graphql_mutate
 
-List merge requests for a GitLab project.
-
-**Parameters:**
-- `projectPath` (required): Full path of the project
-- `first` (optional): Number of merge requests to return (default: 20)
-
-**Example:**
-```json
-{
-  "name": "list_merge_requests",
-  "arguments": {
-    "projectPath": "gitlab-org/gitlab",
-    "first": 10
-  }
-}
-```
-
-### list_pipelines
-
-List pipelines for a GitLab project.
+Execute a GraphQL mutation to modify data in GitLab (create issues, update merge requests, etc.).
 
 **Parameters:**
-- `projectPath` (required): Full path of the project
-- `first` (optional): Number of pipelines to return (default: 20)
+- `mutation` (required): The GraphQL mutation string
+- `variables` (optional): Variables for the mutation input
 
-**Example:**
+**Example - Create an Issue:**
 ```json
 {
-  "name": "list_pipelines",
+  "name": "graphql_mutate",
   "arguments": {
-    "projectPath": "gitlab-org/gitlab",
-    "first": 10
+    "mutation": "mutation($input: CreateIssueInput!) { createIssue(input: $input) { issue { id title webUrl } errors } }",
+    "variables": {
+      "input": {
+        "projectPath": "my-group/my-project",
+        "title": "New issue from MCP",
+        "description": "Created via GraphQL MCP server"
+      }
+    }
   }
 }
 ```
@@ -154,9 +146,24 @@ List pipelines for a GitLab project.
 
 The application is structured using NX workspace best practices with the following libraries:
 
-- **@garage/types**: Shared TypeScript types for GitLab API and MCP server
-- **@garage/gitlab-client**: GitLab GraphQL API client
-- **@garage/mcp-handlers**: MCP protocol handlers and tool implementations
+- **@garage/types**: Shared TypeScript types for GitLab API and MCP server configuration
+- **@garage/gitlab-client**: Apollo Client-based GitLab GraphQL client with schema introspection
+- **@garage/mcp-handlers**: MCP protocol handlers for schema-driven tool operations
+
+## Schema-Driven Approach
+
+This implementation follows a schema-driven architecture as described in [The Future of MCP is GraphQL](https://www.apollographql.com/blog/the-future-of-mcp-is-graphql):
+
+1. **Schema Discovery**: The LLM introspects the GraphQL schema to understand available operations
+2. **Dynamic Query Construction**: Instead of dozens of static tools, the LLM constructs exact queries based on needs
+3. **Flexible Data Retrieval**: Fetch related data in single requests, reducing tool invocation round-trips
+4. **Simplified Server**: The MCP server becomes a thin wrapper around the GraphQL endpoint
+
+This approach provides:
+- Fewer tools to maintain (3 instead of many static tools)
+- Self-documenting API surface through the schema
+- No over/under-fetching of data
+- GraphQL layer handles validation, execution, and error handling
 
 ## Development
 

@@ -29,9 +29,11 @@ pnpm nx serve gitlab-mcp-server
 
 ## Example Tool Calls
 
-Once the server is running, it can receive MCP protocol messages via stdin. Here are example tool calls:
+Once the server is running, it can receive MCP protocol messages via stdin. Here are example tool calls using the schema-driven approach:
 
-### List Projects
+### Step 1: Get the GitLab Schema
+
+First, retrieve the schema to understand what queries are available:
 
 ```json
 {
@@ -39,15 +41,19 @@ Once the server is running, it can receive MCP protocol messages via stdin. Here
   "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "list_projects",
-    "arguments": {
-      "first": 10
-    }
+    "name": "get_gitlab_schema",
+    "arguments": {}
   }
 }
 ```
 
-### Get Specific Project
+This returns the complete GraphQL schema in SDL format, showing all available types, queries, and mutations.
+
+### Step 2: Execute GraphQL Queries
+
+Now you can construct queries based on the schema:
+
+#### Get Current User
 
 ```json
 {
@@ -55,15 +61,15 @@ Once the server is running, it can receive MCP protocol messages via stdin. Here
   "id": 2,
   "method": "tools/call",
   "params": {
-    "name": "get_project",
+    "name": "graphql_query",
     "arguments": {
-      "fullPath": "gitlab-org/gitlab"
+      "query": "query { currentUser { id name username email } }"
     }
   }
 }
 ```
 
-### List Issues
+#### Get Projects
 
 ```json
 {
@@ -71,16 +77,18 @@ Once the server is running, it can receive MCP protocol messages via stdin. Here
   "id": 3,
   "method": "tools/call",
   "params": {
-    "name": "list_issues",
+    "name": "graphql_query",
     "arguments": {
-      "projectPath": "gitlab-org/gitlab",
-      "first": 20
+      "query": "query($first: Int!) { projects(first: $first) { nodes { id name description webUrl namespace { fullPath } } } }",
+      "variables": {
+        "first": 10
+      }
     }
   }
 }
 ```
 
-### List Merge Requests
+#### Get Project with Issues and Merge Requests
 
 ```json
 {
@@ -88,16 +96,20 @@ Once the server is running, it can receive MCP protocol messages via stdin. Here
   "id": 4,
   "method": "tools/call",
   "params": {
-    "name": "list_merge_requests",
+    "name": "graphql_query",
     "arguments": {
-      "projectPath": "gitlab-org/gitlab",
-      "first": 20
+      "query": "query($fullPath: ID!, $issueCount: Int!, $mrCount: Int!) { project(fullPath: $fullPath) { id name description issues(first: $issueCount) { nodes { id title state author { name } } } mergeRequests(first: $mrCount) { nodes { id title state sourceBranch targetBranch } } } }",
+      "variables": {
+        "fullPath": "gitlab-org/gitlab",
+        "issueCount": 5,
+        "mrCount": 5
+      }
     }
   }
 }
 ```
 
-### List Pipelines
+#### Get Pipelines for a Project
 
 ```json
 {
@@ -105,10 +117,40 @@ Once the server is running, it can receive MCP protocol messages via stdin. Here
   "id": 5,
   "method": "tools/call",
   "params": {
-    "name": "list_pipelines",
+    "name": "graphql_query",
     "arguments": {
-      "projectPath": "gitlab-org/gitlab",
-      "first": 20
+      "query": "query($projectPath: ID!, $first: Int!) { project(fullPath: $projectPath) { pipelines(first: $first) { nodes { id iid status ref createdAt finishedAt } } } }",
+      "variables": {
+        "projectPath": "gitlab-org/gitlab",
+        "first": 10
+      }
+    }
+  }
+}
+```
+
+### Step 3: Execute Mutations
+
+Create or modify data using GraphQL mutations:
+
+#### Create an Issue
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "tools/call",
+  "params": {
+    "name": "graphql_mutate",
+    "arguments": {
+      "mutation": "mutation($input: CreateIssueInput!) { createIssue(input: $input) { issue { id iid title webUrl } errors } }",
+      "variables": {
+        "input": {
+          "projectPath": "my-group/my-project",
+          "title": "New issue from MCP",
+          "description": "This issue was created via the GitLab MCP server"
+        }
+      }
     }
   }
 }

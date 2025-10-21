@@ -7,92 +7,58 @@ import {
 import { GitLabClient } from '@garage/gitlab-client';
 
 export function registerMcpHandlers(server: Server, gitlabClient: GitLabClient) {
-  // List available tools
+  // List available tools - now schema-driven with fewer, more powerful tools
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     const tools: Tool[] = [
       {
-        name: 'list_projects',
-        description: 'List GitLab projects',
+        name: 'get_gitlab_schema',
+        description:
+          'Get the complete GitLab GraphQL schema in SDL format. Use this to understand what queries and mutations are available, what fields exist on types, and how to construct queries. The schema is self-documenting and shows all available operations.',
         inputSchema: {
           type: 'object',
-          properties: {
-            first: {
-              type: 'number',
-              description: 'Number of projects to return (default: 20)',
-              default: 20,
-            },
-          },
+          properties: {},
         },
       },
       {
-        name: 'get_project',
-        description: 'Get a specific GitLab project by full path',
+        name: 'graphql_query',
+        description:
+          'Execute a GraphQL query against the GitLab API. Construct queries based on the schema obtained from get_gitlab_schema. This allows flexible data retrieval - you can fetch exactly the data needed, include nested relationships, and use GraphQL features like fragments and aliases. Supports variables for parameterized queries.',
         inputSchema: {
           type: 'object',
           properties: {
-            fullPath: {
+            query: {
               type: 'string',
-              description: 'Full path of the project (e.g., "username/project-name")',
+              description:
+                'The GraphQL query to execute. Must be valid GraphQL syntax. Example: "query { currentUser { id name } }"',
+            },
+            variables: {
+              type: 'object',
+              description:
+                'Optional variables for the query. Pass as a JSON object. Example: {"fullPath": "gitlab-org/gitlab", "first": 10}',
             },
           },
-          required: ['fullPath'],
+          required: ['query'],
         },
       },
       {
-        name: 'list_issues',
-        description: 'List issues for a GitLab project',
+        name: 'graphql_mutate',
+        description:
+          'Execute a GraphQL mutation against the GitLab API. Use this to modify data - create issues, update merge requests, etc. Construct mutations based on the schema. Supports variables for parameterized mutations.',
         inputSchema: {
           type: 'object',
           properties: {
-            projectPath: {
+            mutation: {
               type: 'string',
-              description: 'Full path of the project',
+              description:
+                'The GraphQL mutation to execute. Must be valid GraphQL syntax. Example: "mutation($input: CreateIssueInput!) { createIssue(input: $input) { issue { id } } }"',
             },
-            first: {
-              type: 'number',
-              description: 'Number of issues to return (default: 20)',
-              default: 20,
+            variables: {
+              type: 'object',
+              description:
+                'Optional variables for the mutation. Pass as a JSON object with the required input parameters.',
             },
           },
-          required: ['projectPath'],
-        },
-      },
-      {
-        name: 'list_merge_requests',
-        description: 'List merge requests for a GitLab project',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            projectPath: {
-              type: 'string',
-              description: 'Full path of the project',
-            },
-            first: {
-              type: 'number',
-              description: 'Number of merge requests to return (default: 20)',
-              default: 20,
-            },
-          },
-          required: ['projectPath'],
-        },
-      },
-      {
-        name: 'list_pipelines',
-        description: 'List pipelines for a GitLab project',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            projectPath: {
-              type: 'string',
-              description: 'Full path of the project',
-            },
-            first: {
-              type: 'number',
-              description: 'Number of pipelines to return (default: 20)',
-              default: 20,
-            },
-          },
-          required: ['projectPath'],
+          required: ['mutation'],
         },
       },
     ];
@@ -106,81 +72,89 @@ export function registerMcpHandlers(server: Server, gitlabClient: GitLabClient) 
 
     try {
       switch (name) {
-        case 'list_projects': {
-          const first = (args?.first as number) || 20;
-          const projects = await gitlabClient.getProjects(first);
+        case 'get_gitlab_schema': {
+          const schema = await gitlabClient.getSchema();
           return {
             content: [
               {
                 type: 'text',
-                text: JSON.stringify(projects, null, 2),
+                text: schema,
               },
             ],
           };
         }
 
-        case 'get_project': {
-          const fullPath = args?.fullPath as string;
-          if (!fullPath) {
-            throw new Error('fullPath is required');
+        case 'graphql_query': {
+          const query = args?.query as string;
+          if (!query) {
+            throw new Error('query parameter is required');
           }
-          const project = await gitlabClient.getProject(fullPath);
+
+          const variables = (args?.variables as Record<string, unknown>) || undefined;
+          const result = await gitlabClient.executeQuery(query, variables);
+
+          if (result.errors && result.errors.length > 0) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      data: result.data,
+                      errors: result.errors,
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
           return {
             content: [
               {
                 type: 'text',
-                text: JSON.stringify(project, null, 2),
+                text: JSON.stringify(result.data, null, 2),
               },
             ],
           };
         }
 
-        case 'list_issues': {
-          const projectPath = args?.projectPath as string;
-          if (!projectPath) {
-            throw new Error('projectPath is required');
+        case 'graphql_mutate': {
+          const mutation = args?.mutation as string;
+          if (!mutation) {
+            throw new Error('mutation parameter is required');
           }
-          const first = (args?.first as number) || 20;
-          const issues = await gitlabClient.getIssues(projectPath, first);
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(issues, null, 2),
-              },
-            ],
-          };
-        }
 
-        case 'list_merge_requests': {
-          const projectPath = args?.projectPath as string;
-          if (!projectPath) {
-            throw new Error('projectPath is required');
-          }
-          const first = (args?.first as number) || 20;
-          const mergeRequests = await gitlabClient.getMergeRequests(projectPath, first);
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(mergeRequests, null, 2),
-              },
-            ],
-          };
-        }
+          const variables = (args?.variables as Record<string, unknown>) || undefined;
+          const result = await gitlabClient.executeMutation(mutation, variables);
 
-        case 'list_pipelines': {
-          const projectPath = args?.projectPath as string;
-          if (!projectPath) {
-            throw new Error('projectPath is required');
+          if (result.errors && result.errors.length > 0) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      data: result.data,
+                      errors: result.errors,
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+              isError: true,
+            };
           }
-          const first = (args?.first as number) || 20;
-          const pipelines = await gitlabClient.getPipelines(projectPath, first);
+
           return {
             content: [
               {
                 type: 'text',
-                text: JSON.stringify(pipelines, null, 2),
+                text: JSON.stringify(result.data, null, 2),
               },
             ],
           };
