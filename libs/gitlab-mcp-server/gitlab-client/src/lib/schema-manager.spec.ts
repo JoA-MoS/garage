@@ -51,15 +51,53 @@ type User {
       (fs.readFile as jest.Mock).mockRejectedValue(new Error('File not found'));
       mockFetch.mockResolvedValue({
         ok: true,
-        text: async () => mockSchema,
+        json: async () => ({
+          data: {
+            __schema: {
+              queryType: { name: 'Query' },
+              mutationType: { name: 'Mutation' },
+              types: [
+                {
+                  kind: 'OBJECT',
+                  name: 'Query',
+                  fields: [
+                    { name: 'currentUser', type: { kind: 'OBJECT', name: 'User' }, args: [] },
+                    { name: 'project', type: { kind: 'OBJECT', name: 'Project' }, args: [{ name: 'fullPath', type: { kind: 'NON_NULL', ofType: { kind: 'SCALAR', name: 'ID' } } }] },
+                  ],
+                },
+                {
+                  kind: 'OBJECT',
+                  name: 'Mutation',
+                  fields: [
+                    { name: 'createIssue', type: { kind: 'OBJECT', name: 'CreateIssuePayload' }, args: [{ name: 'input', type: { kind: 'NON_NULL', ofType: { kind: 'INPUT_OBJECT', name: 'CreateIssueInput' } } }] },
+                    { name: 'updateMergeRequest', type: { kind: 'OBJECT', name: 'UpdateMergeRequestPayload' }, args: [{ name: 'input', type: { kind: 'NON_NULL', ofType: { kind: 'INPUT_OBJECT', name: 'UpdateMergeRequestInput' } } }] },
+                  ],
+                },
+                {
+                  kind: 'OBJECT',
+                  name: 'User',
+                  fields: [
+                    { name: 'id', type: { kind: 'NON_NULL', ofType: { kind: 'SCALAR', name: 'ID' } }, args: [] },
+                    { name: 'name', type: { kind: 'SCALAR', name: 'String' }, args: [] },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
       });
 
       await schemaManager.initialize();
 
       expect(schemaManager.hasSchema()).toBe(true);
-      expect(schemaManager.getSchema()).toBe(mockSchema);
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://gitlab.com/api/graphql/reference/gitlab_schema.graphql'
+        'https://gitlab.com/api/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+          }),
+        })
       );
     });
 
@@ -67,7 +105,22 @@ type User {
       (fs.readFile as jest.Mock).mockRejectedValue(new Error('File not found'));
       mockFetch.mockResolvedValue({
         ok: true,
-        text: async () => mockSchema,
+        json: async () => ({
+          data: {
+            __schema: {
+              queryType: { name: 'Query' },
+              types: [
+                {
+                  kind: 'OBJECT',
+                  name: 'Query',
+                  fields: [
+                    { name: 'currentUser', type: { kind: 'OBJECT', name: 'User' }, args: [] },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
       });
 
       await schemaManager.initialize();
@@ -75,7 +128,7 @@ type User {
       expect(fs.mkdir).toHaveBeenCalled();
       expect(fs.writeFile).toHaveBeenCalledWith(
         expect.stringContaining('gitlab-schema.graphql'),
-        mockSchema,
+        expect.stringContaining('type Query'),
         'utf-8'
       );
     });
@@ -96,7 +149,7 @@ type User {
 
     it('should handle custom cache directory', () => {
       const customCacheDir = '/custom/cache/dir';
-      const manager = new SchemaManager('https://gitlab.com', customCacheDir);
+      const manager = new SchemaManager('https://gitlab.com', undefined, customCacheDir);
 
       expect(manager).toBeDefined();
     });
