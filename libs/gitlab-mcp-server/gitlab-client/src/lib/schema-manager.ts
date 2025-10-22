@@ -55,6 +55,12 @@ export class SchemaManager {
   private readonly gitlabUrl: string;
   private readonly token?: string;
 
+  /**
+   * Creates a new SchemaManager.
+   * @param gitlabUrl The base URL of the GitLab instance.
+   * @param token Optional. The personal access token for authentication. If provided, authentication is included in the schema download request.
+   * @param cacheDir Optional. The directory to cache the downloaded schema. Defaults to a `.gitlab-cache` directory in the project root if not specified.
+   */
   constructor(gitlabUrl: string, token?: string, cacheDir?: string) {
     this.gitlabUrl = gitlabUrl.replace(/\/$/, '');
     this.token = token;
