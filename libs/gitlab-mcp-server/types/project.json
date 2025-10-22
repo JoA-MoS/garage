@@ -5,16 +5,6 @@
   "projectType": "library",
   "tags": [],
   "targets": {
-    "build": {
-      "executor": "@nx/js:tsc",
-      "outputs": ["{options.outputPath}"],
-      "options": {
-        "outputPath": "dist/libs/gitlab-mcp-server/types",
-        "main": "libs/gitlab-mcp-server/types/src/index.ts",
-        "tsConfig": "libs/gitlab-mcp-server/types/tsconfig.lib.json",
-        "assets": ["libs/gitlab-mcp-server/types/*.md"]
-      }
-    },
     "lint": {
       "executor": "@nx/eslint:lint"
     },

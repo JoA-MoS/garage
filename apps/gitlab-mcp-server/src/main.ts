@@ -1,6 +1,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { GitLabClient } from '@garage/gitlab-client';
+
+import { GitLabClient, SchemaManager } from '@garage/gitlab-client';
 import { registerMcpHandlers } from '@garage/mcp-handlers';
 
 async function main() {
@@ -12,6 +13,11 @@ async function main() {
     console.error('Error: GITLAB_TOKEN environment variable is required');
     process.exit(1);
   }
+
+  // Initialize schema manager first
+  console.error('Initializing GitLab schema...');
+  const schemaManager = new SchemaManager(gitlabUrl, gitlabToken);
+  await schemaManager.initialize();
 
   // Create GitLab client
   const gitlabClient = new GitLabClient({
@@ -28,12 +34,13 @@ async function main() {
     {
       capabilities: {
         tools: {},
+        resources: {},
       },
     }
   );
 
-  // Register MCP handlers
-  registerMcpHandlers(server, gitlabClient);
+  // Register MCP handlers with both client and schema manager
+  registerMcpHandlers(server, gitlabClient, schemaManager);
 
   // Set up error handlers
   server.onerror = (error) => {

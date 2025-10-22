@@ -8,11 +8,12 @@ This MCP server enables AI assistants and other MCP clients to interact with Git
 
 ## Key Features
 
-- **Schema Introspection**: Fetch the complete GitLab GraphQL schema to understand all available operations
-- **Dynamic Query Construction**: LLM can construct exact queries for needed data based on the schema
+- **Schema Caching**: Automatically downloads and caches GitLab GraphQL schema at startup
+- **Dynamic Query Construction**: AI can construct exact queries for needed data based on the schema
 - **Flexible Data Retrieval**: Fetch related data in single requests via nested GraphQL queries
 - **Mutation Support**: Create, update, and delete GitLab resources using GraphQL mutations
 - **Apollo Client Integration**: Leverages Apollo Client for robust GraphQL operations
+- **Resource-Based Schema Access**: Schema exposed as a resource for AI to reference when needed
 
 ## Prerequisites
 
@@ -57,33 +58,37 @@ GITLAB_TOKEN=your_token pnpm nx serve gitlab-mcp-server
 GITLAB_TOKEN=your_token node dist/apps/gitlab-mcp-server/main.js
 ```
 
+## Schema Management
+
+The server automatically downloads and caches the GitLab GraphQL schema at startup:
+
+1. **First Run**: Downloads schema from GitLab's published schema endpoint (`/api/graphql/reference/gitlab_schema.graphql`)
+2. **Subsequent Runs**: Loads schema from cache (`.gitlab-cache/gitlab-schema.graphql`)
+3. **Schema Updates**: Delete the cache directory to force a re-download with updated schema
+
+The schema is exposed as a resource (`gitlab://schema`) that AI assistants can access when needed, eliminating the need for schema introspection queries that can exceed GitLab's complexity limits.
+
+## Available Resources
+
+### gitlab://schema
+
+The complete GitLab GraphQL schema in SDL format. Available as a resource for AI to reference.
+
+**Access:** Read the resource `gitlab://schema` to get the full schema definition.
+
 ## Available Tools
-
-### get_gitlab_schema
-
-Get the complete GitLab GraphQL schema in SDL (Schema Definition Language) format. This is the starting point - use this to discover all available queries, mutations, types, and fields.
-
-**Parameters:** None
-
-**Example:**
-```json
-{
-  "name": "get_gitlab_schema",
-  "arguments": {}
-}
-```
-
-**Response:** The complete GitLab GraphQL schema as a string, showing all types, queries, and mutations available.
 
 ### graphql_query
 
 Execute a GraphQL query against the GitLab API. Construct queries based on the schema to fetch exactly the data you need.
 
 **Parameters:**
+
 - `query` (required): The GraphQL query string
 - `variables` (optional): Variables for parameterized queries
 
 **Example - Get Current User:**
+
 ```json
 {
   "name": "graphql_query",
@@ -94,6 +99,7 @@ Execute a GraphQL query against the GitLab API. Construct queries based on the s
 ```
 
 **Example - Get Project with Issues:**
+
 ```json
 {
   "name": "graphql_query",
@@ -108,6 +114,7 @@ Execute a GraphQL query against the GitLab API. Construct queries based on the s
 ```
 
 **Example - Get Projects with Nested Data:**
+
 ```json
 {
   "name": "graphql_query",
@@ -122,10 +129,12 @@ Execute a GraphQL query against the GitLab API. Construct queries based on the s
 Execute a GraphQL mutation to modify data in GitLab (create issues, update merge requests, etc.).
 
 **Parameters:**
+
 - `mutation` (required): The GraphQL mutation string
 - `variables` (optional): Variables for the mutation input
 
 **Example - Create an Issue:**
+
 ```json
 {
   "name": "graphql_mutate",
@@ -154,16 +163,18 @@ The application is structured using NX workspace best practices with the followi
 
 This implementation follows a schema-driven architecture as described in [The Future of MCP is GraphQL](https://www.apollographql.com/blog/the-future-of-mcp-is-graphql):
 
-1. **Schema Discovery**: The LLM introspects the GraphQL schema to understand available operations
-2. **Dynamic Query Construction**: Instead of dozens of static tools, the LLM constructs exact queries based on needs
+1. **Schema Loading**: The server downloads and caches the GitLab schema at startup, avoiding complexity limit issues
+2. **Dynamic Query Construction**: Instead of dozens of static tools, the AI constructs exact queries based on needs
 3. **Flexible Data Retrieval**: Fetch related data in single requests, reducing tool invocation round-trips
 4. **Simplified Server**: The MCP server becomes a thin wrapper around the GraphQL endpoint
 
 This approach provides:
-- Fewer tools to maintain (3 instead of many static tools)
-- Self-documenting API surface through the schema
+
+- Fewer tools to maintain (2 tools instead of many static tools)
+- Self-documenting API surface through the schema (exposed as a resource)
 - No over/under-fetching of data
 - GraphQL layer handles validation, execution, and error handling
+- Avoids GitLab's query complexity limits by downloading schema from published endpoint
 
 ## Development
 
@@ -196,6 +207,7 @@ pnpm nx build gitlab-mcp-server
 ### Authentication Errors
 
 If you receive authentication errors:
+
 - Verify your GitLab token is valid and has not expired
 - Ensure the token has the required scopes (`api` or `read_api`)
 - Check that the `GITLAB_URL` is correct for your GitLab instance
@@ -203,6 +215,7 @@ If you receive authentication errors:
 ### GraphQL Errors
 
 If you receive GraphQL errors:
+
 - Verify the project path format is correct (e.g., "username/project-name")
 - Check that you have access to the requested resources
 - Ensure the GitLab instance supports the GraphQL fields being queried

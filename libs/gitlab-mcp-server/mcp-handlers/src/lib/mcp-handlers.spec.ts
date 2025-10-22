@@ -5,7 +5,7 @@ describe('mcpHandlers', () => {
     expect(typeof registerMcpHandlers).toBe('function');
   });
 
-  it('should accept server and gitlab client parameters', () => {
-    expect(registerMcpHandlers.length).toBe(2);
+  it('should accept server, gitlab client, and schema manager parameters', () => {
+    expect(registerMcpHandlers.length).toBe(3);
   });
 });
