@@ -51,6 +51,9 @@ Thumbs.db
 .serverless
 .webpack
 
+# GitLab MCP Server cache
+.gitlab-cache/
+
 .cursor/rules/nx-rules.mdc
 
 .nx/cache

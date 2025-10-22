@@ -24,10 +24,6 @@ describe('GitLabClient', () => {
     expect(clientWithSlash).toBeInstanceOf(GitLabClient);
   });
 
-  it('should have getSchema method', () => {
-    expect(typeof client.getSchema).toBe('function');
-  });
-
   it('should have executeQuery method', () => {
     expect(typeof client.executeQuery).toBe('function');
   });

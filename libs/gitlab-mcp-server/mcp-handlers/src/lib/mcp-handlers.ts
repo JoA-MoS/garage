@@ -1,28 +1,107 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import {
   CallToolRequestSchema,
+  ListResourcesRequestSchema,
   ListToolsRequestSchema,
+  ReadResourceRequestSchema,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
-import { GitLabClient } from '@garage/gitlab-client';
+import { GitLabClient, SchemaManager } from '@garage/gitlab-client';
 
-export function registerMcpHandlers(server: Server, gitlabClient: GitLabClient) {
+export function registerMcpHandlers(
+  server: Server,
+  gitlabClient: GitLabClient,
+  schemaManager: SchemaManager
+) {
+  // List available resources - expose the schema as a resource
+  server.setRequestHandler(ListResourcesRequestSchema, async () => {
+    if (!schemaManager.hasSchema()) {
+      return { resources: [] };
+    }
+
+    return {
+      resources: [
+        {
+          uri: 'gitlab://schema',
+          name: 'GitLab GraphQL Schema',
+          description:
+            'The complete GitLab GraphQL schema in SDL format. Contains all available types, queries, and mutations.',
+          mimeType: 'text/plain',
+        },
+      ],
+    };
+  });
+
+  // Read resource content
+  server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    const { uri } = request.params;
+
+    if (uri === 'gitlab://schema') {
+      const schema = schemaManager.getSchema();
+      if (!schema) {
+        throw new Error('Schema not available');
+      }
+
+      return {
+        contents: [
+          {
+            uri: 'gitlab://schema',
+            mimeType: 'text/plain',
+            text: schema,
+          },
+        ],
+      };
+    }
+
+    throw new Error(`Unknown resource: ${uri}`);
+  });
+
   // List available tools - now schema-driven with fewer, more powerful tools
   server.setRequestHandler(ListToolsRequestSchema, async () => {
+    // Get schema info to enhance tool descriptions
+    const { queries, mutations, hasSchema } =
+      schemaManager.getOperationsSummary();
+
+    // Build enhanced descriptions based on available schema
+    const queryExamples = queries.slice(0, 10).join(', ');
+    const mutationExamples = mutations.slice(0, 10).join(', ');
+
+    const queryDescription = hasSchema
+      ? `Execute a GraphQL query against the GitLab API. The schema is loaded and available for reference. 
+         
+         Available root queries include: ${queryExamples}${
+          queries.length > 10 ? ', and more...' : ''
+        }
+         
+         This allows flexible data retrieval - you can fetch exactly the data needed, include nested relationships, 
+         and use GraphQL features like fragments and aliases. Supports variables for parameterized queries.
+         
+         Example queries:
+         - currentUser { id username name }
+         - project(fullPath: "group/project") { id name description }
+         - projects(membership: true, first: 10) { nodes { id name } }`
+      : 'Execute a GraphQL query against the GitLab API. Construct queries based on GitLab GraphQL documentation. This allows flexible data retrieval - you can fetch exactly the data needed, include nested relationships, and use GraphQL features like fragments and aliases. Supports variables for parameterized queries.';
+
+    const mutationDescription = hasSchema
+      ? `Execute a GraphQL mutation against the GitLab API to modify data. The schema is loaded and available for reference.
+         
+         Available mutations include: ${mutationExamples}${
+          mutations.length > 10 ? ', and more...' : ''
+        }
+         
+         Use this to create issues, update merge requests, add comments, manage labels, and more. 
+         Supports variables for parameterized mutations.
+         
+         Example mutations:
+         - createIssue(input: {...}) { issue { id title } }
+         - updateMergeRequest(input: {...}) { mergeRequest { id state } }
+         - createNote(input: {...}) { note { id body } }`
+      : 'Execute a GraphQL mutation against the GitLab API to modify data. Use this to create issues, update merge requests, etc. Construct mutations based on GitLab GraphQL documentation. Supports variables for parameterized mutations.';
+
     const tools: Tool[] = [
       {
-        name: 'get_gitlab_schema',
-        description:
-          'Get the complete GitLab GraphQL schema in SDL format. Use this to understand what queries and mutations are available, what fields exist on types, and how to construct queries. The schema is self-documenting and shows all available operations.',
-        inputSchema: {
-          type: 'object',
-          properties: {},
-        },
-      },
-      {
         name: 'graphql_query',
-        description:
-          'Execute a GraphQL query against the GitLab API. Construct queries based on the schema obtained from get_gitlab_schema. This allows flexible data retrieval - you can fetch exactly the data needed, include nested relationships, and use GraphQL features like fragments and aliases. Supports variables for parameterized queries.',
+        description: queryDescription,
         inputSchema: {
           type: 'object',
           properties: {
@@ -42,8 +121,7 @@ export function registerMcpHandlers(server: Server, gitlabClient: GitLabClient) 
       },
       {
         name: 'graphql_mutate',
-        description:
-          'Execute a GraphQL mutation against the GitLab API. Use this to modify data - create issues, update merge requests, etc. Construct mutations based on the schema. Supports variables for parameterized mutations.',
+        description: mutationDescription,
         inputSchema: {
           type: 'object',
           properties: {
@@ -72,25 +150,14 @@ export function registerMcpHandlers(server: Server, gitlabClient: GitLabClient) 
 
     try {
       switch (name) {
-        case 'get_gitlab_schema': {
-          const schema = await gitlabClient.getSchema();
-          return {
-            content: [
-              {
-                type: 'text',
-                text: schema,
-              },
-            ],
-          };
-        }
-
         case 'graphql_query': {
-          const query = args?.query as string;
+          const query = args?.['query'] as string;
           if (!query) {
             throw new Error('query parameter is required');
           }
 
-          const variables = (args?.variables as Record<string, unknown>) || undefined;
+          const variables =
+            (args?.['variables'] as Record<string, unknown>) || undefined;
           const result = await gitlabClient.executeQuery(query, variables);
 
           if (result.errors && result.errors.length > 0) {
@@ -123,13 +190,17 @@ export function registerMcpHandlers(server: Server, gitlabClient: GitLabClient) 
         }
 
         case 'graphql_mutate': {
-          const mutation = args?.mutation as string;
+          const mutation = args?.['mutation'] as string;
           if (!mutation) {
             throw new Error('mutation parameter is required');
           }
 
-          const variables = (args?.variables as Record<string, unknown>) || undefined;
-          const result = await gitlabClient.executeMutation(mutation, variables);
+          const variables =
+            (args?.['variables'] as Record<string, unknown>) || undefined;
+          const result = await gitlabClient.executeMutation(
+            mutation,
+            variables
+          );
 
           if (result.errors && result.errors.length > 0) {
             return {
@@ -164,7 +235,8 @@ export function registerMcpHandlers(server: Server, gitlabClient: GitLabClient) 
           throw new Error(`Unknown tool: ${name}`);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       return {
         content: [
           {
@@ -177,4 +249,3 @@ export function registerMcpHandlers(server: Server, gitlabClient: GitLabClient) 
     }
   });
 }
-

@@ -1,15 +1,8 @@
 import { ApolloClient, InMemoryCache, HttpLink, gql } from '@apollo/client';
-import {
-  getIntrospectionQuery,
-  buildClientSchema,
-  printSchema,
-  IntrospectionQuery,
-} from 'graphql';
 import { GitLabClientConfig } from '@garage/types';
 
 export class GitLabClient {
-  private readonly client: ApolloClient<unknown>;
-  private schemaCache: string | null = null;
+  private readonly client: ApolloClient;
 
   constructor(config: GitLabClientConfig) {
     const baseUrl = config.gitlabUrl.replace(/\/$/, '');
@@ -33,30 +26,6 @@ export class GitLabClient {
   }
 
   /**
-   * Get the GitLab GraphQL schema as a string (SDL format)
-   * This allows the LLM to understand what queries are possible
-   */
-  async getSchema(): Promise<string> {
-    if (this.schemaCache) {
-      return this.schemaCache;
-    }
-
-    try {
-      const result = await this.client.query<IntrospectionQuery>({
-        query: gql(getIntrospectionQuery()),
-      });
-
-      const schema = buildClientSchema(result.data);
-      this.schemaCache = printSchema(schema);
-      return this.schemaCache;
-    } catch (error) {
-      throw new Error(
-        `Failed to fetch GitLab schema: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-  }
-
-  /**
    * Execute an arbitrary GraphQL query
    * This is the core method that enables schema-driven queries
    */
@@ -72,7 +41,7 @@ export class GitLabClient {
 
       return {
         data: result.data,
-        errors: result.errors,
+        errors: result.error ? [result.error] : undefined,
       };
     } catch (error) {
       // Handle GraphQL errors
@@ -86,7 +55,9 @@ export class GitLabClient {
 
       // Handle network or other errors
       throw new Error(
-        `Query execution failed: ${error instanceof Error ? error.message : String(error)}`
+        `Query execution failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
     }
   }
@@ -106,7 +77,7 @@ export class GitLabClient {
 
       return {
         data: result.data,
-        errors: result.errors,
+        errors: result.error ? [result.error] : undefined,
       };
     } catch (error) {
       // Handle GraphQL errors
@@ -120,9 +91,10 @@ export class GitLabClient {
 
       // Handle network or other errors
       throw new Error(
-        `Mutation execution failed: ${error instanceof Error ? error.message : String(error)}`
+        `Mutation execution failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
     }
   }
 }
-
