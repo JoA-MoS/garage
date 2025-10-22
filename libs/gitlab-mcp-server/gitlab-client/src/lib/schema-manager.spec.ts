@@ -153,7 +153,7 @@ type User {
       await manager.initialize();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://gitlab.com/api/graphql/reference/gitlab_schema.graphql'
+        'https://gitlab.com/api/graphql'
       );
     });
   });
