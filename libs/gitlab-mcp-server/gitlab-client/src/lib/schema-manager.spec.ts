@@ -147,7 +147,7 @@ type User {
       (fs.readFile as jest.Mock).mockRejectedValue(new Error('File not found'));
       mockFetch.mockResolvedValue({
         ok: true,
-        text: async () => mockSchema,
+        json: async () => mockSchema,
       });
 
       await manager.initialize();
