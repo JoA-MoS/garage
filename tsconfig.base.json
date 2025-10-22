@@ -21,11 +21,15 @@
       "@garage/campsite-watcher/recreation-gov": [
         "libs/campsite-watcher/recreation-gov/src/index.ts"
       ],
+      "@garage/gitlab-client": [
+        "libs/gitlab-mcp-server/gitlab-client/src/index.ts"
+      ],
+      "@garage/mcp-handlers": [
+        "libs/gitlab-mcp-server/mcp-handlers/src/index.ts"
+      ],
       "@garage/ng/lib-example": ["libs/ng/lib-example/src/index.ts"],
-      "@garage/wordle/core": ["libs/wordle/core/src/index.ts"],
-      "@garage/gitlab-client": ["libs/gitlab-mcp-server/gitlab-client/src/index.ts"],
-      "@garage/mcp-handlers": ["libs/gitlab-mcp-server/mcp-handlers/src/index.ts"],
-      "@garage/types": ["libs/gitlab-mcp-server/types/src/index.ts"]
+      "@garage/types": ["libs/gitlab-mcp-server/types/src/index.ts"],
+      "@garage/wordle/core": ["libs/wordle/core/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
