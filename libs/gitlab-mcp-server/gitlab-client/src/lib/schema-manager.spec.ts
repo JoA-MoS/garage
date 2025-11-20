@@ -1,8 +1,9 @@
 import { promises as fs } from 'fs';
 
+import { GitLabClient } from './gitlab-client';
 import { SchemaManager } from './schema-manager';
 
-// Mock fs and fetch
+// Mock fs
 jest.mock('fs', () => ({
   promises: {
     readFile: jest.fn(),
@@ -11,11 +12,12 @@ jest.mock('fs', () => ({
   },
 }));
 
-const mockFetch = jest.fn();
-global.fetch = mockFetch as never;
+// Mock GitLabClient
+jest.mock('./gitlab-client');
 
 describe('SchemaManager', () => {
   let schemaManager: SchemaManager;
+  let mockGitLabClient: jest.Mocked<GitLabClient>;
   const mockSchema = `type Query {
   currentUser: User
   project(fullPath: ID!): Project
@@ -33,7 +35,14 @@ type User {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    schemaManager = new SchemaManager('https://gitlab.com');
+
+    // Create a mock GitLabClient instance
+    mockGitLabClient = {
+      executeQuery: jest.fn(),
+      executeMutation: jest.fn(),
+    } as never;
+
+    schemaManager = new SchemaManager(mockGitLabClient);
   });
 
   describe('initialization', () => {
@@ -44,83 +53,132 @@ type User {
 
       expect(schemaManager.hasSchema()).toBe(true);
       expect(schemaManager.getSchema()).toBe(mockSchema);
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockGitLabClient.executeQuery).not.toHaveBeenCalled();
     });
 
     it('should download schema if cache is not available', async () => {
       (fs.readFile as jest.Mock).mockRejectedValue(new Error('File not found'));
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          data: {
-            __schema: {
-              queryType: { name: 'Query' },
-              mutationType: { name: 'Mutation' },
-              types: [
-                {
-                  kind: 'OBJECT',
-                  name: 'Query',
-                  fields: [
-                    { name: 'currentUser', type: { kind: 'OBJECT', name: 'User' }, args: [] },
-                    { name: 'project', type: { kind: 'OBJECT', name: 'Project' }, args: [{ name: 'fullPath', type: { kind: 'NON_NULL', ofType: { kind: 'SCALAR', name: 'ID' } } }] },
-                  ],
-                },
-                {
-                  kind: 'OBJECT',
-                  name: 'Mutation',
-                  fields: [
-                    { name: 'createIssue', type: { kind: 'OBJECT', name: 'CreateIssuePayload' }, args: [{ name: 'input', type: { kind: 'NON_NULL', ofType: { kind: 'INPUT_OBJECT', name: 'CreateIssueInput' } } }] },
-                    { name: 'updateMergeRequest', type: { kind: 'OBJECT', name: 'UpdateMergeRequestPayload' }, args: [{ name: 'input', type: { kind: 'NON_NULL', ofType: { kind: 'INPUT_OBJECT', name: 'UpdateMergeRequestInput' } } }] },
-                  ],
-                },
-                {
-                  kind: 'OBJECT',
-                  name: 'User',
-                  fields: [
-                    { name: 'id', type: { kind: 'NON_NULL', ofType: { kind: 'SCALAR', name: 'ID' } }, args: [] },
-                    { name: 'name', type: { kind: 'SCALAR', name: 'String' }, args: [] },
-                  ],
-                },
-              ],
-            },
+      mockGitLabClient.executeQuery.mockResolvedValue({
+        data: {
+          __schema: {
+            queryType: { name: 'Query' },
+            mutationType: { name: 'Mutation' },
+            types: [
+              {
+                kind: 'OBJECT',
+                name: 'Query',
+                fields: [
+                  {
+                    name: 'currentUser',
+                    type: { kind: 'OBJECT', name: 'User' },
+                    args: [],
+                  },
+                  {
+                    name: 'project',
+                    type: { kind: 'OBJECT', name: 'Project' },
+                    args: [
+                      {
+                        name: 'fullPath',
+                        type: {
+                          kind: 'NON_NULL',
+                          ofType: { kind: 'SCALAR', name: 'ID' },
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                kind: 'OBJECT',
+                name: 'Mutation',
+                fields: [
+                  {
+                    name: 'createIssue',
+                    type: { kind: 'OBJECT', name: 'CreateIssuePayload' },
+                    args: [
+                      {
+                        name: 'input',
+                        type: {
+                          kind: 'NON_NULL',
+                          ofType: {
+                            kind: 'INPUT_OBJECT',
+                            name: 'CreateIssueInput',
+                          },
+                        },
+                      },
+                    ],
+                  },
+                  {
+                    name: 'updateMergeRequest',
+                    type: { kind: 'OBJECT', name: 'UpdateMergeRequestPayload' },
+                    args: [
+                      {
+                        name: 'input',
+                        type: {
+                          kind: 'NON_NULL',
+                          ofType: {
+                            kind: 'INPUT_OBJECT',
+                            name: 'UpdateMergeRequestInput',
+                          },
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                kind: 'OBJECT',
+                name: 'User',
+                fields: [
+                  {
+                    name: 'id',
+                    type: {
+                      kind: 'NON_NULL',
+                      ofType: { kind: 'SCALAR', name: 'ID' },
+                    },
+                    args: [],
+                  },
+                  {
+                    name: 'name',
+                    type: { kind: 'SCALAR', name: 'String' },
+                    args: [],
+                  },
+                ],
+              },
+            ],
           },
-        }),
+        },
       });
 
       await schemaManager.initialize();
 
       expect(schemaManager.hasSchema()).toBe(true);
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://gitlab.com/api/graphql',
-        expect.objectContaining({
-          method: 'POST',
-          headers: expect.objectContaining({
-            'Content-Type': 'application/json',
-          }),
-        })
+      expect(mockGitLabClient.executeQuery).toHaveBeenCalledWith(
+        expect.stringContaining('IntrospectionQuery')
       );
     });
 
     it('should cache downloaded schema', async () => {
       (fs.readFile as jest.Mock).mockRejectedValue(new Error('File not found'));
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          data: {
-            __schema: {
-              queryType: { name: 'Query' },
-              types: [
-                {
-                  kind: 'OBJECT',
-                  name: 'Query',
-                  fields: [
-                    { name: 'currentUser', type: { kind: 'OBJECT', name: 'User' }, args: [] },
-                  ],
-                },
-              ],
-            },
+      mockGitLabClient.executeQuery.mockResolvedValue({
+        data: {
+          __schema: {
+            queryType: { name: 'Query' },
+            types: [
+              {
+                kind: 'OBJECT',
+                name: 'Query',
+                fields: [
+                  {
+                    name: 'currentUser',
+                    type: { kind: 'OBJECT', name: 'User' },
+                    args: [],
+                  },
+                ],
+              },
+            ],
           },
-        }),
+        },
       });
 
       await schemaManager.initialize();
@@ -135,10 +193,9 @@ type User {
 
     it('should handle download failure gracefully', async () => {
       (fs.readFile as jest.Mock).mockRejectedValue(new Error('File not found'));
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 404,
-        statusText: 'Not Found',
+      mockGitLabClient.executeQuery.mockResolvedValue({
+        data: null,
+        errors: [{ message: 'GraphQL error' }],
       });
 
       await schemaManager.initialize();
@@ -149,7 +206,7 @@ type User {
 
     it('should handle custom cache directory', () => {
       const customCacheDir = '/custom/cache/dir';
-      const manager = new SchemaManager('https://gitlab.com', undefined, customCacheDir);
+      const manager = new SchemaManager(mockGitLabClient, customCacheDir);
 
       expect(manager).toBeDefined();
     });
@@ -186,7 +243,11 @@ type User {
     });
 
     it('should return empty arrays when schema is not available', () => {
-      const emptyManager = new SchemaManager('https://gitlab.com');
+      const emptyClient = {
+        executeQuery: jest.fn(),
+        executeMutation: jest.fn(),
+      } as never;
+      const emptyManager = new SchemaManager(emptyClient);
 
       expect(emptyManager.getAvailableQueries()).toEqual([]);
       expect(emptyManager.getAvailableMutations()).toEqual([]);
@@ -195,18 +256,23 @@ type User {
   });
 
   describe('URL handling', () => {
-    it('should strip trailing slash from GitLab URL', async () => {
-      const manager = new SchemaManager('https://gitlab.com/');
+    it('should work with GitLabClient regardless of URL format', async () => {
+      // The URL handling is now done by GitLabClient, not SchemaManager
+      const manager = new SchemaManager(mockGitLabClient);
       (fs.readFile as jest.Mock).mockRejectedValue(new Error('File not found'));
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => mockSchema,
+      mockGitLabClient.executeQuery.mockResolvedValue({
+        data: {
+          __schema: {
+            queryType: { name: 'Query' },
+            types: [],
+          },
+        },
       });
 
       await manager.initialize();
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://gitlab.com/api/graphql'
+      expect(mockGitLabClient.executeQuery).toHaveBeenCalledWith(
+        expect.stringContaining('IntrospectionQuery')
       );
     });
   });

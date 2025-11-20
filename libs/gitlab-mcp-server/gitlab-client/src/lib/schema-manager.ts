@@ -1,6 +1,8 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
 
+import { GitLabClient } from './gitlab-client';
+
 // GraphQL Introspection Types
 interface IntrospectionType {
   kind: string;
@@ -52,22 +54,19 @@ interface IntrospectionSchema {
 export class SchemaManager {
   private schema: string | null = null;
   private readonly schemaPath: string;
-  private readonly gitlabUrl: string;
-  private readonly token?: string;
+  private readonly gitlabClient: GitLabClient;
 
   /**
    * Creates a new SchemaManager.
-   * @param gitlabUrl The base URL of the GitLab instance.
-   * @param token Optional. The personal access token for authentication. If provided, authentication is included in the schema download request.
-   * @param cacheDir Optional. The directory to cache the downloaded schema. Defaults to a `.gitlab-cache` directory in the project root if not specified.
+   * @param gitlabClient The GitLabClient instance to use for schema introspection.
+   * @param cacheDir Optional. The directory to cache the downloaded schema. Defaults to a `schema` directory relative to this package if not specified.
    */
-  constructor(gitlabUrl: string, token?: string, cacheDir?: string) {
-    this.gitlabUrl = gitlabUrl.replace(/\/$/, '');
-    this.token = token;
-    // Default to a schemas directory in the project root
+  constructor(gitlabClient: GitLabClient, cacheDir?: string) {
+    this.gitlabClient = gitlabClient;
+    // Default to a schema directory relative to the package (works when installed as npm package)
     this.schemaPath = cacheDir
       ? join(cacheDir, 'gitlab-schema.graphql')
-      : join(process.cwd(), '.gitlab-cache', 'gitlab-schema.graphql');
+      : join(__dirname, 'schema', 'gitlab-schema.graphql');
   }
 
   /**
@@ -129,8 +128,6 @@ export class SchemaManager {
    * Download schema from GitLab using GraphQL introspection
    */
   private async downloadSchema(): Promise<string> {
-    const graphqlUrl = `${this.gitlabUrl}/api/graphql`;
-
     // GraphQL introspection query to get the full schema
     const introspectionQuery = `
       query IntrospectionQuery {
@@ -226,27 +223,7 @@ export class SchemaManager {
       }
     `;
 
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
-
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-
-    const response = await fetch(graphqlUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ query: introspectionQuery }),
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Failed to download schema: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const result = await response.json();
+    const result = await this.gitlabClient.executeQuery(introspectionQuery);
 
     if (result.errors) {
       throw new Error(
@@ -254,12 +231,18 @@ export class SchemaManager {
       );
     }
 
-    if (!result.data?.__schema) {
+    if (
+      !result.data ||
+      typeof result.data !== 'object' ||
+      !('__schema' in result.data)
+    ) {
       throw new Error('Invalid introspection result: missing __schema');
     }
 
     // Convert introspection result to SDL (Schema Definition Language)
-    const schema = this.introspectionToSDL(result.data.__schema);
+    const schema = this.introspectionToSDL(
+      result.data.__schema as IntrospectionSchema
+    );
 
     if (!schema || schema.trim().length === 0) {
       throw new Error('Downloaded schema is empty');
