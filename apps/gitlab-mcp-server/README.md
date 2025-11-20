@@ -15,6 +15,26 @@ This MCP server enables AI assistants and other MCP clients to interact with Git
 - **Apollo Client Integration**: Leverages Apollo Client for robust GraphQL operations
 - **Resource-Based Schema Access**: Schema exposed as a resource for AI to reference when needed
 
+## Installation
+
+### Global Installation (Recommended)
+
+Install globally using npm or pnpm:
+
+```bash
+npm install -g gitlab-mcp-server
+# or
+pnpm add -g gitlab-mcp-server
+```
+
+### Using npx (No Installation Required)
+
+Run directly without installation:
+
+```bash
+npx gitlab-mcp-server
+```
+
 ## Prerequisites
 
 - Node.js v20 or higher
@@ -41,21 +61,64 @@ GITLAB_TOKEN=your_gitlab_personal_access_token
 GITLAB_URL=https://gitlab.com  # Optional, defaults to gitlab.com
 ```
 
-### 3. Build the Application
+### 3. Run the Server
+
+#### Using npx (No Installation)
+
+```bash
+GITLAB_TOKEN=your_token npx gitlab-mcp-server
+```
+
+#### Using Global Installation
+
+```bash
+GITLAB_TOKEN=your_token gitlab-mcp-server
+```
+
+#### Development (From Workspace)
 
 ```bash
 # From the workspace root
 pnpm nx build gitlab-mcp-server
+
+# Run the built version
+GITLAB_TOKEN=your_token node dist/apps/gitlab-mcp-server/main.js
 ```
 
-### 4. Run the Server
+## Publishing to npm
+
+To publish this package to npm:
+
+### 1. Build the Package
 
 ```bash
-# From the workspace root
-GITLAB_TOKEN=your_token pnpm nx serve gitlab-mcp-server
+# From workspace root
+pnpm nx build gitlab-mcp-server
+```
 
-# Or using the built version
-GITLAB_TOKEN=your_token node dist/apps/gitlab-mcp-server/main.js
+### 2. Navigate to Build Output
+
+```bash
+cd dist/apps/gitlab-mcp-server
+```
+
+### 3. Publish
+
+```bash
+# For first-time publish
+npm publish --access public
+
+# For scoped packages (@your-org/gitlab-mcp-server)
+npm publish
+```
+
+### 4. Update Version
+
+Before publishing updates:
+
+```bash
+# In apps/gitlab-mcp-server/package.json, update version
+# Then rebuild and publish
 ```
 
 ## Schema Management

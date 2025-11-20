@@ -1,6 +1,7 @@
+#!/usr/bin/env node
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-
 import { GitLabClient, SchemaManager } from '@garage/gitlab-client';
 import { registerMcpHandlers } from '@garage/mcp-handlers';
 
@@ -14,16 +15,16 @@ async function main() {
     process.exit(1);
   }
 
-  // Initialize schema manager first
-  console.error('Initializing GitLab schema...');
-  const schemaManager = new SchemaManager(gitlabUrl, gitlabToken);
-  await schemaManager.initialize();
-
   // Create GitLab client
   const gitlabClient = new GitLabClient({
     gitlabUrl,
     gitlabToken,
   });
+
+  // Initialize schema manager
+  console.error('Initializing GitLab schema...');
+  const schemaManager = new SchemaManager(gitlabClient);
+  await schemaManager.initialize();
 
   // Create MCP server
   const server = new Server(

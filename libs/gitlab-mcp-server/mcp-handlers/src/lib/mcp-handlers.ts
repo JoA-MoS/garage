@@ -67,15 +67,15 @@ export function registerMcpHandlers(
     const mutationExamples = mutations.slice(0, 10).join(', ');
 
     const queryDescription = hasSchema
-      ? `Execute a GraphQL query against the GitLab API. The schema is loaded and available for reference. 
-         
+      ? `Execute a GraphQL query against the GitLab API. The schema is loaded and available for reference.
+
          Available root queries include: ${queryExamples}${
           queries.length > 10 ? ', and more...' : ''
         }
-         
-         This allows flexible data retrieval - you can fetch exactly the data needed, include nested relationships, 
+
+         This allows flexible data retrieval - you can fetch exactly the data needed, include nested relationships,
          and use GraphQL features like fragments and aliases. Supports variables for parameterized queries.
-         
+
          Example queries:
          - currentUser { id username name }
          - project(fullPath: "group/project") { id name description }
@@ -84,14 +84,14 @@ export function registerMcpHandlers(
 
     const mutationDescription = hasSchema
       ? `Execute a GraphQL mutation against the GitLab API to modify data. The schema is loaded and available for reference.
-         
+
          Available mutations include: ${mutationExamples}${
           mutations.length > 10 ? ', and more...' : ''
         }
-         
-         Use this to create issues, update merge requests, add comments, manage labels, and more. 
+
+         Use this to create issues, update merge requests, add comments, manage labels, and more.
          Supports variables for parameterized mutations.
-         
+
          Example mutations:
          - createIssue(input: {...}) { issue { id title } }
          - updateMergeRequest(input: {...}) { mergeRequest { id state } }
