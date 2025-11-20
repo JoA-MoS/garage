@@ -1,0 +1,25 @@
+{
+  "name": "atlassian-mcp-server",
+  "version": "0.0.1",
+  "description": "Atlassian MCP server for Model Context Protocol integration",
+  "author": "JoA-MoS",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "atlassian-mcp-server": "./main.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "atlassian",
+    "jira",
+    "confluence",
+    "graphql",
+    "server"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JoA-MoS/garage.git",
+    "directory": "apps/atlassian-mcp-server"
+  }
+}

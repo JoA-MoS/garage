@@ -1,0 +1,29 @@
+{
+  "name": "atlassian-mcp-handlers",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/atlassian-mcp-server/mcp-handlers/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/atlassian-mcp-server/mcp-handlers",
+        "main": "libs/atlassian-mcp-server/mcp-handlers/src/index.ts",
+        "tsConfig": "libs/atlassian-mcp-server/mcp-handlers/tsconfig.lib.json",
+        "assets": ["libs/atlassian-mcp-server/mcp-handlers/*.md"]
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "libs/atlassian-mcp-server/mcp-handlers/jest.config.ts"
+      }
+    }
+  }
+}
