@@ -2,7 +2,7 @@ import { ApolloClient, InMemoryCache, HttpLink, gql } from '@apollo/client';
 import { AtlassianClientConfig } from '@garage/atlassian-types';
 
 export class AtlassianClient {
-  private readonly client: ApolloClient<unknown>;
+  private readonly client: ApolloClient;
 
   constructor(config: AtlassianClientConfig) {
     const baseUrl = config.atlassianUrl.replace(/\/$/, '');
