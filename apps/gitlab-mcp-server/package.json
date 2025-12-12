@@ -1,0 +1,23 @@
+{
+  "name": "gitlab-mcp-server",
+  "version": "0.0.1",
+  "description": "GitLab MCP server for Model Context Protocol integration",
+  "author": "JoA-MoS",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "gitlab-mcp-server": "./main.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "gitlab",
+    "graphql",
+    "server"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JoA-MoS/garage.git",
+    "directory": "apps/gitlab-mcp-server"
+  }
+}
