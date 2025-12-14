@@ -18,16 +18,12 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Create app directory
 WORKDIR /app
 
-# Copy the built application from Nx build output
-# The build output includes main.js, package.json, and pnpm-lock.yaml
-COPY dist/apps/soccer-stats/api/package.json dist/apps/soccer-stats/api/pnpm-lock.yaml ./
+# Copy entire build output directory
+COPY dist/apps/soccer-stats/api ./
 
 # Install production dependencies only
 RUN pnpm install --prod --frozen-lockfile --ignore-scripts && \
     pnpm store prune
-
-# Copy the built application code
-COPY dist/apps/soccer-stats/api/*.js ./
 
 # Create non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \
