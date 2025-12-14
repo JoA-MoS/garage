@@ -85,6 +85,8 @@ When creating files that are generated, temporary, or outputs from tools/command
 - **NEVER CANCEL**: All commands complete quickly but always set timeouts of 300+ seconds for safety
 - **Build Outputs**: Nx uses intelligent caching - builds may not always create visible dist folders but still succeed
 
+**Note**: Linting and formatting are handled automatically by VSCode and git hooks (`lint --fix` and `prettier --write` run on save/commit). Focus on logic and functionality rather than style fixes.
+
 ### Working with Specific Projects
 
 - **Discover projects**: `pnpm nx show projects`
@@ -113,25 +115,29 @@ Always run these commands before committing changes:
 
 **Note**: Look for "Successfully ran target" messages - ignore exit code 1 caused by Nx Cloud warnings.
 
-### Manual Testing Scenarios
+**Important**: Linting and formatting are handled automatically by VSCode and git hooks (`lint --fix` and `prettier --write` run on save/commit). Focus on logic and functionality rather than style fixes.
 
-After making changes to applications, manually test by:
+## Development Workflow
+
+### Manual Testing (When Specifically Working on Testing)
+
+When specifically working on testing functionality, manually test by:
 
 **React Applications (chore-board-ui)**:
 
-- Build and validate: `pnpm nx build chore-board-ui`
+- Build to verify: `pnpm nx build chore-board-ui`
 - The chore board features drag-and-drop columns (To-Do, In-Progress, Done) with assignee circles
-- Test that build completes without errors (serve may fail in sandbox environments)
+- Serve for manual testing: `pnpm nx serve chore-board-ui` (if environment supports it)
 
 **Angular Applications (ng-example)**:
 
-- Build and validate: `pnpm nx build ng-example`
+- Build to verify: `pnpm nx build ng-example`
 - Contains Nx welcome component with example commands and documentation
-- Test that build completes without errors (serve may fail in sandbox environments)
+- Serve for manual testing: `pnpm nx serve ng-example` (if environment supports it)
 
 **Node.js Services (campsite-watcher)**:
 
-- Build and validate: `pnpm nx build campsite-watcher`
+- Build to verify: `pnpm nx build campsite-watcher`
 - Service monitors campsite availability and sends email notifications
 - Test service functionality: `pnpm nx serve campsite-watcher` (if environment supports it)
 
@@ -139,16 +145,18 @@ After making changes to applications, manually test by:
 
 - Build Docker images: `pnpm nx docker-build campsite-watcher`
 - Requires Docker daemon to be running
-- Validates that containerized applications can be packaged correctly
 
-### CI Validation
+### CI/CD Pipeline
 
-The GitHub Actions CI (.github/workflows/main.yml) will fail if:
+The GitHub Actions CI (.github/workflows/main.yml) handles:
 
-- Linting errors exist
-- Tests fail
-- Builds fail
-- Docker builds fail (for apps with docker-build target)
+- Linting (with `--fix`)
+- Formatting (with `prettier --write`)
+- Testing
+- Building
+- Docker builds (for apps with docker-build target)
+
+**Automatic Git Hooks**: `lint --fix` and `prettier --write` run automatically on every commit.
 
 ## Common Tasks
 
@@ -311,19 +319,14 @@ chore: update dependencies to latest versions
 For React applications, use the established pattern from `chore-board-ui`:
 
 **tailwind.config.js:**
+
 ```javascript
 const { join } = require('path');
 const { createGlobPatternsForDependencies } = require('@nx/react/tailwind');
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: [
-    join(
-      __dirname,
-      '{src,pages,components,app}/**/*!(*.stories|*.spec).{ts,tsx,html}'
-    ),
-    ...createGlobPatternsForDependencies(__dirname),
-  ],
+  content: [join(__dirname, '{src,pages,components,app}/**/*!(*.stories|*.spec).{ts,tsx,html}'), ...createGlobPatternsForDependencies(__dirname)],
   theme: {
     extend: {
       // Add custom theme extensions here
@@ -336,6 +339,7 @@ module.exports = {
 ```
 
 **postcss.config.js:**
+
 ```javascript
 const { join } = require('path');
 
@@ -354,15 +358,13 @@ module.exports = {
 For Angular applications, use the pattern from `ng-example`:
 
 **tailwind.config.js:**
+
 ```javascript
 const { join } = require('path');
 const { createGlobPatternsForDependencies } = require('@nx/angular/tailwind');
 
 module.exports = {
-  content: [
-    join(__dirname, 'src/**/!(*.stories|*.spec).{ts,html}'),
-    ...createGlobPatternsForDependencies(__dirname),
-  ],
+  content: [join(__dirname, 'src/**/!(*.stories|*.spec).{ts,html}'), ...createGlobPatternsForDependencies(__dirname)],
   theme: {
     extend: {
       // Add custom theme extensions here
@@ -403,6 +405,7 @@ plugins: [require('@savvywombat/tailwindcss-grid-areas')],
 #### Component Styling Guidelines
 
 **Use Tailwind classes directly in components:**
+
 ```tsx
 // ✅ Preferred approach
 export const Button = ({ children, variant = 'primary' }) => {
@@ -411,40 +414,133 @@ export const Button = ({ children, variant = 'primary' }) => {
     primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
     secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500',
   };
-  
-  return (
-    <button className={`${baseClasses} ${variantClasses[variant]}`}>
-      {children}
-    </button>
-  );
+
+  return <button className={`${baseClasses} ${variantClasses[variant]}`}>{children}</button>;
 };
 ```
 
 **For complex conditional styling, use clsx or similar:**
+
 ```tsx
 import clsx from 'clsx';
 
-const buttonClasses = clsx(
-  'px-4 py-2 rounded-md font-medium',
-  {
-    'bg-blue-600 text-white': variant === 'primary',
-    'bg-gray-200 text-gray-900': variant === 'secondary',
-    'opacity-50 cursor-not-allowed': disabled,
-  }
-);
+const buttonClasses = clsx('px-4 py-2 rounded-md font-medium', {
+  'bg-blue-600 text-white': variant === 'primary',
+  'bg-gray-200 text-gray-900': variant === 'secondary',
+  'opacity-50 cursor-not-allowed': disabled,
+});
 ```
 
-#### Responsive Design Patterns
+#### Responsive Design Patterns (Mobile-First Approach)
+
+**CRITICAL: All UI components must follow a mobile-first development approach.** Our primary users are on mobile devices, so components must be designed and optimized for mobile screens first, then enhanced for larger screens.
+
+**Mobile-First Responsive Utilities:**
 
 ```tsx
-// Use Tailwind's responsive utilities
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-  <div className="p-4 sm:p-6 lg:p-8">
-    <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold">
-      Responsive Content
+// Mobile-first: Start with mobile styles, progressively enhance
+<div
+  className="
+  /* Mobile styles (default - 320px+) */
+  grid grid-cols-1 gap-4 p-4 text-base
+  
+  /* Small screens (640px+) */
+  sm:grid-cols-2 sm:gap-6 sm:p-6 sm:text-lg
+  
+  /* Medium screens (768px+) */
+  md:grid-cols-3 md:gap-8 md:p-8 md:text-xl
+  
+  /* Large screens (1024px+) */
+  lg:grid-cols-4 lg:gap-10 lg:p-10
+"
+>
+  <div
+    className="
+    /* Mobile: full width, stacked */
+    w-full space-y-3
+    
+    /* Tablet+: side-by-side layout */
+    md:w-1/2 md:space-y-0 md:space-x-4
+    
+    /* Desktop+: more complex layouts */
+    lg:w-1/3 lg:flex lg:items-center
+  "
+  >
+    <h2
+      className="
+      /* Mobile typography */
+      text-lg font-semibold leading-tight
+      
+      /* Progressive enhancement */
+      sm:text-xl
+      md:text-2xl md:leading-normal
+      lg:text-3xl
+    "
+    >
+      Mobile-First Content
     </h2>
   </div>
 </div>
+```
+
+**Touch-Friendly Design Requirements:**
+
+```tsx
+// Buttons optimized for touch
+<button className="
+  /* Minimum touch target: 44px × 44px */
+  min-h-[44px] min-w-[44px] py-3 px-4
+
+  /* Adequate spacing from other elements */
+  mb-3 mr-3
+
+  /* Touch-friendly states */
+  active:scale-95 transition-transform
+
+  /* Progressive enhancement for desktop */
+  lg:hover:bg-blue-700 lg:py-2 lg:px-3
+">
+
+// Navigation optimized for mobile
+<nav className="
+  /* Mobile: bottom navigation */
+  fixed bottom-0 left-0 right-0 bg-white border-t p-4
+
+  /* Tablet+: top navigation */
+  sm:relative sm:border-t-0 sm:border-b sm:p-6
+
+  /* Desktop: horizontal layout */
+  lg:flex lg:items-center lg:justify-between lg:p-8
+">
+```
+
+**Mobile Performance Patterns:**
+
+```tsx
+// Efficient mobile layouts
+<div className="
+  /* Mobile: simple stack */
+  space-y-4
+
+  /* Tablet+: more complex layouts */
+  md:grid md:grid-cols-2 md:gap-6 md:space-y-0
+
+  /* Desktop: advanced layouts */
+  lg:grid-cols-3 xl:grid-cols-4
+">
+
+// Responsive images for mobile bandwidth
+<img
+  className="w-full h-auto"
+  src="/mobile-optimized.webp"
+  srcSet="
+    /mobile-320.webp 320w,
+    /tablet-768.webp 768w,
+    /desktop-1200.webp 1200w
+  "
+  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+  alt="Mobile-optimized image"
+/>
 ```
 
 #### Custom Component Classes
@@ -464,8 +560,8 @@ module.exports = {
         },
       },
       spacing: {
-        '18': '4.5rem',
-        '88': '22rem',
+        18: '4.5rem',
+        88: '22rem',
       },
     },
   },
@@ -485,6 +581,7 @@ The workspace includes these Tailwind plugins:
 #### Prettier Integration
 
 The workspace includes `prettier-plugin-tailwindcss` for automatic class sorting:
+
 - Classes are automatically sorted in recommended order
 - No manual class organization needed
 - Consistent class order across the codebase
@@ -492,6 +589,7 @@ The workspace includes `prettier-plugin-tailwindcss` for automatic class sorting
 #### IntelliSense Setup
 
 For optimal development experience, ensure your IDE has:
+
 - Tailwind CSS IntelliSense extension installed
 - Proper configuration for class name completion
 - Hover previews for utility classes
@@ -509,7 +607,7 @@ pnpm nx build ng-example
 pnpm nx serve chore-board-ui
 pnpm nx serve ng-example
 
-# Test applications using Tailwind
+# Test applications (when specifically working on testing)
 pnpm nx test chore-board-ui
 pnpm nx test ng-example
 ```
@@ -526,6 +624,7 @@ When working with existing components:
 ### Common Patterns in This Workspace
 
 **Grid Layout with Areas:**
+
 ```tsx
 <div className="grid-areas-scramble grid-cols-scramble grid-rows-scramble grid h-screen">
   <nav className="grid-in-nav">Navigation</nav>
@@ -535,6 +634,7 @@ When working with existing components:
 ```
 
 **Assignee Circles:**
+
 ```tsx
 const person = {
   bgColor: 'bg-cyan-400',
@@ -543,6 +643,7 @@ const person = {
 ```
 
 **Dark Theme Patterns:**
+
 ```tsx
 <nav className="bg-slate-900 text-white">
   <div className="bg-slate-200">Light content area</div>
@@ -551,10 +652,10 @@ const person = {
 
 ## Important Notes
 
-- **ALWAYS** validate changes with lint, test, and build before committing
 - **NEVER CANCEL** long-running commands - they complete quickly but use safety timeouts
 - Nx Cloud connectivity issues are expected in sandbox environments
 - Use `pnpm` not `npm` or `yarn` for all package management
 - Node.js v24.4.1 is required (use nvm or fnm to install/switch)
 - Projects may have interdependencies - use `nx graph` to visualize
 - **Repository structure evolves** - always use discovery commands (`pnpm nx show projects`, `find apps libs -maxdepth 3 -type d`) rather than relying on static lists in documentation
+- **Linting and formatting are handled automatically** by VSCode and git hooks (`lint --fix` and `prettier --write` run on save/commit). Focus on logic and functionality rather than style fixes.
