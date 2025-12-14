@@ -1,31 +1,12 @@
-import type { Options, StorybookConfig } from '@storybook/core-common';
-
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import { rootMain } from '../../../../.storybook/main';
+import type { StorybookConfig } from '@storybook/angular';
 
 const config: StorybookConfig = {
-  ...rootMain,
-  core: { ...rootMain.core, builder: 'webpack5' },
-
-  stories: [
-    ...rootMain.stories,
-    '../src/lib/**/*.stories.mdx',
-    '../src/lib/**/*.stories.@(js|jsx|ts|tsx)',
-  ],
-
-  addons: ['@storybook/addon-essentials', ...(rootMain.addons || [])],
-
-  webpackFinal: async (config, { configType }: Options) => {
-    // apply any global webpack configs that might have been specified in .storybook/main.ts
-    if (rootMain.webpackFinal) {
-      config = await rootMain.webpackFinal(config, { configType } as Options);
-    }
-
-    // add your own webpack tweaks if needed
-
-    return config;
+  stories: ['../src/lib/**/*.stories.@(js|jsx|ts|tsx|mdx)'],
+  addons: ['@storybook/addon-essentials'],
+  framework: {
+    name: '@storybook/angular',
+    options: {},
   },
-
   docs: {
     autodocs: true,
   },
