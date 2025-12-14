@@ -7,8 +7,10 @@ import {
 import { setContext } from '@apollo/client/link/context';
 
 // Create HTTP link to the GraphQL endpoint
+// Uses VITE_API_URL env var in production, falls back to localhost for development
+const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3333';
 const httpLink = createHttpLink({
-  uri: 'http://localhost:3333/graphql',
+  uri: `${apiUrl}/graphql`,
 });
 
 // Token getter function - will be set by the AuthApolloProvider

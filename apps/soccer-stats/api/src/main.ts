@@ -21,8 +21,15 @@ async function bootstrap() {
   // conflicts with GraphQL input types.
 
   // Enable CORS for frontend integration
+  // Supports comma-separated origins for multiple frontends (e.g., local + production)
+  const allowedOrigins = (
+    process.env['FRONTEND_URL'] || 'http://localhost:4200'
+  )
+    .split(',')
+    .map((origin) => origin.trim());
+
   app.enableCors({
-    origin: process.env['FRONTEND_URL'] || 'http://localhost:4200',
+    origin: allowedOrigins,
     credentials: true,
   });
 
@@ -30,12 +37,15 @@ async function bootstrap() {
   await app.listen(port);
 
   const logger = new Logger('Bootstrap');
-  logger.log(
-    `🚀 Soccer Stats API is running on: http://localhost:${port}/${globalPrefix}`
-  );
-  logger.log(`📊 GraphQL Playground: http://localhost:${port}/graphql`);
-  logger.log(`🗄️  Database Admin (Adminer): http://localhost:8080`);
-  logger.log(`🏟️  Ready for soccer statistics tracking!`);
+  const isProduction = process.env['NODE_ENV'] === 'production';
+
+  logger.log(`Soccer Stats API running on port ${port}`);
+  logger.log(`GraphQL endpoint: /graphql`);
+
+  if (!isProduction) {
+    logger.log(`Local URL: http://localhost:${port}/${globalPrefix}`);
+    logger.log(`GraphQL Playground: http://localhost:${port}/graphql`);
+  }
 }
 
 bootstrap();
