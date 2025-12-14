@@ -97,6 +97,21 @@
         ],
         "parallel": false
       }
+    },
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "docker build -f apps/soccer-stats/api/Dockerfile -t joamos/soccer-stats-api .",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "release": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "semantic-release-plus",
+        "cwd": "apps/soccer-stats/api"
+      }
     }
   }
 }
