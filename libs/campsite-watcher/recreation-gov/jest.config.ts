@@ -1,4 +1,3 @@
-/* eslint-disable */
 export default {
   displayName: 'campsite-watcher-recreation-gov',
   preset: '../../../jest.preset.js',

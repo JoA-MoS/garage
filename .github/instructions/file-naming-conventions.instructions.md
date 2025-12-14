@@ -28,26 +28,36 @@ Follow these naming conventions consistently across all projects in the workspac
 
 ### React Applications
 
+**Three-Layer GraphQL Fragment Architecture:**
+
 ```
 src/
 ├── app/
 │   ├── components/
-│   │   ├── smart/              # Smart components
-│   │   │   ├── game-manager.smart.tsx
-│   │   │   └── player-list.smart.tsx
-│   │   ├── presentation/       # Presentation components
-│   │   │   ├── game-header.presentation.tsx
+│   │   ├── presentation/       # Layer 1: Pure UI components
+│   │   │   ├── user-card.presentation.tsx
 │   │   │   └── player-card.presentation.tsx
+│   │   ├── smart/              # Layer 2: Fragment wrappers
+│   │   │   ├── user-card.smart.tsx
+│   │   │   └── player-card.smart.tsx
+│   │   ├── composition/        # Layer 3: Query orchestration
+│   │   │   ├── users-list.composition.tsx
+│   │   │   └── game-players.composition.tsx
 │   │   └── common/            # Shared/utility components
-│   │   │   ├── button.tsx
-│   │   │   └── modal.tsx
+│   │       ├── button.tsx
+│   │       └── modal.tsx
+│   ├── generated/              # GraphQL codegen output
+│   │   └── gql/
+│   │       ├── fragment-masking.ts
+│   │       ├── index.ts
+│   │       └── graphql.ts
 │   ├── hooks/                 # Custom React hooks
-│   │   ├── use-game-manager.ts
+│   │   ├── use-user-manager.ts
 │   │   └── use-player-data.ts
 │   ├── services/              # API and external services
 │   │   ├── api/
-│   │   │   ├── game-api.ts
-│   │   │   └── player-api.ts
+│   │   │   ├── users-api.ts
+│   │   │   └── players-api.ts
 │   │   └── utils/
 │   ├── types/                 # TypeScript type definitions
 │   │   ├── game.types.ts
@@ -87,6 +97,28 @@ src/
 ## Specific Naming Patterns
 
 ### React Components
+
+**Three-Layer GraphQL Fragment Architecture (Preferred for GraphQL applications):**
+
+**Presentation Components:**
+
+- `{feature-name}.presentation.tsx` (e.g., `user-card.presentation.tsx`)
+- Pure UI components with zero business logic
+- Located in `components/presentation/`
+
+**Smart Components (Fragment Wrappers):**
+
+- `{feature-name}.smart.tsx` (e.g., `user-card.smart.tsx`)
+- GraphQL fragment containers using The Guild's `FragmentType` pattern
+- Located in `components/smart/`
+
+**Composition Components (Query Orchestration):**
+
+- `{feature-name}.composition.tsx` (e.g., `users-list.composition.tsx`)
+- Query orchestration with collocated fragment spreading
+- Located in `components/composition/`
+
+**Standard Two-Layer Pattern (Non-GraphQL applications):**
 
 **Smart Components:**
 

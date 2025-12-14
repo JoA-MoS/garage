@@ -1,0 +1,11 @@
+{
+  "name": "soccer-stats-api",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "release": "semantic-release-plus"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
+  }
+}

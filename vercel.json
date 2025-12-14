@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm nx build soccer-stats-ui --configuration=production",
+  "outputDirectory": "dist/apps/soccer-stats/ui",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "framework": "vite"
+}
