@@ -11,7 +11,11 @@ const compat = new FlatCompat({
 
 export default [
   {
-    ignores: ['**/dist'],
+    ignores: [
+      '**/dist',
+      '**/vite.config.*.timestamp*',
+      '**/vitest.config.*.timestamp*',
+    ],
   },
   ...compat.extends('plugin:storybook/recommended'),
   { plugins: { '@nx': nxEslintPlugin } },
@@ -19,7 +23,10 @@ export default [
     settings: {
       'import/resolver': {
         typescript: {
-          project: ['tsconfig.base.json'],
+          project: [
+            'tsconfig.base.json',
+            'apps/soccer-stats/tsconfig.storybook.json',
+          ],
         },
         node: true,
       },

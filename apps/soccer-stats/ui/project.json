@@ -1,0 +1,120 @@
+{
+  "name": "soccer-stats-ui",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/soccer-stats/ui/src",
+  "projectType": "application",
+  "tags": ["type:app", "domain:sports"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/soccer-stats/ui"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "soccer-stats-ui:build",
+        "proxyConfig": "apps/soccer-stats/ui/proxy.conf.json"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "soccer-stats-ui:build:development",
+          "hmr": true
+        },
+        "production": {
+          "buildTarget": "soccer-stats-ui:build:production",
+          "hmr": false
+        }
+      },
+      "dependsOn": ["soccer-stats-api:serve", "graphql-codegen-watch"]
+    },
+    "preview": {
+      "dependsOn": ["build"],
+      "executor": "@nx/vite:preview-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "soccer-stats-ui:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "soccer-stats-ui:build:development"
+        },
+        "production": {
+          "buildTarget": "soccer-stats-ui:build:production"
+        }
+      }
+    },
+    "graphql-codegen": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/src/app/generated"],
+      "options": {
+        "command": "graphql-codegen --config codegen.ts",
+        "cwd": "apps/soccer-stats/ui"
+      }
+    },
+    "graphql-codegen-watch": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "outputs": ["{projectRoot}/src/app/generated"],
+      "options": {
+        "command": "graphql-codegen --config codegen.ts --watch",
+        "cwd": "apps/soccer-stats/ui"
+      }
+    },
+    "test": {
+      "executor": "@nx/vitest:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "../../../coverage/apps/soccer-stats/ui"
+      }
+    },
+    "serve-static": {
+      "executor": "@nx/web:file-server",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "soccer-stats-ui:build",
+        "spa": true
+      }
+    },
+    "storybook": {
+      "executor": "@nx/storybook:storybook",
+      "options": {
+        "port": 4400,
+        "configDir": "apps/soccer-stats/ui/.storybook"
+      },
+      "configurations": {
+        "ci": {
+          "quiet": true
+        }
+      }
+    },
+    "build-storybook": {
+      "executor": "@nx/storybook:build",
+      "outputs": ["{options.outputDir}"],
+      "options": {
+        "outputDir": "dist/storybook/soccer-stats",
+        "configDir": "apps/soccer-stats/ui/.storybook"
+      },
+      "configurations": {
+        "ci": {
+          "quiet": true
+        }
+      }
+    }
+  }
+}

@@ -56,7 +56,7 @@
       "dependsOn": ["build"]
     },
     "test": {
-      "executor": "@nx/vite:test",
+      "executor": "@nx/vitest:test",
       "outputs": ["{workspaceRoot}/coverage/apps/chore-board/ui"],
       "options": {
         "passWithNoTests": true,

@@ -5,6 +5,11 @@
 /tmp
 /out-tsc
 
+# Generated files and artifacts
+/docs/generated
+/artifacts
+*.generated.*
+
 # dependencies
 /node_modules
 
@@ -41,7 +46,7 @@ Thumbs.db
 .angular
 
 # env files
-.env
+.env.local
 # Serverless
 .serverless
 .webpack
@@ -57,3 +62,16 @@ vitest.config.*.timestamp*
 # Nx project graph artifacts
 graph.html
 static/
+
+# Playwright authentication state (contains sensitive cookies)
+.auth/
+
+.vercel/
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+.clerk/

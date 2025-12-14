@@ -1,0 +1,156 @@
+erDiagram
+    %% User Management Layer
+    USER {
+        uuid id PK
+        string email UK "unique email address"
+        string password_hash "encrypted password"
+        string first_name
+        string last_name
+        string phone
+        date date_of_birth
+        timestamp created_at
+        timestamp updated_at
+        boolean is_active "account status"
+    }
+
+    TEAM {
+        uuid id PK
+        string name "team name"
+        string short_name "abbreviation"
+        string description
+        string home_primary_color "home kit primary color"
+        string home_secondary_color "home kit secondary color"
+        string away_primary_color "away kit primary color"
+        string away_secondary_color "away kit secondary color"
+        string logo_url
+        timestamp created_at
+        timestamp updated_at
+        boolean is_active
+    }
+
+    TEAM_PLAYER {
+        uuid id PK
+        uuid team_id FK
+        uuid user_id FK
+        string jersey_number "player's number"
+        string primary_position "preferred position"
+        date joined_date
+        date left_date "null if still active"
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    TEAM_COACH {
+        uuid id PK
+        uuid team_id FK
+        uuid user_id FK
+        string role "head coach, assistant, etc"
+        date start_date
+        date end_date "null if still active"
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    TEAM_CONFIGURATION {
+        uuid id PK
+        uuid team_id FK
+        uuid default_game_format_id FK
+        string default_formation "4-4-2, 4-3-3, etc"
+        integer default_game_duration "minutes"
+        integer default_player_count "11, 7, 5"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% Game Structure
+    GAME_FORMAT {
+        uuid id PK
+        string name "11v11, 7v7, 5v5"
+        string description
+        integer players_per_team
+        integer duration_minutes
+        boolean allows_substitutions
+        integer max_substitutions
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    GAME {
+        uuid id PK
+        uuid game_format_id FK
+        string name "game title"
+        datetime scheduled_start
+        string venue
+        string weather_conditions
+        text notes
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    GAME_TEAM {
+        uuid id PK
+        uuid game_id FK
+        uuid team_id FK
+        string team_type "home, away"
+        string formation "4-4-2, 4-3-3, etc"
+        integer final_score
+        text tactical_notes
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% Event System
+    EVENT_TYPE {
+        uuid id PK
+        string name "goal, assist, card, substitution_in, substitution_out"
+        string category "scoring, disciplinary, substitution, tactical"
+        string description
+        boolean requires_position "whether position tracking is needed"
+        boolean allows_parent "can have parent events"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    GAME_EVENT {
+        uuid id PK
+        uuid game_id FK
+        uuid event_type_id FK
+        uuid player_id FK "player/coach who performed the action"
+        uuid recorded_by_user_id FK "user who recorded this event"
+        uuid game_team_id FK "team context"
+        uuid parent_event_id FK "for related events like assists"
+        integer game_minute "game minute when event occurred"
+        integer game_second "additional seconds"
+        string position "player position when event occurred"
+        string description "additional details"
+        json metadata "flexible additional data"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% Relationships
+    USER ||--o{ TEAM_PLAYER : "plays for teams"
+    USER ||--o{ TEAM_COACH : "coaches teams"
+    USER ||--o{ GAME_EVENT : "performed action"
+    USER ||--o{ GAME_EVENT : "recorded event"
+
+    TEAM ||--o{ TEAM_PLAYER : "has players"
+    TEAM ||--o{ TEAM_COACH : "has coaches"
+    TEAM ||--|| TEAM_CONFIGURATION : "has default settings"
+    TEAM ||--o{ GAME_TEAM : "participates in games"
+
+    TEAM_CONFIGURATION ||--|| GAME_FORMAT : "default format"
+
+    GAME_FORMAT ||--o{ GAME : "defines format"
+    
+    GAME ||--o{ GAME_TEAM : "team participation"
+    GAME ||--o{ GAME_EVENT : "contains events"
+
+    GAME_TEAM ||--o{ GAME_EVENT : "team context for events"
+
+    EVENT_TYPE ||--o{ GAME_EVENT : "categorizes events"
+    
+    GAME_EVENT ||--o{ GAME_EVENT : "parent-child relationships"
+

@@ -1,17 +1,24 @@
-FROM node:24-alpine AS build
+FROM docker.io/node:24-alpine AS production
 
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
-# USE a BUILD arg to specify the app_name and then this will be generic dockerfile for all apps
+# Enable corepack for pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Enable corepack for package manager
-RUN corepack enable
+WORKDIR /app
 
-WORKDIR /usr/app
-COPY --chown=node:node ./dist/apps/campsite-watcher .
-COPY --chown=node:node ./pnpm-lock.yaml ./pnpm-lock.yaml
-COPY --chown=node:node ./package.json ./package.json
-RUN pnpm install --frozen-lockfile --ignore-scripts --prod
+# Copy entire build output directory
+COPY dist/apps/campsite-watcher ./
 
-USER node
+# Install production dependencies only
+RUN pnpm install --prod --frozen-lockfile --ignore-scripts && \
+    pnpm store prune
+
+# Create non-root user for security
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 appuser && \
+    chown -R appuser:nodejs /app
+
+USER appuser
+
 CMD ["node", "main.js"]

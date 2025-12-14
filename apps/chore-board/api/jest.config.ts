@@ -1,4 +1,3 @@
-/* eslint-disable */
 export default {
   displayName: 'chore-board-api',
   preset: '../../../jest.preset.js',
