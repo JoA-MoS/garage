@@ -25,19 +25,20 @@ interface AuthenticatedRequest extends Request {
   clerkPayload?: { sub: string; [key: string]: unknown };
 }
 
-const con = {
-  type: 'postgres',
+const isProduction = process.env['NODE_ENV'] === 'production';
+
+const typeOrmConfig = {
+  type: 'postgres' as const,
   host: process.env['DB_HOST'] || 'localhost',
   port: parseInt(process.env['DB_PORT'] || '5432'),
   username: process.env['DB_USERNAME'] || 'postgres',
   password: process.env['DB_PASSWORD'] || 'postgres',
   database: process.env['DB_NAME'] || 'soccer_stats',
   autoLoadEntities: true,
-  synchronize: true, // Only for development
-  logging: true,
+  synchronize: process.env['DB_SYNCHRONIZE'] === 'true' || !isProduction,
+  logging: process.env['DB_LOGGING'] === 'true' || !isProduction,
+  ssl: isProduction ? { rejectUnauthorized: false } : false,
 };
-
-console.log(con);
 
 @Module({
   imports: [
@@ -46,8 +47,11 @@ console.log(con);
       autoSchemaFile: join(__dirname, 'schema.gql'),
       sortSchema: true,
       playground: false,
-      plugins: [ApolloServerPluginLandingPageLocalDefault()],
-      introspection: true,
+      plugins: isProduction
+        ? []
+        : [ApolloServerPluginLandingPageLocalDefault()],
+      introspection:
+        process.env['GRAPHQL_INTROSPECTION'] === 'true' || !isProduction,
       subscriptions: {
         'graphql-ws': true,
       },
@@ -55,17 +59,7 @@ console.log(con);
         return { req, user: req.user, clerkPayload: req.clerkPayload };
       },
     }),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env['DB_HOST'] || 'localhost',
-      port: parseInt(process.env['DB_PORT'] || '5432'),
-      username: process.env['DB_USERNAME'] || 'postgres',
-      password: process.env['DB_PASSWORD'] || 'postgres',
-      database: process.env['DB_NAME'] || 'soccer_stats',
-      autoLoadEntities: true,
-      synchronize: true, // Only for development
-      logging: true,
-    }),
+    TypeOrmModule.forRoot(typeOrmConfig),
     GamesModule,
     TeamsModule,
     UsersModule,
