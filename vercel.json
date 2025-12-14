@@ -4,5 +4,8 @@
   "outputDirectory": "dist/apps/soccer-stats/ui",
   "installCommand": "pnpm install --frozen-lockfile",
   "framework": "vite",
-  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/(.+\\..+)", "destination": "/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
