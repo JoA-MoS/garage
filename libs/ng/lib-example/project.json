@@ -10,7 +10,8 @@
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/libs/ng/lib-example"],
       "options": {
-        "jestConfig": "libs/ng/lib-example/jest.config.ts"
+        "jestConfig": "libs/ng/lib-example/jest.config.ts",
+        "tsConfig": "libs/ng/lib-example/tsconfig.spec.json"
       }
     },
     "lint": {
