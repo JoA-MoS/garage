@@ -82,7 +82,8 @@
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/apps/ng/example"],
       "options": {
-        "jestConfig": "apps/ng/example/jest.config.ts"
+        "jestConfig": "apps/ng/example/jest.config.ts",
+        "tsConfig": "apps/ng/example/tsconfig.spec.json"
       }
     }
   }
