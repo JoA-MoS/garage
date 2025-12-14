@@ -164,6 +164,19 @@
     }
   },
   "nxCloudAccessToken": "Njk1YzdjMmUtN2MzMS00YzdlLTg0MzItY2Y4Yjc2MmM3YjhlfHJlYWQ=",
-  "useInferencePlugins": false,
-  "defaultBase": "main"
+  "useInferencePlugins": true,
+  "defaultBase": "main",
+  "plugins": [
+    {
+      "plugin": "@nx/docker",
+      "options": {
+        "buildTarget": {
+          "name": "docker:build"
+        },
+        "runTarget": {
+          "name": "docker:run"
+        }
+      }
+    }
+  ]
 }
