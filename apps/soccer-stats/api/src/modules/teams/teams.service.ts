@@ -112,7 +112,7 @@ export class TeamsService {
   async getTeamPlayers(teamId: string): Promise<TeamPlayer[]> {
     return this.teamPlayerRepository.find({
       where: { team: { id: teamId } },
-      relations: ['player'],
+      relations: ['user', 'team'],
     });
   }
 

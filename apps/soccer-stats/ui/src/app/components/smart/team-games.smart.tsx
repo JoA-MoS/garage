@@ -107,13 +107,10 @@ export const TeamGamesSmart = ({ teamId }: TeamGamesSmartProps) => {
     }
 
     const createGameInput: CreateGameInput = {
-      name: `Game ${new Date().toLocaleDateString()}`, // TODO: Fix when migrating to new architecture
-      scheduledStart: new Date().toISOString(), // TODO: Fix when migrating to new architecture
+      homeTeamId: gameForm.isHome ? teamId : gameForm.opponentTeamId,
+      awayTeamId: gameForm.isHome ? gameForm.opponentTeamId : teamId,
       gameFormatId: gameForm.gameFormatId,
-      // TODO: Fix properties when migrating to new architecture
-      // homeTeamId: gameForm.isHome ? teamId : gameForm.opponentTeamId,
-      // awayTeamId: gameForm.isHome ? gameForm.opponentTeamId : teamId,
-      // duration: gameForm.duration, // TODO: Re-enable when CreateGameInput supports duration
+      duration: gameForm.duration,
     };
 
     await createGame({

@@ -14,32 +14,14 @@ import { TeamManagementPage } from '../pages/team-management.page';
 import { AnalyticsPage } from '../pages/analytics.page';
 import { SettingsPage } from '../pages/settings.page';
 import { AboutPage } from '../pages/about.page';
-// import { TeamPlayersPage } from '../pages/team-players.page';
+import { TeamPlayersPage } from '../pages/team-players.page';
 import { TeamGamesPage } from '../pages/team-games.page';
 import { TeamOverviewPage } from '../pages/team-overview.page';
 import { TeamStatsPage } from '../pages/team-stats.page';
 import { TeamSettingsPage } from '../pages/team-settings.page';
 import { AllGamesPage } from '../pages/all-games.page';
-import { GameLayout } from '../components/layout/game-layout';
 import { TeamLayout } from '../components/layout/team-layout';
-import { HomeLineupView } from '../components/views/home-lineup.view';
-import { AwayLineupView } from '../components/views/away-lineup.view';
-import { RosterView } from '../components/views/roster.view';
-import { StatsView } from '../components/views/stats.view';
-import { SubstitutionsView } from '../components/views/substitutions.view';
-import { GameProvider } from '../context/game.context';
-
-// const GameWithProvider = () => (
-//   <GameProvider>
-//     <GameLayout />
-//   </GameProvider>
-// );
-
-// const NewGameWithProvider = () => (
-//   <GameProvider>
-//     <NewGamePage />
-//   </GameProvider>
-// );
+import { GamePage } from '../pages/game.page';
 
 export const router = createBrowserRouter([
   {
@@ -50,40 +32,10 @@ export const router = createBrowserRouter([
         index: true,
         element: <DashboardPage />,
       },
-      // {
-      //   path: 'game/new',
-      //   element: <NewGameWithProvider />,
-      // },
-      // {
-      //   path: 'game/:gameId',
-      //   element: <GameWithProvider />,
-      //   children: [
-      //     {
-      //       index: true,
-      //       element: <Navigate to="lineup/home" replace />,
-      //     },
-      //     {
-      //       path: 'lineup/home',
-      //       element: <HomeLineupView />,
-      //     },
-      //     {
-      //       path: 'lineup/away',
-      //       element: <AwayLineupView />,
-      //     },
-      //     {
-      //       path: 'roster',
-      //       element: <RosterView />,
-      //     },
-      //     {
-      //       path: 'stats',
-      //       element: <StatsView />,
-      //     },
-      //     {
-      //       path: 'substitutions',
-      //       element: <SubstitutionsView />,
-      //     },
-      //   ],
-      // },
+      {
+        path: 'game/:gameId',
+        element: <GamePage />,
+      },
       {
         path: 'history',
         element: <HistoryPage />,
@@ -122,7 +74,7 @@ export const router = createBrowserRouter([
           },
           {
             path: 'players',
-            // element: <TeamPlayersPage />,
+            element: <TeamPlayersPage />,
           },
           {
             path: 'games',

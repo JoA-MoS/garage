@@ -2,10 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { Game } from '../../entities/game.entity';
+import { Game, GameStatus } from '../../entities/game.entity';
 import { Team } from '../../entities/team.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { GameFormat } from '../../entities/game-format.entity';
+import { GameEvent } from '../../entities/game-event.entity';
 
 import { CreateGameInput } from './dto/create-game.input';
 import { UpdateGameInput } from './dto/update-game.input';
@@ -20,7 +21,9 @@ export class GamesService {
     @InjectRepository(GameTeam)
     private readonly gameTeamRepository: Repository<GameTeam>,
     @InjectRepository(GameFormat)
-    private readonly gameFormatRepository: Repository<GameFormat>
+    private readonly gameFormatRepository: Repository<GameFormat>,
+    @InjectRepository(GameEvent)
+    private readonly gameEventRepository: Repository<GameEvent>
   ) {}
 
   async findAll(): Promise<Game[]> {
@@ -30,14 +33,14 @@ export class GamesService {
         'gameTeams',
         'gameTeams.team',
         'gameTeams.team.teamPlayers',
-        'gameTeams.team.teamPlayers.player',
+        'gameTeams.team.teamPlayers.user',
+        'gameTeams.gameEvents',
+        'gameTeams.gameEvents.eventType',
         'gameEvents',
         'gameEvents.eventType',
         'gameEvents.player',
-        'gameEvents.relatedPlayer',
-        'participations',
-        'participations.player',
-        'participations.gameTeam',
+        'gameEvents.recordedByUser',
+        'gameEvents.gameTeam',
       ],
     });
   }
@@ -50,14 +53,14 @@ export class GamesService {
         'gameTeams',
         'gameTeams.team',
         'gameTeams.team.teamPlayers',
-        'gameTeams.team.teamPlayers.player',
+        'gameTeams.team.teamPlayers.user',
+        'gameTeams.gameEvents',
+        'gameTeams.gameEvents.eventType',
         'gameEvents',
         'gameEvents.eventType',
         'gameEvents.player',
-        'gameEvents.relatedPlayer',
-        'participations',
-        'participations.player',
-        'participations.gameTeam',
+        'gameEvents.recordedByUser',
+        'gameEvents.gameTeam',
       ],
     });
 
@@ -125,7 +128,49 @@ export class GamesService {
   }
 
   async update(id: string, updateGameInput: UpdateGameInput): Promise<Game> {
-    await this.gameRepository.update(id, updateGameInput);
+    // Handle resetGame flag - reset to SCHEDULED and clear all timestamps
+    if (updateGameInput.resetGame) {
+      // Optionally clear all game events
+      if (updateGameInput.clearEvents) {
+        await this.gameEventRepository
+          .createQueryBuilder()
+          .delete()
+          .where('gameId = :gameId', { gameId: id })
+          .execute();
+      }
+
+      await this.gameRepository
+        .createQueryBuilder()
+        .update(Game)
+        .set({
+          status: GameStatus.SCHEDULED,
+          actualStart: () => 'NULL',
+          firstHalfEnd: () => 'NULL',
+          secondHalfStart: () => 'NULL',
+          actualEnd: () => 'NULL',
+          pausedAt: () => 'NULL',
+        })
+        .where('id = :id', { id })
+        .execute();
+      return this.findOne(id);
+    }
+
+    // Extract only the fields that don't exist on the Game entity (from CreateGameInput)
+    const {
+      homeTeamId: _homeTeamId,
+      awayTeamId: _awayTeamId,
+      gameFormatId: _gameFormatId,
+      duration: _duration,
+      resetGame: _resetGame,
+      clearEvents: _clearEvents,
+      ...gameFields
+    } = updateGameInput as Record<string, unknown>;
+
+    // Only update with valid Game entity fields
+    if (Object.keys(gameFields).length > 0) {
+      await this.gameRepository.update(id, gameFields);
+    }
+
     return this.findOne(id);
   }
 

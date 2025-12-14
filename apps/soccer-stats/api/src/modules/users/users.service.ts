@@ -76,6 +76,12 @@ export class UsersService {
     return user;
   }
 
+  async findByEmail(email: string): Promise<User | null> {
+    return this.userRepository.findOne({
+      where: { email },
+    });
+  }
+
   async findByName(
     name: string,
     userType: UserType = UserType.ALL
@@ -241,7 +247,13 @@ export class UsersService {
       isActive: true,
     });
 
-    return this.teamPlayerRepository.save(teamPlayer);
+    const saved = await this.teamPlayerRepository.save(teamPlayer);
+
+    // Return with relations loaded
+    return this.teamPlayerRepository.findOneOrFail({
+      where: { id: saved.id },
+      relations: ['team', 'user'],
+    });
   }
 
   async removePlayerFromTeam(
@@ -275,7 +287,13 @@ export class UsersService {
       isActive: true,
     });
 
-    return this.teamCoachRepository.save(teamCoach);
+    const saved = await this.teamCoachRepository.save(teamCoach);
+
+    // Return with relations loaded
+    return this.teamCoachRepository.findOneOrFail({
+      where: { id: saved.id },
+      relations: ['team', 'user'],
+    });
   }
 
   async removeCoachFromTeam(

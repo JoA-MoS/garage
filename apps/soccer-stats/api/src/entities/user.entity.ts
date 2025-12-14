@@ -9,12 +9,12 @@ import { GameEvent } from './game-event.entity';
 @ObjectType()
 @Entity('users')
 export class User extends BaseEntity {
-  @Field()
-  @Column({ unique: true, length: 255 })
-  email: string;
+  @Field({ nullable: true })
+  @Column({ unique: true, length: 255, nullable: true })
+  email?: string;
 
-  @Column({ length: 255 })
-  passwordHash: string;
+  @Column({ length: 255, nullable: true })
+  passwordHash?: string;
 
   @Field()
   @Column({ length: 100 })

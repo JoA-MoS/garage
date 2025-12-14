@@ -56,6 +56,12 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
       id
       name
       scheduledStart
+      status
+      actualStart
+      firstHalfEnd
+      secondHalfStart
+      actualEnd
+      pausedAt
       notes
       venue
       weatherConditions
@@ -76,6 +82,34 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
           shortName
           homePrimaryColor
           homeSecondaryColor
+          isManaged
+          teamPlayers {
+            id
+            userId
+            jerseyNumber
+            primaryPosition
+            isActive
+            user {
+              id
+              email
+              firstName
+              lastName
+            }
+          }
+        }
+        gameEvents {
+          id
+          gameMinute
+          gameSecond
+          position
+          playerId
+          externalPlayerName
+          externalPlayerNumber
+          eventType {
+            id
+            name
+            category
+          }
         }
       }
       createdAt
@@ -105,6 +139,11 @@ export const UPDATE_GAME = graphql(/* GraphQL */ `
       id
       name
       scheduledStart
+      status
+      actualStart
+      firstHalfEnd
+      secondHalfStart
+      actualEnd
       notes
       venue
       weatherConditions
@@ -161,12 +200,10 @@ export interface GameTeam {
 }
 
 export interface CreateGameInput {
-  name: string;
-  scheduledStart: string;
-  notes?: string;
-  venue?: string;
-  weatherConditions?: string;
+  homeTeamId: string;
+  awayTeamId: string;
   gameFormatId: string;
+  duration?: number;
 }
 
 export interface UpdateGameInput {
@@ -201,3 +238,248 @@ export enum GameStatus {
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
 }
+
+// Lineup-related queries and mutations
+export const GET_GAME_LINEUP = graphql(/* GraphQL */ `
+  query GetGameLineup($gameTeamId: ID!) {
+    gameLineup(gameTeamId: $gameTeamId) {
+      gameTeamId
+      formation
+      starters {
+        gameEventId
+        playerId
+        playerName
+        firstName
+        lastName
+        externalPlayerName
+        externalPlayerNumber
+        position
+        isOnField
+      }
+      bench {
+        gameEventId
+        playerId
+        playerName
+        firstName
+        lastName
+        externalPlayerName
+        externalPlayerNumber
+        position
+        isOnField
+      }
+      currentOnField {
+        gameEventId
+        playerId
+        playerName
+        firstName
+        lastName
+        externalPlayerName
+        externalPlayerNumber
+        position
+        isOnField
+      }
+    }
+  }
+`);
+
+export const GET_EVENT_TYPES = graphql(/* GraphQL */ `
+  query GetEventTypes {
+    eventTypes {
+      id
+      name
+      category
+      description
+      requiresPosition
+      allowsParent
+    }
+  }
+`);
+
+export const ADD_PLAYER_TO_LINEUP = graphql(/* GraphQL */ `
+  mutation AddPlayerToLineup($input: AddToLineupInput!) {
+    addPlayerToLineup(input: $input) {
+      id
+      gameMinute
+      gameSecond
+      position
+      playerId
+      externalPlayerName
+      externalPlayerNumber
+      eventType {
+        id
+        name
+      }
+    }
+  }
+`);
+
+export const ADD_PLAYER_TO_BENCH = graphql(/* GraphQL */ `
+  mutation AddPlayerToBench($input: AddToBenchInput!) {
+    addPlayerToBench(input: $input) {
+      id
+      gameMinute
+      gameSecond
+      position
+      playerId
+      externalPlayerName
+      externalPlayerNumber
+      eventType {
+        id
+        name
+      }
+    }
+  }
+`);
+
+export const REMOVE_FROM_LINEUP = graphql(/* GraphQL */ `
+  mutation RemoveFromLineup($gameEventId: ID!) {
+    removeFromLineup(gameEventId: $gameEventId)
+  }
+`);
+
+export const UPDATE_PLAYER_POSITION = graphql(/* GraphQL */ `
+  mutation UpdatePlayerPosition($gameEventId: ID!, $position: String!) {
+    updatePlayerPosition(gameEventId: $gameEventId, position: $position) {
+      id
+      position
+    }
+  }
+`);
+
+export const SUBSTITUTE_PLAYER = graphql(/* GraphQL */ `
+  mutation SubstitutePlayer($input: SubstitutePlayerInput!) {
+    substitutePlayer(input: $input) {
+      id
+      gameMinute
+      gameSecond
+      position
+      playerId
+      externalPlayerName
+      externalPlayerNumber
+      eventType {
+        id
+        name
+      }
+    }
+  }
+`);
+
+export const RECORD_GOAL = graphql(/* GraphQL */ `
+  mutation RecordGoal($input: RecordGoalInput!) {
+    recordGoal(input: $input) {
+      id
+      gameMinute
+      gameSecond
+      playerId
+      externalPlayerName
+      externalPlayerNumber
+      eventType {
+        id
+        name
+      }
+      childEvents {
+        id
+        playerId
+        externalPlayerName
+        externalPlayerNumber
+        eventType {
+          id
+          name
+        }
+      }
+    }
+  }
+`);
+
+export const DELETE_GOAL = graphql(/* GraphQL */ `
+  mutation DeleteGoal($gameEventId: ID!) {
+    deleteGoal(gameEventId: $gameEventId)
+  }
+`);
+
+export const UPDATE_GOAL = graphql(/* GraphQL */ `
+  mutation UpdateGoal($input: UpdateGoalInput!) {
+    updateGoal(input: $input) {
+      id
+      gameMinute
+      gameSecond
+      playerId
+      externalPlayerName
+      externalPlayerNumber
+      eventType {
+        id
+        name
+      }
+      childEvents {
+        id
+        playerId
+        externalPlayerName
+        externalPlayerNumber
+        eventType {
+          id
+          name
+        }
+      }
+    }
+  }
+`);
+
+export const SWAP_POSITIONS = graphql(/* GraphQL */ `
+  mutation SwapPositions($input: SwapPositionsInput!) {
+    swapPositions(input: $input) {
+      id
+      gameMinute
+      gameSecond
+      position
+      playerId
+      externalPlayerName
+      externalPlayerNumber
+      eventType {
+        id
+        name
+      }
+    }
+  }
+`);
+
+export const GET_PLAYER_POSITION_STATS = graphql(/* GraphQL */ `
+  query GetPlayerPositionStats($gameTeamId: ID!) {
+    playerPositionStats(gameTeamId: $gameTeamId) {
+      playerId
+      playerName
+      externalPlayerName
+      externalPlayerNumber
+      totalMinutes
+      totalSeconds
+      positionTimes {
+        position
+        minutes
+        seconds
+      }
+    }
+  }
+`);
+
+export const GET_PLAYER_STATS = graphql(/* GraphQL */ `
+  query GetPlayerStats($input: PlayerStatsInput!) {
+    playerStats(input: $input) {
+      playerId
+      playerName
+      externalPlayerName
+      externalPlayerNumber
+      totalMinutes
+      totalSeconds
+      positionTimes {
+        position
+        minutes
+        seconds
+      }
+      goals
+      assists
+      gamesPlayed
+      yellowCards
+      redCards
+      saves
+    }
+  }
+`);

@@ -43,7 +43,7 @@ export class GameTeam extends BaseEntity {
   @JoinColumn({ name: 'teamId' })
   team: Team;
 
-  @Field(() => [GameEvent])
+  @Field(() => [GameEvent], { nullable: true })
   @OneToMany(() => GameEvent, (gameEvent) => gameEvent.gameTeam, {
     cascade: true,
   })

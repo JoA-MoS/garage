@@ -2,7 +2,6 @@ import { Player, Team } from '../../types';
 
 import { GameOverviewPresentation } from './game-overview.presentation';
 import { TeamStatsCardPresentation } from './team-stats-card.presentation';
-import { PlayerStatsTablePresentation } from './player-stats-table.presentation';
 
 interface StatsTabPresentationProps {
   homeTeam: Team;
@@ -23,6 +22,13 @@ interface StatsTabPresentationProps {
     assists: number;
   }>;
 }
+
+// Format time as MM:SS
+const formatTime = (playTime: number): string => {
+  const minutes = Math.floor(playTime / 60);
+  const seconds = playTime % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
 
 export const StatsTabPresentation = ({
   homeTeam,
@@ -51,7 +57,7 @@ export const StatsTabPresentation = ({
       />
 
       {/* Team Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <TeamStatsCardPresentation
           team={homeTeam}
           teamType="home"
@@ -68,8 +74,63 @@ export const StatsTabPresentation = ({
         />
       </div>
 
-      {/* All Players Table */}
-      <PlayerStatsTablePresentation allPlayers={allPlayers} />
+      {/* All Players Table - Inline rendering for legacy data structure */}
+      <div>
+        <h3 className="mb-4 text-lg font-semibold">All Player Statistics</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full rounded-lg border border-gray-200 bg-white">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-2 text-left">Team</th>
+                <th className="px-4 py-2 text-left">#</th>
+                <th className="px-4 py-2 text-left">Player</th>
+                <th className="px-4 py-2 text-left">Position</th>
+                <th className="px-4 py-2 text-left">Play Time</th>
+                <th className="px-4 py-2 text-left">Goals</th>
+                <th className="px-4 py-2 text-left">Assists</th>
+                <th className="px-4 py-2 text-left">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {allPlayers.map(({ player, team, teamName, goals, assists }) => (
+                <tr key={`${team}-${player.id}`} className="border-t">
+                  <td className="px-4 py-2">
+                    <span
+                      className={`mr-2 inline-block h-3 w-3 rounded-full ${
+                        team === 'home' ? 'bg-blue-500' : 'bg-red-500'
+                      }`}
+                    ></span>
+                    {teamName}
+                  </td>
+                  <td className="px-4 py-2 font-mono">{player.jersey}</td>
+                  <td className="px-4 py-2 font-medium">{player.name}</td>
+                  <td className="px-4 py-2">{player.position}</td>
+                  <td className="px-4 py-2 font-mono">
+                    {formatTime(player.playTime)}
+                  </td>
+                  <td className="px-4 py-2 font-semibold text-blue-600">
+                    {goals}
+                  </td>
+                  <td className="px-4 py-2 font-semibold text-purple-600">
+                    {assists}
+                  </td>
+                  <td className="px-4 py-2">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        player.isOnField
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {player.isOnField ? 'On Field' : 'Bench'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };

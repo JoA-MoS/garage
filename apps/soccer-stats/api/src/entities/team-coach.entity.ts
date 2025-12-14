@@ -21,11 +21,11 @@ export class TeamCoach extends BaseEntity {
   role: string;
 
   @Field()
-  @Column({ type: 'date' })
+  @Column({ type: 'timestamp' })
   startDate: Date;
 
   @Field({ nullable: true })
-  @Column({ type: 'date', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   endDate?: Date;
 
   @Field()
