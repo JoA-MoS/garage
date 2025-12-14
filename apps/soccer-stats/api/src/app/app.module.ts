@@ -12,6 +12,8 @@ import { TeamsModule } from '../modules/teams/teams.module';
 import { UsersModule } from '../modules/users/users.module';
 import { AuthModule } from '../modules/auth/auth.module';
 import { GameFormatsModule } from '../modules/game-formats/game-formats.module';
+import { EventTypesModule } from '../modules/event-types/event-types.module';
+import { GameEventsModule } from '../modules/game-events/game-events.module';
 import { ClerkUser } from '../modules/auth/clerk.service';
 
 import { AppController } from './app.controller';
@@ -69,6 +71,8 @@ console.log(con);
     UsersModule,
     AuthModule,
     GameFormatsModule,
+    EventTypesModule,
+    GameEventsModule,
   ],
   controllers: [AppController],
   providers: [AppService, StartupService],

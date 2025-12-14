@@ -73,17 +73,17 @@ export class Team extends BaseEntity {
   @Column({ default: true })
   isActive: boolean;
 
-  @Field(() => [GameTeam])
+  @Field(() => [GameTeam], { nullable: true })
   @OneToMany(() => GameTeam, (gameTeam) => gameTeam.team, { cascade: true })
   gameTeams: GameTeam[];
 
-  @Field(() => [TeamPlayer])
+  @Field(() => [TeamPlayer], { nullable: true })
   @OneToMany(() => TeamPlayer, (teamPlayer) => teamPlayer.team, {
     cascade: true,
   })
   teamPlayers: TeamPlayer[];
 
-  @Field(() => [TeamCoach])
+  @Field(() => [TeamCoach], { nullable: true })
   @OneToMany(() => TeamCoach, (teamCoach) => teamCoach.team, {
     cascade: true,
   })

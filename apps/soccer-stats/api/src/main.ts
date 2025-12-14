@@ -3,7 +3,7 @@
  * This server provides a GraphQL API for the soccer statistics tracker application.
  */
 
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from './app/app.module';
@@ -15,14 +15,10 @@ async function bootstrap() {
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
 
-  // Enable validation pipes
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    })
-  );
+  // Note: ValidationPipe is not used for this GraphQL API.
+  // GraphQL provides its own schema-based validation.
+  // The NestJS ValidationPipe with forbidNonWhitelisted causes
+  // conflicts with GraphQL input types.
 
   // Enable CORS for frontend integration
   app.enableCors({
