@@ -3,5 +3,9 @@
   "buildCommand": "pnpm nx build soccer-stats-ui --configuration=production",
   "outputDirectory": "dist/apps/soccer-stats/ui",
   "installCommand": "pnpm install --frozen-lockfile",
-  "framework": "vite"
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/(.+\\..+)", "destination": "/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
