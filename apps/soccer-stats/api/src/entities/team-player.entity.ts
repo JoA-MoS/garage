@@ -25,11 +25,11 @@ export class TeamPlayer extends BaseEntity {
   primaryPosition?: string;
 
   @Field({ nullable: true })
-  @Column({ type: 'date', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   joinedDate?: Date;
 
   @Field({ nullable: true })
-  @Column({ type: 'date', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   leftDate?: Date;
 
   @Field()

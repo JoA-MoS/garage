@@ -9,9 +9,10 @@ import {
 
 @InputType()
 export class CreateUserInput {
-  @Field()
+  @Field({ nullable: true })
+  @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
 
   @Field()
   @IsString()
@@ -34,7 +35,8 @@ export class CreateUserInput {
   @IsDateString()
   dateOfBirth?: Date;
 
-  @Field()
+  @Field({ nullable: true })
+  @IsOptional()
   @IsString()
-  passwordHash: string;
+  passwordHash?: string;
 }

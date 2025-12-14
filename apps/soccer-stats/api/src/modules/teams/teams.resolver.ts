@@ -12,6 +12,7 @@ import { Inject } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
 
 import { Team } from '../../entities/team.entity';
+import { TeamPlayer } from '../../entities/team-player.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { User } from '../../entities/user.entity';
 import { PlayersService } from '../players/players.service';
@@ -64,6 +65,11 @@ export class TeamsResolver {
   @ResolveField(() => [User])
   players(@Parent() team: Team): Promise<User[]> {
     return this.teamsService.getPlayersForTeam(team.id);
+  }
+
+  @ResolveField(() => [TeamPlayer])
+  teamPlayers(@Parent() team: Team): Promise<TeamPlayer[]> {
+    return this.teamsService.getTeamPlayers(team.id);
   }
 
   @ResolveField(() => [TeamPlayerWithJersey])
