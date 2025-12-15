@@ -41,7 +41,7 @@ export class TeamMembersResolver {
     @CurrentUser() user: ClerkUser
   ): Promise<TeamMember[]> {
     // Note: This queries by Clerk user ID, which may need mapping to internal user ID
-    // For now, assuming we store Clerk user IDs or have a mapping
+    // TODO: Verify and document whether Clerk user IDs are stored directly in the database or if a mapping layer exists.
     return this.teamMembersService.findByUser(user.id);
   }
 
