@@ -6,6 +6,7 @@ import { GameTeam } from './game-team.entity';
 import { TeamPlayer } from './team-player.entity';
 import { TeamCoach } from './team-coach.entity';
 import { TeamConfiguration } from './team-configuration.entity';
+import { TeamMember } from './team-member.entity';
 
 export enum SourceType {
   INTERNAL = 'internal',
@@ -105,4 +106,10 @@ export class Team extends BaseEntity {
     }
   )
   teamConfiguration?: TeamConfiguration;
+
+  @Field(() => [TeamMember], { nullable: true })
+  @OneToMany(() => TeamMember, (teamMember) => teamMember.team, {
+    cascade: true,
+  })
+  teamMembers?: TeamMember[];
 }
