@@ -3,6 +3,12 @@ import { Link } from 'react-router';
 
 import { UICreateTeamInput, UITeam } from '../types/ui.types';
 
+import {
+  TeamFormFields,
+  DEFAULT_TEAM_FORM_VALUES,
+  createTeamFormValues,
+} from './team-form-fields.presentation';
+
 interface CreateTeamPresentationProps {
   onSubmit: (teamData: UICreateTeamInput) => void;
   onCancel: () => void;
@@ -22,39 +28,24 @@ export const CreateTeamPresentation = ({
   isTabMode = false,
   onNext,
 }: CreateTeamPresentationProps) => {
-  // TODO: Implement getDefaultTeamColors when migrating to new architecture
-  // const defaultColors = getDefaultTeamColors();
-  const defaultColors = '#000000'; // Simplified for migration
-  const [formData, setFormData] = useState<UICreateTeamInput>({
-    name: initialData?.name || '',
-    colors:
-      typeof initialData?.colors === 'string'
-        ? initialData.colors
-        : defaultColors,
-    logo: initialData?.logo || '',
-  });
+  const [formData, setFormData] = useState<UICreateTeamInput>(
+    initialData ? createTeamFormValues(initialData) : DEFAULT_TEAM_FORM_VALUES
+  );
 
   // Update form data when initial data changes
   useEffect(() => {
     if (initialData) {
-      setFormData({
-        name: initialData.name,
-        colors:
-          typeof initialData.colors === 'string'
-            ? initialData.colors
-            : defaultColors,
-        logo: initialData.logo || '',
-      });
+      setFormData(createTeamFormValues(initialData));
     }
-  }, [initialData, defaultColors]);
+  }, [initialData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.name.trim()) {
-      const teamData = {
+      const teamData: UICreateTeamInput = {
+        ...formData,
         name: formData.name.trim(),
-        colors: formData.colors,
-        logo: formData.logo?.trim() || undefined,
+        logoUrl: formData.logoUrl?.trim() || undefined,
       };
       onSubmit(teamData);
 
@@ -91,7 +82,6 @@ export const CreateTeamPresentation = ({
           </div>
         )}
 
-        {/* Progress Bar */}
         {/* Progress Bar - only show if not in tab mode */}
         {!isTabMode && (
           <div className="border-b border-gray-200 px-6 py-4">
@@ -129,94 +119,12 @@ export const CreateTeamPresentation = ({
           onSubmit={handleSubmit}
           className={isTabMode ? 'space-y-6' : 'px-6 py-6'}
         >
-          {error && (
-            <div className="mb-6 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <span className="text-red-400">⚠</span>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium">Error creating team</h3>
-                  <p className="mt-1 text-sm">{error}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className={isTabMode ? 'space-y-6' : 'space-y-6'}>
-            {/* Team Name */}
-            <div>
-              <label
-                htmlFor="teamName"
-                className="mb-2 block text-sm font-medium text-gray-700"
-              >
-                Team Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="teamName"
-                required
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                placeholder="Enter your team name"
-                disabled={loading}
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                This will be displayed on jerseys and in game stats
-              </p>
-            </div>
-
-            {/* Team Colors */}
-            <div>
-              <label
-                htmlFor="teamColors"
-                className="mb-2 block text-sm font-medium text-gray-700"
-              >
-                Team Colors (Optional)
-              </label>
-              <input
-                type="text"
-                id="teamColors"
-                value={formData.colors || ''}
-                onChange={(e) =>
-                  setFormData({ ...formData, colors: e.target.value })
-                }
-                className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                placeholder="e.g., #3b82f6,#1e40af or Blue,White"
-                disabled={loading}
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                Enter team colors separated by commas (hex codes or color names)
-              </p>
-            </div>
-
-            {/* Team Logo */}
-            <div>
-              <label
-                htmlFor="teamLogo"
-                className="mb-2 block text-sm font-medium text-gray-700"
-              >
-                Team Logo URL
-              </label>
-              <input
-                type="url"
-                id="teamLogo"
-                value={formData.logo}
-                onChange={(e) =>
-                  setFormData({ ...formData, logo: e.target.value })
-                }
-                className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                placeholder="https://example.com/logo.png"
-                disabled={loading}
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                Optional: Link to your team logo image
-              </p>
-            </div>
-          </div>
+          <TeamFormFields
+            value={formData}
+            onChange={setFormData}
+            disabled={loading}
+            error={error}
+          />
 
           {/* Actions */}
           <div className="mt-8 flex items-center justify-between border-t border-gray-200 pt-6">
