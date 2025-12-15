@@ -397,6 +397,74 @@ export const DELETE_GOAL = graphql(/* GraphQL */ `
   }
 `);
 
+export const DELETE_SUBSTITUTION = graphql(/* GraphQL */ `
+  mutation DeleteSubstitution($gameEventId: ID!) {
+    deleteSubstitution(gameEventId: $gameEventId)
+  }
+`);
+
+export const DELETE_POSITION_SWAP = graphql(/* GraphQL */ `
+  mutation DeletePositionSwap($gameEventId: ID!) {
+    deletePositionSwap(gameEventId: $gameEventId)
+  }
+`);
+
+export const DELETE_STARTER_ENTRY = graphql(/* GraphQL */ `
+  mutation DeleteStarterEntry($gameEventId: ID!) {
+    deleteStarterEntry(gameEventId: $gameEventId)
+  }
+`);
+
+export const GET_DEPENDENT_EVENTS = graphql(/* GraphQL */ `
+  query GetDependentEvents($gameEventId: ID!) {
+    dependentEvents(gameEventId: $gameEventId) {
+      dependentEvents {
+        id
+        eventType
+        gameMinute
+        gameSecond
+        playerName
+        description
+      }
+      count
+      canDelete
+      warningMessage
+    }
+  }
+`);
+
+export const DELETE_EVENT_WITH_CASCADE = graphql(/* GraphQL */ `
+  mutation DeleteEventWithCascade($gameEventId: ID!, $eventType: String!) {
+    deleteEventWithCascade(gameEventId: $gameEventId, eventType: $eventType)
+  }
+`);
+
+export const RESOLVE_EVENT_CONFLICT = graphql(/* GraphQL */ `
+  mutation ResolveEventConflict(
+    $conflictId: ID!
+    $selectedEventId: ID!
+    $keepAll: Boolean
+  ) {
+    resolveEventConflict(
+      conflictId: $conflictId
+      selectedEventId: $selectedEventId
+      keepAll: $keepAll
+    ) {
+      id
+      gameMinute
+      gameSecond
+      playerId
+      externalPlayerName
+      externalPlayerNumber
+      conflictId
+      eventType {
+        id
+        name
+      }
+    }
+  }
+`);
+
 export const UPDATE_GOAL = graphql(/* GraphQL */ `
   mutation UpdateGoal($input: UpdateGoalInput!) {
     updateGoal(input: $input) {
@@ -480,6 +548,85 @@ export const GET_PLAYER_STATS = graphql(/* GraphQL */ `
       yellowCards
       redCards
       saves
+      isOnField
+      lastEntryGameSeconds
+    }
+  }
+`);
+
+// Subscription for real-time game event updates
+export const GAME_EVENT_CHANGED = graphql(/* GraphQL */ `
+  subscription GameEventChanged($gameId: ID!) {
+    gameEventChanged(gameId: $gameId) {
+      action
+      gameId
+      event {
+        id
+        gameTeamId
+        gameMinute
+        gameSecond
+        position
+        playerId
+        externalPlayerName
+        externalPlayerNumber
+        eventType {
+          id
+          name
+          category
+        }
+        player {
+          id
+          firstName
+          lastName
+        }
+        recordedByUser {
+          id
+          firstName
+          lastName
+        }
+        childEvents {
+          id
+          gameMinute
+          gameSecond
+          playerId
+          externalPlayerName
+          externalPlayerNumber
+          eventType {
+            id
+            name
+            category
+          }
+        }
+      }
+      deletedEventId
+      conflict {
+        conflictId
+        eventType
+        gameMinute
+        gameSecond
+        conflictingEvents {
+          eventId
+          playerName
+          playerId
+          recordedByUserName
+        }
+      }
+    }
+  }
+`);
+
+// Subscription for real-time game state updates (start, pause, half-time, end, reset)
+export const GAME_UPDATED = graphql(/* GraphQL */ `
+  subscription GameUpdated($gameId: ID!) {
+    gameUpdated(gameId: $gameId) {
+      id
+      name
+      status
+      actualStart
+      firstHalfEnd
+      secondHalfStart
+      actualEnd
+      pausedAt
     }
   }
 `);

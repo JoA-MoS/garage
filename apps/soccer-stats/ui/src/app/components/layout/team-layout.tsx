@@ -20,7 +20,7 @@ export const TeamLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { data, loading, error } = useQuery<TeamResponse>(GET_TEAM_BY_ID, {
+  const { data, loading } = useQuery<TeamResponse>(GET_TEAM_BY_ID, {
     variables: { id: teamId },
     errorPolicy: 'all',
     fetchPolicy: 'cache-and-network',

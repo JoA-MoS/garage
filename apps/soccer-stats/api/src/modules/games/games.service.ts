@@ -7,6 +7,7 @@ import { Team } from '../../entities/team.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { GameFormat } from '../../entities/game-format.entity';
 import { GameEvent } from '../../entities/game-event.entity';
+import { EventType } from '../../entities/event-type.entity';
 
 import { CreateGameInput } from './dto/create-game.input';
 import { UpdateGameInput } from './dto/update-game.input';
@@ -23,7 +24,9 @@ export class GamesService {
     @InjectRepository(GameFormat)
     private readonly gameFormatRepository: Repository<GameFormat>,
     @InjectRepository(GameEvent)
-    private readonly gameEventRepository: Repository<GameEvent>
+    private readonly gameEventRepository: Repository<GameEvent>,
+    @InjectRepository(EventType)
+    private readonly eventTypeRepository: Repository<EventType>
   ) {}
 
   async findAll(): Promise<Game[]> {
@@ -171,11 +174,59 @@ export class GamesService {
       await this.gameRepository.update(id, gameFields);
     }
 
+    // Convert STARTING_LINEUP events to SUBSTITUTION_IN when game starts
+    if (updateGameInput.status === GameStatus.FIRST_HALF) {
+      await this.convertStartingLineupToSubstitutionIn(id);
+    }
+
     return this.findOne(id);
   }
 
   async remove(id: string): Promise<boolean> {
     const result = await this.gameRepository.delete(id);
     return (result.affected ?? 0) > 0;
+  }
+
+  /**
+   * Converts all STARTING_LINEUP events for a game to SUBSTITUTION_IN events.
+   * Called when a game transitions to FIRST_HALF status.
+   */
+  private async convertStartingLineupToSubstitutionIn(
+    gameId: string
+  ): Promise<void> {
+    // Find STARTING_LINEUP event type
+    const startingLineupType = await this.eventTypeRepository.findOne({
+      where: { name: 'STARTING_LINEUP' },
+    });
+
+    if (!startingLineupType) {
+      console.warn('STARTING_LINEUP event type not found');
+      return;
+    }
+
+    // Find SUBSTITUTION_IN event type
+    const substitutionInType = await this.eventTypeRepository.findOne({
+      where: { name: 'SUBSTITUTION_IN' },
+    });
+
+    if (!substitutionInType) {
+      console.warn('SUBSTITUTION_IN event type not found');
+      return;
+    }
+
+    // Find all STARTING_LINEUP events for this game
+    const startingLineupEvents = await this.gameEventRepository.find({
+      where: { gameId, eventTypeId: startingLineupType.id },
+    });
+
+    // Update each event's eventTypeId to SUBSTITUTION_IN
+    for (const event of startingLineupEvents) {
+      event.eventTypeId = substitutionInType.id;
+      await this.gameEventRepository.save(event);
+    }
+
+    console.log(
+      `Converted ${startingLineupEvents.length} STARTING_LINEUP events to SUBSTITUTION_IN for game ${gameId}`
+    );
   }
 }

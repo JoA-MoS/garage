@@ -46,6 +46,23 @@ export type AddToLineupInput = {
   position: Scalars['String']['input'];
 };
 
+export type ConflictInfo = {
+  __typename?: 'ConflictInfo';
+  conflictId: Scalars['ID']['output'];
+  conflictingEvents: Array<ConflictingEvent>;
+  eventType: Scalars['String']['output'];
+  gameMinute: Scalars['Int']['output'];
+  gameSecond: Scalars['Int']['output'];
+};
+
+export type ConflictingEvent = {
+  __typename?: 'ConflictingEvent';
+  eventId: Scalars['ID']['output'];
+  playerId?: Maybe<Scalars['ID']['output']>;
+  playerName: Scalars['String']['output'];
+  recordedByUserName: Scalars['String']['output'];
+};
+
 export type CreateGameFormatInput = {
   allowsSubstitutions?: Scalars['Boolean']['input'];
   description?: InputMaybe<Scalars['String']['input']>;
@@ -65,12 +82,19 @@ export type CreateGameInput = {
 };
 
 export type CreateTeamInput = {
+  awayPrimaryColor?: InputMaybe<Scalars['String']['input']>;
+  awaySecondaryColor?: InputMaybe<Scalars['String']['input']>;
   colors?: InputMaybe<Scalars['String']['input']>;
   customPositions?: InputMaybe<Array<TeamPositionInput>>;
+  description?: InputMaybe<Scalars['String']['input']>;
   formation?: InputMaybe<Scalars['String']['input']>;
   gameFormat?: InputMaybe<Scalars['String']['input']>;
+  homePrimaryColor?: InputMaybe<Scalars['String']['input']>;
+  homeSecondaryColor?: InputMaybe<Scalars['String']['input']>;
   logo?: InputMaybe<Scalars['String']['input']>;
+  logoUrl?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
+  shortName?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type CreateUserInput = {
@@ -80,6 +104,24 @@ export type CreateUserInput = {
   lastName: Scalars['String']['input'];
   passwordHash?: InputMaybe<Scalars['String']['input']>;
   phone?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type DependentEvent = {
+  __typename?: 'DependentEvent';
+  description?: Maybe<Scalars['String']['output']>;
+  eventType: Scalars['String']['output'];
+  gameMinute: Scalars['Int']['output'];
+  gameSecond: Scalars['Int']['output'];
+  id: Scalars['ID']['output'];
+  playerName?: Maybe<Scalars['String']['output']>;
+};
+
+export type DependentEventsResult = {
+  __typename?: 'DependentEventsResult';
+  canDelete: Scalars['Boolean']['output'];
+  count: Scalars['Int']['output'];
+  dependentEvents: Array<DependentEvent>;
+  warningMessage?: Maybe<Scalars['String']['output']>;
 };
 
 export type EventType = {
@@ -121,6 +163,7 @@ export type Game = {
 export type GameEvent = {
   __typename?: 'GameEvent';
   childEvents: Array<GameEvent>;
+  conflictId?: Maybe<Scalars['ID']['output']>;
   createdAt: Scalars['DateTime']['output'];
   description?: Maybe<Scalars['String']['output']>;
   eventType: EventType;
@@ -142,6 +185,24 @@ export type GameEvent = {
   recordedByUser: User;
   recordedByUserId: Scalars['ID']['output'];
   updatedAt: Scalars['DateTime']['output'];
+};
+
+/** The type of action that occurred on a game event */
+export enum GameEventAction {
+  ConflictDetected = 'CONFLICT_DETECTED',
+  Created = 'CREATED',
+  Deleted = 'DELETED',
+  DuplicateDetected = 'DUPLICATE_DETECTED',
+  Updated = 'UPDATED',
+}
+
+export type GameEventSubscriptionPayload = {
+  __typename?: 'GameEventSubscriptionPayload';
+  action: GameEventAction;
+  conflict?: Maybe<ConflictInfo>;
+  deletedEventId?: Maybe<Scalars['ID']['output']>;
+  event?: Maybe<GameEvent>;
+  gameId: Scalars['ID']['output'];
 };
 
 export type GameFormat = {
@@ -221,7 +282,11 @@ export type Mutation = {
   createTeam: Team;
   createUnmanagedTeam: Team;
   createUser: User;
+  deleteEventWithCascade: Scalars['Boolean']['output'];
   deleteGoal: Scalars['Boolean']['output'];
+  deletePositionSwap: Scalars['Boolean']['output'];
+  deleteStarterEntry: Scalars['Boolean']['output'];
+  deleteSubstitution: Scalars['Boolean']['output'];
   findOrCreateUnmanagedTeam: Team;
   recordGoal: GameEvent;
   removeCoachFromTeam: Scalars['Boolean']['output'];
@@ -231,6 +296,7 @@ export type Mutation = {
   removePlayerFromTeam: Scalars['Boolean']['output'];
   removeTeam: Scalars['Boolean']['output'];
   removeUser: Scalars['Boolean']['output'];
+  resolveEventConflict: GameEvent;
   seedGameFormats: Scalars['Boolean']['output'];
   substitutePlayer: Array<GameEvent>;
   swapPositions: Array<GameEvent>;
@@ -296,7 +362,24 @@ export type MutationCreateUserArgs = {
   createUserInput: CreateUserInput;
 };
 
+export type MutationDeleteEventWithCascadeArgs = {
+  eventType: Scalars['String']['input'];
+  gameEventId: Scalars['ID']['input'];
+};
+
 export type MutationDeleteGoalArgs = {
+  gameEventId: Scalars['ID']['input'];
+};
+
+export type MutationDeletePositionSwapArgs = {
+  gameEventId: Scalars['ID']['input'];
+};
+
+export type MutationDeleteStarterEntryArgs = {
+  gameEventId: Scalars['ID']['input'];
+};
+
+export type MutationDeleteSubstitutionArgs = {
   gameEventId: Scalars['ID']['input'];
 };
 
@@ -339,6 +422,12 @@ export type MutationRemoveTeamArgs = {
 
 export type MutationRemoveUserArgs = {
   id: Scalars['ID']['input'];
+};
+
+export type MutationResolveEventConflictArgs = {
+  conflictId: Scalars['ID']['input'];
+  keepAll?: InputMaybe<Scalars['Boolean']['input']>;
+  selectedEventId: Scalars['ID']['input'];
 };
 
 export type MutationSubstitutePlayerArgs = {
@@ -395,6 +484,8 @@ export type PlayerFullStats = {
   externalPlayerNumber?: Maybe<Scalars['String']['output']>;
   gamesPlayed: Scalars['Int']['output'];
   goals: Scalars['Int']['output'];
+  isOnField?: Maybe<Scalars['Boolean']['output']>;
+  lastEntryGameSeconds?: Maybe<Scalars['Int']['output']>;
   playerId?: Maybe<Scalars['ID']['output']>;
   playerName?: Maybe<Scalars['String']['output']>;
   positionTimes: Array<PositionTime>;
@@ -440,6 +531,7 @@ export type Query = {
   coachesByName: Array<User>;
   coachesByRole: Array<User>;
   coachesByTeam: Array<User>;
+  dependentEvents: DependentEventsResult;
   eventType?: Maybe<EventType>;
   eventTypeByName?: Maybe<EventType>;
   eventTypes: Array<EventType>;
@@ -452,6 +544,8 @@ export type Query = {
   gameLineup: GameLineup;
   games: Array<Game>;
   managedTeams: Array<Team>;
+  /** Get teams the current user has access to (created, plays on, or coaches) */
+  myTeams: Array<Team>;
   player: User;
   playerPositionStats: Array<PlayerPositionStats>;
   playerStats: Array<PlayerFullStats>;
@@ -480,6 +574,10 @@ export type QueryCoachesByRoleArgs = {
 
 export type QueryCoachesByTeamArgs = {
   teamId: Scalars['ID']['input'];
+};
+
+export type QueryDependentEventsArgs = {
+  gameEventId: Scalars['ID']['input'];
 };
 
 export type QueryEventTypeArgs = {
@@ -589,6 +687,7 @@ export enum SourceType {
 export type Subscription = {
   __typename?: 'Subscription';
   gameCreated: Game;
+  gameEventChanged: GameEventSubscriptionPayload;
   gameUpdated: Game;
   playerCreated: User;
   playerUpdated: User;
@@ -596,6 +695,14 @@ export type Subscription = {
   teamUpdated: Team;
   userCreated: User;
   userUpdated: User;
+};
+
+export type SubscriptionGameEventChangedArgs = {
+  gameId: Scalars['ID']['input'];
+};
+
+export type SubscriptionGameUpdatedArgs = {
+  gameId: Scalars['ID']['input'];
 };
 
 export type SubstitutePlayerInput = {
@@ -627,6 +734,8 @@ export type Team = {
   awayPrimaryColor?: Maybe<Scalars['String']['output']>;
   awaySecondaryColor?: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['DateTime']['output'];
+  /** Clerk user ID of the team creator/owner */
+  createdById?: Maybe<Scalars['String']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   externalReference?: Maybe<Scalars['String']['output']>;
   gameTeams?: Maybe<Array<GameTeam>>;
@@ -750,12 +859,19 @@ export type UpdateGoalInput = {
 };
 
 export type UpdateTeamInput = {
+  awayPrimaryColor?: InputMaybe<Scalars['String']['input']>;
+  awaySecondaryColor?: InputMaybe<Scalars['String']['input']>;
   colors?: InputMaybe<Scalars['String']['input']>;
   customPositions?: InputMaybe<Array<TeamPositionInput>>;
+  description?: InputMaybe<Scalars['String']['input']>;
   formation?: InputMaybe<Scalars['String']['input']>;
   gameFormat?: InputMaybe<Scalars['String']['input']>;
+  homePrimaryColor?: InputMaybe<Scalars['String']['input']>;
+  homeSecondaryColor?: InputMaybe<Scalars['String']['input']>;
   logo?: InputMaybe<Scalars['String']['input']>;
+  logoUrl?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  shortName?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type UpdateUserInput = {
@@ -768,12 +884,19 @@ export type UpdateUserInput = {
 };
 
 export type UpgradeTeamInput = {
+  awayPrimaryColor?: InputMaybe<Scalars['String']['input']>;
+  awaySecondaryColor?: InputMaybe<Scalars['String']['input']>;
   colors?: InputMaybe<Scalars['String']['input']>;
   customPositions?: InputMaybe<Array<TeamPositionInput>>;
+  description?: InputMaybe<Scalars['String']['input']>;
   formation?: InputMaybe<Scalars['String']['input']>;
   gameFormat?: InputMaybe<Scalars['String']['input']>;
+  homePrimaryColor?: InputMaybe<Scalars['String']['input']>;
+  homeSecondaryColor?: InputMaybe<Scalars['String']['input']>;
   logo?: InputMaybe<Scalars['String']['input']>;
+  logoUrl?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  shortName?: InputMaybe<Scalars['String']['input']>;
   teamId: Scalars['ID']['input'];
 };
 
@@ -848,6 +971,30 @@ export type DebugGetTeamsQuery = {
   }>;
 };
 
+export type GetMyTeamsForListQueryVariables = Exact<{ [key: string]: never }>;
+
+export type GetMyTeamsForListQuery = {
+  __typename?: 'Query';
+  myTeams: Array<{
+    __typename?: 'Team';
+    id: string;
+    name: string;
+    shortName?: string | null;
+    description?: string | null;
+    homePrimaryColor?: string | null;
+    homeSecondaryColor?: string | null;
+    awayPrimaryColor?: string | null;
+    awaySecondaryColor?: string | null;
+    logoUrl?: string | null;
+    isActive: boolean;
+    isManaged: boolean;
+    sourceType: SourceType;
+    createdById?: string | null;
+    createdAt: any;
+    updatedAt: any;
+  }>;
+};
+
 export type UserCardFragment = {
   __typename?: 'User';
   id: string;
@@ -869,6 +1016,41 @@ export type UserCardFragment = {
     };
   }>;
 } & { ' $fragmentName'?: 'UserCardFragment' };
+
+export type QuickCreateTeamMutationVariables = Exact<{
+  input: CreateTeamInput;
+}>;
+
+export type QuickCreateTeamMutation = {
+  __typename?: 'Mutation';
+  createTeam: {
+    __typename?: 'Team';
+    id: string;
+    name: string;
+    homePrimaryColor?: string | null;
+    homeSecondaryColor?: string | null;
+    awayPrimaryColor?: string | null;
+    awaySecondaryColor?: string | null;
+    logoUrl?: string | null;
+  };
+};
+
+export type GameEventFragmentFragment = {
+  __typename?: 'GameEvent';
+  id: string;
+  gameMinute: number;
+  gameSecond: number;
+  position?: string | null;
+  playerId?: string | null;
+  externalPlayerName?: string | null;
+  externalPlayerNumber?: string | null;
+  eventType: {
+    __typename?: 'EventType';
+    id: string;
+    name: string;
+    category: string;
+  };
+} & { ' $fragmentName'?: 'GameEventFragmentFragment' };
 
 export type GetGameFormatsQueryVariables = Exact<{ [key: string]: never }>;
 
@@ -1238,6 +1420,87 @@ export type DeleteGoalMutation = {
   deleteGoal: boolean;
 };
 
+export type DeleteSubstitutionMutationVariables = Exact<{
+  gameEventId: Scalars['ID']['input'];
+}>;
+
+export type DeleteSubstitutionMutation = {
+  __typename?: 'Mutation';
+  deleteSubstitution: boolean;
+};
+
+export type DeletePositionSwapMutationVariables = Exact<{
+  gameEventId: Scalars['ID']['input'];
+}>;
+
+export type DeletePositionSwapMutation = {
+  __typename?: 'Mutation';
+  deletePositionSwap: boolean;
+};
+
+export type DeleteStarterEntryMutationVariables = Exact<{
+  gameEventId: Scalars['ID']['input'];
+}>;
+
+export type DeleteStarterEntryMutation = {
+  __typename?: 'Mutation';
+  deleteStarterEntry: boolean;
+};
+
+export type GetDependentEventsQueryVariables = Exact<{
+  gameEventId: Scalars['ID']['input'];
+}>;
+
+export type GetDependentEventsQuery = {
+  __typename?: 'Query';
+  dependentEvents: {
+    __typename?: 'DependentEventsResult';
+    count: number;
+    canDelete: boolean;
+    warningMessage?: string | null;
+    dependentEvents: Array<{
+      __typename?: 'DependentEvent';
+      id: string;
+      eventType: string;
+      gameMinute: number;
+      gameSecond: number;
+      playerName?: string | null;
+      description?: string | null;
+    }>;
+  };
+};
+
+export type DeleteEventWithCascadeMutationVariables = Exact<{
+  gameEventId: Scalars['ID']['input'];
+  eventType: Scalars['String']['input'];
+}>;
+
+export type DeleteEventWithCascadeMutation = {
+  __typename?: 'Mutation';
+  deleteEventWithCascade: boolean;
+};
+
+export type ResolveEventConflictMutationVariables = Exact<{
+  conflictId: Scalars['ID']['input'];
+  selectedEventId: Scalars['ID']['input'];
+  keepAll?: InputMaybe<Scalars['Boolean']['input']>;
+}>;
+
+export type ResolveEventConflictMutation = {
+  __typename?: 'Mutation';
+  resolveEventConflict: {
+    __typename?: 'GameEvent';
+    id: string;
+    gameMinute: number;
+    gameSecond: number;
+    playerId?: string | null;
+    externalPlayerName?: string | null;
+    externalPlayerNumber?: string | null;
+    conflictId?: string | null;
+    eventType: { __typename?: 'EventType'; id: string; name: string };
+  };
+};
+
 export type UpdateGoalMutationVariables = Exact<{
   input: UpdateGoalInput;
 }>;
@@ -1326,6 +1589,8 @@ export type GetPlayerStatsQuery = {
     yellowCards?: number | null;
     redCards?: number | null;
     saves?: number | null;
+    isOnField?: boolean | null;
+    lastEntryGameSeconds?: number | null;
     positionTimes: Array<{
       __typename?: 'PositionTime';
       position: string;
@@ -1333,6 +1598,97 @@ export type GetPlayerStatsQuery = {
       seconds: number;
     }>;
   }>;
+};
+
+export type GameEventChangedSubscriptionVariables = Exact<{
+  gameId: Scalars['ID']['input'];
+}>;
+
+export type GameEventChangedSubscription = {
+  __typename?: 'Subscription';
+  gameEventChanged: {
+    __typename?: 'GameEventSubscriptionPayload';
+    action: GameEventAction;
+    gameId: string;
+    deletedEventId?: string | null;
+    event?: {
+      __typename?: 'GameEvent';
+      id: string;
+      gameTeamId: string;
+      gameMinute: number;
+      gameSecond: number;
+      position?: string | null;
+      playerId?: string | null;
+      externalPlayerName?: string | null;
+      externalPlayerNumber?: string | null;
+      eventType: {
+        __typename?: 'EventType';
+        id: string;
+        name: string;
+        category: string;
+      };
+      player?: {
+        __typename?: 'User';
+        id: string;
+        firstName: string;
+        lastName: string;
+      } | null;
+      recordedByUser: {
+        __typename?: 'User';
+        id: string;
+        firstName: string;
+        lastName: string;
+      };
+      childEvents: Array<{
+        __typename?: 'GameEvent';
+        id: string;
+        gameMinute: number;
+        gameSecond: number;
+        playerId?: string | null;
+        externalPlayerName?: string | null;
+        externalPlayerNumber?: string | null;
+        eventType: {
+          __typename?: 'EventType';
+          id: string;
+          name: string;
+          category: string;
+        };
+      }>;
+    } | null;
+    conflict?: {
+      __typename?: 'ConflictInfo';
+      conflictId: string;
+      eventType: string;
+      gameMinute: number;
+      gameSecond: number;
+      conflictingEvents: Array<{
+        __typename?: 'ConflictingEvent';
+        eventId: string;
+        playerName: string;
+        playerId?: string | null;
+        recordedByUserName: string;
+      }>;
+    } | null;
+  };
+};
+
+export type GameUpdatedSubscriptionVariables = Exact<{
+  gameId: Scalars['ID']['input'];
+}>;
+
+export type GameUpdatedSubscription = {
+  __typename?: 'Subscription';
+  gameUpdated: {
+    __typename?: 'Game';
+    id: string;
+    name?: string | null;
+    status: GameStatus;
+    actualStart?: any | null;
+    firstHalfEnd?: any | null;
+    secondHalfStart?: any | null;
+    actualEnd?: any | null;
+    pausedAt?: any | null;
+  };
 };
 
 export type GetTeamsQueryVariables = Exact<{ [key: string]: never }>;
@@ -1455,6 +1811,7 @@ export type CreateTeamMutation = {
     isActive: boolean;
     isManaged: boolean;
     sourceType: SourceType;
+    createdById?: string | null;
     createdAt: any;
     updatedAt: any;
   };
@@ -1580,6 +1937,30 @@ export type GetTeamsByManagedStatusQuery = {
     isActive: boolean;
     isManaged: boolean;
     sourceType: SourceType;
+    createdAt: any;
+    updatedAt: any;
+  }>;
+};
+
+export type GetMyTeamsQueryVariables = Exact<{ [key: string]: never }>;
+
+export type GetMyTeamsQuery = {
+  __typename?: 'Query';
+  myTeams: Array<{
+    __typename?: 'Team';
+    id: string;
+    name: string;
+    shortName?: string | null;
+    description?: string | null;
+    homePrimaryColor?: string | null;
+    homeSecondaryColor?: string | null;
+    awayPrimaryColor?: string | null;
+    awaySecondaryColor?: string | null;
+    logoUrl?: string | null;
+    isActive: boolean;
+    isManaged: boolean;
+    sourceType: SourceType;
+    createdById?: string | null;
     createdAt: any;
     updatedAt: any;
   }>;
@@ -2282,6 +2663,49 @@ export const UserCardFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<UserCardFragment, unknown>;
+export const GameEventFragmentFragmentDoc = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'FragmentDefinition',
+      name: { kind: 'Name', value: 'GameEventFragment' },
+      typeCondition: {
+        kind: 'NamedType',
+        name: { kind: 'Name', value: 'GameEvent' },
+      },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'position' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'playerId' } },
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'externalPlayerName' },
+          },
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'externalPlayerNumber' },
+          },
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'eventType' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'category' } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<GameEventFragmentFragment, unknown>;
 export const GetUsersForListDocument = {
   kind: 'Document',
   definitions: [
@@ -2415,6 +2839,132 @@ export const DebugGetTeamsDocument = {
     },
   ],
 } as unknown as DocumentNode<DebugGetTeamsQuery, DebugGetTeamsQueryVariables>;
+export const GetMyTeamsForListDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'query',
+      name: { kind: 'Name', value: 'GetMyTeamsForList' },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'myTeams' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'shortName' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'description' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'homePrimaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'homeSecondaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'awayPrimaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'awaySecondaryColor' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'logoUrl' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'isActive' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'isManaged' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'sourceType' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'createdById' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  GetMyTeamsForListQuery,
+  GetMyTeamsForListQueryVariables
+>;
+export const QuickCreateTeamDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'mutation',
+      name: { kind: 'Name', value: 'QuickCreateTeam' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'input' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: {
+              kind: 'NamedType',
+              name: { kind: 'Name', value: 'CreateTeamInput' },
+            },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'createTeam' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'createTeamInput' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'input' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'homePrimaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'homeSecondaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'awayPrimaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'awaySecondaryColor' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'logoUrl' } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  QuickCreateTeamMutation,
+  QuickCreateTeamMutationVariables
+>;
 export const GetGameFormatsDocument = {
   kind: 'Document',
   definitions: [
@@ -3769,6 +4319,403 @@ export const DeleteGoalDocument = {
     },
   ],
 } as unknown as DocumentNode<DeleteGoalMutation, DeleteGoalMutationVariables>;
+export const DeleteSubstitutionDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'mutation',
+      name: { kind: 'Name', value: 'DeleteSubstitution' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'gameEventId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'deleteSubstitution' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'gameEventId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'gameEventId' },
+                },
+              },
+            ],
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  DeleteSubstitutionMutation,
+  DeleteSubstitutionMutationVariables
+>;
+export const DeletePositionSwapDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'mutation',
+      name: { kind: 'Name', value: 'DeletePositionSwap' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'gameEventId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'deletePositionSwap' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'gameEventId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'gameEventId' },
+                },
+              },
+            ],
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  DeletePositionSwapMutation,
+  DeletePositionSwapMutationVariables
+>;
+export const DeleteStarterEntryDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'mutation',
+      name: { kind: 'Name', value: 'DeleteStarterEntry' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'gameEventId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'deleteStarterEntry' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'gameEventId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'gameEventId' },
+                },
+              },
+            ],
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  DeleteStarterEntryMutation,
+  DeleteStarterEntryMutationVariables
+>;
+export const GetDependentEventsDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'query',
+      name: { kind: 'Name', value: 'GetDependentEvents' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'gameEventId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'dependentEvents' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'gameEventId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'gameEventId' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'dependentEvents' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'eventType' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameMinute' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameSecond' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'playerName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'description' },
+                      },
+                    ],
+                  },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'count' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'canDelete' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'warningMessage' },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  GetDependentEventsQuery,
+  GetDependentEventsQueryVariables
+>;
+export const DeleteEventWithCascadeDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'mutation',
+      name: { kind: 'Name', value: 'DeleteEventWithCascade' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'gameEventId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'eventType' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: {
+              kind: 'NamedType',
+              name: { kind: 'Name', value: 'String' },
+            },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'deleteEventWithCascade' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'gameEventId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'gameEventId' },
+                },
+              },
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'eventType' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'eventType' },
+                },
+              },
+            ],
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  DeleteEventWithCascadeMutation,
+  DeleteEventWithCascadeMutationVariables
+>;
+export const ResolveEventConflictDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'mutation',
+      name: { kind: 'Name', value: 'ResolveEventConflict' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'conflictId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'selectedEventId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'keepAll' },
+          },
+          type: { kind: 'NamedType', name: { kind: 'Name', value: 'Boolean' } },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'resolveEventConflict' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'conflictId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'conflictId' },
+                },
+              },
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'selectedEventId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'selectedEventId' },
+                },
+              },
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'keepAll' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'keepAll' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'playerId' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'externalPlayerName' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'externalPlayerNumber' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'conflictId' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'eventType' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  ResolveEventConflictMutation,
+  ResolveEventConflictMutationVariables
+>;
 export const UpdateGoalDocument = {
   kind: 'Document',
   definitions: [
@@ -4134,6 +5081,11 @@ export const GetPlayerStatsDocument = {
                 { kind: 'Field', name: { kind: 'Name', value: 'yellowCards' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'redCards' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'saves' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'isOnField' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'lastEntryGameSeconds' },
+                },
               ],
             },
           },
@@ -4142,6 +5094,340 @@ export const GetPlayerStatsDocument = {
     },
   ],
 } as unknown as DocumentNode<GetPlayerStatsQuery, GetPlayerStatsQueryVariables>;
+export const GameEventChangedDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'subscription',
+      name: { kind: 'Name', value: 'GameEventChanged' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'gameId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'gameEventChanged' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'gameId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'gameId' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'action' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'gameId' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'event' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameTeamId' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameMinute' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameSecond' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'position' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'playerId' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'externalPlayerName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'externalPlayerNumber' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'eventType' },
+                        selectionSet: {
+                          kind: 'SelectionSet',
+                          selections: [
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'id' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'name' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'category' },
+                            },
+                          ],
+                        },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'player' },
+                        selectionSet: {
+                          kind: 'SelectionSet',
+                          selections: [
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'id' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'firstName' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'lastName' },
+                            },
+                          ],
+                        },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'recordedByUser' },
+                        selectionSet: {
+                          kind: 'SelectionSet',
+                          selections: [
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'id' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'firstName' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'lastName' },
+                            },
+                          ],
+                        },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'childEvents' },
+                        selectionSet: {
+                          kind: 'SelectionSet',
+                          selections: [
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'id' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'gameMinute' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'gameSecond' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'playerId' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: {
+                                kind: 'Name',
+                                value: 'externalPlayerName',
+                              },
+                            },
+                            {
+                              kind: 'Field',
+                              name: {
+                                kind: 'Name',
+                                value: 'externalPlayerNumber',
+                              },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'eventType' },
+                              selectionSet: {
+                                kind: 'SelectionSet',
+                                selections: [
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'id' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'name' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'category' },
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'deletedEventId' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'conflict' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'conflictId' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'eventType' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameMinute' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameSecond' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'conflictingEvents' },
+                        selectionSet: {
+                          kind: 'SelectionSet',
+                          selections: [
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'eventId' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'playerName' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'playerId' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: {
+                                kind: 'Name',
+                                value: 'recordedByUserName',
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  GameEventChangedSubscription,
+  GameEventChangedSubscriptionVariables
+>;
+export const GameUpdatedDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'subscription',
+      name: { kind: 'Name', value: 'GameUpdated' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'gameId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'gameUpdated' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'gameId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'gameId' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'actualStart' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'firstHalfEnd' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'secondHalfStart' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'actualEnd' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'pausedAt' } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  GameUpdatedSubscription,
+  GameUpdatedSubscriptionVariables
+>;
 export const GetTeamsDocument = {
   kind: 'Document',
   definitions: [
@@ -4500,6 +5786,7 @@ export const CreateTeamDocument = {
                 { kind: 'Field', name: { kind: 'Name', value: 'isActive' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'isManaged' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'sourceType' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'createdById' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
               ],
@@ -4911,6 +6198,57 @@ export const GetTeamsByManagedStatusDocument = {
   GetTeamsByManagedStatusQuery,
   GetTeamsByManagedStatusQueryVariables
 >;
+export const GetMyTeamsDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'query',
+      name: { kind: 'Name', value: 'GetMyTeams' },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'myTeams' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'shortName' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'description' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'homePrimaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'homeSecondaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'awayPrimaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'awaySecondaryColor' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'logoUrl' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'isActive' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'isManaged' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'sourceType' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'createdById' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<GetMyTeamsQuery, GetMyTeamsQueryVariables>;
 export const GetAllUsersDocument = {
   kind: 'Document',
   definitions: [
