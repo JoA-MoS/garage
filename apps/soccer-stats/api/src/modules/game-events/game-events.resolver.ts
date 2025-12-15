@@ -228,6 +228,20 @@ export class GameEventsResolver {
     );
   }
 
+  @Mutation(() => GameEvent, { name: 'resolveEventConflict' })
+  @Public() // TODO: Add proper auth
+  resolveEventConflict(
+    @Args('conflictId', { type: () => ID }) conflictId: string,
+    @Args('selectedEventId', { type: () => ID }) selectedEventId: string,
+    @Args('keepAll', { nullable: true }) keepAll?: boolean
+  ): Promise<GameEvent> {
+    return this.gameEventsService.resolveEventConflict(
+      conflictId,
+      selectedEventId,
+      keepAll
+    );
+  }
+
   @Subscription(() => GameEventSubscriptionPayload, {
     name: 'gameEventChanged',
     filter: (

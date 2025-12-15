@@ -439,6 +439,32 @@ export const DELETE_EVENT_WITH_CASCADE = graphql(/* GraphQL */ `
   }
 `);
 
+export const RESOLVE_EVENT_CONFLICT = graphql(/* GraphQL */ `
+  mutation ResolveEventConflict(
+    $conflictId: ID!
+    $selectedEventId: ID!
+    $keepAll: Boolean
+  ) {
+    resolveEventConflict(
+      conflictId: $conflictId
+      selectedEventId: $selectedEventId
+      keepAll: $keepAll
+    ) {
+      id
+      gameMinute
+      gameSecond
+      playerId
+      externalPlayerName
+      externalPlayerNumber
+      conflictId
+      eventType {
+        id
+        name
+      }
+    }
+  }
+`);
+
 export const UPDATE_GOAL = graphql(/* GraphQL */ `
   mutation UpdateGoal($input: UpdateGoalInput!) {
     updateGoal(input: $input) {
