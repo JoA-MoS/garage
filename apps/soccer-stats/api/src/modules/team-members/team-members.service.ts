@@ -34,14 +34,29 @@ export class TeamMembersService {
   ) {}
 
   /**
-   * Find all members of a team
+   * Find all members of a team, ordered by role hierarchy (OWNER first, then MANAGER, etc.)
    */
   async findByTeam(teamId: string): Promise<TeamMember[]> {
-    return this.teamMemberRepository.find({
-      where: { teamId },
-      relations: ['user', 'linkedPlayer', 'invitedBy'],
-      order: { role: 'ASC', createdAt: 'ASC' },
-    });
+    // Use query builder to order by role hierarchy instead of alphabetical
+    return this.teamMemberRepository
+      .createQueryBuilder('teamMember')
+      .leftJoinAndSelect('teamMember.user', 'user')
+      .leftJoinAndSelect('teamMember.linkedPlayer', 'linkedPlayer')
+      .leftJoinAndSelect('teamMember.invitedBy', 'invitedBy')
+      .where('teamMember.teamId = :teamId', { teamId })
+      .orderBy(
+        `CASE teamMember.role
+          WHEN 'OWNER' THEN 1
+          WHEN 'MANAGER' THEN 2
+          WHEN 'COACH' THEN 3
+          WHEN 'PLAYER' THEN 4
+          WHEN 'PARENT_FAN' THEN 5
+          ELSE 6
+        END`,
+        'ASC'
+      )
+      .addOrderBy('teamMember.createdAt', 'ASC')
+      .getMany();
   }
 
   /**

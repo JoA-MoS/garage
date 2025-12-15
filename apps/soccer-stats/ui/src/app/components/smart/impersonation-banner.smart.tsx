@@ -38,7 +38,9 @@ export const ImpersonationBannerSmart = () => {
     try {
       await signOut();
     } catch (err) {
-      setError('Failed to exit impersonation session. Please try again.');
+      const errorMessage =
+        err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(`Failed to exit impersonation session: ${errorMessage}`);
       setIsExiting(false);
     }
   };

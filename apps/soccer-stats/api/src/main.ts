@@ -35,9 +35,10 @@ async function bootstrap() {
       // "*.example.com" → matches "sub.example.com" (subdomain wildcard)
       // "*-team.vercel.app" → matches "app-hash-team.vercel.app" (Vercel pattern)
       // Uses restrictive pattern to prevent leading/trailing hyphens
+      // Includes uppercase letters for case-insensitive matching (domains are case-insensitive)
       const escaped = origin
         .replace(/\./g, '\\.')
-        .replace(/\*/g, '[a-z0-9](?:[a-z0-9-]*[a-z0-9])?');
+        .replace(/\*/g, '[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?');
       return new RegExp(`^https?://${escaped}$`, 'i');
     }
     return origin;

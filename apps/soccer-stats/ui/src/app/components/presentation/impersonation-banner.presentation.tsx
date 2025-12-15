@@ -56,6 +56,7 @@ export const ImpersonationBannerPresentation = ({
           <button
             onClick={onExitImpersonation}
             disabled={isExiting}
+            aria-label="Exit impersonation session"
             className="inline-flex items-center gap-1 rounded-md bg-amber-600 px-3 py-1 text-sm font-medium text-white transition-colors hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isExiting ? (
