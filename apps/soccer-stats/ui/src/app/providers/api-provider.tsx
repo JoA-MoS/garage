@@ -1,25 +1,8 @@
-import { ApolloClient, InMemoryCache, createHttpLink } from '@apollo/client';
 import { ApolloProvider } from '@apollo/client/react';
-import { ReactNode } from 'react';
+import { useAuth } from '@clerk/clerk-react';
+import { ReactNode, useEffect } from 'react';
 
-// Create HTTP link to the GraphQL endpoint
-const httpLink = createHttpLink({
-  uri: 'http://localhost:3333/graphql',
-});
-
-// Create Apollo Client instance
-const apolloClient = new ApolloClient({
-  link: httpLink,
-  cache: new InMemoryCache(),
-  defaultOptions: {
-    watchQuery: {
-      errorPolicy: 'all',
-    },
-    query: {
-      errorPolicy: 'all',
-    },
-  },
-});
+import { apolloClient, setTokenGetter } from '../services/apollo-client';
 
 interface ApiProviderProps {
   children: ReactNode;
@@ -27,7 +10,15 @@ interface ApiProviderProps {
 
 /**
  * Apollo Client provider component that wraps the app to provide GraphQL functionality
+ * Integrates with Clerk authentication to add auth headers to requests
  */
 export const ApiProvider = ({ children }: ApiProviderProps) => {
+  const { getToken } = useAuth();
+
+  // Set up the token getter for Apollo Client auth
+  useEffect(() => {
+    setTokenGetter(getToken);
+  }, [getToken]);
+
   return <ApolloProvider client={apolloClient}>{children}</ApolloProvider>;
 };

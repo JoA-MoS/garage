@@ -70,7 +70,11 @@ export const TeamManagementSmart = ({
   // Create team mutation
   const [createTeam, { loading: createLoading, error: createError }] =
     useMutation<CreateTeamResponse>(CREATE_TEAM, {
-      refetchQueries: [{ query: GET_TEAMS }],
+      refetchQueries: [
+        { query: GET_TEAMS },
+        'GetMyTeamsForList', // Refetch myTeams query for authenticated users
+        'DebugGetTeams', // Refetch all teams query for non-authenticated users
+      ],
       onCompleted: (data) => {
         // After creating, switch to format tab and update URL
         setActiveTab('format');
