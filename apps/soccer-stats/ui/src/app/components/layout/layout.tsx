@@ -2,6 +2,7 @@ import { Outlet } from 'react-router';
 
 import { NavigationSmart } from '../smart/navigation.smart';
 import { ProtectedRoute } from '../common/protected-route';
+import { ImpersonationBannerSmart } from '../smart/impersonation-banner.smart';
 
 /**
  * Main layout component that wraps all pages
@@ -10,8 +11,9 @@ import { ProtectedRoute } from '../common/protected-route';
 export const Layout = () => {
   return (
     <div className="min-h-screen bg-gray-50">
+      <ImpersonationBannerSmart />
       <NavigationSmart />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <ProtectedRoute>
           <Outlet />
         </ProtectedRoute>

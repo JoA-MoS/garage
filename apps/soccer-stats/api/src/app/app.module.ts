@@ -14,7 +14,12 @@ import { AuthModule } from '../modules/auth/auth.module';
 import { GameFormatsModule } from '../modules/game-formats/game-formats.module';
 import { EventTypesModule } from '../modules/event-types/event-types.module';
 import { GameEventsModule } from '../modules/game-events/game-events.module';
-import { ClerkUser } from '../modules/auth/clerk.service';
+import { TeamMembersModule } from '../modules/team-members/team-members.module';
+import {
+  ClerkActor,
+  ClerkPayload,
+  ClerkUser,
+} from '../modules/auth/clerk.service';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -22,7 +27,9 @@ import { StartupService } from './startup.service';
 
 interface AuthenticatedRequest extends Request {
   user?: ClerkUser;
-  clerkPayload?: { sub: string; [key: string]: unknown };
+  clerkPayload?: ClerkPayload;
+  actor?: ClerkActor | null;
+  isImpersonating?: boolean;
 }
 
 const isProduction = process.env['NODE_ENV'] === 'production';
@@ -65,9 +72,22 @@ const typeOrmConfig = {
         // For WebSocket subscriptions, req is undefined
         // Return minimal context for subscriptions, full context for HTTP requests
         if (!req) {
-          return { req: null, user: null, clerkPayload: null, extra };
+          return {
+            req: null,
+            user: null,
+            clerkPayload: null,
+            actor: null,
+            isImpersonating: false,
+            extra,
+          };
         }
-        return { req, user: req.user, clerkPayload: req.clerkPayload };
+        return {
+          req,
+          user: req.user,
+          clerkPayload: req.clerkPayload,
+          actor: req.actor,
+          isImpersonating: req.isImpersonating,
+        };
       },
     }),
     TypeOrmModule.forRoot(typeOrmConfig),
@@ -78,6 +98,7 @@ const typeOrmConfig = {
     GameFormatsModule,
     EventTypesModule,
     GameEventsModule,
+    TeamMembersModule,
   ],
   controllers: [AppController],
   providers: [AppService, StartupService],
