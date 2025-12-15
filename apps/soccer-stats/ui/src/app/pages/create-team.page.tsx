@@ -41,7 +41,13 @@ export const CreateTeamPage = () => {
       onError: (err) => {
         setError(err.message);
       },
-      refetchQueries: ['GetMyTeamsForList', 'DebugGetTeams'],
+      update: (cache) => {
+        // Evict teams from cache to force refetch when returning to teams list
+        // String-based refetchQueries don't work reliably with TypedDocumentNode
+        cache.evict({ fieldName: 'teams' });
+        cache.evict({ fieldName: 'myTeams' });
+        cache.gc();
+      },
     }
   );
 
