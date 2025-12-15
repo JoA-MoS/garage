@@ -2,9 +2,11 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import type { PubSub } from 'graphql-subscriptions';
 
 import { GameEvent } from '../../entities/game-event.entity';
 import { EventType } from '../../entities/event-type.entity';
@@ -25,6 +27,14 @@ import {
 } from './dto/player-position-stats.output';
 import { PlayerFullStats } from './dto/player-full-stats.output';
 import { PlayerStatsInput } from './dto/player-stats.input';
+import {
+  DependentEvent,
+  DependentEventsResult,
+} from './dto/dependent-event.output';
+import {
+  GameEventSubscriptionPayload,
+  GameEventAction,
+} from './dto/game-event-subscription.output';
 
 @Injectable()
 export class GameEventsService {
@@ -38,8 +48,30 @@ export class GameEventsService {
     @InjectRepository(Game)
     private gamesRepository: Repository<Game>,
     @InjectRepository(Team)
-    private teamsRepository: Repository<Team>
+    private teamsRepository: Repository<Team>,
+    @Inject('PUB_SUB') private pubSub: PubSub
   ) {}
+
+  /**
+   * Publish a game event change to all subscribers
+   */
+  private async publishGameEvent(
+    gameId: string,
+    action: GameEventAction,
+    event?: GameEvent,
+    deletedEventId?: string
+  ): Promise<void> {
+    const payload: GameEventSubscriptionPayload = {
+      action,
+      gameId,
+      event,
+      deletedEventId,
+    };
+
+    await this.pubSub.publish(`gameEvent:${gameId}`, {
+      gameEventChanged: payload,
+    });
+  }
 
   private async getEventTypeByName(name: string): Promise<EventType> {
     const eventType = await this.eventTypesRepository.findOne({
@@ -357,6 +389,13 @@ export class GameEventsService {
         case 'SUBSTITUTION_IN': {
           lineupPlayer.isOnField = true;
           currentOnField.set(playerKey, lineupPlayer);
+
+          // If this is a SUBSTITUTION_IN at minute 0, treat as a starter
+          // (this happens when STARTING_LINEUP events are converted on game start)
+          if (event.gameMinute === 0 && event.gameSecond === 0) {
+            starters.push(lineupPlayer);
+          }
+
           // Update their status
           const inStatus = playerStatusMap.get(playerKey);
           if (inStatus) {
@@ -526,18 +565,28 @@ export class GameEventsService {
     }
 
     // Return goal event with relations loaded
-    return this.gameEventsRepository.findOneOrFail({
-      where: { id: savedGoalEvent.id },
-      relations: [
-        'eventType',
-        'player',
-        'recordedByUser',
-        'gameTeam',
-        'game',
-        'childEvents',
-        'childEvents.eventType',
-      ],
-    });
+    const goalEventWithRelations =
+      await this.gameEventsRepository.findOneOrFail({
+        where: { id: savedGoalEvent.id },
+        relations: [
+          'eventType',
+          'player',
+          'recordedByUser',
+          'gameTeam',
+          'game',
+          'childEvents',
+          'childEvents.eventType',
+        ],
+      });
+
+    // Publish the event to subscribers
+    await this.publishGameEvent(
+      gameTeam.gameId,
+      GameEventAction.CREATED,
+      goalEventWithRelations
+    );
+
+    return goalEventWithRelations;
   }
 
   async deleteGoal(gameEventId: string): Promise<boolean> {
@@ -572,7 +621,154 @@ export class GameEventsService {
       );
     }
 
+    // Store gameId before removing the event
+    const gameId = gameEvent.gameId;
+
     // Delete the goal event
+    await this.gameEventsRepository.remove(gameEvent);
+
+    // Publish deletion event
+    await this.publishGameEvent(
+      gameId,
+      GameEventAction.DELETED,
+      undefined,
+      gameEventId
+    );
+
+    return true;
+  }
+
+  /**
+   * Delete a substitution event pair (SUBSTITUTION_OUT and its linked SUBSTITUTION_IN)
+   * @param gameEventId - ID of either the SUBSTITUTION_OUT or SUBSTITUTION_IN event
+   */
+  async deleteSubstitution(gameEventId: string): Promise<boolean> {
+    const gameEvent = await this.gameEventsRepository.findOne({
+      where: { id: gameEventId },
+      relations: ['eventType', 'childEvents', 'parentEvent'],
+    });
+
+    if (!gameEvent) {
+      throw new NotFoundException(`GameEvent ${gameEventId} not found`);
+    }
+
+    const eventTypeName = gameEvent.eventType.name;
+
+    if (
+      eventTypeName !== 'SUBSTITUTION_OUT' &&
+      eventTypeName !== 'SUBSTITUTION_IN'
+    ) {
+      throw new BadRequestException(
+        'Can only delete SUBSTITUTION_OUT or SUBSTITUTION_IN events with this method'
+      );
+    }
+
+    // Determine the SUB_OUT event (parent) and SUB_IN event (child)
+    let subOutEvent: GameEvent | null = null;
+    let subInEvent: GameEvent | null = null;
+
+    if (eventTypeName === 'SUBSTITUTION_OUT') {
+      subOutEvent = gameEvent;
+      // Find the linked SUBSTITUTION_IN (child)
+      subInEvent = await this.gameEventsRepository.findOne({
+        where: { parentEventId: gameEvent.id },
+        relations: ['eventType'],
+      });
+    } else {
+      // eventTypeName === 'SUBSTITUTION_IN'
+      subInEvent = gameEvent;
+      // Find the linked SUBSTITUTION_OUT (parent)
+      if (gameEvent.parentEventId) {
+        subOutEvent = await this.gameEventsRepository.findOne({
+          where: { id: gameEvent.parentEventId },
+          relations: ['eventType'],
+        });
+      }
+    }
+
+    // Delete both events (SUB_IN first due to foreign key)
+    if (subInEvent) {
+      await this.gameEventsRepository.remove(subInEvent);
+    }
+    if (subOutEvent) {
+      await this.gameEventsRepository.remove(subOutEvent);
+    }
+
+    return true;
+  }
+
+  /**
+   * Delete a position swap event pair
+   * @param gameEventId - ID of either swap event
+   */
+  async deletePositionSwap(gameEventId: string): Promise<boolean> {
+    const gameEvent = await this.gameEventsRepository.findOne({
+      where: { id: gameEventId },
+      relations: ['eventType', 'childEvents', 'parentEvent'],
+    });
+
+    if (!gameEvent) {
+      throw new NotFoundException(`GameEvent ${gameEventId} not found`);
+    }
+
+    if (gameEvent.eventType.name !== 'POSITION_SWAP') {
+      throw new BadRequestException(
+        'Can only delete POSITION_SWAP events with this method'
+      );
+    }
+
+    // Position swaps come in pairs - find both
+    let swap1: GameEvent | null = null;
+    let swap2: GameEvent | null = null;
+
+    if (gameEvent.parentEventId) {
+      // This is the child swap, find the parent
+      swap2 = gameEvent;
+      swap1 = await this.gameEventsRepository.findOne({
+        where: { id: gameEvent.parentEventId },
+        relations: ['eventType'],
+      });
+    } else {
+      // This is the parent swap, find the child
+      swap1 = gameEvent;
+      swap2 = await this.gameEventsRepository.findOne({
+        where: { parentEventId: gameEvent.id },
+        relations: ['eventType'],
+      });
+    }
+
+    // Delete both events (child first due to foreign key)
+    if (swap2) {
+      await this.gameEventsRepository.remove(swap2);
+    }
+    if (swap1) {
+      await this.gameEventsRepository.remove(swap1);
+    }
+
+    return true;
+  }
+
+  /**
+   * Delete a starter entry event (SUBSTITUTION_IN at minute 0)
+   * @param gameEventId - ID of the SUBSTITUTION_IN event
+   */
+  async deleteStarterEntry(gameEventId: string): Promise<boolean> {
+    const gameEvent = await this.gameEventsRepository.findOne({
+      where: { id: gameEventId },
+      relations: ['eventType'],
+    });
+
+    if (!gameEvent) {
+      throw new NotFoundException(`GameEvent ${gameEventId} not found`);
+    }
+
+    if (gameEvent.eventType.name !== 'SUBSTITUTION_IN') {
+      throw new BadRequestException(
+        'Can only delete SUBSTITUTION_IN events with this method'
+      );
+    }
+
+    // For starter entries (SUBSTITUTION_IN at minute 0), just delete the event
     await this.gameEventsRepository.remove(gameEvent);
     return true;
   }
@@ -1058,6 +1254,9 @@ export class GameEventsService {
       goals: number;
       assists: number;
       gamesPlayed: Set<string>; // Set of gameTeamIds they participated in
+      // For live time tracking (only relevant when filtering by single gameId)
+      isOnField?: boolean;
+      lastEntryGameSeconds?: number;
     };
 
     const playerStatsMap: Map<string, PlayerAggregatedStats> = new Map();
@@ -1231,7 +1430,7 @@ export class GameEventsService {
         }
       }
 
-      // Close any open spans at end of game
+      // Close any open spans at end of game and track on-field status
       for (const [playerKey, openSpan] of playerOpenSpans) {
         if (openSpan) {
           const playerStats = playerStatsMap.get(playerKey);
@@ -1247,6 +1446,12 @@ export class GameEventsService {
               openSpan.position,
               currentPositionTime + duration
             );
+            // Track that this player is still on field (for single-game stats)
+            // Only meaningful when filtering by a single gameId
+            if (input.gameId) {
+              playerStats.isOnField = true;
+              playerStats.lastEntryGameSeconds = openSpan.startSeconds;
+            }
           }
         }
       }
@@ -1284,6 +1489,8 @@ export class GameEventsService {
         goals: playerStats.goals,
         assists: playerStats.assists,
         gamesPlayed: playerStats.gamesPlayed.size,
+        isOnField: playerStats.isOnField,
+        lastEntryGameSeconds: playerStats.lastEntryGameSeconds,
       });
     }
 
@@ -1296,5 +1503,313 @@ export class GameEventsService {
     );
 
     return results;
+  }
+
+  /**
+   * Find all events that depend on a given event.
+   * Dependencies are determined by:
+   * - Child events (e.g., assists linked to goals via parentEventId)
+   * - Same player involved + occurs after the given event
+   * - In the same game team
+   *
+   * Special handling:
+   * - For goals: includes child events (assists)
+   * - For assists found as player-based dependents: includes the parent goal
+   */
+  async findDependentEvents(
+    gameEventId: string
+  ): Promise<DependentEventsResult> {
+    const sourceEvent = await this.gameEventsRepository.findOne({
+      where: { id: gameEventId },
+      relations: [
+        'eventType',
+        'gameTeam',
+        'gameTeam.team',
+        'childEvents',
+        'childEvents.eventType',
+      ],
+    });
+
+    if (!sourceEvent) {
+      throw new NotFoundException(`GameEvent ${gameEventId} not found`);
+    }
+
+    // Track dependent events by ID to avoid duplicates
+    const dependentEventsMap = new Map<string, DependentEvent>();
+
+    // Helper to get player name
+    const getPlayerName = async (
+      playerId?: string,
+      externalPlayerName?: string
+    ): Promise<string> => {
+      if (externalPlayerName) return externalPlayerName;
+      if (!playerId) return 'Unknown';
+
+      const team = sourceEvent.gameTeam?.team;
+      if (team) {
+        const fullTeam = await this.teamsRepository.findOne({
+          where: { id: team.id },
+          relations: ['teamPlayers', 'teamPlayers.user'],
+        });
+        const teamPlayer = fullTeam?.teamPlayers?.find(
+          (tp) => tp.userId === playerId
+        );
+        if (teamPlayer?.user) {
+          const fullName = `${teamPlayer.user.firstName || ''} ${
+            teamPlayer.user.lastName || ''
+          }`.trim();
+          return fullName || teamPlayer.user.email || 'Unknown';
+        }
+      }
+      return 'Unknown';
+    };
+
+    // Helper to build description
+    const getDescription = (eventTypeName: string): string => {
+      switch (eventTypeName) {
+        case 'GOAL':
+          return 'Goal scored';
+        case 'ASSIST':
+          return 'Assist';
+        case 'SUBSTITUTION_OUT':
+          return 'Substituted out';
+        case 'SUBSTITUTION_IN':
+          return 'Substituted in';
+        case 'POSITION_SWAP':
+          return 'Position swap';
+        default:
+          return eventTypeName;
+      }
+    };
+
+    // Helper to add event to dependents map
+    const addDependentEvent = async (event: GameEvent): Promise<void> => {
+      if (dependentEventsMap.has(event.id)) return;
+      if (event.id === gameEventId) return;
+
+      const playerName = await getPlayerName(
+        event.playerId,
+        event.externalPlayerName
+      );
+
+      dependentEventsMap.set(event.id, {
+        id: event.id,
+        eventType: event.eventType.name,
+        gameMinute: event.gameMinute,
+        gameSecond: event.gameSecond,
+        playerName,
+        description: getDescription(event.eventType.name),
+      });
+    };
+
+    // 1. Add child events (e.g., assists for goals)
+    if (sourceEvent.childEvents?.length > 0) {
+      for (const child of sourceEvent.childEvents) {
+        await addDependentEvent(child);
+      }
+    }
+
+    // 2. Find player-based dependents (same player, later time)
+    const playerIds: string[] = [];
+    const externalPlayerNames: string[] = [];
+
+    // For substitution, we care about the player entering (they have future events)
+    if (sourceEvent.eventType.name === 'SUBSTITUTION_OUT') {
+      // The player going out won't have future events, but we need to check
+      // if there's a linked SUB_IN and that player's future events
+      const linkedSubIn = await this.gameEventsRepository.findOne({
+        where: { parentEventId: sourceEvent.id },
+      });
+      if (linkedSubIn) {
+        if (linkedSubIn.playerId) playerIds.push(linkedSubIn.playerId);
+        if (linkedSubIn.externalPlayerName)
+          externalPlayerNames.push(linkedSubIn.externalPlayerName);
+      }
+    } else if (sourceEvent.eventType.name === 'SUBSTITUTION_IN') {
+      // The player coming in - check their future events
+      if (sourceEvent.playerId) playerIds.push(sourceEvent.playerId);
+      if (sourceEvent.externalPlayerName)
+        externalPlayerNames.push(sourceEvent.externalPlayerName);
+    } else if (sourceEvent.eventType.name === 'POSITION_SWAP') {
+      // For position swaps, both players involved could have future events
+      if (sourceEvent.playerId) playerIds.push(sourceEvent.playerId);
+      if (sourceEvent.externalPlayerName)
+        externalPlayerNames.push(sourceEvent.externalPlayerName);
+
+      // Find the paired swap event
+      const pairedSwap = await this.gameEventsRepository.findOne({
+        where: sourceEvent.parentEventId
+          ? { id: sourceEvent.parentEventId }
+          : { parentEventId: sourceEvent.id },
+      });
+      if (pairedSwap) {
+        if (pairedSwap.playerId) playerIds.push(pairedSwap.playerId);
+        if (pairedSwap.externalPlayerName)
+          externalPlayerNames.push(pairedSwap.externalPlayerName);
+      }
+    } else {
+      // For other events (GOAL, etc.), just use the event's player
+      if (sourceEvent.playerId) playerIds.push(sourceEvent.playerId);
+      if (sourceEvent.externalPlayerName)
+        externalPlayerNames.push(sourceEvent.externalPlayerName);
+    }
+
+    // If we have players to track, find their future events
+    if (playerIds.length > 0 || externalPlayerNames.length > 0) {
+      const sourceTimeInSeconds =
+        sourceEvent.gameMinute * 60 + sourceEvent.gameSecond;
+
+      // Get all events for the same game team
+      const allEvents = await this.gameEventsRepository.find({
+        where: { gameTeamId: sourceEvent.gameTeamId },
+        relations: ['eventType', 'parentEvent', 'parentEvent.eventType'],
+        order: { gameMinute: 'ASC', gameSecond: 'ASC' },
+      });
+
+      for (const event of allEvents) {
+        // Skip the source event itself
+        if (event.id === gameEventId) continue;
+
+        // Skip events that are direct children (already handled above)
+        if (event.parentEventId === gameEventId) continue;
+
+        // Skip if source event is a child of this event
+        if (sourceEvent.parentEventId === event.id) continue;
+
+        // Check if this event is after the source event
+        const eventTimeInSeconds = event.gameMinute * 60 + event.gameSecond;
+        if (eventTimeInSeconds <= sourceTimeInSeconds) continue;
+
+        // Check if this event involves one of our players
+        const involvesPlayer =
+          (event.playerId && playerIds.includes(event.playerId)) ||
+          (event.externalPlayerName &&
+            externalPlayerNames.includes(event.externalPlayerName));
+
+        if (!involvesPlayer) continue;
+
+        // Add this event as a dependent
+        await addDependentEvent(event);
+
+        // Note: For assists, we only delete the assist itself, not the parent goal.
+        // The goal still happened - we just lose the assist record.
+      }
+    }
+
+    // Convert map to array and sort by game time
+    const dependentEvents = Array.from(dependentEventsMap.values()).sort(
+      (a, b) => {
+        const timeA = a.gameMinute * 60 + a.gameSecond;
+        const timeB = b.gameMinute * 60 + b.gameSecond;
+        return timeA - timeB;
+      }
+    );
+
+    const count = dependentEvents.length;
+    let warningMessage: string | undefined;
+
+    if (count > 0) {
+      const hasAssists = dependentEvents.some((e) => e.eventType === 'ASSIST');
+
+      if (hasAssists) {
+        const assistCount = dependentEvents.filter(
+          (e) => e.eventType === 'ASSIST'
+        ).length;
+        warningMessage = `This action will also delete ${count} dependent event${
+          count > 1 ? 's' : ''
+        }. Note: ${assistCount} assist${
+          assistCount > 1 ? 's' : ''
+        } will be removed but the associated goal${
+          assistCount > 1 ? 's' : ''
+        } will remain.`;
+      } else {
+        warningMessage = `This action will also delete ${count} dependent event${
+          count > 1 ? 's' : ''
+        } for this player that occurred after this event.`;
+      }
+    }
+
+    return {
+      dependentEvents,
+      count,
+      canDelete: true, // Always allow deletion, but with warning
+      warningMessage,
+    };
+  }
+
+  /**
+   * Delete an event and all its dependent events (cascade delete)
+   */
+  async deleteEventWithCascade(
+    gameEventId: string,
+    eventType: 'goal' | 'substitution' | 'position_swap' | 'starter_entry'
+  ): Promise<boolean> {
+    // First, find all dependent events
+    const { dependentEvents } = await this.findDependentEvents(gameEventId);
+
+    // Track which events have been deleted to avoid double-deletion
+    const deletedIds = new Set<string>();
+
+    // Delete dependent events in reverse chronological order (latest first)
+    const sortedDependents = [...dependentEvents].sort((a, b) => {
+      const timeA = a.gameMinute * 60 + a.gameSecond;
+      const timeB = b.gameMinute * 60 + b.gameSecond;
+      return timeB - timeA; // Descending order
+    });
+
+    for (const dep of sortedDependents) {
+      // Skip if already deleted
+      if (deletedIds.has(dep.id)) continue;
+
+      // Determine the type of event and delete appropriately
+      const depEvent = await this.gameEventsRepository.findOne({
+        where: { id: dep.id },
+        relations: ['eventType'],
+      });
+
+      if (!depEvent) continue;
+
+      const depEventType = depEvent.eventType.name;
+
+      if (depEventType === 'GOAL') {
+        await this.deleteGoal(dep.id);
+        deletedIds.add(dep.id);
+      } else if (
+        depEventType === 'SUBSTITUTION_OUT' ||
+        depEventType === 'SUBSTITUTION_IN'
+      ) {
+        // Check if it's a starter entry (minute 0, no parent)
+        if (
+          depEventType === 'SUBSTITUTION_IN' &&
+          depEvent.gameMinute === 0 &&
+          depEvent.gameSecond === 0 &&
+          !depEvent.parentEventId
+        ) {
+          await this.deleteStarterEntry(dep.id);
+        } else {
+          await this.deleteSubstitution(dep.id);
+        }
+        deletedIds.add(dep.id);
+      } else if (depEventType === 'POSITION_SWAP') {
+        await this.deletePositionSwap(dep.id);
+        deletedIds.add(dep.id);
+      } else if (depEventType === 'ASSIST') {
+        // Delete just the assist - the goal remains but without an assist record
+        await this.gameEventsRepository.delete(dep.id);
+        deletedIds.add(dep.id);
+      }
+    }
+
+    // Now delete the original event
+    switch (eventType) {
+      case 'goal':
+        return this.deleteGoal(gameEventId);
+      case 'substitution':
+        return this.deleteSubstitution(gameEventId);
+      case 'position_swap':
+        return this.deletePositionSwap(gameEventId);
+      case 'starter_entry':
+        return this.deleteStarterEntry(gameEventId);
+    }
   }
 }

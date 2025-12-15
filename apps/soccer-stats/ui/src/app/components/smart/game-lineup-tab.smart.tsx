@@ -323,12 +323,7 @@ export function GameLineupTab({
         bench={bench}
         availableRoster={availableRoster}
         onBenchPlayerClick={handleBenchPlayerClick}
-        onRosterPlayerClick={(player) =>
-          setModalMode({
-            type: 'assign-position',
-            position: selectedFormation.positions[0],
-          })
-        }
+        onRosterPlayerClick={handleAddToBench}
         onAddExternalPlayer={() =>
           setModalMode({ type: 'add-external', target: 'bench' })
         }

@@ -38,6 +38,13 @@ export class PlayerFullStats {
   @Field(() => Int)
   gamesPlayed: number;
 
+  // Live time tracking (for real-time UI updates)
+  @Field(() => Boolean, { nullable: true })
+  isOnField?: boolean;
+
+  @Field(() => Int, { nullable: true })
+  lastEntryGameSeconds?: number;
+
   // Future extensibility (nullable)
   @Field(() => Int, { nullable: true })
   yellowCards?: number;
