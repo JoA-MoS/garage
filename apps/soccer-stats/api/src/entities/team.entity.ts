@@ -73,6 +73,13 @@ export class Team extends BaseEntity {
   @Column({ default: true })
   isActive: boolean;
 
+  @Field({
+    nullable: true,
+    description: 'Clerk user ID of the team creator/owner',
+  })
+  @Column({ length: 255, nullable: true })
+  createdById?: string;
+
   @Field(() => [GameTeam], { nullable: true })
   @OneToMany(() => GameTeam, (gameTeam) => gameTeam.team, { cascade: true })
   gameTeams: GameTeam[];

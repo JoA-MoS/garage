@@ -537,6 +537,8 @@ export type Query = {
   gameLineup: GameLineup;
   games: Array<Game>;
   managedTeams: Array<Team>;
+  /** Get teams the current user has access to (created, plays on, or coaches) */
+  myTeams: Array<Team>;
   player: User;
   playerPositionStats: Array<PlayerPositionStats>;
   playerStats: Array<PlayerFullStats>;
@@ -725,6 +727,8 @@ export type Team = {
   awayPrimaryColor?: Maybe<Scalars['String']['output']>;
   awaySecondaryColor?: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['DateTime']['output'];
+  /** Clerk user ID of the team creator/owner */
+  createdById?: Maybe<Scalars['String']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   externalReference?: Maybe<Scalars['String']['output']>;
   gameTeams?: Maybe<Array<GameTeam>>;
@@ -941,6 +945,30 @@ export type DebugGetTeamsQuery = {
     isActive: boolean;
     isManaged: boolean;
     sourceType: SourceType;
+    createdAt: any;
+    updatedAt: any;
+  }>;
+};
+
+export type GetMyTeamsForListQueryVariables = Exact<{ [key: string]: never }>;
+
+export type GetMyTeamsForListQuery = {
+  __typename?: 'Query';
+  myTeams: Array<{
+    __typename?: 'Team';
+    id: string;
+    name: string;
+    shortName?: string | null;
+    description?: string | null;
+    homePrimaryColor?: string | null;
+    homeSecondaryColor?: string | null;
+    awayPrimaryColor?: string | null;
+    awaySecondaryColor?: string | null;
+    logoUrl?: string | null;
+    isActive: boolean;
+    isManaged: boolean;
+    sourceType: SourceType;
+    createdById?: string | null;
     createdAt: any;
     updatedAt: any;
   }>;
@@ -1744,6 +1772,7 @@ export type CreateTeamMutation = {
     isActive: boolean;
     isManaged: boolean;
     sourceType: SourceType;
+    createdById?: string | null;
     createdAt: any;
     updatedAt: any;
   };
@@ -1869,6 +1898,30 @@ export type GetTeamsByManagedStatusQuery = {
     isActive: boolean;
     isManaged: boolean;
     sourceType: SourceType;
+    createdAt: any;
+    updatedAt: any;
+  }>;
+};
+
+export type GetMyTeamsQueryVariables = Exact<{ [key: string]: never }>;
+
+export type GetMyTeamsQuery = {
+  __typename?: 'Query';
+  myTeams: Array<{
+    __typename?: 'Team';
+    id: string;
+    name: string;
+    shortName?: string | null;
+    description?: string | null;
+    homePrimaryColor?: string | null;
+    homeSecondaryColor?: string | null;
+    awayPrimaryColor?: string | null;
+    awaySecondaryColor?: string | null;
+    logoUrl?: string | null;
+    isActive: boolean;
+    isManaged: boolean;
+    sourceType: SourceType;
+    createdById?: string | null;
     createdAt: any;
     updatedAt: any;
   }>;
@@ -2747,6 +2800,60 @@ export const DebugGetTeamsDocument = {
     },
   ],
 } as unknown as DocumentNode<DebugGetTeamsQuery, DebugGetTeamsQueryVariables>;
+export const GetMyTeamsForListDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'query',
+      name: { kind: 'Name', value: 'GetMyTeamsForList' },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'myTeams' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'shortName' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'description' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'homePrimaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'homeSecondaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'awayPrimaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'awaySecondaryColor' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'logoUrl' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'isActive' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'isManaged' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'sourceType' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'createdById' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  GetMyTeamsForListQuery,
+  GetMyTeamsForListQueryVariables
+>;
 export const GetGameFormatsDocument = {
   kind: 'Document',
   definitions: [
@@ -5568,6 +5675,7 @@ export const CreateTeamDocument = {
                 { kind: 'Field', name: { kind: 'Name', value: 'isActive' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'isManaged' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'sourceType' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'createdById' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
               ],
@@ -5979,6 +6087,57 @@ export const GetTeamsByManagedStatusDocument = {
   GetTeamsByManagedStatusQuery,
   GetTeamsByManagedStatusQueryVariables
 >;
+export const GetMyTeamsDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'query',
+      name: { kind: 'Name', value: 'GetMyTeams' },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'myTeams' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'shortName' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'description' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'homePrimaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'homeSecondaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'awayPrimaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'awaySecondaryColor' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'logoUrl' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'isActive' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'isManaged' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'sourceType' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'createdById' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<GetMyTeamsQuery, GetMyTeamsQueryVariables>;
 export const GetAllUsersDocument = {
   kind: 'Document',
   definitions: [
