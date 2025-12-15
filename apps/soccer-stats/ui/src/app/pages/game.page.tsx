@@ -1,6 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, Navigate } from 'react-router';
-import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
+import {
+  useQuery,
+  useMutation,
+  useLazyQuery,
+  useApolloClient,
+} from '@apollo/client/react';
+import { gql } from '@apollo/client';
 
 import {
   GET_GAME_BY_ID,
@@ -27,6 +33,24 @@ import {
 import { CascadeDeleteModal } from '../components/presentation/cascade-delete-modal.presentation';
 import { ConflictResolutionModal } from '../components/presentation/conflict-resolution-modal.presentation';
 import { useGameEventSubscription } from '../hooks/use-game-event-subscription';
+
+// Fragment for writing GameEvent to cache
+const GameEventFragmentDoc = gql`
+  fragment GameEventFragment on GameEvent {
+    id
+    gameMinute
+    gameSecond
+    position
+    playerId
+    externalPlayerName
+    externalPlayerNumber
+    eventType {
+      id
+      name
+      category
+    }
+  }
+`;
 
 /**
  * Game page - displays a single game with lineup, stats, and event tracking
@@ -110,6 +134,8 @@ export const GamePage = () => {
     startTime: number;
     baseElapsed: number;
   } | null>(null);
+
+  const apolloClient = useApolloClient();
 
   const {
     data,
@@ -311,13 +337,27 @@ export const GamePage = () => {
     }
   );
 
-  // Get home and away team IDs for lineup queries
-  const homeTeamId = data?.game?.gameTeams?.find(
-    (gt) => gt.teamType === 'home'
-  )?.id;
-  const awayTeamId = data?.game?.gameTeams?.find(
-    (gt) => gt.teamType === 'away'
-  )?.id;
+  // Memoize team lookups to prevent unnecessary recalculations
+  const homeTeamData = useMemo(
+    () => data?.game?.gameTeams?.find((gt) => gt.teamType === 'home'),
+    [data?.game?.gameTeams]
+  );
+  const awayTeamData = useMemo(
+    () => data?.game?.gameTeams?.find((gt) => gt.teamType === 'away'),
+    [data?.game?.gameTeams]
+  );
+  const homeTeamId = homeTeamData?.id;
+  const awayTeamId = awayTeamData?.id;
+
+  // Memoize scores to prevent recalculation on every render
+  const homeScore = useMemo(
+    () => computeScore(homeTeamData?.gameEvents),
+    [homeTeamData?.gameEvents]
+  );
+  const awayScore = useMemo(
+    () => computeScore(awayTeamData?.gameEvents),
+    [awayTeamData?.gameEvents]
+  );
 
   // Fetch lineup data for goal modal (only when needed)
   const { data: homeLineupData } = useQuery(GET_GAME_LINEUP, {
@@ -336,30 +376,90 @@ export const GamePage = () => {
   >(null);
 
   // Subscribe to real-time game events
+  // Update Apollo cache directly instead of refetching to prevent flickering
   const handleEventCreated = useCallback(
-    (event: { eventType?: { name?: string } | null }) => {
-      // Refetch game data when an event is created by another user
-      // This updates the event list and scores
-      void refetchGame();
+    (event: {
+      id: string;
+      gameTeamId: string;
+      gameMinute: number;
+      gameSecond: number;
+      position?: string | null;
+      playerId?: string | null;
+      externalPlayerName?: string | null;
+      externalPlayerNumber?: string | null;
+      eventType: { id: string; name: string; category: string };
+    }) => {
+      // Update cache by adding the new event to the appropriate gameTeam
+      apolloClient.cache.modify({
+        id: apolloClient.cache.identify({
+          __typename: 'GameTeam',
+          id: event.gameTeamId,
+        }),
+        fields: {
+          gameEvents(existingEvents = [], { readField }) {
+            // Check if event already exists to prevent duplicates
+            const eventExists = existingEvents.some(
+              (ref: { __ref: string }) => readField('id', ref) === event.id
+            );
+            if (eventExists) return existingEvents;
 
-      // If a goal was scored, highlight the score
+            // Create a new cache reference for the event
+            const newEventRef = apolloClient.cache.writeFragment({
+              data: {
+                __typename: 'GameEvent',
+                id: event.id,
+                gameMinute: event.gameMinute,
+                gameSecond: event.gameSecond,
+                position: event.position,
+                playerId: event.playerId,
+                externalPlayerName: event.externalPlayerName,
+                externalPlayerNumber: event.externalPlayerNumber,
+                eventType: {
+                  __typename: 'EventType',
+                  ...event.eventType,
+                },
+              },
+              fragment: GameEventFragmentDoc,
+            });
+
+            return [...existingEvents, newEventRef];
+          },
+        },
+      });
+
+      // If a goal was scored, highlight the score for the correct team
       if (event.eventType?.name === 'GOAL') {
-        // Determine which team scored based on the event's gameTeam
-        // For now, we'll highlight based on refetch - the score will update
-        // and the component will need to determine which team scored
-        // We'll trigger a brief highlight on both, but the actual score change
-        // will make it clear which team scored
-        setHighlightedScore('home'); // Placeholder - will be enhanced
+        const homeTeam = data?.game?.gameTeams?.find(
+          (gt) => gt.teamType === 'home'
+        );
+        const awayTeam = data?.game?.gameTeams?.find(
+          (gt) => gt.teamType === 'away'
+        );
+        if (event.gameTeamId === homeTeam?.id) {
+          setHighlightedScore('home');
+        } else if (event.gameTeamId === awayTeam?.id) {
+          setHighlightedScore('away');
+        }
         setTimeout(() => setHighlightedScore(null), 1000);
       }
     },
-    [refetchGame]
+    [apolloClient, data?.game?.gameTeams]
   );
 
-  const handleEventDeleted = useCallback(() => {
-    // Refetch game data when an event is deleted by another user
-    void refetchGame();
-  }, [refetchGame]);
+  const handleEventDeleted = useCallback(
+    (deletedEventId: string) => {
+      // Remove the event from cache by evicting it
+      apolloClient.cache.evict({
+        id: apolloClient.cache.identify({
+          __typename: 'GameEvent',
+          id: deletedEventId,
+        }),
+      });
+      // Garbage collect any orphaned references
+      apolloClient.cache.gc();
+    },
+    [apolloClient]
+  );
 
   const handleConflictDetected = useCallback(
     (conflict: {
@@ -375,11 +475,10 @@ export const GamePage = () => {
       }>;
     }) => {
       // Show the conflict resolution modal
+      // The conflicting events should already be in the cache from CREATED actions
       setConflictData(conflict);
-      // Also refetch to update the UI with the new events
-      void refetchGame();
     },
-    [refetchGame]
+    []
   );
 
   const handleResolveConflict = useCallback(
@@ -411,42 +510,26 @@ export const GamePage = () => {
     onConflictDetected: handleConflictDetected,
   });
 
-  // Detect score changes and trigger highlight
+  // Detect score changes and trigger highlight (using memoized scores)
   useEffect(() => {
     if (!data?.game) return;
 
-    const homeTeamData = data.game.gameTeams?.find(
-      (gt) => gt.teamType === 'home'
-    );
-    const awayTeamData = data.game.gameTeams?.find(
-      (gt) => gt.teamType === 'away'
-    );
-
-    const currentHomeScore = computeScore(homeTeamData?.gameEvents);
-    const currentAwayScore = computeScore(awayTeamData?.gameEvents);
-
     // Check if home score increased
-    if (
-      prevHomeScore.current !== null &&
-      currentHomeScore > prevHomeScore.current
-    ) {
+    if (prevHomeScore.current !== null && homeScore > prevHomeScore.current) {
       setHighlightedScore('home');
       setTimeout(() => setHighlightedScore(null), 1000);
     }
 
     // Check if away score increased
-    if (
-      prevAwayScore.current !== null &&
-      currentAwayScore > prevAwayScore.current
-    ) {
+    if (prevAwayScore.current !== null && awayScore > prevAwayScore.current) {
       setHighlightedScore('away');
       setTimeout(() => setHighlightedScore(null), 1000);
     }
 
     // Update refs
-    prevHomeScore.current = currentHomeScore;
-    prevAwayScore.current = currentAwayScore;
-  }, [data?.game?.gameTeams]);
+    prevHomeScore.current = homeScore;
+    prevAwayScore.current = awayScore;
+  }, [data?.game, homeScore, awayScore]);
 
   // Start first half
   const handleStartFirstHalf = async () => {
@@ -821,8 +904,9 @@ export const GamePage = () => {
   }
 
   const { game } = data;
-  const homeTeam = game.gameTeams?.find((gt) => gt.teamType === 'home');
-  const awayTeam = game.gameTeams?.find((gt) => gt.teamType === 'away');
+  // Use memoized team data instead of recalculating
+  const homeTeam = homeTeamData;
+  const awayTeam = awayTeamData;
 
   // Check if game is in active play (goals can be recorded)
   const isActivePlay =
@@ -1259,7 +1343,7 @@ export const GamePage = () => {
                 highlightedScore === 'home' ? 'score-highlight' : ''
               }`}
             >
-              {computeScore(homeTeam?.gameEvents)}
+              {homeScore}
             </div>
             {isActivePlay && (
               <div className="mt-2 flex justify-center gap-2">
@@ -1322,7 +1406,7 @@ export const GamePage = () => {
                 highlightedScore === 'away' ? 'score-highlight' : ''
               }`}
             >
-              {computeScore(awayTeam?.gameEvents)}
+              {awayScore}
             </div>
             {isActivePlay && (
               <div className="mt-2 flex justify-center gap-2">

@@ -1,3 +1,5 @@
+import { memo } from 'react';
+
 interface DependentEvent {
   id: string;
   eventType: string;
@@ -17,7 +19,7 @@ export interface CascadeDeleteModalProps {
   onCancel: () => void;
 }
 
-export const CascadeDeleteModal = ({
+export const CascadeDeleteModal = memo(function CascadeDeleteModal({
   isOpen,
   eventType,
   dependentEvents,
@@ -25,7 +27,7 @@ export const CascadeDeleteModal = ({
   isDeleting,
   onConfirm,
   onCancel,
-}: CascadeDeleteModalProps) => {
+}: CascadeDeleteModalProps) {
   if (!isOpen) return null;
 
   const formatTime = (minute: number, second: number) =>
@@ -177,4 +179,4 @@ export const CascadeDeleteModal = ({
       </div>
     </div>
   );
-};
+});

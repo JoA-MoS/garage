@@ -1,5 +1,5 @@
 import { useQuery } from '@apollo/client/react';
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, memo } from 'react';
 
 import { GET_PLAYER_STATS } from '../../services/games-graphql.service';
 import {
@@ -24,13 +24,13 @@ const GAME_STATS_COLUMNS: ColumnKey[] = [
   'assists',
 ];
 
-export const GameStats = ({
+export const GameStats = memo(function GameStats({
   gameId,
   teamId,
   teamName,
   teamColor,
   elapsedSeconds,
-}: GameStatsProps) => {
+}: GameStatsProps) {
   // Track the elapsed seconds at the time the query data was received
   const [queryTimeElapsedSeconds, setQueryTimeElapsedSeconds] =
     useState<number>(0);
@@ -95,4 +95,4 @@ export const GameStats = ({
       queryTimeElapsedSeconds={queryTimeElapsedSeconds}
     />
   );
-};
+});

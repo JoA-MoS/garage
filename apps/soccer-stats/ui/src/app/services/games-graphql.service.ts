@@ -562,6 +562,7 @@ export const GAME_EVENT_CHANGED = graphql(/* GraphQL */ `
       gameId
       event {
         id
+        gameTeamId
         gameMinute
         gameSecond
         position

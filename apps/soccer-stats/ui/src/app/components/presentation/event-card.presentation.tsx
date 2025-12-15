@@ -1,3 +1,5 @@
+import { memo } from 'react';
+
 export type EventType =
   | 'goal'
   | 'substitution'
@@ -31,7 +33,7 @@ export interface EventCardProps {
   isHighlighted?: boolean;
 }
 
-export const EventCard = ({
+export const EventCard = memo(function EventCard({
   id,
   eventType,
   gameMinute,
@@ -51,7 +53,7 @@ export const EventCard = ({
   isDeleting = false,
   isCheckingDependents = false,
   isHighlighted = false,
-}: EventCardProps) => {
+}: EventCardProps) {
   const formattedTime = `${String(gameMinute).padStart(2, '0')}:${String(
     gameSecond
   ).padStart(2, '0')}`;
@@ -346,4 +348,4 @@ export const EventCard = ({
       {(onDeleteClick || onEdit) && renderActions()}
     </div>
   );
-};
+});

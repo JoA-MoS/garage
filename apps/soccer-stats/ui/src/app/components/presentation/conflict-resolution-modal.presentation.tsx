@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 
 interface ConflictingEvent {
   eventId: string;
@@ -23,7 +23,7 @@ export interface ConflictResolutionModalProps {
   onClose: () => void;
 }
 
-export const ConflictResolutionModal = ({
+export const ConflictResolutionModal = memo(function ConflictResolutionModal({
   isOpen,
   conflictId,
   eventType,
@@ -33,7 +33,7 @@ export const ConflictResolutionModal = ({
   isResolving,
   onResolve,
   onClose,
-}: ConflictResolutionModalProps) => {
+}: ConflictResolutionModalProps) {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [keepAll, setKeepAll] = useState(false);
 
@@ -224,4 +224,4 @@ export const ConflictResolutionModal = ({
       </div>
     </div>
   );
-};
+});
