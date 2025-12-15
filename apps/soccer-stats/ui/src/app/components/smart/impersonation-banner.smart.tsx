@@ -27,10 +27,14 @@ export const ImpersonationBannerSmart = () => {
       'Unknown User'
     : 'Unknown User';
 
-  const handleExitImpersonation = () => {
+  const handleExitImpersonation = async () => {
     // Sign out ends the impersonation session
     // The admin will be redirected to sign back in as themselves
-    signOut();
+    try {
+      await signOut();
+    } catch (error) {
+      window.alert('Failed to exit impersonation session. Please try again.');
+    }
   };
 
   return (
