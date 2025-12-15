@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router';
 import { useCallback } from 'react';
 
 import { TeamsListPresentation } from '../presentation/teams-list.presentation';
-import { graphql } from '../../generated';
+import { graphql } from '../../generated/gql';
+import { useUserProfile } from '../../hooks/use-user-profile';
+import type { UITeam } from '../types/ui.types';
 
 interface TeamsListSmartProps {
   onCreateTeam?: () => void;
@@ -17,7 +19,7 @@ interface TeamsListSmartProps {
  * - Handles loading/error states
  * and handles business logic
  */
-// Define the query using the generated graphql function following The Guild's best practices
+// Query for all teams (used when not authenticated)
 const GetTeamsQueryDocument = graphql(`
   query DebugGetTeams {
     teams {
@@ -33,7 +35,29 @@ const GetTeamsQueryDocument = graphql(`
       isActive
       isManaged
       sourceType
+      createdAt
+      updatedAt
+    }
+  }
+`);
 
+// Query for user's teams only (used when authenticated)
+const GetMyTeamsQueryDocument = graphql(`
+  query GetMyTeamsForList {
+    myTeams {
+      id
+      name
+      shortName
+      description
+      homePrimaryColor
+      homeSecondaryColor
+      awayPrimaryColor
+      awaySecondaryColor
+      logoUrl
+      isActive
+      isManaged
+      sourceType
+      createdById
       createdAt
       updatedAt
     }
@@ -45,15 +69,38 @@ export const TeamsListSmart = ({
   onEditTeam,
 }: TeamsListSmartProps) => {
   const navigate = useNavigate();
+  const { isSignedIn, isLoaded } = useUserProfile();
 
-  // Use the generated document with useQuery following The Guild's best practices
-  const { data } = useQuery(GetTeamsQueryDocument);
+  // Use myTeams query when authenticated, otherwise fall back to all teams
+  const { data: myTeamsData, loading: myTeamsLoading } = useQuery(
+    GetMyTeamsQueryDocument,
+    {
+      skip: !isLoaded || !isSignedIn,
+    }
+  );
+
+  const { data: allTeamsData, loading: allTeamsLoading } = useQuery(
+    GetTeamsQueryDocument,
+    {
+      skip: !isLoaded || isSignedIn,
+    }
+  );
+
+  // Loading if auth state isn't loaded yet, or if the active query is loading
+  const isLoading =
+    !isLoaded || (isSignedIn ? myTeamsLoading : allTeamsLoading);
+
+  // Use authenticated user's teams if signed in, otherwise show all teams
+  // Cast to UITeam[] since GraphQL returns compatible types with sourceType as string
+  const teams: UITeam[] = (
+    isSignedIn ? myTeamsData?.myTeams ?? [] : allTeamsData?.teams ?? []
+  ) as UITeam[];
 
   const handleCreateTeam = useCallback(() => {
     if (onCreateTeam) {
       onCreateTeam();
     } else {
-      navigate('/teams/manage');
+      navigate('/teams/new');
     }
   }, [onCreateTeam, navigate]);
 
@@ -62,7 +109,7 @@ export const TeamsListSmart = ({
       if (onEditTeam) {
         onEditTeam(teamId);
       } else {
-        navigate(`/teams/${teamId}/manage`);
+        navigate(`/teams/${teamId}/settings`);
       }
     },
     [onEditTeam, navigate]
@@ -70,7 +117,8 @@ export const TeamsListSmart = ({
 
   return (
     <TeamsListPresentation
-      teams={(data as any)?.teams || []} // TODO: Fix type when migrating to new architecture
+      teams={teams}
+      loading={isLoading}
       onCreateTeam={handleCreateTeam}
       onEditTeam={handleEditTeam}
     />

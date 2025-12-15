@@ -102,6 +102,7 @@ export const CREATE_TEAM = graphql(/* GraphQL */ `
       isActive
       isManaged
       sourceType
+      createdById
       createdAt
       updatedAt
     }
@@ -238,6 +239,29 @@ export const GET_TEAMS_BY_MANAGED_STATUS = graphql(/* GraphQL */ `
       isActive
       isManaged
       sourceType
+      createdAt
+      updatedAt
+    }
+  }
+`);
+
+// Get teams the current user has access to (requires authentication)
+export const GET_MY_TEAMS = graphql(/* GraphQL */ `
+  query GetMyTeams {
+    myTeams {
+      id
+      name
+      shortName
+      description
+      homePrimaryColor
+      homeSecondaryColor
+      awayPrimaryColor
+      awaySecondaryColor
+      logoUrl
+      isActive
+      isManaged
+      sourceType
+      createdById
       createdAt
       updatedAt
     }

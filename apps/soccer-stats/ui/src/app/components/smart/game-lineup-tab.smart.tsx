@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { useMutation } from '@apollo/client/react';
 
 import { useLineup, RosterPlayer } from '../../hooks/use-lineup';
@@ -44,7 +44,7 @@ type ModalMode =
     }
   | { type: 'create-player'; position: FormationPosition };
 
-export function GameLineupTab({
+export const GameLineupTab = memo(function GameLineupTab({
   gameTeamId,
   gameId,
   teamId,
@@ -323,12 +323,7 @@ export function GameLineupTab({
         bench={bench}
         availableRoster={availableRoster}
         onBenchPlayerClick={handleBenchPlayerClick}
-        onRosterPlayerClick={(player) =>
-          setModalMode({
-            type: 'assign-position',
-            position: selectedFormation.positions[0],
-          })
-        }
+        onRosterPlayerClick={handleAddToBench}
         onAddExternalPlayer={() =>
           setModalMode({ type: 'add-external', target: 'bench' })
         }
@@ -633,6 +628,6 @@ export function GameLineupTab({
       )}
     </div>
   );
-}
+});
 
 export default GameLineupTab;

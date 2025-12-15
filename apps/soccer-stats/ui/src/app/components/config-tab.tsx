@@ -1,4 +1,4 @@
-import { Settings, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 
 import { GameConfig, Team, Player } from '../types';
 
@@ -106,50 +106,50 @@ export const ConfigTab = ({
 
   return (
     <div className="space-y-6">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-800 mb-2">Game Setup</h3>
-        <p className="text-blue-600 text-sm">
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+        <h3 className="mb-2 font-semibold text-blue-800">Game Setup</h3>
+        <p className="text-sm text-blue-600">
           Configure your teams and players before starting the game. Add players
           with their names and jersey numbers.
         </p>
       </div>
 
       {/* Test Data Controls */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <h3 className="font-semibold text-yellow-800 mb-3">
+      <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+        <h3 className="mb-3 font-semibold text-yellow-800">
           Quick Setup with Test Data
         </h3>
-        <p className="text-yellow-700 text-sm mb-3">
+        <p className="mb-3 text-sm text-yellow-700">
           Skip manual setup and use pre-populated teams for quick testing.
         </p>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => loadTestData('full')}
-            className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+            className="rounded-md bg-yellow-500 px-4 py-2 text-sm font-medium text-white hover:bg-yellow-600"
           >
             Load 11v11 Teams (Barcelona vs Real Madrid)
           </button>
           <button
             onClick={() => loadTestData('9v9')}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+            className="rounded-md bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
           >
             Load 9v9 Teams (Eagles vs Lions)
           </button>
           <button
             onClick={() => loadTestData('7v7')}
-            className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+            className="rounded-md bg-purple-500 px-4 py-2 text-sm font-medium text-white hover:bg-purple-600"
           >
             Load 7v7 Teams (Sharks vs Tigers)
           </button>
           <button
             onClick={() => loadTestData('small')}
-            className="bg-yellow-400 hover:bg-yellow-500 text-white px-4 py-2 rounded-md text-sm font-medium"
+            className="rounded-md bg-yellow-400 px-4 py-2 text-sm font-medium text-white hover:bg-yellow-500"
           >
             Load 5v5 Teams (City vs United)
           </button>
           <button
             onClick={clearTeams}
-            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+            className="rounded-md bg-gray-500 px-4 py-2 text-sm font-medium text-white hover:bg-gray-600"
           >
             Clear All Teams
           </button>
@@ -157,15 +157,15 @@ export const ConfigTab = ({
       </div>
 
       <div>
-        <div className="flex justify-between items-center mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <label className="block text-sm font-medium text-gray-700">
             Player Positions
           </label>
           <button
             onClick={addPosition}
-            className="flex items-center space-x-1 bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
+            className="flex items-center space-x-1 rounded bg-green-500 px-3 py-1 text-sm text-white hover:bg-green-600"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="h-4 w-4" />
             <span>Add Position</span>
           </button>
         </div>
@@ -177,15 +177,15 @@ export const ConfigTab = ({
                 type="text"
                 value={position}
                 onChange={(e) => updatePosition(index, e.target.value)}
-                className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 rounded-lg border border-gray-300 p-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                 placeholder="Position name"
               />
               {gameConfig.positions.length > 1 && (
                 <button
                   onClick={() => removePosition(index)}
-                  className="bg-red-500 hover:bg-red-600 text-white p-2 rounded"
+                  className="rounded bg-red-500 p-2 text-white hover:bg-red-600"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="h-4 w-4" />
                 </button>
               )}
             </div>
@@ -194,16 +194,16 @@ export const ConfigTab = ({
       </div>
 
       {/* Team Tracking Settings */}
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-        <h3 className="font-semibold text-amber-800 mb-3">
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <h3 className="mb-3 font-semibold text-amber-800">
           Team Tracking Mode
         </h3>
-        <p className="text-amber-700 text-sm mb-4">
+        <p className="mb-4 text-sm text-amber-700">
           Choose detailed tracking for your own team and simplified tracking for
           opponents. Detailed tracking includes full player management, while
           simplified tracking only records jersey numbers for goals.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="flex items-center space-x-3">
             <input
               type="checkbox"
@@ -221,7 +221,7 @@ export const ConfigTab = ({
                 };
                 onTeamChange('home', updatedTeam);
               }}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
             <label
               htmlFor="homeTeamTracking"
@@ -247,7 +247,7 @@ export const ConfigTab = ({
                 };
                 onTeamChange('away', updatedTeam);
               }}
-              className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+              className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
             />
             <label
               htmlFor="awayTeamTracking"
@@ -259,9 +259,9 @@ export const ConfigTab = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div>
-          <h3 className="text-lg font-semibold mb-3 text-blue-600">
+          <h3 className="mb-3 text-lg font-semibold text-blue-600">
             Home Team
           </h3>
           {gameConfig.homeTeamDetailedTracking ? (
@@ -273,21 +273,21 @@ export const ConfigTab = ({
               onPlayersChange={updateHomePlayers}
             />
           ) : (
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="rounded-lg border border-gray-200 bg-white p-6">
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="mb-2 block text-sm font-medium text-gray-700">
                   Team Name
                 </label>
                 <input
                   type="text"
                   value={gameConfig.homeTeamName}
                   onChange={(e) => updateHomeTeamName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter team name"
                 />
               </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-blue-700 text-sm">
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <p className="text-sm text-blue-700">
                   <strong>Simplified Tracking:</strong> Only jersey numbers will
                   be recorded for goals and assists. No detailed player
                   management is needed.
@@ -298,7 +298,7 @@ export const ConfigTab = ({
         </div>
 
         <div>
-          <h3 className="text-lg font-semibold mb-3 text-red-600">Away Team</h3>
+          <h3 className="mb-3 text-lg font-semibold text-red-600">Away Team</h3>
           {gameConfig.awayTeamDetailedTracking ? (
             <TeamEntry
               teamName={gameConfig.awayTeamName}
@@ -308,21 +308,21 @@ export const ConfigTab = ({
               onPlayersChange={updateAwayPlayers}
             />
           ) : (
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="rounded-lg border border-gray-200 bg-white p-6">
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="mb-2 block text-sm font-medium text-gray-700">
                   Team Name
                 </label>
                 <input
                   type="text"
                   value={gameConfig.awayTeamName}
                   onChange={(e) => updateAwayTeamName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-red-500 focus:ring-2 focus:ring-red-500"
                   placeholder="Enter team name"
                 />
               </div>
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-700 text-sm">
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                <p className="text-sm text-red-700">
                   <strong>Simplified Tracking:</strong> Only jersey numbers will
                   be recorded for goals and assists. No detailed player
                   management is needed.
@@ -333,9 +333,9 @@ export const ConfigTab = ({
         </div>
       </div>
 
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-800 mb-2">Game Summary</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <h4 className="mb-2 font-medium text-gray-800">Game Summary</h4>
+        <div className="grid grid-cols-1 gap-4 text-sm text-gray-600 md:grid-cols-2">
           <div>
             <p>
               <strong>Home Team:</strong> {gameConfig.homeTeamName || 'Not set'}
@@ -388,10 +388,10 @@ export const ConfigTab = ({
         <button
           onClick={startGame}
           disabled={!canStartGame()}
-          className={`flex-1 px-6 py-3 rounded-lg font-medium ${
+          className={`flex-1 rounded-lg px-6 py-3 font-medium ${
             canStartGame()
-              ? 'bg-blue-500 hover:bg-blue-600 text-white'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              ? 'bg-blue-500 text-white hover:bg-blue-600'
+              : 'cursor-not-allowed bg-gray-300 text-gray-500'
           }`}
         >
           Start Game
@@ -400,15 +400,15 @@ export const ConfigTab = ({
           onClick={() => {
             setGameConfig(defaultGameConfig);
           }}
-          className="px-6 py-3 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50"
+          className="rounded-lg border border-gray-300 px-6 py-3 text-gray-600 hover:bg-gray-50"
         >
           Reset to Defaults
         </button>
       </div>
 
       {!canStartGame() && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-          <p className="text-yellow-800 text-sm">
+        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
+          <p className="text-sm text-yellow-800">
             <strong>To start the game:</strong> Both teams need names and at
             least one player with a name.
           </p>

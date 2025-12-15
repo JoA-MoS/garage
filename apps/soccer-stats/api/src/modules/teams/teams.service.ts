@@ -43,8 +43,14 @@ export class TeamsService {
     return team;
   }
 
-  async create(createTeamInput: CreateTeamInput): Promise<Team> {
-    const team = this.teamRepository.create(createTeamInput);
+  async create(
+    createTeamInput: CreateTeamInput,
+    createdById?: string
+  ): Promise<Team> {
+    const team = this.teamRepository.create({
+      ...createTeamInput,
+      createdById,
+    });
     return this.teamRepository.save(team);
   }
 
@@ -88,6 +94,69 @@ export class TeamsService {
         },
       },
     });
+  }
+
+  /**
+   * Find all teams that a user has access to:
+   * - Teams they created (owner)
+   *
+   * Note: Player/coach membership queries are not yet implemented because
+   * they require looking up the internal User ID from the Clerk external ID.
+   * For MVP, team ownership via createdById is sufficient.
+   */
+  async findMyTeams(clerkUserId: string): Promise<Team[]> {
+    // For MVP: Query only by createdById (Clerk user ID)
+    // Future: Also include teams where user is a player or coach
+    // (requires looking up internal User.id from User.externalId first)
+    return this.teamRepository.find({
+      where: { createdById: clerkUserId },
+      order: { name: 'ASC' },
+    });
+  }
+
+  /**
+   * Check if a user has access to a specific team
+   */
+  async userHasTeamAccess(userId: string, teamId: string): Promise<boolean> {
+    const team = await this.teamRepository.findOne({
+      where: { id: teamId },
+    });
+
+    if (!team) {
+      return false;
+    }
+
+    // Check if user is the creator
+    if (team.createdById === userId) {
+      return true;
+    }
+
+    // Check if user is an active player
+    const playerMembership = await this.teamPlayerRepository.findOne({
+      where: {
+        team: { id: teamId },
+        user: { id: userId },
+        isActive: true,
+      },
+    });
+
+    if (playerMembership) {
+      return true;
+    }
+
+    // Check if user is an active coach
+    // Note: We need to import TeamCoach repository for this
+    // For now, use query builder
+    const coachCount = await this.teamRepository
+      .createQueryBuilder('team')
+      .leftJoin('team.teamCoaches', 'teamCoach')
+      .leftJoin('teamCoach.user', 'coachUser')
+      .where('team.id = :teamId', { teamId })
+      .andWhere('coachUser.id = :userId', { userId })
+      .andWhere('teamCoach.isActive = true')
+      .getCount();
+
+    return coachCount > 0;
   }
 
   async getPlayersForTeam(teamId: string): Promise<User[]> {

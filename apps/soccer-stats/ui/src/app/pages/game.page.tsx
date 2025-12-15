@@ -1,19 +1,56 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, Navigate } from 'react-router';
-import { useQuery, useMutation } from '@apollo/client/react';
+import {
+  useQuery,
+  useMutation,
+  useLazyQuery,
+  useApolloClient,
+} from '@apollo/client/react';
+import { gql } from '@apollo/client';
 
 import {
   GET_GAME_BY_ID,
   UPDATE_GAME,
   GET_GAME_LINEUP,
   DELETE_GOAL,
+  DELETE_SUBSTITUTION,
+  DELETE_POSITION_SWAP,
+  DELETE_STARTER_ENTRY,
   GET_PLAYER_STATS,
+  GET_DEPENDENT_EVENTS,
+  DELETE_EVENT_WITH_CASCADE,
+  RESOLVE_EVENT_CONFLICT,
 } from '../services/games-graphql.service';
 import { GameStatus } from '../generated/graphql';
 import { GameLineupTab } from '../components/smart/game-lineup-tab.smart';
 import { GoalModal, EditGoalData } from '../components/smart/goal-modal.smart';
 import { SubstitutionModal } from '../components/smart/substitution-modal.smart';
 import { GameStats } from '../components/smart/game-stats.smart';
+import {
+  EventCard,
+  EventType as EventCardType,
+} from '../components/presentation/event-card.presentation';
+import { CascadeDeleteModal } from '../components/presentation/cascade-delete-modal.presentation';
+import { ConflictResolutionModal } from '../components/presentation/conflict-resolution-modal.presentation';
+import { useGameEventSubscription } from '../hooks/use-game-event-subscription';
+
+// Fragment for writing GameEvent to cache
+const GameEventFragmentDoc = gql`
+  fragment GameEventFragment on GameEvent {
+    id
+    gameMinute
+    gameSecond
+    position
+    playerId
+    externalPlayerName
+    externalPlayerNumber
+    eventType {
+      id
+      name
+      category
+    }
+  }
+`;
 
 /**
  * Game page - displays a single game with lineup, stats, and event tracking
@@ -50,7 +87,6 @@ export const GamePage = () => {
   const [goalModalTeam, setGoalModalTeam] = useState<'home' | 'away' | null>(
     null
   );
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editGoalData, setEditGoalData] = useState<{
     team: 'home' | 'away';
     goal: EditGoalData;
@@ -62,13 +98,51 @@ export const GamePage = () => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [clearEventsOnReset, setClearEventsOnReset] = useState(false);
 
+  // Cascade delete state
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    eventType: EventCardType;
+  } | null>(null);
+  const [cascadeModalData, setCascadeModalData] = useState<{
+    dependentEvents: Array<{
+      id: string;
+      eventType: string;
+      gameMinute: number;
+      gameSecond: number;
+      playerName?: string | null;
+      description?: string | null;
+    }>;
+    warningMessage?: string | null;
+  } | null>(null);
+
+  // Conflict resolution state
+  const [conflictData, setConflictData] = useState<{
+    conflictId: string;
+    eventType: string;
+    gameMinute: number;
+    gameSecond: number;
+    conflictingEvents: Array<{
+      eventId: string;
+      playerName: string;
+      playerId?: string | null;
+      recordedByUserName: string;
+    }>;
+  } | null>(null);
+
   // Use ref to track timer base time without causing effect re-runs
   const timerBaseRef = useRef<{
     startTime: number;
     baseElapsed: number;
   } | null>(null);
 
-  const { data, loading, error } = useQuery(GET_GAME_BY_ID, {
+  const apolloClient = useApolloClient();
+
+  const {
+    data,
+    loading,
+    error,
+    refetch: refetchGame,
+  } = useQuery(GET_GAME_BY_ID, {
     variables: { id: gameId! },
     skip: !gameId,
   });
@@ -103,13 +177,187 @@ export const GamePage = () => {
     },
   });
 
-  // Get home and away team IDs for lineup queries
-  const homeTeamId = data?.game?.gameTeams?.find(
-    (gt) => gt.teamType === 'home'
-  )?.id;
-  const awayTeamId = data?.game?.gameTeams?.find(
-    (gt) => gt.teamType === 'away'
-  )?.id;
+  const [deleteSubstitution, { loading: deletingSubstitution }] = useMutation(
+    DELETE_SUBSTITUTION,
+    {
+      refetchQueries: () => {
+        const queries: Array<{
+          query:
+            | typeof GET_GAME_BY_ID
+            | typeof GET_PLAYER_STATS
+            | typeof GET_GAME_LINEUP;
+          variables: object;
+        }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
+        const game = data?.game;
+        const homeTeam = game?.gameTeams?.find((gt) => gt.teamType === 'home');
+        const awayTeam = game?.gameTeams?.find((gt) => gt.teamType === 'away');
+        if (homeTeam) {
+          queries.push({
+            query: GET_PLAYER_STATS,
+            variables: { input: { teamId: homeTeam.team.id, gameId } },
+          });
+          queries.push({
+            query: GET_GAME_LINEUP,
+            variables: { gameTeamId: homeTeam.id },
+          });
+        }
+        if (awayTeam) {
+          queries.push({
+            query: GET_PLAYER_STATS,
+            variables: { input: { teamId: awayTeam.team.id, gameId } },
+          });
+          queries.push({
+            query: GET_GAME_LINEUP,
+            variables: { gameTeamId: awayTeam.id },
+          });
+        }
+        return queries;
+      },
+    }
+  );
+
+  const [deletePositionSwap, { loading: deletingPositionSwap }] = useMutation(
+    DELETE_POSITION_SWAP,
+    {
+      refetchQueries: () => {
+        const queries: Array<{
+          query: typeof GET_GAME_BY_ID | typeof GET_GAME_LINEUP;
+          variables: object;
+        }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
+        const game = data?.game;
+        const homeTeam = game?.gameTeams?.find((gt) => gt.teamType === 'home');
+        const awayTeam = game?.gameTeams?.find((gt) => gt.teamType === 'away');
+        if (homeTeam) {
+          queries.push({
+            query: GET_GAME_LINEUP,
+            variables: { gameTeamId: homeTeam.id },
+          });
+        }
+        if (awayTeam) {
+          queries.push({
+            query: GET_GAME_LINEUP,
+            variables: { gameTeamId: awayTeam.id },
+          });
+        }
+        return queries;
+      },
+    }
+  );
+
+  const [deleteStarterEntry, { loading: deletingStarterEntry }] = useMutation(
+    DELETE_STARTER_ENTRY,
+    {
+      refetchQueries: () => {
+        const queries: Array<{
+          query:
+            | typeof GET_GAME_BY_ID
+            | typeof GET_PLAYER_STATS
+            | typeof GET_GAME_LINEUP;
+          variables: object;
+        }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
+        const game = data?.game;
+        const homeTeam = game?.gameTeams?.find((gt) => gt.teamType === 'home');
+        const awayTeam = game?.gameTeams?.find((gt) => gt.teamType === 'away');
+        if (homeTeam) {
+          queries.push({
+            query: GET_PLAYER_STATS,
+            variables: { input: { teamId: homeTeam.team.id, gameId } },
+          });
+          queries.push({
+            query: GET_GAME_LINEUP,
+            variables: { gameTeamId: homeTeam.id },
+          });
+        }
+        if (awayTeam) {
+          queries.push({
+            query: GET_PLAYER_STATS,
+            variables: { input: { teamId: awayTeam.team.id, gameId } },
+          });
+          queries.push({
+            query: GET_GAME_LINEUP,
+            variables: { gameTeamId: awayTeam.id },
+          });
+        }
+        return queries;
+      },
+    }
+  );
+
+  // Cascade delete queries and mutations
+  const [checkDependentEvents, { loading: checkingDependents }] = useLazyQuery(
+    GET_DEPENDENT_EVENTS,
+    {
+      fetchPolicy: 'network-only',
+    }
+  );
+
+  const [deleteWithCascade, { loading: deletingWithCascade }] = useMutation(
+    DELETE_EVENT_WITH_CASCADE,
+    {
+      refetchQueries: () => {
+        const queries: Array<{
+          query:
+            | typeof GET_GAME_BY_ID
+            | typeof GET_PLAYER_STATS
+            | typeof GET_GAME_LINEUP;
+          variables: object;
+        }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
+        const game = data?.game;
+        const homeTeam = game?.gameTeams?.find((gt) => gt.teamType === 'home');
+        const awayTeam = game?.gameTeams?.find((gt) => gt.teamType === 'away');
+        if (homeTeam) {
+          queries.push({
+            query: GET_PLAYER_STATS,
+            variables: { input: { teamId: homeTeam.team.id, gameId } },
+          });
+          queries.push({
+            query: GET_GAME_LINEUP,
+            variables: { gameTeamId: homeTeam.id },
+          });
+        }
+        if (awayTeam) {
+          queries.push({
+            query: GET_PLAYER_STATS,
+            variables: { input: { teamId: awayTeam.team.id, gameId } },
+          });
+          queries.push({
+            query: GET_GAME_LINEUP,
+            variables: { gameTeamId: awayTeam.id },
+          });
+        }
+        return queries;
+      },
+    }
+  );
+
+  const [resolveConflict, { loading: resolvingConflict }] = useMutation(
+    RESOLVE_EVENT_CONFLICT,
+    {
+      refetchQueries: [{ query: GET_GAME_BY_ID, variables: { id: gameId } }],
+    }
+  );
+
+  // Memoize team lookups to prevent unnecessary recalculations
+  const homeTeamData = useMemo(
+    () => data?.game?.gameTeams?.find((gt) => gt.teamType === 'home'),
+    [data?.game?.gameTeams]
+  );
+  const awayTeamData = useMemo(
+    () => data?.game?.gameTeams?.find((gt) => gt.teamType === 'away'),
+    [data?.game?.gameTeams]
+  );
+  const homeTeamId = homeTeamData?.id;
+  const awayTeamId = awayTeamData?.id;
+
+  // Memoize scores to prevent recalculation on every render
+  const homeScore = useMemo(
+    () => computeScore(homeTeamData?.gameEvents),
+    [homeTeamData?.gameEvents]
+  );
+  const awayScore = useMemo(
+    () => computeScore(awayTeamData?.gameEvents),
+    [awayTeamData?.gameEvents]
+  );
 
   // Fetch lineup data for goal modal (only when needed)
   const { data: homeLineupData } = useQuery(GET_GAME_LINEUP, {
@@ -121,6 +369,206 @@ export const GamePage = () => {
     variables: { gameTeamId: awayTeamId! },
     skip: !awayTeamId,
   });
+
+  // Track score highlights for animations
+  const [highlightedScore, setHighlightedScore] = useState<
+    'home' | 'away' | null
+  >(null);
+
+  // Subscribe to real-time game events
+  // Update Apollo cache directly instead of refetching to prevent flickering
+  const handleEventCreated = useCallback(
+    (event: {
+      id: string;
+      gameTeamId: string;
+      gameMinute: number;
+      gameSecond: number;
+      position?: string | null;
+      playerId?: string | null;
+      externalPlayerName?: string | null;
+      externalPlayerNumber?: string | null;
+      eventType: { id: string; name: string; category: string };
+    }) => {
+      // Update cache by adding the new event to the appropriate gameTeam
+      apolloClient.cache.modify({
+        id: apolloClient.cache.identify({
+          __typename: 'GameTeam',
+          id: event.gameTeamId,
+        }),
+        fields: {
+          gameEvents(existingEvents = [], { readField }) {
+            // Check if event already exists to prevent duplicates
+            const eventExists = existingEvents.some(
+              (ref: { __ref: string }) => readField('id', ref) === event.id
+            );
+            if (eventExists) return existingEvents;
+
+            // Create a new cache reference for the event
+            const newEventRef = apolloClient.cache.writeFragment({
+              data: {
+                __typename: 'GameEvent',
+                id: event.id,
+                gameMinute: event.gameMinute,
+                gameSecond: event.gameSecond,
+                position: event.position,
+                playerId: event.playerId,
+                externalPlayerName: event.externalPlayerName,
+                externalPlayerNumber: event.externalPlayerNumber,
+                eventType: {
+                  __typename: 'EventType',
+                  ...event.eventType,
+                },
+              },
+              fragment: GameEventFragmentDoc,
+            });
+
+            return [...existingEvents, newEventRef];
+          },
+        },
+      });
+
+      // If a goal was scored, highlight the score for the correct team
+      if (event.eventType?.name === 'GOAL') {
+        const homeTeam = data?.game?.gameTeams?.find(
+          (gt) => gt.teamType === 'home'
+        );
+        const awayTeam = data?.game?.gameTeams?.find(
+          (gt) => gt.teamType === 'away'
+        );
+        if (event.gameTeamId === homeTeam?.id) {
+          setHighlightedScore('home');
+        } else if (event.gameTeamId === awayTeam?.id) {
+          setHighlightedScore('away');
+        }
+        setTimeout(() => setHighlightedScore(null), 1000);
+      }
+    },
+    [apolloClient, data?.game?.gameTeams]
+  );
+
+  const handleEventDeleted = useCallback(
+    (deletedEventId: string) => {
+      // Remove the event from cache by evicting it
+      apolloClient.cache.evict({
+        id: apolloClient.cache.identify({
+          __typename: 'GameEvent',
+          id: deletedEventId,
+        }),
+      });
+      // Garbage collect any orphaned references
+      apolloClient.cache.gc();
+    },
+    [apolloClient]
+  );
+
+  const handleConflictDetected = useCallback(
+    (conflict: {
+      conflictId: string;
+      eventType: string;
+      gameMinute: number;
+      gameSecond: number;
+      conflictingEvents: Array<{
+        eventId: string;
+        playerName: string;
+        playerId?: string | null;
+        recordedByUserName: string;
+      }>;
+    }) => {
+      // Show the conflict resolution modal
+      // The conflicting events should already be in the cache from CREATED actions
+      setConflictData(conflict);
+    },
+    []
+  );
+
+  // Handle game state changes from subscription (start, pause, half-time, end, reset)
+  const handleGameStateChanged = useCallback(
+    (gameUpdate: {
+      id: string;
+      name?: string | null;
+      status: GameStatus;
+      actualStart?: unknown;
+      firstHalfEnd?: unknown;
+      secondHalfStart?: unknown;
+      actualEnd?: unknown;
+      pausedAt?: unknown;
+    }) => {
+      // Update the game in the Apollo cache
+      apolloClient.cache.modify({
+        id: apolloClient.cache.identify({
+          __typename: 'Game',
+          id: gameUpdate.id,
+        }),
+        fields: {
+          status: () => gameUpdate.status,
+          actualStart: () => (gameUpdate.actualStart as string) ?? null,
+          firstHalfEnd: () => (gameUpdate.firstHalfEnd as string) ?? null,
+          secondHalfStart: () => (gameUpdate.secondHalfStart as string) ?? null,
+          actualEnd: () => (gameUpdate.actualEnd as string) ?? null,
+          pausedAt: () => (gameUpdate.pausedAt as string) ?? null,
+        },
+      });
+
+      // Reset timer state when game is reset to scheduled
+      if (gameUpdate.status === GameStatus.Scheduled) {
+        setElapsedSeconds(0);
+        timerBaseRef.current = null;
+        timerHalfRef.current = null;
+      }
+    },
+    [apolloClient]
+  );
+
+  const handleResolveConflict = useCallback(
+    async (conflictId: string, selectedEventId: string, keepAll: boolean) => {
+      try {
+        await resolveConflict({
+          variables: {
+            conflictId,
+            selectedEventId,
+            keepAll,
+          },
+        });
+        setConflictData(null);
+      } catch (err) {
+        console.error('Failed to resolve conflict:', err);
+      }
+    },
+    [resolveConflict]
+  );
+
+  // Track previous scores to detect which team scored
+  const prevHomeScore = useRef<number | null>(null);
+  const prevAwayScore = useRef<number | null>(null);
+
+  const { isConnected, isEventHighlighted } = useGameEventSubscription({
+    gameId: gameId || '',
+    onEventCreated: handleEventCreated,
+    onEventDeleted: handleEventDeleted,
+    onConflictDetected: handleConflictDetected,
+    onGameStateChanged: handleGameStateChanged,
+  });
+
+  // Detect score changes and trigger highlight (using memoized scores)
+  useEffect(() => {
+    if (!data?.game) return;
+
+    // Check if home score increased
+    if (prevHomeScore.current !== null && homeScore > prevHomeScore.current) {
+      setHighlightedScore('home');
+      setTimeout(() => setHighlightedScore(null), 1000);
+    }
+
+    // Check if away score increased
+    if (prevAwayScore.current !== null && awayScore > prevAwayScore.current) {
+      setHighlightedScore('away');
+      setTimeout(() => setHighlightedScore(null), 1000);
+    }
+
+    // Update refs
+    prevHomeScore.current = homeScore;
+    prevAwayScore.current = awayScore;
+  }, [data?.game, homeScore, awayScore]);
 
   // Start first half
   const handleStartFirstHalf = async () => {
@@ -197,10 +645,111 @@ export const GamePage = () => {
       await deleteGoal({
         variables: { gameEventId },
       });
-      setDeleteConfirmId(null);
     } catch (err) {
       console.error('Failed to delete goal:', err);
     }
+  };
+
+  // Delete substitution
+  const handleDeleteSubstitution = async (gameEventId: string) => {
+    try {
+      await deleteSubstitution({
+        variables: { gameEventId },
+      });
+    } catch (err) {
+      console.error('Failed to delete substitution:', err);
+    }
+  };
+
+  // Delete position swap
+  const handleDeletePositionSwap = async (gameEventId: string) => {
+    try {
+      await deletePositionSwap({
+        variables: { gameEventId },
+      });
+    } catch (err) {
+      console.error('Failed to delete position swap:', err);
+    }
+  };
+
+  // Delete starter entry
+  const handleDeleteStarterEntry = async (gameEventId: string) => {
+    try {
+      await deleteStarterEntry({
+        variables: { gameEventId },
+      });
+    } catch (err) {
+      console.error('Failed to delete starter entry:', err);
+    }
+  };
+
+  // Handle delete click - check for dependents first
+  const handleDeleteClick = async (id: string, eventType: EventCardType) => {
+    setDeleteTarget({ id, eventType });
+
+    try {
+      const result = await checkDependentEvents({
+        variables: { gameEventId: id },
+      });
+
+      const dependents = result.data?.dependentEvents;
+      if (dependents && dependents.count > 0) {
+        // Show cascade delete modal
+        setCascadeModalData({
+          dependentEvents: dependents.dependentEvents,
+          warningMessage: dependents.warningMessage,
+        });
+      } else {
+        // No dependents, delete directly
+        await performSimpleDelete(id, eventType);
+        setDeleteTarget(null);
+      }
+    } catch (err) {
+      console.error('Failed to check dependent events:', err);
+      setDeleteTarget(null);
+    }
+  };
+
+  // Perform simple delete based on event type
+  const performSimpleDelete = async (id: string, eventType: EventCardType) => {
+    switch (eventType) {
+      case 'goal':
+        await handleDeleteGoal(id);
+        break;
+      case 'substitution':
+        await handleDeleteSubstitution(id);
+        break;
+      case 'position_swap':
+        await handleDeletePositionSwap(id);
+        break;
+      case 'starter_entry':
+        await handleDeleteStarterEntry(id);
+        break;
+    }
+  };
+
+  // Confirm cascade delete
+  const handleCascadeConfirm = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      await deleteWithCascade({
+        variables: {
+          gameEventId: deleteTarget.id,
+          eventType: deleteTarget.eventType,
+        },
+      });
+      setCascadeModalData(null);
+      setDeleteTarget(null);
+    } catch (err) {
+      console.error('Failed to cascade delete:', err);
+    }
+  };
+
+  // Cancel cascade delete
+  const handleCascadeCancel = () => {
+    setCascadeModalData(null);
+    setDeleteTarget(null);
   };
 
   // Pause/Resume game clock
@@ -394,8 +943,9 @@ export const GamePage = () => {
   }
 
   const { game } = data;
-  const homeTeam = game.gameTeams?.find((gt) => gt.teamType === 'home');
-  const awayTeam = game.gameTeams?.find((gt) => gt.teamType === 'away');
+  // Use memoized team data instead of recalculating
+  const homeTeam = homeTeamData;
+  const awayTeam = awayTeamData;
 
   // Check if game is in active play (goals can be recorded)
   const isActivePlay =
@@ -416,6 +966,16 @@ export const GamePage = () => {
             <h1 className="text-2xl font-bold text-gray-900">
               {game.name || 'Game Details'}
             </h1>
+            {/* Real-time sync indicator */}
+            {isConnected && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700"
+                title="Real-time sync active"
+              >
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
+                Live
+              </span>
+            )}
             {/* Status Badge */}
             <span
               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
@@ -817,8 +1377,12 @@ export const GamePage = () => {
             <div className="text-xl font-semibold text-gray-900">
               {homeTeam?.team.name || 'Home Team'}
             </div>
-            <div className="mt-2 text-5xl font-bold text-blue-600">
-              {computeScore(homeTeam?.gameEvents)}
+            <div
+              className={`mt-2 text-5xl font-bold text-blue-600 ${
+                highlightedScore === 'home' ? 'score-highlight' : ''
+              }`}
+            >
+              {homeScore}
             </div>
             {isActivePlay && (
               <div className="mt-2 flex justify-center gap-2">
@@ -876,8 +1440,12 @@ export const GamePage = () => {
             <div className="text-xl font-semibold text-gray-900">
               {awayTeam?.team.name || 'Away Team'}
             </div>
-            <div className="mt-2 text-5xl font-bold text-red-600">
-              {computeScore(awayTeam?.gameEvents)}
+            <div
+              className={`mt-2 text-5xl font-bold text-red-600 ${
+                highlightedScore === 'away' ? 'score-highlight' : ''
+              }`}
+            >
+              {awayScore}
             </div>
             {isActivePlay && (
               <div className="mt-2 flex justify-center gap-2">
@@ -1066,6 +1634,7 @@ export const GamePage = () => {
                   teamId={homeTeam.team.id}
                   teamName={homeTeam.team.name}
                   teamColor={homeTeam.team.homePrimaryColor || '#3B82F6'}
+                  elapsedSeconds={isActivePlay ? elapsedSeconds : undefined}
                 />
               )}
               {activeTeam === 'away' && awayTeam && (
@@ -1074,6 +1643,7 @@ export const GamePage = () => {
                   teamId={awayTeam.team.id}
                   teamName={awayTeam.team.name}
                   teamColor={awayTeam.team.homePrimaryColor || '#EF4444'}
+                  elapsedSeconds={isActivePlay ? elapsedSeconds : undefined}
                 />
               )}
             </div>
@@ -1089,7 +1659,11 @@ export const GamePage = () => {
                 // Define event types for the timeline
                 type MatchEvent = {
                   id: string;
-                  eventType: 'goal' | 'substitution' | 'position_swap';
+                  eventType:
+                    | 'goal'
+                    | 'substitution'
+                    | 'position_swap'
+                    | 'starter_entry';
                   gameMinute: number;
                   gameSecond: number;
                   teamType: string;
@@ -1262,6 +1836,31 @@ export const GamePage = () => {
                           : undefined,
                       });
                     }
+
+                    // Process SUBSTITUTION_IN events at minute 0 (starters entering field)
+                    // These are not paired with SUBSTITUTION_OUT events
+                    if (
+                      event.eventType?.name === 'SUBSTITUTION_IN' &&
+                      event.gameMinute === 0 &&
+                      event.gameSecond === 0 &&
+                      !processedSubIns.has(event.id)
+                    ) {
+                      matchEvents.push({
+                        id: event.id,
+                        eventType: 'starter_entry',
+                        gameMinute: event.gameMinute,
+                        gameSecond: event.gameSecond,
+                        teamType,
+                        teamName: gameTeam.team.name,
+                        teamColor:
+                          gameTeam.team.homePrimaryColor || defaultColor,
+                        playerIn: {
+                          playerId: event.playerId,
+                          externalPlayerName: event.externalPlayerName,
+                          externalPlayerNumber: event.externalPlayerNumber,
+                        },
+                      });
+                    }
                   });
                 };
 
@@ -1307,20 +1906,48 @@ export const GamePage = () => {
                   );
                 }
 
+                // Helper to check if deleting based on event type
+                const isDeletingEvent = (
+                  eventId: string,
+                  eventType: EventCardType
+                ) => {
+                  // If this event is the target of cascade delete
+                  if (deleteTarget?.id === eventId) {
+                    return (
+                      deletingWithCascade ||
+                      deletingGoal ||
+                      deletingSubstitution ||
+                      deletingPositionSwap ||
+                      deletingStarterEntry
+                    );
+                  }
+                  return false;
+                };
+
+                // Helper to check if checking dependents for this event
+                const isCheckingEvent = (eventId: string) => {
+                  return deleteTarget?.id === eventId && checkingDependents;
+                };
+
                 return (
                   <div className="space-y-3">
                     {matchEvents.map((event) => {
                       const team =
                         event.teamType === 'home' ? homeTeam : awayTeam;
 
-                      if (event.eventType === 'goal') {
-                        const scorerName = getPlayerName(
-                          event.playerId,
-                          event.externalPlayerName,
-                          event.externalPlayerNumber,
-                          team
-                        );
-                        const assisterName = event.assist
+                      // Resolve player names based on event type
+                      const scorerName =
+                        event.eventType === 'goal'
+                          ? getPlayerName(
+                              event.playerId,
+                              event.externalPlayerName,
+                              event.externalPlayerNumber,
+                              team
+                            )
+                          : undefined;
+
+                      const assisterName =
+                        event.eventType === 'goal' && event.assist
                           ? getPlayerName(
                               event.assist.playerId,
                               event.assist.externalPlayerName,
@@ -1329,307 +1956,97 @@ export const GamePage = () => {
                             )
                           : null;
 
-                        return (
-                          <div
-                            key={event.id}
-                            className="flex items-center gap-4 rounded-lg border border-gray-200 bg-white p-4"
-                          >
-                            {/* Time */}
-                            <div className="w-16 font-mono text-lg font-semibold text-gray-700">
-                              {String(event.gameMinute).padStart(2, '0')}:
-                              {String(event.gameSecond).padStart(2, '0')}
-                            </div>
-
-                            {/* Goal icon */}
-                            <div
-                              className="flex h-10 w-10 items-center justify-center rounded-full"
-                              style={{ backgroundColor: event.teamColor }}
-                            >
-                              <svg
-                                className="h-5 w-5 text-white"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <circle cx="10" cy="10" r="8" />
-                              </svg>
-                            </div>
-
-                            {/* Details */}
-                            <div className="flex-1">
-                              <div className="font-semibold text-gray-900">
-                                Goal - {event.teamName}
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                {scorerName}
-                                {assisterName && (
-                                  <span className="text-gray-400">
-                                    {' '}
-                                    (assist: {assisterName})
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Edit and Delete buttons */}
-                            <div className="flex items-center gap-1">
-                              {deleteConfirmId === event.id ? (
-                                <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5">
-                                  <span className="text-xs text-red-700">
-                                    Delete?
-                                  </span>
-                                  <button
-                                    onClick={() => handleDeleteGoal(event.id)}
-                                    disabled={deletingGoal}
-                                    className="rounded bg-red-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                                    type="button"
-                                  >
-                                    {deletingGoal ? '...' : 'Yes'}
-                                  </button>
-                                  <button
-                                    onClick={() => setDeleteConfirmId(null)}
-                                    className="rounded bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700 hover:bg-gray-300"
-                                    type="button"
-                                  >
-                                    No
-                                  </button>
-                                </div>
-                              ) : (
-                                <>
-                                  {/* Edit button */}
-                                  <button
-                                    onClick={() =>
-                                      setEditGoalData({
-                                        team: event.teamType as 'home' | 'away',
-                                        goal: {
-                                          id: event.id,
-                                          gameMinute: event.gameMinute,
-                                          gameSecond: event.gameSecond,
-                                          playerId: event.playerId,
-                                          externalPlayerName:
-                                            event.externalPlayerName,
-                                          externalPlayerNumber:
-                                            event.externalPlayerNumber,
-                                          assist: event.assist
-                                            ? {
-                                                playerId: event.assist.playerId,
-                                                externalPlayerName:
-                                                  event.assist
-                                                    .externalPlayerName,
-                                              }
-                                            : null,
-                                        },
-                                      })
-                                    }
-                                    className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-500"
-                                    type="button"
-                                    title="Edit goal"
-                                  >
-                                    <svg
-                                      className="h-5 w-5"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                      />
-                                    </svg>
-                                  </button>
-                                  {/* Delete button */}
-                                  <button
-                                    onClick={() => setDeleteConfirmId(event.id)}
-                                    className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
-                                    type="button"
-                                    title="Delete goal"
-                                  >
-                                    <svg
-                                      className="h-5 w-5"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                      />
-                                    </svg>
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      // Position swap event
-                      if (event.eventType === 'position_swap') {
-                        const player1Name = event.swapPlayer1
+                      const playerInName =
+                        event.eventType === 'substitution' ||
+                        event.eventType === 'starter_entry'
                           ? getPlayerName(
-                              event.swapPlayer1.playerId,
-                              event.swapPlayer1.externalPlayerName,
-                              event.swapPlayer1.externalPlayerNumber,
+                              event.playerIn?.playerId,
+                              event.playerIn?.externalPlayerName,
+                              event.playerIn?.externalPlayerNumber,
                               team
                             )
-                          : 'Unknown';
-                        const player2Name = event.swapPlayer2
+                          : undefined;
+
+                      const playerOutName =
+                        event.eventType === 'substitution'
                           ? getPlayerName(
-                              event.swapPlayer2.playerId,
-                              event.swapPlayer2.externalPlayerName,
-                              event.swapPlayer2.externalPlayerNumber,
+                              event.playerOut?.playerId,
+                              event.playerOut?.externalPlayerName,
+                              event.playerOut?.externalPlayerNumber,
                               team
                             )
-                          : 'Unknown';
+                          : undefined;
 
-                        return (
-                          <div
-                            key={event.id}
-                            className="flex items-center gap-4 rounded-lg border border-gray-200 bg-white p-4"
-                          >
-                            {/* Time */}
-                            <div className="w-16 font-mono text-lg font-semibold text-gray-700">
-                              {String(event.gameMinute).padStart(2, '0')}:
-                              {String(event.gameSecond).padStart(2, '0')}
-                            </div>
+                      const player1Name =
+                        event.eventType === 'position_swap'
+                          ? getPlayerName(
+                              event.swapPlayer1?.playerId,
+                              event.swapPlayer1?.externalPlayerName,
+                              event.swapPlayer1?.externalPlayerNumber,
+                              team
+                            )
+                          : undefined;
 
-                            {/* Position swap icon */}
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
-                              <svg
-                                className="h-5 w-5 text-purple-600"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-                                />
-                              </svg>
-                            </div>
-
-                            {/* Details */}
-                            <div className="flex-1">
-                              <div className="font-semibold text-gray-900">
-                                Position Swap - {event.teamName}
-                              </div>
-                              <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <span className="inline-flex items-center gap-1">
-                                  <span className="font-medium">
-                                    {player1Name}
-                                  </span>
-                                  {event.swapPlayer1?.position && (
-                                    <span className="text-purple-600">
-                                      → {event.swapPlayer1.position}
-                                    </span>
-                                  )}
-                                </span>
-                                <span className="text-gray-400">↔</span>
-                                <span className="inline-flex items-center gap-1">
-                                  <span className="font-medium">
-                                    {player2Name}
-                                  </span>
-                                  {event.swapPlayer2?.position && (
-                                    <span className="text-purple-600">
-                                      → {event.swapPlayer2.position}
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      // Substitution event
-                      const playerOutName = event.playerOut
-                        ? getPlayerName(
-                            event.playerOut.playerId,
-                            event.playerOut.externalPlayerName,
-                            event.playerOut.externalPlayerNumber,
-                            team
-                          )
-                        : 'Unknown';
-                      const playerInName = event.playerIn
-                        ? getPlayerName(
-                            event.playerIn.playerId,
-                            event.playerIn.externalPlayerName,
-                            event.playerIn.externalPlayerNumber,
-                            team
-                          )
-                        : 'Unknown';
+                      const player2Name =
+                        event.eventType === 'position_swap'
+                          ? getPlayerName(
+                              event.swapPlayer2?.playerId,
+                              event.swapPlayer2?.externalPlayerName,
+                              event.swapPlayer2?.externalPlayerNumber,
+                              team
+                            )
+                          : undefined;
 
                       return (
-                        <div
+                        <EventCard
                           key={event.id}
-                          className="flex items-center gap-4 rounded-lg border border-gray-200 bg-white p-4"
-                        >
-                          {/* Time */}
-                          <div className="w-16 font-mono text-lg font-semibold text-gray-700">
-                            {String(event.gameMinute).padStart(2, '0')}:
-                            {String(event.gameSecond).padStart(2, '0')}
-                          </div>
-
-                          {/* Substitution icon */}
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
-                            <svg
-                              className="h-5 w-5 text-gray-600"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                              />
-                            </svg>
-                          </div>
-
-                          {/* Details */}
-                          <div className="flex-1">
-                            <div className="font-semibold text-gray-900">
-                              Substitution - {event.teamName}
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <span className="inline-flex items-center gap-1">
-                                <svg
-                                  className="h-3 w-3 text-green-500"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                                {playerInName}
-                              </span>
-                              <span className="text-gray-400">for</span>
-                              <span className="inline-flex items-center gap-1">
-                                <svg
-                                  className="h-3 w-3 text-red-500"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm.707-10.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L9.414 11H13a1 1 0 100-2H9.414l1.293-1.293z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                                {playerOutName}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
+                          id={event.id}
+                          eventType={event.eventType}
+                          gameMinute={event.gameMinute}
+                          gameSecond={event.gameSecond}
+                          teamName={event.teamName}
+                          teamColor={event.teamColor}
+                          scorerName={scorerName}
+                          assisterName={assisterName}
+                          playerInName={playerInName}
+                          playerOutName={playerOutName}
+                          player1Name={player1Name}
+                          player1Position={event.swapPlayer1?.position}
+                          player2Name={player2Name}
+                          player2Position={event.swapPlayer2?.position}
+                          onDeleteClick={handleDeleteClick}
+                          onEdit={
+                            event.eventType === 'goal'
+                              ? () =>
+                                  setEditGoalData({
+                                    team: event.teamType as 'home' | 'away',
+                                    goal: {
+                                      id: event.id,
+                                      gameMinute: event.gameMinute,
+                                      gameSecond: event.gameSecond,
+                                      playerId: event.playerId,
+                                      externalPlayerName:
+                                        event.externalPlayerName,
+                                      externalPlayerNumber:
+                                        event.externalPlayerNumber,
+                                      assist: event.assist
+                                        ? {
+                                            playerId: event.assist.playerId,
+                                            externalPlayerName:
+                                              event.assist.externalPlayerName,
+                                          }
+                                        : null,
+                                    },
+                                  })
+                              : undefined
+                          }
+                          isDeleting={isDeletingEvent(
+                            event.id,
+                            event.eventType
+                          )}
+                          isCheckingDependents={isCheckingEvent(event.id)}
+                          isHighlighted={isEventHighlighted(event.id)}
+                        />
                       );
                     })}
                   </div>
@@ -1737,6 +2154,32 @@ export const GamePage = () => {
           onClose={() => setSubModalTeam(null)}
         />
       )}
+
+      {/* Cascade Delete Modal */}
+      {cascadeModalData && deleteTarget && (
+        <CascadeDeleteModal
+          isOpen={true}
+          eventType={deleteTarget.eventType}
+          dependentEvents={cascadeModalData.dependentEvents}
+          warningMessage={cascadeModalData.warningMessage}
+          isDeleting={deletingWithCascade}
+          onConfirm={handleCascadeConfirm}
+          onCancel={handleCascadeCancel}
+        />
+      )}
+
+      {/* Conflict Resolution Modal */}
+      <ConflictResolutionModal
+        isOpen={conflictData !== null}
+        conflictId={conflictData?.conflictId || ''}
+        eventType={conflictData?.eventType || ''}
+        gameMinute={conflictData?.gameMinute || 0}
+        gameSecond={conflictData?.gameSecond || 0}
+        conflictingEvents={conflictData?.conflictingEvents || []}
+        isResolving={resolvingConflict}
+        onResolve={handleResolveConflict}
+        onClose={() => setConflictData(null)}
+      />
     </div>
   );
 };
