@@ -38,7 +38,7 @@ registerEnumType(TeamRole, {
  */
 @ObjectType()
 @Entity('team_members')
-@Index('idx_team_user_unique', ['teamId', 'userId'], { unique: true }) // User can only have one role per team
+@Index('idx_team_member_unique', ['teamId', 'userId'], { unique: true }) // User can only have one role per team
 export class TeamMember extends BaseEntity {
   @Field(() => ID)
   @Column('uuid')

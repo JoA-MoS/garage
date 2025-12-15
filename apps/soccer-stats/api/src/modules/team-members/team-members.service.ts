@@ -10,20 +10,20 @@ import { TeamMember, TeamRole } from '../../entities/team-member.entity';
 import { Team } from '../../entities/team.entity';
 import { User } from '../../entities/user.entity';
 
+/**
+ * Role hierarchy for team access control.
+ * Higher values indicate more permissions.
+ */
+const ROLE_HIERARCHY: Record<TeamRole, number> = {
+  [TeamRole.OWNER]: 5,
+  [TeamRole.MANAGER]: 4,
+  [TeamRole.COACH]: 3,
+  [TeamRole.PLAYER]: 2,
+  [TeamRole.PARENT_FAN]: 1,
+};
+
 @Injectable()
 export class TeamMembersService {
-  /**
-   * Role hierarchy mapping for access control checks.
-   * Higher numbers indicate more privileged roles.
-   */
-  private readonly roleHierarchy: Record<TeamRole, number> = {
-    [TeamRole.OWNER]: 5,
-    [TeamRole.MANAGER]: 4,
-    [TeamRole.COACH]: 3,
-    [TeamRole.PLAYER]: 2,
-    [TeamRole.PARENT_FAN]: 1,
-  };
-
   constructor(
     @InjectRepository(TeamMember)
     private teamMemberRepository: Repository<TeamMember>,
@@ -99,9 +99,7 @@ export class TeamMembersService {
     const membership = await this.findUserRoleInTeam(userId, teamId);
     if (!membership) return false;
 
-    return (
-      this.roleHierarchy[membership.role] >= this.roleHierarchy[minimumRole]
-    );
+    return ROLE_HIERARCHY[membership.role] >= ROLE_HIERARCHY[minimumRole];
   }
 
   /**
@@ -170,8 +168,9 @@ export class TeamMembersService {
       isGuest,
       invitedById,
       invitedAt: invitedById ? new Date() : undefined,
-      // TODO: See FEATURE_ROADMAP.md section 1.6 - Invitation system will change this logic.
-      acceptedAt: new Date(), // Immediately accepted for now (invitation flow will change this)
+      // TODO: See FEATURE_ROADMAP.md section 1.6 - Invitation system will add an acceptInvitation() method.
+      // For now, only set acceptedAt for direct additions (not invitations).
+      acceptedAt: !invitedById ? new Date() : undefined,
     });
 
     return this.teamMemberRepository.save(teamMember);
