@@ -9,10 +9,15 @@ import { TeamMember } from './team-member.entity';
 
 /**
  * Controls visibility of user's last name to other users.
+ * This setting applies to adults (18+) only.
+ *
+ * IMPORTANT: Minors (under 18) are always treated as TEAM_ONLY regardless of this setting.
+ * The privacy enforcement is handled at the application layer based on dateOfBirth.
+ *
  * @see FEATURE_ROADMAP.md section 1.4 Player Privacy System
  */
 export enum LastNameVisibility {
-  /** Last name visible to everyone */
+  /** Last name visible to everyone (adults only - minors are always TEAM_ONLY) */
   PUBLIC = 'PUBLIC',
   /** Last name only visible to team-associated users */
   TEAM_ONLY = 'TEAM_ONLY',
