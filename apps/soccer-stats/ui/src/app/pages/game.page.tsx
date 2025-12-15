@@ -13,6 +13,7 @@ import {
   GET_PLAYER_STATS,
   GET_DEPENDENT_EVENTS,
   DELETE_EVENT_WITH_CASCADE,
+  RESOLVE_EVENT_CONFLICT,
 } from '../services/games-graphql.service';
 import { GameStatus } from '../generated/graphql';
 import { GameLineupTab } from '../components/smart/game-lineup-tab.smart';
@@ -24,6 +25,7 @@ import {
   EventType as EventCardType,
 } from '../components/presentation/event-card.presentation';
 import { CascadeDeleteModal } from '../components/presentation/cascade-delete-modal.presentation';
+import { ConflictResolutionModal } from '../components/presentation/conflict-resolution-modal.presentation';
 import { useGameEventSubscription } from '../hooks/use-game-event-subscription';
 
 /**
@@ -87,6 +89,20 @@ export const GamePage = () => {
       description?: string | null;
     }>;
     warningMessage?: string | null;
+  } | null>(null);
+
+  // Conflict resolution state
+  const [conflictData, setConflictData] = useState<{
+    conflictId: string;
+    eventType: string;
+    gameMinute: number;
+    gameSecond: number;
+    conflictingEvents: Array<{
+      eventId: string;
+      playerName: string;
+      playerId?: string | null;
+      recordedByUserName: string;
+    }>;
   } | null>(null);
 
   // Use ref to track timer base time without causing effect re-runs
@@ -288,6 +304,13 @@ export const GamePage = () => {
     }
   );
 
+  const [resolveConflict, { loading: resolvingConflict }] = useMutation(
+    RESOLVE_EVENT_CONFLICT,
+    {
+      refetchQueries: [{ query: GET_GAME_BY_ID, variables: { id: gameId } }],
+    }
+  );
+
   // Get home and away team IDs for lineup queries
   const homeTeamId = data?.game?.gameTeams?.find(
     (gt) => gt.teamType === 'home'
@@ -338,6 +361,45 @@ export const GamePage = () => {
     void refetchGame();
   }, [refetchGame]);
 
+  const handleConflictDetected = useCallback(
+    (conflict: {
+      conflictId: string;
+      eventType: string;
+      gameMinute: number;
+      gameSecond: number;
+      conflictingEvents: Array<{
+        eventId: string;
+        playerName: string;
+        playerId?: string | null;
+        recordedByUserName: string;
+      }>;
+    }) => {
+      // Show the conflict resolution modal
+      setConflictData(conflict);
+      // Also refetch to update the UI with the new events
+      void refetchGame();
+    },
+    [refetchGame]
+  );
+
+  const handleResolveConflict = useCallback(
+    async (conflictId: string, selectedEventId: string, keepAll: boolean) => {
+      try {
+        await resolveConflict({
+          variables: {
+            conflictId,
+            selectedEventId,
+            keepAll,
+          },
+        });
+        setConflictData(null);
+      } catch (err) {
+        console.error('Failed to resolve conflict:', err);
+      }
+    },
+    [resolveConflict]
+  );
+
   // Track previous scores to detect which team scored
   const prevHomeScore = useRef<number | null>(null);
   const prevAwayScore = useRef<number | null>(null);
@@ -346,6 +408,7 @@ export const GamePage = () => {
     gameId: gameId || '',
     onEventCreated: handleEventCreated,
     onEventDeleted: handleEventDeleted,
+    onConflictDetected: handleConflictDetected,
   });
 
   // Detect score changes and trigger highlight
@@ -1981,6 +2044,19 @@ export const GamePage = () => {
           onCancel={handleCascadeCancel}
         />
       )}
+
+      {/* Conflict Resolution Modal */}
+      <ConflictResolutionModal
+        isOpen={conflictData !== null}
+        conflictId={conflictData?.conflictId || ''}
+        eventType={conflictData?.eventType || ''}
+        gameMinute={conflictData?.gameMinute || 0}
+        gameSecond={conflictData?.gameSecond || 0}
+        conflictingEvents={conflictData?.conflictingEvents || []}
+        isResolving={resolvingConflict}
+        onResolve={handleResolveConflict}
+        onClose={() => setConflictData(null)}
+      />
     </div>
   );
 };
