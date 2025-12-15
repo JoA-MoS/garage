@@ -15,6 +15,15 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
+      "@garage/atlassian-client": [
+        "libs/atlassian-mcp-server/atlassian-client/src/index.ts"
+      ],
+      "@garage/atlassian-mcp-handlers": [
+        "libs/atlassian-mcp-server/mcp-handlers/src/index.ts"
+      ],
+      "@garage/atlassian-types": [
+        "libs/atlassian-mcp-server/types/src/index.ts"
+      ],
       "@garage/campsite-watcher/core": [
         "libs/campsite-watcher/core/src/index.ts"
       ],
