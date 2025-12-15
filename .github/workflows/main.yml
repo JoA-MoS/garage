@@ -40,11 +40,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm nx-cloud start-ci-run
-      - run: pnpm nx affected --target=lint --parallel --max-parallel=3
-      - run: pnpm nx affected --target=test --parallel --max-parallel=2
-      - run: pnpm nx affected --target=build --parallel --max-parallel=3
-      - run: NX_CLOUD_DISTRIBUTED_EXECUTION=false pnpm nx affected --target=docker-build
-      - run: NX_CLOUD_DISTRIBUTED_EXECUTION=false pnpm nx affected --target=release
+      # TODO: Revert to `affected` after one successful run (temporary fix after git history rewrite)
+      - run: pnpm nx run-many --target=lint --all --parallel --max-parallel=3
+      - run: pnpm nx run-many --target=test --all --parallel --max-parallel=2
+      - run: pnpm nx run-many --target=build --all --parallel --max-parallel=3
+      - run: NX_CLOUD_DISTRIBUTED_EXECUTION=false pnpm nx run-many --target=docker-build --all
+      - run: NX_CLOUD_DISTRIBUTED_EXECUTION=false pnpm nx run-many --target=release --all
       - run: pnpm nx-cloud stop-all-agents
 
   agents:
