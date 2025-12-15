@@ -82,12 +82,19 @@ export type CreateGameInput = {
 };
 
 export type CreateTeamInput = {
+  awayPrimaryColor?: InputMaybe<Scalars['String']['input']>;
+  awaySecondaryColor?: InputMaybe<Scalars['String']['input']>;
   colors?: InputMaybe<Scalars['String']['input']>;
   customPositions?: InputMaybe<Array<TeamPositionInput>>;
+  description?: InputMaybe<Scalars['String']['input']>;
   formation?: InputMaybe<Scalars['String']['input']>;
   gameFormat?: InputMaybe<Scalars['String']['input']>;
+  homePrimaryColor?: InputMaybe<Scalars['String']['input']>;
+  homeSecondaryColor?: InputMaybe<Scalars['String']['input']>;
   logo?: InputMaybe<Scalars['String']['input']>;
+  logoUrl?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
+  shortName?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type CreateUserInput = {
@@ -852,12 +859,19 @@ export type UpdateGoalInput = {
 };
 
 export type UpdateTeamInput = {
+  awayPrimaryColor?: InputMaybe<Scalars['String']['input']>;
+  awaySecondaryColor?: InputMaybe<Scalars['String']['input']>;
   colors?: InputMaybe<Scalars['String']['input']>;
   customPositions?: InputMaybe<Array<TeamPositionInput>>;
+  description?: InputMaybe<Scalars['String']['input']>;
   formation?: InputMaybe<Scalars['String']['input']>;
   gameFormat?: InputMaybe<Scalars['String']['input']>;
+  homePrimaryColor?: InputMaybe<Scalars['String']['input']>;
+  homeSecondaryColor?: InputMaybe<Scalars['String']['input']>;
   logo?: InputMaybe<Scalars['String']['input']>;
+  logoUrl?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  shortName?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type UpdateUserInput = {
@@ -870,12 +884,19 @@ export type UpdateUserInput = {
 };
 
 export type UpgradeTeamInput = {
+  awayPrimaryColor?: InputMaybe<Scalars['String']['input']>;
+  awaySecondaryColor?: InputMaybe<Scalars['String']['input']>;
   colors?: InputMaybe<Scalars['String']['input']>;
   customPositions?: InputMaybe<Array<TeamPositionInput>>;
+  description?: InputMaybe<Scalars['String']['input']>;
   formation?: InputMaybe<Scalars['String']['input']>;
   gameFormat?: InputMaybe<Scalars['String']['input']>;
+  homePrimaryColor?: InputMaybe<Scalars['String']['input']>;
+  homeSecondaryColor?: InputMaybe<Scalars['String']['input']>;
   logo?: InputMaybe<Scalars['String']['input']>;
+  logoUrl?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  shortName?: InputMaybe<Scalars['String']['input']>;
   teamId: Scalars['ID']['input'];
 };
 
@@ -995,6 +1016,24 @@ export type UserCardFragment = {
     };
   }>;
 } & { ' $fragmentName'?: 'UserCardFragment' };
+
+export type QuickCreateTeamMutationVariables = Exact<{
+  input: CreateTeamInput;
+}>;
+
+export type QuickCreateTeamMutation = {
+  __typename?: 'Mutation';
+  createTeam: {
+    __typename?: 'Team';
+    id: string;
+    name: string;
+    homePrimaryColor?: string | null;
+    homeSecondaryColor?: string | null;
+    awayPrimaryColor?: string | null;
+    awaySecondaryColor?: string | null;
+    logoUrl?: string | null;
+  };
+};
 
 export type GameEventFragmentFragment = {
   __typename?: 'GameEvent';
@@ -2853,6 +2892,78 @@ export const GetMyTeamsForListDocument = {
 } as unknown as DocumentNode<
   GetMyTeamsForListQuery,
   GetMyTeamsForListQueryVariables
+>;
+export const QuickCreateTeamDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'mutation',
+      name: { kind: 'Name', value: 'QuickCreateTeam' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'input' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: {
+              kind: 'NamedType',
+              name: { kind: 'Name', value: 'CreateTeamInput' },
+            },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'createTeam' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'createTeamInput' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'input' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'homePrimaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'homeSecondaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'awayPrimaryColor' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'awaySecondaryColor' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'logoUrl' } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  QuickCreateTeamMutation,
+  QuickCreateTeamMutationVariables
 >;
 export const GetGameFormatsDocument = {
   kind: 'Document',

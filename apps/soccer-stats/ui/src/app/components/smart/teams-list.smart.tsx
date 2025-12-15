@@ -72,13 +72,23 @@ export const TeamsListSmart = ({
   const { isSignedIn, isLoaded } = useUserProfile();
 
   // Use myTeams query when authenticated, otherwise fall back to all teams
-  const { data: myTeamsData } = useQuery(GetMyTeamsQueryDocument, {
-    skip: !isLoaded || !isSignedIn,
-  });
+  const { data: myTeamsData, loading: myTeamsLoading } = useQuery(
+    GetMyTeamsQueryDocument,
+    {
+      skip: !isLoaded || !isSignedIn,
+    }
+  );
 
-  const { data: allTeamsData } = useQuery(GetTeamsQueryDocument, {
-    skip: !isLoaded || isSignedIn,
-  });
+  const { data: allTeamsData, loading: allTeamsLoading } = useQuery(
+    GetTeamsQueryDocument,
+    {
+      skip: !isLoaded || isSignedIn,
+    }
+  );
+
+  // Loading if auth state isn't loaded yet, or if the active query is loading
+  const isLoading =
+    !isLoaded || (isSignedIn ? myTeamsLoading : allTeamsLoading);
 
   // Use authenticated user's teams if signed in, otherwise show all teams
   // Cast to UITeam[] since GraphQL returns compatible types with sourceType as string
@@ -90,7 +100,7 @@ export const TeamsListSmart = ({
     if (onCreateTeam) {
       onCreateTeam();
     } else {
-      navigate('/teams/manage');
+      navigate('/teams/new');
     }
   }, [onCreateTeam, navigate]);
 
@@ -99,7 +109,7 @@ export const TeamsListSmart = ({
       if (onEditTeam) {
         onEditTeam(teamId);
       } else {
-        navigate(`/teams/${teamId}/manage`);
+        navigate(`/teams/${teamId}/settings`);
       }
     },
     [onEditTeam, navigate]
@@ -108,6 +118,7 @@ export const TeamsListSmart = ({
   return (
     <TeamsListPresentation
       teams={teams}
+      loading={isLoading}
       onCreateTeam={handleCreateTeam}
       onEditTeam={handleEditTeam}
     />

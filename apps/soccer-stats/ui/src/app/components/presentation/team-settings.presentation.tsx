@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Link } from 'react-router';
 
 import {
@@ -7,6 +7,11 @@ import {
   UIGameFormat,
   UIFormation,
 } from '../types/ui.types';
+
+import {
+  TeamFormFields,
+  createTeamFormValues,
+} from './team-form-fields.presentation';
 
 interface TeamSettingsPresentationProps {
   team?: UITeam;
@@ -69,17 +74,27 @@ export const TeamSettingsPresentation = ({
   error,
   saveSuccess = false,
 }: TeamSettingsPresentationProps) => {
-  const [teamName, setTeamName] = useState(team?.name || '');
-  const [teamColors, setTeamColors] = useState(team?.colors || '');
-  const [teamLogo, setTeamLogo] = useState(team?.logo || '');
+  const [basicInfo, setBasicInfo] = useState<UICreateTeamInput>(
+    team
+      ? createTeamFormValues(team)
+      : {
+          name: '',
+          homePrimaryColor: '#3b82f6',
+          homeSecondaryColor: '#ffffff',
+          awayPrimaryColor: '#ffffff',
+          awaySecondaryColor: '#3b82f6',
+          logoUrl: '',
+        }
+  );
+
+  // Update form data when team changes
+  useEffect(() => {
+    if (team) {
+      setBasicInfo(createTeamFormValues(team));
+    }
+  }, [team]);
 
   const handleSaveAll = useCallback(() => {
-    const basicInfo: UICreateTeamInput = {
-      name: teamName,
-      colors: teamColors,
-      logo: teamLogo,
-    };
-
     const settingsData = {
       basicInfo,
       gameFormat: selectedGameFormat,
@@ -89,9 +104,7 @@ export const TeamSettingsPresentation = ({
 
     onSaveSettings(settingsData);
   }, [
-    teamName,
-    teamColors,
-    teamLogo,
+    basicInfo,
     selectedGameFormat,
     selectedFormation,
     positions,
@@ -99,102 +112,53 @@ export const TeamSettingsPresentation = ({
   ]);
 
   return (
-    <div className="bg-white rounded-lg shadow-lg">
+    <div className="rounded-lg bg-white shadow-lg">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200">
+      <div className="border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">
               Team Settings
             </h2>
-            <p className="text-gray-600 mt-1">
+            <p className="mt-1 text-gray-600">
               Configure your team's basic information, formation, and roster
             </p>
           </div>
           <Link
             to="/teams"
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
           >
             ← Back to Teams
           </Link>
         </div>
       </div>
 
-      <div className="p-6 space-y-8">
+      <div className="space-y-8 p-6">
         {/* Basic Team Information */}
         <div className="space-y-6">
-          <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2">
+          <h3 className="border-b border-gray-200 pb-2 text-lg font-medium text-gray-900">
             Basic Information
           </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label
-                htmlFor="teamName"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Team Name *
-              </label>
-              <input
-                type="text"
-                id="teamName"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter team name"
-                required
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="teamColors"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Team Colors
-              </label>
-              <input
-                type="text"
-                id="teamColors"
-                value={teamColors}
-                onChange={(e) => setTeamColors(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="e.g., Blue and White"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label
-                htmlFor="teamLogo"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Team Logo URL
-              </label>
-              <input
-                type="url"
-                id="teamLogo"
-                value={teamLogo}
-                onChange={(e) => setTeamLogo(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="https://example.com/logo.png"
-              />
-            </div>
-          </div>
+          <TeamFormFields
+            value={basicInfo}
+            onChange={setBasicInfo}
+            disabled={loading}
+          />
         </div>
 
         {/* Game Format Selection */}
         <div className="space-y-6">
-          <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2">
+          <h3 className="border-b border-gray-200 pb-2 text-lg font-medium text-gray-900">
             Game Format
           </h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {gameFormats.map((format) => (
               <button
                 key={format.id}
                 onClick={() => onGameFormatSelect(format.id)}
                 className={`
-                  p-4 rounded-lg border-2 transition-all duration-200 text-left
+                  rounded-lg border-2 p-4 text-left transition-all duration-200
                   ${
                     selectedGameFormat === format.id
                       ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
@@ -205,11 +169,11 @@ export const TeamSettingsPresentation = ({
                 <div className="font-medium text-gray-900">
                   {format.displayName}
                 </div>
-                <div className="text-sm text-gray-600 mt-1">
+                <div className="mt-1 text-sm text-gray-600">
                   {format.playersPerSide} players
                 </div>
                 {format.description && (
-                  <div className="text-xs text-gray-500 mt-2">
+                  <div className="mt-2 text-xs text-gray-500">
                     {format.description}
                   </div>
                 )}
@@ -221,17 +185,17 @@ export const TeamSettingsPresentation = ({
         {/* Formation Selection */}
         {selectedGameFormat && (
           <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2">
+            <h3 className="border-b border-gray-200 pb-2 text-lg font-medium text-gray-900">
               Formation
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {formations.map((formation) => (
                 <button
                   key={formation.id}
                   onClick={() => onFormationSelect(formation.id)}
                   className={`
-                    p-4 rounded-lg border-2 transition-all duration-200 text-left
+                    rounded-lg border-2 p-4 text-left transition-all duration-200
                     ${
                       selectedFormation === formation.id
                         ? 'border-green-500 bg-green-50 ring-2 ring-green-200'
@@ -242,7 +206,7 @@ export const TeamSettingsPresentation = ({
                   <div className="font-medium text-gray-900">
                     {formation.name}
                   </div>
-                  <div className="text-sm text-gray-600 mt-1">
+                  <div className="mt-1 text-sm text-gray-600">
                     {formation.description}
                   </div>
                 </button>
@@ -254,22 +218,22 @@ export const TeamSettingsPresentation = ({
         {/* Position Configuration */}
         {selectedFormation && positions.length > 0 && (
           <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2">
+            <h3 className="border-b border-gray-200 pb-2 text-lg font-medium text-gray-900">
               Position Configuration
             </h3>
 
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="rounded-lg bg-gray-50 p-4">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 {/* Position List */}
                 <div className="space-y-3">
                   <h4 className="font-medium text-gray-900">Positions</h4>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                  <div className="max-h-96 space-y-2 overflow-y-auto">
                     {positions.map((position) => (
                       <div
                         key={position.id}
-                        className="flex items-center justify-between p-3 bg-white rounded-md border border-gray-200"
+                        className="flex items-center justify-between rounded-md border border-gray-200 bg-white p-3"
                       >
-                        <div className="flex-1 grid grid-cols-3 gap-2 text-sm">
+                        <div className="grid flex-1 grid-cols-3 gap-2 text-sm">
                           <input
                             type="text"
                             value={position.name}
@@ -278,7 +242,7 @@ export const TeamSettingsPresentation = ({
                                 name: e.target.value,
                               })
                             }
-                            className="px-2 py-1 border border-gray-300 rounded text-xs"
+                            className="rounded border border-gray-300 px-2 py-1 text-xs"
                             placeholder="Position name"
                           />
                           <input
@@ -289,17 +253,17 @@ export const TeamSettingsPresentation = ({
                                 abbreviation: e.target.value,
                               })
                             }
-                            className="px-2 py-1 border border-gray-300 rounded text-xs"
+                            className="rounded border border-gray-300 px-2 py-1 text-xs"
                             placeholder="Abbr"
                             maxLength={3}
                           />
-                          <div className="text-xs text-gray-500 flex items-center">
+                          <div className="flex items-center text-xs text-gray-500">
                             ({position.x.toFixed(0)}, {position.y.toFixed(0)})
                           </div>
                         </div>
                         <button
                           onClick={() => onRemovePosition(position.id)}
-                          className="ml-2 text-red-600 hover:text-red-800 text-sm"
+                          className="ml-2 text-sm text-red-600 hover:text-red-800"
                         >
                           Remove
                         </button>
@@ -308,7 +272,7 @@ export const TeamSettingsPresentation = ({
                   </div>
                   <button
                     onClick={onAddPosition}
-                    className="w-full px-4 py-2 border border-dashed border-gray-300 rounded-md text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors"
+                    className="w-full rounded-md border border-dashed border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-800"
                   >
                     + Add Position
                   </button>
@@ -317,20 +281,20 @@ export const TeamSettingsPresentation = ({
                 {/* Visual Field Preview */}
                 <div className="space-y-3">
                   <h4 className="font-medium text-gray-900">Field Preview</h4>
-                  <div className="bg-green-100 border-2 border-green-300 rounded-lg aspect-[3/2] relative overflow-hidden">
+                  <div className="relative aspect-[3/2] overflow-hidden rounded-lg border-2 border-green-300 bg-green-100">
                     {/* Field markings */}
-                    <div className="absolute inset-2 border-2 border-white rounded">
-                      <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-4 h-16 border-2 border-white border-l-0"></div>
-                      <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-4 h-16 border-2 border-white border-r-0"></div>
-                      <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white"></div>
-                      <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 border-2 border-white rounded-full"></div>
+                    <div className="absolute inset-2 rounded border-2 border-white">
+                      <div className="absolute left-0 top-1/2 h-16 w-4 -translate-y-1/2 transform border-2 border-l-0 border-white"></div>
+                      <div className="absolute right-0 top-1/2 h-16 w-4 -translate-y-1/2 transform border-2 border-r-0 border-white"></div>
+                      <div className="absolute bottom-0 left-1/2 top-0 w-0.5 bg-white"></div>
+                      <div className="absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 transform rounded-full border-2 border-white"></div>
                     </div>
 
                     {/* Position markers */}
                     {positions.map((position) => (
                       <div
                         key={position.id}
-                        className="absolute w-6 h-6 bg-blue-600 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold cursor-move transform -translate-x-1/2 -translate-y-1/2"
+                        className="absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 transform cursor-move items-center justify-center rounded-full border-2 border-white bg-blue-600 text-xs font-bold text-white"
                         style={{
                           left: `${position.x}%`,
                           top: `${position.y}%`,
@@ -349,7 +313,7 @@ export const TeamSettingsPresentation = ({
 
         {/* Error Display */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="rounded-md border border-red-200 bg-red-50 p-4">
             <div className="flex">
               <div className="flex-shrink-0">
                 <svg
@@ -373,10 +337,10 @@ export const TeamSettingsPresentation = ({
 
         {/* Success Message */}
         {saveSuccess && (
-          <div className="bg-green-50 border border-green-200 rounded-md p-4">
+          <div className="rounded-md border border-green-200 bg-green-50 p-4">
             <div className="flex items-center">
               <svg
-                className="w-5 h-5 text-green-500 mr-2"
+                className="mr-2 h-5 w-5 text-green-500"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -388,7 +352,7 @@ export const TeamSettingsPresentation = ({
                   d="M5 13l4 4L19 7"
                 />
               </svg>
-              <p className="text-sm text-green-800 font-medium">
+              <p className="text-sm font-medium text-green-800">
                 Team settings saved successfully!
               </p>
             </div>
@@ -396,15 +360,15 @@ export const TeamSettingsPresentation = ({
         )}
 
         {/* Save Button */}
-        <div className="flex justify-end pt-6 border-t border-gray-200">
+        <div className="flex justify-end border-t border-gray-200 pt-6">
           <button
             onClick={handleSaveAll}
-            disabled={loading || !teamName.trim()}
+            disabled={loading || !basicInfo.name.trim()}
             className={`
-              px-6 py-3 rounded-md font-medium transition-all duration-200 min-w-[200px]
+              min-w-[200px] rounded-md px-6 py-3 font-medium transition-all duration-200
               ${
-                loading || !teamName.trim()
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                loading || !basicInfo.name.trim()
+                  ? 'cursor-not-allowed bg-gray-300 text-gray-500'
                   : 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
               }
             `}
@@ -412,7 +376,7 @@ export const TeamSettingsPresentation = ({
             {loading ? (
               <span className="flex items-center justify-center">
                 <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-current"
+                  className="-ml-1 mr-3 h-5 w-5 animate-spin text-current"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"

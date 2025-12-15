@@ -2,15 +2,12 @@ import { createBrowserRouter, Navigate } from 'react-router';
 
 import { Layout } from '../components/layout/layout';
 import { DashboardPage } from '../pages/dashboard.page';
-// import { NewGamePage } from '../pages/new-game.page';
 import { HistoryPage } from '../pages/history.page';
 import { PlayersPage } from '../pages/players.page';
 import { UsersPage } from '../pages/users.page';
 import { TeamsPage } from '../pages/teams.page';
+import { CreateTeamPage } from '../pages/create-team.page';
 import { EditTeamPage } from '../pages/edit-team.page';
-import { TeamConfigurationPage } from '../pages/team-configuration.page';
-// import { AddPlayersPage } from '../pages/add-players.page';
-import { TeamManagementPage } from '../pages/team-management.page';
 import { AnalyticsPage } from '../pages/analytics.page';
 import { SettingsPage } from '../pages/settings.page';
 import { AboutPage } from '../pages/about.page';
@@ -57,8 +54,8 @@ export const router = createBrowserRouter([
         element: <AllGamesPage />,
       },
       {
-        path: 'teams/manage',
-        element: <TeamManagementPage />,
+        path: 'teams/new',
+        element: <CreateTeamPage />,
       },
       {
         path: 'teams/:teamId',
@@ -88,23 +85,10 @@ export const router = createBrowserRouter([
             path: 'settings',
             element: <TeamSettingsPage />,
           },
-          // Legacy routes for compatibility
-          {
-            path: 'manage',
-            element: <TeamManagementPage />,
-          },
           {
             path: 'edit',
             element: <EditTeamPage />,
           },
-          {
-            path: 'configure',
-            element: <TeamConfigurationPage />,
-          },
-          // {
-          //   path: 'add-players',
-          //   element: <AddPlayersPage />,
-          // },
         ],
       },
       {
