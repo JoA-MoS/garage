@@ -28,6 +28,8 @@ interface PlayerStatsTablePresentationProps {
   emptyMessage?: string;
   isLoading?: boolean;
   teamColor?: string;
+  elapsedSeconds?: number;
+  queryTimeElapsedSeconds?: number;
 }
 
 // Format time as MM:SS
@@ -50,6 +52,42 @@ const getJerseyNumber = (stat: PlayerFullStats): string | null => {
   return stat.externalPlayerNumber || null;
 };
 
+// Calculate live time for on-field players
+// For on-field players, we add the time elapsed since the query was made
+// Formula: baseSeconds + (currentElapsed - queryTimeElapsed)
+const calculateDisplayTime = (
+  stat: PlayerFullStats,
+  elapsedSeconds?: number,
+  queryTimeElapsedSeconds?: number
+): { totalSeconds: number; isLive: boolean } => {
+  const baseSeconds = stat.totalMinutes * 60 + stat.totalSeconds;
+
+  // If player is on field and we have both current and query-time elapsed seconds,
+  // calculate live time by adding the delta since the query was made
+  if (
+    stat.isOnField &&
+    elapsedSeconds !== undefined &&
+    queryTimeElapsedSeconds !== undefined &&
+    elapsedSeconds > 0
+  ) {
+    // Delta = time elapsed since the stats query was made
+    const delta = Math.max(0, elapsedSeconds - queryTimeElapsedSeconds);
+
+    // Live time = base time from query + delta since query
+    const liveSeconds = baseSeconds + delta;
+
+    return {
+      totalSeconds: liveSeconds,
+      isLive: true,
+    };
+  }
+
+  return {
+    totalSeconds: baseSeconds,
+    isLive: false,
+  };
+};
+
 export const PlayerStatsTablePresentation = ({
   stats,
   columns,
@@ -59,6 +97,8 @@ export const PlayerStatsTablePresentation = ({
   emptyMessage = 'No player statistics available',
   isLoading = false,
   teamColor,
+  elapsedSeconds,
+  queryTimeElapsedSeconds,
 }: PlayerStatsTablePresentationProps) => {
   const [sortConfig, setSortConfig] = useState<SortConfig>(defaultSort);
 
@@ -270,7 +310,26 @@ export const PlayerStatsTablePresentation = ({
                   )}
                   {columns.includes('time') && (
                     <td className="whitespace-nowrap px-3 py-3 font-mono text-sm text-gray-700">
-                      {formatTime(stat.totalMinutes, stat.totalSeconds)}
+                      {(() => {
+                        const { totalSeconds, isLive } = calculateDisplayTime(
+                          stat,
+                          elapsedSeconds,
+                          queryTimeElapsedSeconds
+                        );
+                        const mins = Math.floor(totalSeconds / 60);
+                        const secs = totalSeconds % 60;
+                        return (
+                          <span className="inline-flex items-center gap-1.5">
+                            {formatTime(mins, secs)}
+                            {isLive && (
+                              <span
+                                className="inline-flex h-2 w-2 animate-pulse rounded-full bg-green-500"
+                                title="On field"
+                              ></span>
+                            )}
+                          </span>
+                        );
+                      })()}
                     </td>
                   )}
                   {columns.includes('avgTime') && (
