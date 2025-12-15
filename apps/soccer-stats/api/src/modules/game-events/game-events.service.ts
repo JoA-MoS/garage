@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto';
+
 import {
   Injectable,
   NotFoundException,
@@ -32,9 +34,22 @@ import {
   DependentEventsResult,
 } from './dto/dependent-event.output';
 import {
-  GameEventSubscriptionPayload,
+  ConflictInfo,
+  ConflictingEvent,
   GameEventAction,
+  GameEventSubscriptionPayload,
 } from './dto/game-event-subscription.output';
+
+// Detection result for duplicate/conflict checking
+interface DuplicateConflictResult {
+  isDuplicate: boolean;
+  isConflict: boolean;
+  existingEvent?: GameEvent;
+  conflictingEvents?: GameEvent[];
+}
+
+// Detection window in seconds
+const DUPLICATE_CONFLICT_WINDOW_SECONDS = 60;
 
 @Injectable()
 export class GameEventsService {
@@ -59,18 +74,121 @@ export class GameEventsService {
     gameId: string,
     action: GameEventAction,
     event?: GameEvent,
-    deletedEventId?: string
+    deletedEventId?: string,
+    conflict?: ConflictInfo
   ): Promise<void> {
     const payload: GameEventSubscriptionPayload = {
       action,
       gameId,
       event,
       deletedEventId,
+      conflict,
     };
 
     await this.pubSub.publish(`gameEvent:${gameId}`, {
       gameEventChanged: payload,
     });
+  }
+
+  /**
+   * Check for duplicate or conflicting events within a time window.
+   * - Duplicate: Same event type + same player within 60 seconds
+   * - Conflict: Same event type + different player within 60 seconds
+   */
+  private async checkForDuplicateOrConflict(
+    gameTeamId: string,
+    eventTypeName: string,
+    playerId: string | undefined,
+    externalPlayerName: string | undefined,
+    gameMinute: number,
+    gameSecond: number
+  ): Promise<DuplicateConflictResult> {
+    const eventType = await this.getEventTypeByName(eventTypeName);
+    const targetTimeInSeconds = gameMinute * 60 + gameSecond;
+
+    // Find events of the same type within the time window
+    const events = await this.gameEventsRepository.find({
+      where: {
+        gameTeamId,
+        eventTypeId: eventType.id,
+      },
+      relations: ['eventType', 'player', 'recordedByUser'],
+      order: { gameMinute: 'ASC', gameSecond: 'ASC' },
+    });
+
+    const eventsInWindow: GameEvent[] = [];
+
+    for (const event of events) {
+      const eventTimeInSeconds = event.gameMinute * 60 + event.gameSecond;
+      const timeDiff = Math.abs(eventTimeInSeconds - targetTimeInSeconds);
+
+      if (timeDiff <= DUPLICATE_CONFLICT_WINDOW_SECONDS) {
+        eventsInWindow.push(event);
+      }
+    }
+
+    if (eventsInWindow.length === 0) {
+      return { isDuplicate: false, isConflict: false };
+    }
+
+    // Check if any event in the window has the same player
+    const isSamePlayer = (event: GameEvent): boolean => {
+      if (playerId && event.playerId) {
+        return playerId === event.playerId;
+      }
+      if (externalPlayerName && event.externalPlayerName) {
+        return (
+          externalPlayerName.toLowerCase() ===
+          event.externalPlayerName.toLowerCase()
+        );
+      }
+      return false;
+    };
+
+    const duplicateEvent = eventsInWindow.find(isSamePlayer);
+    if (duplicateEvent) {
+      return {
+        isDuplicate: true,
+        isConflict: false,
+        existingEvent: duplicateEvent,
+      };
+    }
+
+    // No duplicate, but there are events in the window → conflict
+    return {
+      isDuplicate: false,
+      isConflict: true,
+      conflictingEvents: eventsInWindow,
+    };
+  }
+
+  /**
+   * Get player name for conflict info
+   */
+  private getPlayerNameFromEvent(event: GameEvent): string {
+    if (event.externalPlayerName) {
+      return event.externalPlayerName;
+    }
+    if (event.player) {
+      const fullName = `${event.player.firstName || ''} ${
+        event.player.lastName || ''
+      }`.trim();
+      return fullName || event.player.email || 'Unknown';
+    }
+    return 'Unknown';
+  }
+
+  /**
+   * Get recorded by user name for conflict info
+   */
+  private getRecordedByUserName(event: GameEvent): string {
+    if (event.recordedByUser) {
+      const fullName = `${event.recordedByUser.firstName || ''} ${
+        event.recordedByUser.lastName || ''
+      }`.trim();
+      return fullName || event.recordedByUser.email || 'Unknown';
+    }
+    return 'Unknown';
   }
 
   private async getEventTypeByName(name: string): Promise<EventType> {
@@ -300,6 +418,13 @@ export class GameEventsService {
       }),
     ]);
 
+    // Publish the substitution event (use SUB_OUT as the primary event)
+    await this.publishGameEvent(
+      gameTeam.gameId,
+      GameEventAction.CREATED,
+      subOutWithRelations
+    );
+
     return [subOutWithRelations, subInWithRelations];
   }
 
@@ -518,7 +643,61 @@ export class GameEventsService {
     const gameTeam = await this.getGameTeam(input.gameTeamId);
     const goalEventType = await this.getEventTypeByName('GOAL');
 
-    // Create GOAL event
+    // Check for duplicate or conflict
+    const detectionResult = await this.checkForDuplicateOrConflict(
+      input.gameTeamId,
+      'GOAL',
+      input.scorerId,
+      input.externalScorerName,
+      input.gameMinute,
+      input.gameSecond
+    );
+
+    // If duplicate: return existing event, notify subscriber with DUPLICATE_DETECTED
+    if (detectionResult.isDuplicate && detectionResult.existingEvent) {
+      const existingEvent = await this.gameEventsRepository.findOneOrFail({
+        where: { id: detectionResult.existingEvent.id },
+        relations: [
+          'eventType',
+          'player',
+          'recordedByUser',
+          'gameTeam',
+          'game',
+          'childEvents',
+          'childEvents.eventType',
+        ],
+      });
+
+      // Publish duplicate detection (silent sync - event already exists)
+      await this.publishGameEvent(
+        gameTeam.gameId,
+        GameEventAction.DUPLICATE_DETECTED,
+        existingEvent
+      );
+
+      return existingEvent;
+    }
+
+    // Prepare conflictId if this is a conflict
+    let conflictId: string | undefined;
+    if (detectionResult.isConflict && detectionResult.conflictingEvents) {
+      conflictId = randomUUID();
+
+      // Mark existing conflicting events with the same conflictId
+      for (const event of detectionResult.conflictingEvents) {
+        if (!event.conflictId) {
+          await this.gameEventsRepository.update(
+            { id: event.id },
+            { conflictId }
+          );
+        } else {
+          // Use existing conflictId if one exists
+          conflictId = event.conflictId;
+        }
+      }
+    }
+
+    // Create GOAL event (with conflictId if applicable)
     const goalEvent = this.gameEventsRepository.create({
       gameId: gameTeam.gameId,
       gameTeamId: input.gameTeamId,
@@ -529,6 +708,7 @@ export class GameEventsService {
       recordedByUserId,
       gameMinute: input.gameMinute,
       gameSecond: input.gameSecond,
+      conflictId,
     });
 
     const savedGoalEvent = await this.gameEventsRepository.save(goalEvent);
@@ -580,11 +760,43 @@ export class GameEventsService {
       });
 
     // Publish the event to subscribers
-    await this.publishGameEvent(
-      gameTeam.gameId,
-      GameEventAction.CREATED,
-      goalEventWithRelations
-    );
+    if (detectionResult.isConflict && conflictId) {
+      // Get all conflicting events for the conflict info
+      const allConflictingEvents = await this.gameEventsRepository.find({
+        where: { conflictId },
+        relations: ['player', 'recordedByUser'],
+      });
+
+      const conflictingEventsInfo: ConflictingEvent[] =
+        allConflictingEvents.map((event) => ({
+          eventId: event.id,
+          playerName: this.getPlayerNameFromEvent(event),
+          playerId: event.playerId,
+          recordedByUserName: this.getRecordedByUserName(event),
+        }));
+
+      const conflictInfo: ConflictInfo = {
+        conflictId,
+        eventType: 'GOAL',
+        gameMinute: input.gameMinute,
+        gameSecond: input.gameSecond,
+        conflictingEvents: conflictingEventsInfo,
+      };
+
+      await this.publishGameEvent(
+        gameTeam.gameId,
+        GameEventAction.CONFLICT_DETECTED,
+        goalEventWithRelations,
+        undefined,
+        conflictInfo
+      );
+    } else {
+      await this.publishGameEvent(
+        gameTeam.gameId,
+        GameEventAction.CREATED,
+        goalEventWithRelations
+      );
+    }
 
     return goalEventWithRelations;
   }
@@ -663,12 +875,17 @@ export class GameEventsService {
       );
     }
 
+    // Store gameId before deletion
+    const gameId = gameEvent.gameId;
+
     // Determine the SUB_OUT event (parent) and SUB_IN event (child)
     let subOutEvent: GameEvent | null = null;
     let subInEvent: GameEvent | null = null;
+    let subOutEventId: string | undefined;
 
     if (eventTypeName === 'SUBSTITUTION_OUT') {
       subOutEvent = gameEvent;
+      subOutEventId = gameEvent.id;
       // Find the linked SUBSTITUTION_IN (child)
       subInEvent = await this.gameEventsRepository.findOne({
         where: { parentEventId: gameEvent.id },
@@ -679,6 +896,7 @@ export class GameEventsService {
       subInEvent = gameEvent;
       // Find the linked SUBSTITUTION_OUT (parent)
       if (gameEvent.parentEventId) {
+        subOutEventId = gameEvent.parentEventId;
         subOutEvent = await this.gameEventsRepository.findOne({
           where: { id: gameEvent.parentEventId },
           relations: ['eventType'],
@@ -693,6 +911,14 @@ export class GameEventsService {
     if (subOutEvent) {
       await this.gameEventsRepository.remove(subOutEvent);
     }
+
+    // Publish deletion event
+    await this.publishGameEvent(
+      gameId,
+      GameEventAction.DELETED,
+      undefined,
+      subOutEventId
+    );
 
     return true;
   }
@@ -717,13 +943,18 @@ export class GameEventsService {
       );
     }
 
+    // Store gameId before deletion
+    const gameId = gameEvent.gameId;
+
     // Position swaps come in pairs - find both
     let swap1: GameEvent | null = null;
     let swap2: GameEvent | null = null;
+    let swap1EventId: string | undefined;
 
     if (gameEvent.parentEventId) {
       // This is the child swap, find the parent
       swap2 = gameEvent;
+      swap1EventId = gameEvent.parentEventId;
       swap1 = await this.gameEventsRepository.findOne({
         where: { id: gameEvent.parentEventId },
         relations: ['eventType'],
@@ -731,6 +962,7 @@ export class GameEventsService {
     } else {
       // This is the parent swap, find the child
       swap1 = gameEvent;
+      swap1EventId = gameEvent.id;
       swap2 = await this.gameEventsRepository.findOne({
         where: { parentEventId: gameEvent.id },
         relations: ['eventType'],
@@ -744,6 +976,14 @@ export class GameEventsService {
     if (swap1) {
       await this.gameEventsRepository.remove(swap1);
     }
+
+    // Publish deletion event
+    await this.publishGameEvent(
+      gameId,
+      GameEventAction.DELETED,
+      undefined,
+      swap1EventId
+    );
 
     return true;
   }
@@ -768,8 +1008,20 @@ export class GameEventsService {
       );
     }
 
+    // Store gameId before deletion
+    const gameId = gameEvent.gameId;
+
     // For starter entries (SUBSTITUTION_IN at minute 0), just delete the event
     await this.gameEventsRepository.remove(gameEvent);
+
+    // Publish deletion event
+    await this.publishGameEvent(
+      gameId,
+      GameEventAction.DELETED,
+      undefined,
+      gameEventId
+    );
+
     return true;
   }
 
@@ -861,7 +1113,7 @@ export class GameEventsService {
     }
 
     // Return updated goal event with relations
-    return this.gameEventsRepository.findOneOrFail({
+    const updatedGoal = await this.gameEventsRepository.findOneOrFail({
       where: { id: input.gameEventId },
       relations: [
         'eventType',
@@ -873,6 +1125,15 @@ export class GameEventsService {
         'childEvents.eventType',
       ],
     });
+
+    // Publish the update event
+    await this.publishGameEvent(
+      gameEvent.gameId,
+      GameEventAction.UPDATED,
+      updatedGoal
+    );
+
+    return updatedGoal;
   }
 
   async swapPositions(
@@ -971,6 +1232,13 @@ export class GameEventsService {
         ],
       }),
     ]);
+
+    // Publish the position swap event (use swap1 as the primary event)
+    await this.publishGameEvent(
+      gameTeam.gameId,
+      GameEventAction.CREATED,
+      swap1WithRelations
+    );
 
     return [swap1WithRelations, swap2WithRelations];
   }
@@ -1811,5 +2079,90 @@ export class GameEventsService {
       case 'starter_entry':
         return this.deleteStarterEntry(gameEventId);
     }
+  }
+
+  /**
+   * Resolve an event conflict by either:
+   * - Keeping only the selected event and deleting others (keepAll = false)
+   * - Keeping all events as valid (keepAll = true) - clears conflictId from all
+   */
+  async resolveEventConflict(
+    conflictId: string,
+    selectedEventId: string,
+    keepAll?: boolean
+  ): Promise<GameEvent> {
+    // Find all events with this conflictId
+    const conflictingEvents = await this.gameEventsRepository.find({
+      where: { conflictId },
+      relations: ['eventType', 'gameTeam', 'childEvents'],
+    });
+
+    if (conflictingEvents.length === 0) {
+      throw new NotFoundException(
+        `No events found with conflict ID: ${conflictId}`
+      );
+    }
+
+    const selectedEvent = conflictingEvents.find(
+      (e) => e.id === selectedEventId
+    );
+    if (!selectedEvent) {
+      throw new BadRequestException(
+        `Selected event ${selectedEventId} not found in conflict ${conflictId}`
+      );
+    }
+
+    const gameId = selectedEvent.gameId;
+
+    if (keepAll) {
+      // Keep all events as valid - just clear the conflictId
+      for (const event of conflictingEvents) {
+        await this.gameEventsRepository.update(
+          { id: event.id },
+          { conflictId: undefined }
+        );
+      }
+
+      // Notify subscribers that conflict is resolved
+      await this.publishGameEvent(gameId, GameEventAction.UPDATED);
+    } else {
+      // Keep only the selected event, delete others
+      const eventsToDelete = conflictingEvents.filter(
+        (e) => e.id !== selectedEventId
+      );
+
+      for (const event of eventsToDelete) {
+        // For goals, use deleteGoal to handle score decrement and child events
+        if (event.eventType.name === 'GOAL') {
+          await this.deleteGoal(event.id);
+        } else {
+          // For other event types, delete directly
+          if (event.childEvents?.length > 0) {
+            await this.gameEventsRepository.remove(event.childEvents);
+          }
+          await this.gameEventsRepository.remove(event);
+        }
+      }
+
+      // Clear conflictId from the selected event
+      await this.gameEventsRepository.update(
+        { id: selectedEventId },
+        { conflictId: undefined }
+      );
+    }
+
+    // Return the selected event with full relations
+    return this.gameEventsRepository.findOneOrFail({
+      where: { id: selectedEventId },
+      relations: [
+        'eventType',
+        'player',
+        'recordedByUser',
+        'gameTeam',
+        'game',
+        'childEvents',
+        'childEvents.eventType',
+      ],
+    });
   }
 }

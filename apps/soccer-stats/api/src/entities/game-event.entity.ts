@@ -66,6 +66,10 @@ export class GameEvent extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   description?: string;
 
+  @Field(() => ID, { nullable: true })
+  @Column('uuid', { nullable: true })
+  conflictId?: string;
+
   // Note: metadata field is excluded from GraphQL schema to avoid type complexity
   @Column({ type: 'json', nullable: true })
   metadata?: object;
