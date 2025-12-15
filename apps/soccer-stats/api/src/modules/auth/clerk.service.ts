@@ -10,6 +10,33 @@ export interface ClerkUser {
   imageUrl?: string;
 }
 
+/**
+ * Actor information present in JWT during Clerk impersonation sessions.
+ * @see https://clerk.com/docs/guides/users/impersonation
+ */
+export interface ClerkActor {
+  /** User ID of the impersonator (admin performing the impersonation) */
+  sub: string;
+  /** Session ID of the impersonator */
+  sid?: string;
+  /** Issuer (typically https://dashboard.clerk.com) */
+  iss?: string;
+}
+
+/**
+ * JWT payload structure from Clerk authentication.
+ */
+export interface ClerkPayload {
+  /** User ID of the authenticated (or impersonated) user */
+  sub: string;
+  /** Session ID */
+  sid?: string;
+  /** Actor claim - only present during impersonation sessions */
+  act?: ClerkActor;
+  /** Additional claims */
+  [key: string]: unknown;
+}
+
 @Injectable()
 export class ClerkService {
   private clerkClient;
@@ -20,15 +47,13 @@ export class ClerkService {
     });
   }
 
-  async verifyToken(
-    token: string
-  ): Promise<{ sub: string; [key: string]: unknown }> {
+  async verifyToken(token: string): Promise<ClerkPayload> {
     try {
       const payload = await verifyToken(token, {
         secretKey: process.env['CLERK_SECRET_KEY'] as string,
         audience: process.env['CLERK_JWT_AUDIENCE'],
       });
-      return payload;
+      return payload as ClerkPayload;
     } catch (error) {
       throw new Error(`Token verification failed: ${error}`);
     }

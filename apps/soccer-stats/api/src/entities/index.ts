@@ -3,6 +3,7 @@ export * from './user.entity';
 export * from './team.entity';
 export * from './team-player.entity';
 export * from './team-coach.entity';
+export * from './team-member.entity';
 export * from './team-configuration.entity';
 export * from './game-format.entity';
 export * from './game.entity';

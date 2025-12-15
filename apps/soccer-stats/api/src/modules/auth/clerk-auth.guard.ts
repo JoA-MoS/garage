@@ -2,15 +2,18 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { GqlExecutionContext } from '@nestjs/graphql';
 import { Reflector } from '@nestjs/core';
 
-import { ClerkService } from './clerk.service';
+import { ClerkActor, ClerkService } from './clerk.service';
 
 @Injectable()
 export class ClerkAuthGuard implements CanActivate {
+  private readonly logger = new Logger(ClerkAuthGuard.name);
+
   constructor(
     private clerkService: ClerkService,
     private reflector: Reflector
@@ -44,9 +47,22 @@ export class ClerkAuthGuard implements CanActivate {
       const payload = await this.clerkService.verifyToken(token);
       const user = await this.clerkService.getUser(payload.sub);
 
-      // Attach user to the request context
+      // Extract actor (impersonation) information
+      const actor: ClerkActor | null = payload.act ?? null;
+      const isImpersonating = !!actor;
+
+      // Log impersonation for audit purposes
+      if (isImpersonating) {
+        this.logger.log(
+          `Impersonation session: Admin ${actor.sub} acting as user ${user.id} (${user.firstName} ${user.lastName})`
+        );
+      }
+
+      // Attach user and impersonation context to the request
       req.user = user;
       req.clerkPayload = payload;
+      req.actor = actor;
+      req.isImpersonating = isImpersonating;
 
       return true;
     } catch {

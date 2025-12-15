@@ -21,15 +21,53 @@ async function bootstrap() {
   // conflicts with GraphQL input types.
 
   // Enable CORS for frontend integration
-  // Supports comma-separated origins for multiple frontends (e.g., local + production)
-  const allowedOrigins = (
-    process.env['FRONTEND_URL'] || 'http://localhost:4200'
-  )
+  // Supports:
+  // - Comma-separated explicit origins (e.g., "http://localhost:4200,https://example.com")
+  // - Wildcard patterns using regex (e.g., "*.joamos-projects.vercel.app")
+  const frontendUrls = (process.env['FRONTEND_URL'] || 'http://localhost:4200')
     .split(',')
     .map((origin) => origin.trim());
 
+  // Convert wildcard patterns to regex, keep explicit origins as strings
+  const allowedOrigins: (string | RegExp)[] = frontendUrls.map((origin) => {
+    if (origin.includes('*')) {
+      // Convert wildcard pattern to regex
+      // "*.example.com" → matches "sub.example.com" (subdomain wildcard)
+      // "*-team.vercel.app" → matches "app-hash-team.vercel.app" (Vercel pattern)
+      // Uses restrictive pattern to prevent leading/trailing hyphens
+      // Includes uppercase letters for case-insensitive matching (domains are case-insensitive)
+      const escaped = origin
+        .replace(/\./g, '\\.')
+        .replace(/\*/g, '[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?');
+      return new RegExp(`^https?://${escaped}$`, 'i');
+    }
+    return origin;
+  });
+
   app.enableCors({
-    origin: allowedOrigins,
+    origin: (
+      requestOrigin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void
+    ) => {
+      // Allow requests with no origin (like mobile apps, curl, etc.)
+      if (!requestOrigin) {
+        callback(null, true);
+        return;
+      }
+
+      const isAllowed = allowedOrigins.some((allowed) => {
+        if (typeof allowed === 'string') {
+          return allowed === requestOrigin;
+        }
+        return allowed.test(requestOrigin);
+      });
+
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${requestOrigin} not allowed by CORS`));
+      }
+    },
     credentials: true,
   });
 
