@@ -144,6 +144,67 @@ context: ({ req }: { req: AuthenticatedRequest }) => {
 - Clerk API errors are logged and return appropriate HTTP status codes
 - Public routes bypass authentication entirely
 
+## Impersonation Support
+
+The authentication system supports Clerk's user impersonation feature, allowing admins to sign in as other users for debugging and support purposes.
+
+### How It Works
+
+When an admin impersonates a user via the Clerk Dashboard, the JWT token includes an `act` (actor) claim containing the impersonator's information:
+
+```typescript
+// JWT payload during impersonation
+{
+  sub: "user_123",        // Impersonated user (who you're acting as)
+  act: {                  // Actor claim - only present during impersonation
+    sub: "user_456",      // Impersonator (admin doing the impersonating)
+    sid: "sess_456",
+    iss: "https://dashboard.clerk.com"
+  }
+}
+```
+
+### Backend Detection
+
+The `ClerkAuthGuard` automatically detects impersonation sessions and attaches actor information to the request context:
+
+```typescript
+// In resolvers, use the @Actor() decorator
+@Mutation(() => SomeType)
+async someProtectedAction(
+  @CurrentUser() user: ClerkUser,      // The impersonated user
+  @Actor() actor: ClerkActor | null,   // The impersonator (null if not impersonating)
+  @IsImpersonating() isImpersonating: boolean
+) {
+  if (isImpersonating) {
+    console.log(`Admin ${actor.sub} is acting as ${user.id}`);
+  }
+}
+```
+
+### Frontend Detection
+
+The frontend displays an impersonation banner when an admin is impersonating a user:
+
+```typescript
+import { useAuth } from '@clerk/clerk-react';
+
+const { actor } = useAuth();
+
+if (actor) {
+  // Show impersonation banner
+  // actor.sub contains the impersonator's user ID
+}
+```
+
+### Audit Logging
+
+Impersonation sessions are automatically logged by the backend guard:
+
+```
+Impersonation session: Admin user_456 acting as user user_123 (John Doe)
+```
+
 ## Current Implementation Status
 
 ✅ **Completed:**
@@ -154,12 +215,14 @@ context: ({ req }: { req: AuthenticatedRequest }) => {
 - User parameter decorators
 - GraphQL context configuration
 - Games resolver protection with user context
+- Impersonation detection with `@Actor()` decorator
+- Frontend impersonation banner
 
 🔄 **Next Steps:**
 
 - Apply authentication to Teams and Players resolvers
 - Add user-based data filtering (show only user's data)
-- Implement role-based authorization if needed
+- Implement role-based authorization (see FEATURE_ROADMAP.md section 1.3)
 - Add integration tests for authentication flows
 
 ## Dependencies

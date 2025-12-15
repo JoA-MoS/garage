@@ -6,7 +6,13 @@ This document outlines planned features, improvements, and cleanup tasks for the
 
 ## Table of Contents
 
-1. [Priority 1: Security & Access Control](#priority-1-security--access-control)
+1. [Priority 1: Security & Access Control - Team Access Management](#priority-1-security--access-control---team-access-management)
+   - [1.1 Foundation - Data Model & Impersonation Support](#11-foundation---data-model--impersonation-support)
+   - [1.2 Team Ownership & Transfer](#12-team-ownership--transfer)
+   - [1.3 Role-Based Permissions & Guards](#13-role-based-permissions--guards)
+   - [1.4 Player Privacy System](#14-player-privacy-system)
+   - [1.5 Player-Parent Linking](#15-player-parent-linking)
+   - [1.6 Invitation System & Guest Coaches](#16-invitation-system--guest-coaches)
 2. [Priority 2: Core Feature Enhancements](#priority-2-core-feature-enhancements)
 3. [Priority 3: New Features](#priority-3-new-features)
 4. [Priority 4: Code Cleanup](#priority-4-code-cleanup)
@@ -14,49 +20,495 @@ This document outlines planned features, improvements, and cleanup tasks for the
 
 ---
 
-## Priority 1: Security & Access Control
+## Priority 1: Security & Access Control - Team Access Management
 
-### 1.1 Role-Based Access Control (RBAC)
+### Overview
+
+Multi-role team management system with platform-level admins and team-scoped roles. Supports role assignment, user invitations, and player-parent linking with privacy controls.
+
+### Role Definitions
+
+#### Platform Admin (via Clerk Impersonation)
+
+Instead of a custom Platform Admin role, we use [Clerk's built-in impersonation](https://clerk.com/docs/guides/users/impersonation):
+
+- Admins with Clerk Dashboard access can impersonate any user
+- See exactly what users see, debug issues, provide support
+- Full audit trail maintained by Clerk
+- No custom admin role needed in our database
+
+#### Team Roles
+
+| Role           | Description                  | Key Permissions                                                                                     |
+| -------------- | ---------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Team Owner** | Team owner (transferable)    | Assign all team roles, full team management, transfer ownership                                     |
+| **Manager**    | Team administrator           | Team attributes (name, colors, age group), game scheduling, assign roles, invite parents via player |
+| **Coach**      | Team coach                   | Roster/lineup management, positions, substitutions, assign other coaches (including guest)          |
+| **Player**     | Team player                  | View own stats; adults (18+) have global privacy setting for last name visibility                   |
+| **Parent/Fan** | Player guardian or supporter | View-only access, linked to specific player(s), sees full names for associated team                 |
+
+#### Role Assignment Rules
+
+| Assigner                  | Can Assign                                    |
+| ------------------------- | --------------------------------------------- |
+| Admin (via impersonation) | Any role on any team (by impersonating owner) |
+| Team Owner                | Manager, Coach, Player, Parent/Fan            |
+| Manager                   | Coach, Player, Parent/Fan                     |
+| Coach                     | Coach (including guest coaches)               |
+| Player                    | —                                             |
+| Parent/Fan                | —                                             |
+
+#### Privacy Rules
+
+| User Type                   | Last Name Visibility                                     |
+| --------------------------- | -------------------------------------------------------- |
+| Adult players (18+)         | Global account setting: `PUBLIC` or `TEAM_ONLY`          |
+| Minor players (<18)         | Only visible to team-associated users (no public option) |
+| Team-associated users       | See full names for players on their team                 |
+| Public/non-associated users | First names only                                         |
+
+---
+
+### 1.1 Foundation - Data Model & Impersonation Support
 
 **Status**: Not Implemented
 **Priority**: CRITICAL
+**Phase**: 1
 
-Implement comprehensive role-based access control so users can only see and interact with teams they're authorized to access.
+Establish the data model for team access control and integrate Clerk's built-in impersonation.
 
-#### User Roles
+#### Admin Access via Clerk Impersonation
 
-| Role           | Description                  | Permissions                                                                             |
-| -------------- | ---------------------------- | --------------------------------------------------------------------------------------- |
-| **Owner**      | Team owner/creator           | Full control: edit team, manage roster, manage coaches, delete team, transfer ownership |
-| **Manager**    | Team manager                 | Manage roster, manage games, view all stats, record events                              |
-| **Coach**      | Team coach                   | Record game events, view stats, manage lineups during games                             |
-| **Player**     | Team player                  | View own stats, view team schedule, limited lineup visibility                           |
-| **Parent/Fan** | Player guardian or supporter | View-only: games, public stats, schedule                                                |
+Instead of building a custom Platform Admin role, we leverage [Clerk's built-in user impersonation](https://clerk.com/docs/guides/users/impersonation):
+
+- **Dashboard access**: Clerk Dashboard → Users → "Impersonate user"
+- **Programmatic**: Actor tokens via Clerk Backend API
+- **Audit trail**: Clerk automatically logs all impersonation sessions
+- **Security**: Controlled via Clerk Dashboard permissions
+
+When impersonating, Clerk adds an `act` claim to the JWT containing the impersonator's info:
+
+```typescript
+// JWT payload during impersonation
+{
+  sub: "user_123",        // Impersonated user (who you're acting as)
+  act: {                  // Actor claim - only present during impersonation
+    sub: "user_456",      // Impersonator (admin doing the impersonating)
+    sid: "sess_456",
+    iss: "https://dashboard.clerk.com"
+  }
+}
+```
+
+#### Backend Implementation (Impersonation Detection)
+
+- [ ] Update `ClerkService` to extract `act` claim from JWT payload
+- [ ] Add `ClerkActor` interface for actor data typing
+- [ ] Update `ClerkAuthGuard` to attach actor info to request context:
+  ```typescript
+  req.actor = payload.act ?? null;
+  req.isImpersonating = !!payload.act;
+  ```
+- [ ] Create `@Actor()` parameter decorator for resolver access
+- [ ] Add application-level audit logging when impersonation detected (optional)
+
+#### Frontend Implementation (Impersonation Banner)
+
+- [ ] Detect impersonation via `useAuth()` hook's `actor` property
+- [ ] Display impersonation banner: "Viewing as [User Name] - [Exit]"
+- [ ] Style banner distinctively (e.g., yellow/orange warning color)
+- [ ] "Exit" button ends impersonation session
+
+#### Database Changes
+
+- [ ] Add `birthDate` field to User entity (for age-based privacy calculation)
+- [ ] Add `lastNameVisibility` field to User entity (`PUBLIC`, `TEAM_ONLY`, default: `TEAM_ONLY`)
+- [ ] Create `TeamMember` entity:
+  ```typescript
+  TeamMember {
+    id: ID
+    userId: ID
+    teamId: ID
+    role: TeamRole  // OWNER, MANAGER, COACH, PLAYER, PARENT_FAN
+    linkedPlayerId?: ID  // For parent/fan - which player grants access
+    isGuest: boolean  // For guest coaches
+    invitedBy?: ID
+    invitedAt?: DateTime
+    acceptedAt?: DateTime
+    createdAt: DateTime
+    updatedAt: DateTime
+  }
+  ```
+- [ ] Create `TeamRole` enum: `OWNER`, `MANAGER`, `COACH`, `PLAYER`, `PARENT_FAN`
+
+#### API Implementation
+
+- [ ] Create TeamMember GraphQL type and basic CRUD resolvers
+- [ ] Create `TeamMembersModule` in NestJS
+- [ ] Add `teamMembers` query to Team type
+
+#### Migration Strategy
+
+1. Create new tables/columns with nullable fields
+2. Backfill: Set `lastNameVisibility: TEAM_ONLY` as default
+
+#### Future Enhancement (Optional)
+
+If in-app impersonation UI is needed later:
+
+- [ ] Create admin page with user search
+- [ ] "Impersonate" button calls Clerk Backend API to generate actor token
+- [ ] Redirect to app with impersonation session active
+
+---
+
+### 1.2 Team Ownership & Transfer
+
+**Status**: Not Implemented
+**Priority**: CRITICAL
+**Phase**: 2
+
+Every team must have exactly one owner with transfer capability.
+
+#### Business Rules
+
+- Each team has exactly one owner at any time
+- Ownership can be transferred to another team member
+- Owner cannot leave team without first transferring ownership
+- Deleting a team requires owner role
 
 #### Implementation Tasks
 
-- [ ] Add `role` field to User entity (ADMIN, USER)
-- [ ] Create `TeamMember` entity to track user-team relationships with roles
-- [ ] Add `ownerId` field to Team entity
-- [ ] Create `@RequireRole()` decorator for resolver methods
-- [ ] Create `@RequireTeamAccess()` guard for team-specific operations
-- [ ] Implement team membership validation in all team/game mutations
-- [ ] Add ownership transfer functionality
+- [ ] Add ownership validation to Team entity (exactly one OWNER per team)
+- [ ] Create `transferTeamOwnership` mutation
+- [ ] Add ownership transfer confirmation flow
+- [ ] Prevent owner from leaving team without transfer
+- [ ] Backfill existing teams: Set creator as owner (or first coach if no creator)
+
+#### API
+
+```graphql
+mutation transferTeamOwnership(teamId: ID!, newOwnerId: ID!): Team!
+query canTransferOwnership(teamId: ID!): [TeamMember!]!  # Eligible recipients
+```
+
+#### UI Tasks
+
+- [ ] Team settings: "Transfer Ownership" section (visible to owner only)
+- [ ] New owner selection dropdown (from current team members)
+- [ ] Confirmation modal with clear warning about losing ownership
+- [ ] Success notification and role update in UI
+
+---
+
+### 1.3 Role-Based Permissions & Guards
+
+**Status**: Not Implemented
+**Priority**: CRITICAL
+**Phase**: 2
+
+Protect all API endpoints with appropriate role checks.
+
+#### Implementation Tasks
+
+- [ ] Create `@RequireTeamRole(roles: TeamRole[])` decorator
+- [ ] Create `TeamAccessGuard` for team-scoped operations
+- [ ] Implement role inheritance (owner has all manager permissions, etc.)
+- [ ] Create `TeamRoleService` for permission checking logic
+- [ ] Add `currentUserTeamRole` field to Team GraphQL type
+
+#### Permission Matrix
+
+| Operation               | Required Role(s)                      |
+| ----------------------- | ------------------------------------- |
+| View team (public info) | Any authenticated user                |
+| View team roster        | Team member (any role)                |
+| Edit team attributes    | Owner, Manager                        |
+| Delete team             | Owner only                            |
+| Manage roster           | Owner, Manager, Coach                 |
+| Record game events      | Owner, Manager, Coach                 |
+| View player full names  | Team member (any role)                |
+| Invite team members     | Owner, Manager, Coach (role-specific) |
 
 #### Affected Endpoints (Currently Public - Need Auth)
 
 ```
 game-events.resolver.ts:
-- removeFromLineup          // TODO: Add proper auth
-- updatePlayerPosition      // TODO: Add proper auth
-- deleteGoal                // TODO: Add proper auth
-- deleteSubstitution        // TODO: Add proper auth
-- deletePositionSwap        // TODO: Add proper auth
-- deleteStarterEntry        // TODO: Add proper auth
-- updateGoal                // TODO: Add proper auth
-- deleteEventWithCascade    // TODO: Add proper auth
-- resolveEventConflict      // TODO: Add proper auth
+- removeFromLineup          → Require: Owner, Manager, Coach
+- updatePlayerPosition      → Require: Owner, Manager, Coach
+- deleteGoal                → Require: Owner, Manager, Coach
+- deleteSubstitution        → Require: Owner, Manager, Coach
+- deletePositionSwap        → Require: Owner, Manager, Coach
+- deleteStarterEntry        → Require: Owner, Manager, Coach
+- updateGoal                → Require: Owner, Manager, Coach
+- deleteEventWithCascade    → Require: Owner, Manager, Coach
+- resolveEventConflict      → Require: Owner, Manager, Coach
+
+teams.resolver.ts:
+- createTeam                → Any authenticated user (becomes owner)
+- updateTeam                → Require: Owner, Manager
+- deleteTeam                → Require: Owner
+
+players.resolver.ts:
+- addPlayerToTeam           → Require: Owner, Manager, Coach
+- removePlayerFromTeam      → Require: Owner, Manager, Coach
+- updatePlayerPosition      → Require: Owner, Manager, Coach
+
+games.resolver.ts:
+- createGame                → Require: Owner, Manager
+- updateGame                → Require: Owner, Manager, Coach
+- deleteGame                → Require: Owner, Manager
 ```
+
+---
+
+### 1.4 Player Privacy System
+
+**Status**: Not Implemented
+**Priority**: HIGH
+**Phase**: 3
+
+Age-based privacy controls for player name visibility.
+
+#### Privacy Rules Implementation
+
+1. **Age Calculation**: Derive from `User.birthDate`
+2. **Adult (18+)**: Respects `lastNameVisibility` setting
+   - `PUBLIC`: Everyone sees full name
+   - `TEAM_ONLY`: Only team-associated users see last name
+3. **Minor (<18)**: Last name ONLY visible to team-associated users (enforced, no setting)
+
+#### Implementation Tasks
+
+- [ ] Create `PrivacyService` with `getDisplayName(viewer, player, teamId?)` method
+- [ ] Create `isAdult(user)` utility based on birthDate
+- [ ] Create `isTeamAssociated(viewer, teamId)` check
+- [ ] Add `displayName` field resolver on User GraphQL type (context-aware)
+- [ ] Update all player name displays to use privacy-aware display name
+- [ ] Add privacy setting to user profile/settings page
+
+#### API
+
+```graphql
+type User {
+  # Existing fields...
+  displayName: String!  # Context-aware: may be "John" or "John Smith"
+  lastNameVisibility: LastNameVisibility  # Only visible to self
+  isMinor: Boolean!  # Computed from birthDate
+}
+
+enum LastNameVisibility {
+  PUBLIC
+  TEAM_ONLY
+}
+
+mutation updatePrivacySettings(lastNameVisibility: LastNameVisibility!): User!
+```
+
+#### UI Tasks
+
+- [ ] Profile settings: "Name Privacy" section
+- [ ] Toggle for adults: "Show last name publicly" vs "Team members only"
+- [ ] Info text explaining how name appears to different viewers
+- [ ] Visual indicator on player cards when viewing limited name
+
+---
+
+### 1.5 Player-Parent Linking
+
+**Status**: Not Implemented
+**Priority**: HIGH
+**Phase**: 4
+
+Parents/fans gain team access by being linked to a player on the team.
+
+#### Core Concept
+
+- Parents/fans don't have direct team membership
+- Access is granted through link to a specific player
+- One parent can be linked to multiple players (siblings on same/different teams)
+- Removing player link revokes parent's team access
+
+#### Implementation Tasks
+
+- [ ] Implement `TeamMember.linkedPlayerId` relationship
+- [ ] Create `inviteParent` mutation (manager/coach invites parent for specific player)
+- [ ] Create `linkParentToPlayer` mutation (add additional player links)
+- [ ] Create `unlinkParentFromPlayer` mutation
+- [ ] Add validation: Parent/Fan role requires at least one player link
+- [ ] Handle cascade: When player removed from team, notify linked parents
+
+#### API
+
+```graphql
+mutation inviteParent(
+  teamId: ID!
+  playerId: ID!
+  email: String!
+  relationship: String  # "Parent", "Guardian", "Fan"
+): TeamInvitation!
+
+mutation linkParentToPlayer(
+  teamMemberId: ID!
+  playerId: ID!
+): TeamMember!
+
+mutation unlinkParentFromPlayer(
+  teamMemberId: ID!
+  playerId: ID!
+): TeamMember!
+
+type TeamMember {
+  # ...existing fields
+  linkedPlayers: [User!]!  # Players this parent is linked to
+}
+```
+
+#### UI Tasks
+
+- [ ] Player detail page: "Invite Parent/Guardian" button
+- [ ] Parent invitation form (email, relationship type)
+- [ ] Parent dashboard: "My Players" section showing linked players across teams
+- [ ] Team roster view: Show parent links under each player
+- [ ] Manager view: Manage parent links for any player
+
+---
+
+### 1.6 Invitation System & Guest Coaches
+
+**Status**: Not Implemented
+**Priority**: HIGH
+**Phase**: 4
+
+Email-based invitation system with magic links for team member onboarding.
+
+#### Invitation Flow
+
+1. Inviter creates invitation (selects role, enters email, optionally links to player)
+2. System generates secure token and sends email with magic link
+3. Recipient clicks link → redirected to accept page
+4. If new user: Create account flow → accept invitation
+5. If existing user: Login (if needed) → accept invitation
+6. TeamMember record created with appropriate role
+
+#### Data Model
+
+```typescript
+TeamInvitation {
+  id: ID
+  teamId: ID
+  email: String
+  role: TeamRole
+  linkedPlayerId?: ID  // For parent invitations
+  invitedBy: ID
+  invitedAt: DateTime
+  expiresAt: DateTime  // Default: 7 days
+  acceptedAt?: DateTime
+  status: InvitationStatus  // PENDING, ACCEPTED, EXPIRED, CANCELLED
+  token: String  // Secure random token for magic link
+}
+```
+
+#### Implementation Tasks
+
+- [ ] Create `TeamInvitation` entity
+- [ ] Create `InvitationsModule` with service and resolver
+- [ ] Implement secure token generation (crypto.randomBytes)
+- [ ] Create email templates for invitations
+- [ ] Integrate with email service (SendGrid, AWS SES, etc.)
+- [ ] Create invitation accept flow (new user vs existing user)
+- [ ] Implement invitation expiration handling
+- [ ] Add resend and cancel functionality
+
+#### Guest Coach Feature
+
+- [ ] Add `isGuest` flag to TeamMember entity
+- [ ] Guest coaches have same permissions as regular coaches
+- [ ] Guest status visible in team member list
+- [ ] Owner/Manager can promote guest to full coach
+- [ ] Optional: Time-limited guest access (expiresAt on TeamMember)
+
+#### API
+
+```graphql
+mutation inviteTeamMember(
+  teamId: ID!
+  email: String!
+  role: TeamRole!
+  linkedPlayerId: ID  # Required for PARENT_FAN role
+  isGuest: Boolean  # For guest coaches
+  message: String  # Optional personal message
+): TeamInvitation!
+
+mutation resendInvitation(invitationId: ID!): TeamInvitation!
+mutation cancelInvitation(invitationId: ID!): Boolean!
+mutation acceptInvitation(token: String!): TeamMember!
+
+query pendingInvitations(teamId: ID!): [TeamInvitation!]!
+query myInvitations: [TeamInvitation!]!  # Invitations for current user's email
+```
+
+#### UI Tasks
+
+- [ ] Team settings: "Invitations" tab
+- [ ] "Invite Member" button with role selection form
+- [ ] Pending invitations list with status, resend, cancel actions
+- [ ] Invitation accept page (handles magic link)
+- [ ] New user registration flow from invitation
+- [ ] Guest coach badge/indicator in team member list
+- [ ] "Promote to Full Coach" action for guests
+
+---
+
+### Implementation Phases
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Phase 1: Foundation (1.1)                                       │
+│ - Data model, TeamMember entity, Impersonation detection        │
+│ - Estimated: Foundation for all other features                  │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ Phase 2: Ownership & Guards (1.2 + 1.3)                         │
+│ - Team ownership with transfer                                  │
+│ - Role-based permission guards on all endpoints                 │
+│ - API is secured after this phase                               │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ Phase 3: Privacy (1.4)                                          │
+│ - Age-based privacy rules                                       │
+│ - Display name logic                                            │
+│ - Can be developed in parallel with Phase 4                     │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ Phase 4: Linking & Invitations (1.5 + 1.6)                      │
+│ - Player-parent linking                                         │
+│ - Email invitation system                                       │
+│ - Guest coach support                                           │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Testing Requirements
+
+- [ ] Unit tests for all authorization guards and decorators
+- [ ] Unit tests for privacy/display name logic
+- [ ] Integration tests for role-based access across resolvers
+- [ ] Integration tests for invitation flow (create → accept)
+- [ ] E2E tests for critical flows:
+  - Team creation → ownership assignment
+  - Invitation → acceptance → team access
+  - Parent invitation → player linking → access verification
+  - Ownership transfer flow
+- [ ] Edge case tests:
+  - Minor turning 18 (privacy rule change)
+  - Last owner trying to leave team
+  - Expired invitation handling
+  - Duplicate invitation to same email
 
 ---
 
@@ -152,33 +604,14 @@ Team colors are not being saved or displayed correctly.
 
 ### 2.5 Team Member Management
 
-**Status**: Not Implemented
-**Priority**: HIGH
+**Status**: Superseded
+**Priority**: N/A
 
-Enable team owners to invite and manage various team member roles.
-
-#### Supported Roles
-
-| Role            | Description                 | Invite Method                     |
-| --------------- | --------------------------- | --------------------------------- |
-| **Coach**       | Assistant coaches           | Email invite or add existing user |
-| **Manager**     | Team administrators         | Email invite or add existing user |
-| **Admin**       | Full access helpers         | Email invite or add existing user |
-| **Scorekeeper** | Can record game events only | Email invite or add existing user |
-| **Fan/Parent**  | View-only access            | Share link or email invite        |
-| **Player**      | Team roster member          | Add existing user or create new   |
-
-#### Tasks
-
-- [ ] Create "Team Members" tab in team settings
-- [ ] Add "Invite Member" button with role selection
-- [ ] Implement email invitation system with magic links
-- [ ] Add "Add Existing User" search to find users already in system
-- [ ] Create pending invitations list with resend/cancel options
-- [ ] Add role management UI (change role, remove from team)
-- [ ] Implement role-specific permission checks throughout app
-- [ ] Add team member list view with role badges
-- [ ] Create "Leave Team" functionality for members
+> **Note**: This feature has been expanded and moved to Priority 1 as part of the comprehensive **Team Access Management** system. See:
+>
+> - [1.3 Role-Based Permissions & Guards](#13-role-based-permissions--guards) - Role definitions and permission checks
+> - [1.5 Player-Parent Linking](#15-player-parent-linking) - Parent/fan access via player links
+> - [1.6 Invitation System & Guest Coaches](#16-invitation-system--guest-coaches) - Email invitations and member management UI
 
 ### 2.6 Complete Team Overview Page
 
@@ -623,9 +1056,11 @@ For RBAC implementation:
 
 ## Version History
 
-| Version | Date       | Changes                                                                                    |
-| ------- | ---------- | ------------------------------------------------------------------------------------------ |
-| 0.1     | 2024-12-14 | Initial roadmap created                                                                    |
-| 0.2     | 2024-12-15 | Added: Merge duplicate users, Fix team colors, Team member management, Code quality review |
-| 0.3     | 2024-12-15 | Added: PlayMetrics ICS game import feature                                                 |
-| 0.4     | 2024-12-15 | Added: Navigation restructure for multi-team UX                                            |
+| Version | Date       | Changes                                                                                                                    |
+| ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------- |
+| 0.1     | 2024-12-14 | Initial roadmap created                                                                                                    |
+| 0.2     | 2024-12-15 | Added: Merge duplicate users, Fix team colors, Team member management, Code quality review                                 |
+| 0.3     | 2024-12-15 | Added: PlayMetrics ICS game import feature                                                                                 |
+| 0.4     | 2024-12-15 | Added: Navigation restructure for multi-team UX                                                                            |
+| 0.5     | 2025-12-15 | Expanded: Team Access Management with 6 deliverables (Foundation, Ownership, Guards, Privacy, Parent Linking, Invitations) |
+| 0.6     | 2025-12-15 | Simplified: Replace Platform Admin role with Clerk's built-in impersonation feature                                        |
