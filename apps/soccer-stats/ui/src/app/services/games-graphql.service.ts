@@ -614,3 +614,19 @@ export const GAME_EVENT_CHANGED = graphql(/* GraphQL */ `
     }
   }
 `);
+
+// Subscription for real-time game state updates (start, pause, half-time, end, reset)
+export const GAME_UPDATED = graphql(/* GraphQL */ `
+  subscription GameUpdated($gameId: ID!) {
+    gameUpdated(gameId: $gameId) {
+      id
+      name
+      status
+      actualStart
+      firstHalfEnd
+      secondHalfStart
+      actualEnd
+      pausedAt
+    }
+  }
+`);

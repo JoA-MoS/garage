@@ -692,6 +692,10 @@ export type SubscriptionGameEventChangedArgs = {
   gameId: Scalars['ID']['input'];
 };
 
+export type SubscriptionGameUpdatedArgs = {
+  gameId: Scalars['ID']['input'];
+};
+
 export type SubstitutePlayerInput = {
   /** External player name if substituting in an opponent player */
   externalPlayerInName?: InputMaybe<Scalars['String']['input']>;
@@ -1598,6 +1602,25 @@ export type GameEventChangedSubscription = {
         recordedByUserName: string;
       }>;
     } | null;
+  };
+};
+
+export type GameUpdatedSubscriptionVariables = Exact<{
+  gameId: Scalars['ID']['input'];
+}>;
+
+export type GameUpdatedSubscription = {
+  __typename?: 'Subscription';
+  gameUpdated: {
+    __typename?: 'Game';
+    id: string;
+    name?: string | null;
+    status: GameStatus;
+    actualStart?: any | null;
+    firstHalfEnd?: any | null;
+    secondHalfStart?: any | null;
+    actualEnd?: any | null;
+    pausedAt?: any | null;
   };
 };
 
@@ -5122,6 +5145,70 @@ export const GameEventChangedDocument = {
 } as unknown as DocumentNode<
   GameEventChangedSubscription,
   GameEventChangedSubscriptionVariables
+>;
+export const GameUpdatedDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'subscription',
+      name: { kind: 'Name', value: 'GameUpdated' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'gameId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'gameUpdated' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'gameId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'gameId' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'actualStart' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'firstHalfEnd' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'secondHalfStart' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'actualEnd' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'pausedAt' } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  GameUpdatedSubscription,
+  GameUpdatedSubscriptionVariables
 >;
 export const GetTeamsDocument = {
   kind: 'Document',

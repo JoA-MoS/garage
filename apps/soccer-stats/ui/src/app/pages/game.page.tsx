@@ -481,6 +481,44 @@ export const GamePage = () => {
     []
   );
 
+  // Handle game state changes from subscription (start, pause, half-time, end, reset)
+  const handleGameStateChanged = useCallback(
+    (gameUpdate: {
+      id: string;
+      name?: string | null;
+      status: GameStatus;
+      actualStart?: unknown;
+      firstHalfEnd?: unknown;
+      secondHalfStart?: unknown;
+      actualEnd?: unknown;
+      pausedAt?: unknown;
+    }) => {
+      // Update the game in the Apollo cache
+      apolloClient.cache.modify({
+        id: apolloClient.cache.identify({
+          __typename: 'Game',
+          id: gameUpdate.id,
+        }),
+        fields: {
+          status: () => gameUpdate.status,
+          actualStart: () => (gameUpdate.actualStart as string) ?? null,
+          firstHalfEnd: () => (gameUpdate.firstHalfEnd as string) ?? null,
+          secondHalfStart: () => (gameUpdate.secondHalfStart as string) ?? null,
+          actualEnd: () => (gameUpdate.actualEnd as string) ?? null,
+          pausedAt: () => (gameUpdate.pausedAt as string) ?? null,
+        },
+      });
+
+      // Reset timer state when game is reset to scheduled
+      if (gameUpdate.status === GameStatus.Scheduled) {
+        setElapsedSeconds(0);
+        timerBaseRef.current = null;
+        timerHalfRef.current = null;
+      }
+    },
+    [apolloClient]
+  );
+
   const handleResolveConflict = useCallback(
     async (conflictId: string, selectedEventId: string, keepAll: boolean) => {
       try {
@@ -508,6 +546,7 @@ export const GamePage = () => {
     onEventCreated: handleEventCreated,
     onEventDeleted: handleEventDeleted,
     onConflictDetected: handleConflictDetected,
+    onGameStateChanged: handleGameStateChanged,
   });
 
   // Detect score changes and trigger highlight (using memoized scores)
