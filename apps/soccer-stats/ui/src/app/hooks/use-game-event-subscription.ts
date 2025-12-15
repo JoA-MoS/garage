@@ -5,6 +5,8 @@ import {
   GameEventChangedDocument,
   GameEventChangedSubscription,
   GameEventAction,
+  GameUpdatedDocument,
+  GameUpdatedSubscription,
 } from '../generated/graphql';
 
 export interface UseGameEventSubscriptionOptions {
@@ -30,6 +32,7 @@ export interface UseGameEventSubscriptionOptions {
       GameEventChangedSubscription['gameEventChanged']['conflict']
     >
   ) => void;
+  onGameStateChanged?: (game: GameUpdatedSubscription['gameUpdated']) => void;
 }
 
 export function useGameEventSubscription({
@@ -39,8 +42,10 @@ export function useGameEventSubscription({
   onEventDeleted,
   onDuplicateDetected,
   onConflictDetected,
+  onGameStateChanged,
 }: UseGameEventSubscriptionOptions) {
-  const [isConnected, setIsConnected] = useState(false);
+  const [isEventSubConnected, setIsEventSubConnected] = useState(false);
+  const [isGameSubConnected, setIsGameSubConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<Error | null>(null);
 
   // Track recently highlighted event IDs for animation
@@ -54,6 +59,7 @@ export function useGameEventSubscription({
   const onEventDeletedRef = useRef(onEventDeleted);
   const onDuplicateDetectedRef = useRef(onDuplicateDetected);
   const onConflictDetectedRef = useRef(onConflictDetected);
+  const onGameStateChangedRef = useRef(onGameStateChanged);
 
   useEffect(() => {
     onEventCreatedRef.current = onEventCreated;
@@ -61,19 +67,26 @@ export function useGameEventSubscription({
     onEventDeletedRef.current = onEventDeleted;
     onDuplicateDetectedRef.current = onDuplicateDetected;
     onConflictDetectedRef.current = onConflictDetected;
+    onGameStateChangedRef.current = onGameStateChanged;
   }, [
     onEventCreated,
     onEventUpdated,
     onEventDeleted,
     onDuplicateDetected,
     onConflictDetected,
+    onGameStateChanged,
   ]);
 
-  const { data, loading, error } = useSubscription(GameEventChangedDocument, {
+  // Subscribe to game events (goals, substitutions, etc.)
+  const {
+    data: eventData,
+    loading: eventLoading,
+    error: eventError,
+  } = useSubscription(GameEventChangedDocument, {
     variables: { gameId },
     skip: !gameId,
     onData: ({ data: subscriptionData }) => {
-      setIsConnected(true);
+      setIsEventSubConnected(true);
       setConnectionError(null);
 
       const payload = subscriptionData.data?.gameEventChanged;
@@ -126,23 +139,48 @@ export function useGameEventSubscription({
       }
     },
     onComplete: () => {
-      setIsConnected(false);
+      setIsEventSubConnected(false);
     },
   });
 
-  // Handle connection errors
+  // Subscribe to game state changes (start, pause, half-time, end, reset)
+  const {
+    data: gameData,
+    loading: gameLoading,
+    error: gameError,
+  } = useSubscription(GameUpdatedDocument, {
+    variables: { gameId },
+    skip: !gameId,
+    onData: ({ data: subscriptionData }) => {
+      setIsGameSubConnected(true);
+
+      const game = subscriptionData.data?.gameUpdated;
+      if (game) {
+        onGameStateChangedRef.current?.(game);
+      }
+    },
+    onComplete: () => {
+      setIsGameSubConnected(false);
+    },
+  });
+
+  // Handle connection errors from either subscription
   useEffect(() => {
-    if (error) {
-      setConnectionError(error);
-      setIsConnected(false);
+    const err = eventError || gameError;
+    if (err) {
+      setConnectionError(err);
     }
-  }, [error]);
+  }, [eventError, gameError]);
 
   // Check if an event should be highlighted
   const isEventHighlighted = useCallback(
     (eventId: string) => highlightedEventIds.has(eventId),
     [highlightedEventIds]
   );
+
+  // Combined connection status - connected if at least one subscription is active
+  const isConnected = isEventSubConnected || isGameSubConnected;
+  const loading = eventLoading || gameLoading;
 
   return {
     // Subscription state
@@ -151,7 +189,8 @@ export function useGameEventSubscription({
     error: connectionError,
 
     // Latest payload data
-    latestPayload: data?.gameEventChanged,
+    latestEventPayload: eventData?.gameEventChanged,
+    latestGameUpdate: gameData?.gameUpdated,
 
     // Highlight tracking for animations
     highlightedEventIds,

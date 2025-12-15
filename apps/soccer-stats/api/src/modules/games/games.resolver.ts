@@ -67,8 +67,11 @@ export class GamesResolver {
 
   @Subscription(() => Game, {
     name: 'gameUpdated',
+    filter: (payload: { gameUpdated: Game }, variables: { gameId: string }) =>
+      payload.gameUpdated.id === variables.gameId,
   })
-  gameUpdated() {
+  @Public()
+  gameUpdated(@Args('gameId', { type: () => ID }) _gameId: string) {
     return this.pubSub.asyncIterableIterator('gameUpdated');
   }
 
