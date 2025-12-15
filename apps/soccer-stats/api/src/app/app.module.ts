@@ -55,7 +55,18 @@ const typeOrmConfig = {
       subscriptions: {
         'graphql-ws': true,
       },
-      context: ({ req }: { req: AuthenticatedRequest }) => {
+      context: ({
+        req,
+        extra,
+      }: {
+        req?: AuthenticatedRequest;
+        extra?: unknown;
+      }) => {
+        // For WebSocket subscriptions, req is undefined
+        // Return minimal context for subscriptions, full context for HTTP requests
+        if (!req) {
+          return { req: null, user: null, clerkPayload: null, extra };
+        }
         return { req, user: req.user, clerkPayload: req.clerkPayload };
       },
     }),

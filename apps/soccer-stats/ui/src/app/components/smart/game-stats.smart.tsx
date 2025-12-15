@@ -1,4 +1,5 @@
 import { useQuery } from '@apollo/client/react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 
 import { GET_PLAYER_STATS } from '../../services/games-graphql.service';
 import {
@@ -11,6 +12,7 @@ interface GameStatsProps {
   teamId: string;
   teamName: string;
   teamColor?: string;
+  elapsedSeconds?: number;
 }
 
 // Columns to show for game-level stats
@@ -27,7 +29,12 @@ export const GameStats = ({
   teamId,
   teamName,
   teamColor,
+  elapsedSeconds,
 }: GameStatsProps) => {
+  // Track the elapsed seconds at the time the query data was received
+  const [queryTimeElapsedSeconds, setQueryTimeElapsedSeconds] =
+    useState<number>(0);
+
   const { data, loading, error } = useQuery(GET_PLAYER_STATS, {
     variables: {
       input: {
@@ -37,6 +44,35 @@ export const GameStats = ({
     },
     fetchPolicy: 'cache-and-network',
   });
+
+  // Create a stable key from the data to detect when stats actually change
+  // We use totalSeconds sum as a fingerprint since that's what changes during play
+  const dataFingerprint = useMemo(() => {
+    if (!data?.playerStats) return '';
+    return data.playerStats
+      .map(
+        (s) =>
+          `${s.playerId || s.externalPlayerName}:${s.totalMinutes}:${
+            s.totalSeconds
+          }`
+      )
+      .join(',');
+  }, [data]);
+
+  // Track the previous fingerprint
+  const prevFingerprintRef = useRef<string>('');
+
+  // Update query time when data actually changes (new stats values)
+  useEffect(() => {
+    if (
+      dataFingerprint &&
+      dataFingerprint !== prevFingerprintRef.current &&
+      elapsedSeconds !== undefined
+    ) {
+      setQueryTimeElapsedSeconds(elapsedSeconds);
+      prevFingerprintRef.current = dataFingerprint;
+    }
+  }, [dataFingerprint, elapsedSeconds]);
 
   if (error) {
     return (
@@ -55,6 +91,8 @@ export const GameStats = ({
       isLoading={loading}
       teamColor={teamColor}
       defaultSort={{ column: 'time', direction: 'desc' }}
+      elapsedSeconds={elapsedSeconds}
+      queryTimeElapsedSeconds={queryTimeElapsedSeconds}
     />
   );
 };
