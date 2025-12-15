@@ -1,4 +1,4 @@
-import { Outlet, useParams } from 'react-router';
+import { Outlet } from 'react-router';
 
 import { GameHeaderSmart } from '../smart/game-header.smart';
 import { GameNavigationSmart } from '../smart/game-navigation.smart';
@@ -9,7 +9,6 @@ import { useGameContext } from '../../context/game.context';
  * Provides game header and tab navigation
  */
 export const GameLayout = () => {
-  const { gameId } = useParams<{ gameId: string }>();
   const { gameData, gameActions } = useGameContext();
 
   const { gameConfig, homeTeam, awayTeam, gameTime, isGameRunning } = gameData;
@@ -17,7 +16,7 @@ export const GameLayout = () => {
   const { toggleGame, openGoalModal, resetGame, saveAndNewGame } = gameActions;
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="mx-auto max-w-6xl">
       <GameHeaderSmart
         homeTeam={homeTeam}
         awayTeam={awayTeam}

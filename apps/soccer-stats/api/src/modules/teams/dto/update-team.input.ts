@@ -22,6 +22,48 @@ export class UpdateTeamInput extends PartialType(CreateTeamInput) {
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
+  @MaxLength(50)
+  shortName?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  homePrimaryColor?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  homeSecondaryColor?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  awayPrimaryColor?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  awaySecondaryColor?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  logoUrl?: string;
+
+  // Legacy fields - kept for backwards compatibility
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
   @MaxLength(255)
   logo?: string;
 

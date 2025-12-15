@@ -28,6 +28,12 @@ export interface UITeam {
 
 export interface UICreateTeamInput {
   name: string;
+  homePrimaryColor?: string;
+  homeSecondaryColor?: string;
+  awayPrimaryColor?: string;
+  awaySecondaryColor?: string;
+  logoUrl?: string;
+  // Legacy support
   colors?: string;
   logo?: string;
 }

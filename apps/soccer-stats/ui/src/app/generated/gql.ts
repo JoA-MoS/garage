@@ -19,6 +19,7 @@ type Documents = {
   '\n  query DebugGetTeams {\n    teams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.DebugGetTeamsDocument;
   '\n  query GetMyTeamsForList {\n    myTeams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdById\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.GetMyTeamsForListDocument;
   '\n  fragment UserCard on User {\n    id\n    firstName\n    lastName\n    email\n    phone\n    isActive\n    teamPlayers {\n      id\n      jerseyNumber\n      primaryPosition\n      team {\n        id\n        name\n        shortName\n      }\n    }\n  }\n': typeof types.UserCardFragmentDoc;
+  '\n  mutation QuickCreateTeam($input: CreateTeamInput!) {\n    createTeam(createTeamInput: $input) {\n      id\n      name\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n    }\n  }\n': typeof types.QuickCreateTeamDocument;
   '\n  fragment GameEventFragment on GameEvent {\n    id\n    gameMinute\n    gameSecond\n    position\n    playerId\n    externalPlayerName\n    externalPlayerNumber\n    eventType {\n      id\n      name\n      category\n    }\n  }\n': typeof types.GameEventFragmentFragmentDoc;
   '\n  query GetGameFormats {\n    gameFormats {\n      id\n      name\n      playersPerTeam\n      durationMinutes\n      description\n      allowsSubstitutions\n      maxSubstitutions\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.GetGameFormatsDocument;
   '\n  query GetGames {\n    games {\n      id\n      name\n      scheduledStart\n      notes\n      venue\n      weatherConditions\n      gameFormat {\n        id\n        name\n        playersPerTeam\n        durationMinutes\n      }\n      gameTeams {\n        id\n        teamType\n        finalScore\n        formation\n        team {\n          id\n          name\n          shortName\n          homePrimaryColor\n          homeSecondaryColor\n        }\n      }\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.GetGamesDocument;
@@ -94,6 +95,8 @@ const documents: Documents = {
     types.GetMyTeamsForListDocument,
   '\n  fragment UserCard on User {\n    id\n    firstName\n    lastName\n    email\n    phone\n    isActive\n    teamPlayers {\n      id\n      jerseyNumber\n      primaryPosition\n      team {\n        id\n        name\n        shortName\n      }\n    }\n  }\n':
     types.UserCardFragmentDoc,
+  '\n  mutation QuickCreateTeam($input: CreateTeamInput!) {\n    createTeam(createTeamInput: $input) {\n      id\n      name\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n    }\n  }\n':
+    types.QuickCreateTeamDocument,
   '\n  fragment GameEventFragment on GameEvent {\n    id\n    gameMinute\n    gameSecond\n    position\n    playerId\n    externalPlayerName\n    externalPlayerNumber\n    eventType {\n      id\n      name\n      category\n    }\n  }\n':
     types.GameEventFragmentFragmentDoc,
   '\n  query GetGameFormats {\n    gameFormats {\n      id\n      name\n      playersPerTeam\n      durationMinutes\n      description\n      allowsSubstitutions\n      maxSubstitutions\n      createdAt\n      updatedAt\n    }\n  }\n':
@@ -266,6 +269,12 @@ export function graphql(
 export function graphql(
   source: '\n  fragment UserCard on User {\n    id\n    firstName\n    lastName\n    email\n    phone\n    isActive\n    teamPlayers {\n      id\n      jerseyNumber\n      primaryPosition\n      team {\n        id\n        name\n        shortName\n      }\n    }\n  }\n'
 ): (typeof documents)['\n  fragment UserCard on User {\n    id\n    firstName\n    lastName\n    email\n    phone\n    isActive\n    teamPlayers {\n      id\n      jerseyNumber\n      primaryPosition\n      team {\n        id\n        name\n        shortName\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation QuickCreateTeam($input: CreateTeamInput!) {\n    createTeam(createTeamInput: $input) {\n      id\n      name\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n    }\n  }\n'
+): (typeof documents)['\n  mutation QuickCreateTeam($input: CreateTeamInput!) {\n    createTeam(createTeamInput: $input) {\n      id\n      name\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n    }\n  }\n'];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
