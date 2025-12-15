@@ -8,10 +8,13 @@ import {
   ResolveField,
   Parent,
 } from '@nestjs/graphql';
-import { Inject } from '@nestjs/common';
+import { Inject, UseGuards } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
 
 import { Team } from '../../entities/team.entity';
+import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
+import { CurrentUser } from '../auth/user.decorator';
+import { ClerkUser } from '../auth/clerk.service';
 import { TeamPlayer } from '../../entities/team-player.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { User } from '../../entities/user.entity';
@@ -62,6 +65,16 @@ export class TeamsResolver {
     return this.teamsService.findByManagedStatus(isManaged);
   }
 
+  @Query(() => [Team], {
+    name: 'myTeams',
+    description:
+      'Get teams the current user has access to (created, plays on, or coaches)',
+  })
+  @UseGuards(ClerkAuthGuard)
+  findMyTeams(@CurrentUser() user: ClerkUser) {
+    return this.teamsService.findMyTeams(user.id);
+  }
+
   @ResolveField(() => [User])
   players(@Parent() team: Team): Promise<User[]> {
     return this.teamsService.getPlayersForTeam(team.id);
@@ -83,8 +96,12 @@ export class TeamsResolver {
   }
 
   @Mutation(() => Team)
-  async createTeam(@Args('createTeamInput') createTeamInput: CreateTeamInput) {
-    const team = await this.teamsService.create(createTeamInput);
+  @UseGuards(ClerkAuthGuard)
+  async createTeam(
+    @Args('createTeamInput') createTeamInput: CreateTeamInput,
+    @CurrentUser() user: ClerkUser
+  ) {
+    const team = await this.teamsService.create(createTeamInput, user.id);
     this.pubSub.publish('teamCreated', { teamCreated: team });
     return team;
   }
