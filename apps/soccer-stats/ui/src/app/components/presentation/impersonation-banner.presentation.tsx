@@ -9,11 +9,17 @@ export interface ImpersonationBannerProps {
   userName: string;
   /** Callback to exit impersonation session */
   onExitImpersonation: () => void;
+  /** Error message to display if exit fails */
+  error?: string | null;
+  /** Whether the exit action is in progress */
+  isExiting?: boolean;
 }
 
 export const ImpersonationBannerPresentation = ({
   userName,
   onExitImpersonation,
+  error,
+  isExiting,
 }: ImpersonationBannerProps) => {
   return (
     <div className="bg-amber-500 text-amber-950">
@@ -43,26 +49,53 @@ export const ImpersonationBannerPresentation = ({
             <span className="text-sm font-medium">
               Viewing as <span className="font-bold">{userName}</span>
             </span>
+            {error && (
+              <span className="text-sm font-medium text-red-800">{error}</span>
+            )}
           </div>
           <button
             onClick={onExitImpersonation}
-            className="inline-flex items-center gap-1 rounded-md bg-amber-600 px-3 py-1 text-sm font-medium text-white transition-colors hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-amber-500"
+            disabled={isExiting}
+            className="inline-flex items-center gap-1 rounded-md bg-amber-600 px-3 py-1 text-sm font-medium text-white transition-colors hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
-            </svg>
-            Exit
+            {isExiting ? (
+              <svg
+                className="h-4 w-4 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                />
+              </svg>
+            )}
+            {isExiting ? 'Exiting...' : 'Exit'}
           </button>
         </div>
       </div>

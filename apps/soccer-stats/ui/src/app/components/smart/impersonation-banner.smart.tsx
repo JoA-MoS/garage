@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAuth, useUser } from '@clerk/clerk-react';
 
 import { ImpersonationBannerPresentation } from '../presentation/impersonation-banner.presentation';
@@ -14,6 +15,8 @@ import { ImpersonationBannerPresentation } from '../presentation/impersonation-b
 export const ImpersonationBannerSmart = () => {
   const { actor, signOut } = useAuth();
   const { user } = useUser();
+  const [error, setError] = useState<string | null>(null);
+  const [isExiting, setIsExiting] = useState(false);
 
   // If no actor, this is not an impersonation session
   if (!actor) {
@@ -30,10 +33,13 @@ export const ImpersonationBannerSmart = () => {
   const handleExitImpersonation = async () => {
     // Sign out ends the impersonation session
     // The admin will be redirected to sign back in as themselves
+    setError(null);
+    setIsExiting(true);
     try {
       await signOut();
-    } catch (error) {
-      window.alert('Failed to exit impersonation session. Please try again.');
+    } catch (err) {
+      setError('Failed to exit impersonation session. Please try again.');
+      setIsExiting(false);
     }
   };
 
@@ -41,6 +47,8 @@ export const ImpersonationBannerSmart = () => {
     <ImpersonationBannerPresentation
       userName={userName}
       onExitImpersonation={handleExitImpersonation}
+      error={error}
+      isExiting={isExiting}
     />
   );
 };

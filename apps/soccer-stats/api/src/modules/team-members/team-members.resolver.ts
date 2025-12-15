@@ -34,14 +34,14 @@ export class TeamMembersResolver {
   }
 
   /**
-   * Get current user's team memberships
+   * Get current user's team memberships.
+   * Note: Clerk user IDs (e.g., "user_xxx") are stored directly in the database as the primary
+   * user identifier. This is intentional - see User entity and ClerkAuthGuard for the sync logic.
    */
   @Query(() => [TeamMember], { name: 'myTeamMemberships' })
   async getMyTeamMemberships(
     @CurrentUser() user: ClerkUser
   ): Promise<TeamMember[]> {
-    // Note: This queries by Clerk user ID, which may need mapping to internal user ID
-    // TODO: Verify and document whether Clerk user IDs are stored directly in the database or if a mapping layer exists.
     return this.teamMembersService.findByUser(user.id);
   }
 
