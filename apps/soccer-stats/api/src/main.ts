@@ -24,7 +24,9 @@ async function bootstrap() {
   // Supports:
   // - Comma-separated explicit origins (e.g., "http://localhost:4200,https://example.com")
   // - Wildcard patterns using regex (e.g., "*.joamos-projects.vercel.app")
-  const frontendUrls = (process.env['FRONTEND_URL'] || 'http://localhost:4200')
+  const frontendUrls = (
+    process.env['FRONTEND_URL'] || 'http://localhost:4200,http://localhost:3333'
+  )
     .split(',')
     .map((origin) => origin.trim());
 

@@ -1,7 +1,13 @@
 import { UITeam } from '../types/ui.types';
 
+interface TeamOwner {
+  firstName: string;
+  lastName: string;
+}
+
 interface TeamDetailPresentationProps {
   team: UITeam;
+  owner?: TeamOwner | null;
   activeTab: 'overview' | 'players' | 'games' | 'stats';
   onGoBack: () => void;
   onTabChange: (tab: 'overview' | 'players' | 'games' | 'stats') => void;
@@ -16,6 +22,7 @@ interface TeamDetailPresentationProps {
  */
 export const TeamDetailPresentation = ({
   team,
+  owner,
   activeTab,
   onGoBack,
   onTabChange,
@@ -32,17 +39,17 @@ export const TeamDetailPresentation = ({
   ];
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6">
+    <div className="mx-auto max-w-6xl p-4 sm:p-6">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-lg mb-6">
-        <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="mb-6 rounded-lg bg-white shadow-lg">
+        <div className="border-b border-gray-200 px-4 py-4 sm:px-6">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
             <div className="flex items-center space-x-4">
               <button
                 onClick={onGoBack}
-                className="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
+                className="flex items-center text-gray-600 transition-colors hover:text-gray-800"
               >
-                <span className="text-xl mr-2">←</span>
+                <span className="mr-2 text-xl">←</span>
                 <span className="text-sm font-medium">Back to Teams</span>
               </button>
             </div>
@@ -51,7 +58,7 @@ export const TeamDetailPresentation = ({
               <button
                 onClick={onRefresh}
                 disabled={isLoading}
-                className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                className="rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50"
               >
                 {isLoading ? '⟳' : '🔄'} Refresh
               </button>
@@ -60,16 +67,16 @@ export const TeamDetailPresentation = ({
         </div>
 
         {/* Team Info */}
-        <div className="px-4 sm:px-6 py-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
+        <div className="px-4 py-6 sm:px-6">
+          <div className="flex flex-col items-start space-y-4 sm:flex-row sm:items-center sm:space-x-6 sm:space-y-0">
             <div
-              className="w-20 h-20 rounded-full flex items-center justify-center text-white font-bold text-2xl flex-shrink-0"
+              className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full text-2xl font-bold text-white"
               style={{ backgroundColor: team.primaryColor }}
             >
               {team.name.charAt(0).toUpperCase()}
             </div>
             <div className="flex-grow">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+              <h1 className="mb-2 text-2xl font-bold text-gray-900 sm:text-3xl">
                 {team.name}
               </h1>
               <div className="flex flex-wrap gap-4 text-sm text-gray-600">
@@ -84,7 +91,7 @@ export const TeamDetailPresentation = ({
                 <div className="flex items-center space-x-2">
                   <span className="font-medium">Primary Color:</span>
                   <div
-                    className="w-4 h-4 rounded border border-gray-300"
+                    className="h-4 w-4 rounded border border-gray-300"
                     style={{ backgroundColor: team.primaryColor }}
                   />
                   <span>{team.primaryColor}</span>
@@ -93,7 +100,7 @@ export const TeamDetailPresentation = ({
                   <div className="flex items-center space-x-2">
                     <span className="font-medium">Secondary Color:</span>
                     <div
-                      className="w-4 h-4 rounded border border-gray-300"
+                      className="h-4 w-4 rounded border border-gray-300"
                       style={{ backgroundColor: team.secondaryColor }}
                     />
                     <span>{team.secondaryColor}</span>
@@ -106,7 +113,7 @@ export const TeamDetailPresentation = ({
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white rounded-lg shadow-lg">
+      <div className="rounded-lg bg-white shadow-lg">
         <div className="border-b border-gray-200">
           <nav className="flex space-x-0 overflow-x-auto">
             {tabs.map((tab) => (
@@ -114,12 +121,12 @@ export const TeamDetailPresentation = ({
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
                 className={`
-                  flex items-center space-x-2 px-4 sm:px-6 py-4 text-sm font-medium
-                  border-b-2 transition-colors whitespace-nowrap
+                  flex items-center space-x-2 whitespace-nowrap border-b-2 px-4 py-4 text-sm
+                  font-medium transition-colors sm:px-6
                   ${
                     activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600 bg-blue-50'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'border-blue-500 bg-blue-50 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                   }
                 `}
               >
@@ -134,15 +141,23 @@ export const TeamDetailPresentation = ({
         <div className="p-4 sm:p-6">
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <div className="rounded-lg bg-gray-50 p-4">
+                  <h3 className="mb-2 text-lg font-semibold text-gray-900">
                     Team Information
                   </h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Name:</span>
                       <span className="font-medium">{team.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Owner:</span>
+                      <span className="font-medium">
+                        {owner
+                          ? `${owner.firstName} ${owner.lastName}`
+                          : 'Not assigned'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Created:</span>
@@ -159,8 +174,8 @@ export const TeamDetailPresentation = ({
                   </div>
                 </div>
 
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <div className="rounded-lg bg-gray-50 p-4">
+                  <h3 className="mb-2 text-lg font-semibold text-gray-900">
                     Quick Stats
                   </h3>
                   <div className="space-y-2 text-sm">
@@ -181,14 +196,14 @@ export const TeamDetailPresentation = ({
                   </div>
                 </div>
 
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <div className="rounded-lg bg-gray-50 p-4">
+                  <h3 className="mb-2 text-lg font-semibold text-gray-900">
                     Team Colors
                   </h3>
                   <div className="space-y-3">
                     <div className="flex items-center space-x-3">
                       <div
-                        className="w-8 h-8 rounded border border-gray-300"
+                        className="h-8 w-8 rounded border border-gray-300"
                         style={{ backgroundColor: team.primaryColor }}
                       />
                       <div>
@@ -201,7 +216,7 @@ export const TeamDetailPresentation = ({
                     {team.secondaryColor && (
                       <div className="flex items-center space-x-3">
                         <div
-                          className="w-8 h-8 rounded border border-gray-300"
+                          className="h-8 w-8 rounded border border-gray-300"
                           style={{ backgroundColor: team.secondaryColor }}
                         />
                         <div>
@@ -230,26 +245,26 @@ export const TeamDetailPresentation = ({
           {activeTab === 'games' && <div>{gamesComponent}</div>}
 
           {activeTab === 'stats' && (
-            <div className="text-center py-12">
-              <div className="text-gray-500 mb-4">
+            <div className="py-12 text-center">
+              <div className="mb-4 text-gray-500">
                 <span className="text-4xl">📊</span>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="mb-2 text-lg font-semibold text-gray-900">
                 Team Statistics
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p className="mb-6 text-gray-600">
                 Detailed statistics and analytics will be displayed here.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
-                <div className="bg-gray-50 rounded-lg p-4">
+              <div className="mx-auto grid max-w-2xl grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="rounded-lg bg-gray-50 p-4">
                   <div className="text-2xl font-bold text-blue-600">0</div>
                   <div className="text-sm text-gray-600">Goals Scored</div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-4">
+                <div className="rounded-lg bg-gray-50 p-4">
                   <div className="text-2xl font-bold text-green-600">0</div>
                   <div className="text-sm text-gray-600">Assists</div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-4">
+                <div className="rounded-lg bg-gray-50 p-4">
                   <div className="text-2xl font-bold text-purple-600">0h</div>
                   <div className="text-sm text-gray-600">Play Time</div>
                 </div>

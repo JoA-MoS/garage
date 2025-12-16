@@ -71,9 +71,10 @@ Instead of a custom Platform Admin role, we use [Clerk's built-in impersonation]
 
 ### 1.1 Foundation - Data Model & Impersonation Support
 
-**Status**: Not Implemented
+**Status**: IMPLEMENTED
 **Priority**: CRITICAL
 **Phase**: 1
+**Completed**: December 2025
 
 Establish the data model for team access control and integrate Clerk's built-in impersonation.
 
@@ -102,28 +103,28 @@ When impersonating, Clerk adds an `act` claim to the JWT containing the imperson
 
 #### Backend Implementation (Impersonation Detection)
 
-- [ ] Update `ClerkService` to extract `act` claim from JWT payload
-- [ ] Add `ClerkActor` interface for actor data typing
-- [ ] Update `ClerkAuthGuard` to attach actor info to request context:
+- [x] Update `ClerkService` to extract `act` claim from JWT payload
+- [x] Add `ClerkActor` interface for actor data typing
+- [x] Update `ClerkAuthGuard` to attach actor info to request context:
   ```typescript
   req.actor = payload.act ?? null;
   req.isImpersonating = !!payload.act;
   ```
-- [ ] Create `@Actor()` parameter decorator for resolver access
+- [x] Create `@Actor()` parameter decorator for resolver access
 - [ ] Add application-level audit logging when impersonation detected (optional)
 
 #### Frontend Implementation (Impersonation Banner)
 
-- [ ] Detect impersonation via `useAuth()` hook's `actor` property
-- [ ] Display impersonation banner: "Viewing as [User Name] - [Exit]"
-- [ ] Style banner distinctively (e.g., yellow/orange warning color)
-- [ ] "Exit" button ends impersonation session
+- [x] Detect impersonation via `useAuth()` hook's `actor` property
+- [x] Display impersonation banner: "Viewing as [User Name] - [Exit]"
+- [x] Style banner distinctively (e.g., yellow/orange warning color)
+- [x] "Exit" button ends impersonation session
 
 #### Database Changes
 
-- [ ] Add `birthDate` field to User entity (for age-based privacy calculation)
-- [ ] Add `lastNameVisibility` field to User entity (`PUBLIC`, `TEAM_ONLY`, default: `TEAM_ONLY`)
-- [ ] Create `TeamMember` entity:
+- [x] Add `birthDate` field to User entity (for age-based privacy calculation)
+- [x] Add `lastNameVisibility` field to User entity (`PUBLIC`, `TEAM_ONLY`, default: `TEAM_ONLY`)
+- [x] Create `TeamMember` entity:
   ```typescript
   TeamMember {
     id: ID
@@ -139,13 +140,14 @@ When impersonating, Clerk adds an `act` claim to the JWT containing the imperson
     updatedAt: DateTime
   }
   ```
-- [ ] Create `TeamRole` enum: `OWNER`, `MANAGER`, `COACH`, `PLAYER`, `PARENT_FAN`
+- [x] Create `TeamRole` enum: `OWNER`, `MANAGER`, `COACH`, `PLAYER`, `PARENT_FAN`
 
 #### API Implementation
 
-- [ ] Create TeamMember GraphQL type and basic CRUD resolvers
-- [ ] Create `TeamMembersModule` in NestJS
-- [ ] Add `teamMembers` query to Team type
+- [x] Create TeamMember GraphQL type and basic CRUD resolvers
+- [x] Create `TeamMembersModule` in NestJS
+- [x] Add `teamMembers` query to Team type
+- [x] Add `owner` field resolver to Team type
 
 #### Migration Strategy
 
@@ -164,9 +166,10 @@ If in-app impersonation UI is needed later:
 
 ### 1.2 Team Ownership & Transfer
 
-**Status**: Not Implemented
+**Status**: IMPLEMENTED
 **Priority**: CRITICAL
 **Phase**: 2
+**Completed**: December 2025
 
 Every team must have exactly one owner with transfer capability.
 
@@ -179,10 +182,10 @@ Every team must have exactly one owner with transfer capability.
 
 #### Implementation Tasks
 
-- [ ] Add ownership validation to Team entity (exactly one OWNER per team)
-- [ ] Create `transferTeamOwnership` mutation
-- [ ] Add ownership transfer confirmation flow
-- [ ] Prevent owner from leaving team without transfer
+- [x] Add ownership validation to Team entity (exactly one OWNER per team)
+- [x] Create `transferTeamOwnership` mutation
+- [ ] Add ownership transfer confirmation flow (UI)
+- [x] Prevent owner from leaving team without transfer
 - [ ] Backfill existing teams: Set creator as owner (or first coach if no creator)
 
 #### API
@@ -203,18 +206,19 @@ query canTransferOwnership(teamId: ID!): [TeamMember!]!  # Eligible recipients
 
 ### 1.3 Role-Based Permissions & Guards
 
-**Status**: Not Implemented
+**Status**: PARTIAL - Teams Protected, Games/Events Pending
 **Priority**: CRITICAL
 **Phase**: 2
+**Started**: December 2025
 
 Protect all API endpoints with appropriate role checks.
 
 #### Implementation Tasks
 
-- [ ] Create `@RequireTeamRole(roles: TeamRole[])` decorator
-- [ ] Create `TeamAccessGuard` for team-scoped operations
-- [ ] Implement role inheritance (owner has all manager permissions, etc.)
-- [ ] Create `TeamRoleService` for permission checking logic
+- [x] Create `@RequireTeamRole(roles: TeamRole[])` decorator
+- [x] Create `TeamAccessGuard` for team-scoped operations
+- [x] Implement role inheritance (owner has all manager permissions, etc.)
+- [x] TeamMembersService handles permission checking logic
 - [ ] Add `currentUserTeamRole` field to Team GraphQL type
 
 #### Permission Matrix
@@ -230,10 +234,18 @@ Protect all API endpoints with appropriate role checks.
 | View player full names  | Team member (any role)                |
 | Invite team members     | Owner, Manager, Coach (role-specific) |
 
-#### Affected Endpoints (Currently Public - Need Auth)
+#### Affected Endpoints Status
 
 ```
-game-events.resolver.ts:
+teams.resolver.ts: ✅ PROTECTED
+- createTeam                → ✅ Any authenticated user (becomes owner)
+- updateTeam                → ✅ Require: Owner, Manager
+- removeTeam                → ✅ Require: Owner
+- upgradeToManagedTeam      → ✅ Require: Owner, Manager
+- addPlayerToTeam           → ✅ Require: Owner, Manager, Coach
+- removePlayerFromTeam      → ✅ Require: Owner, Manager, Coach
+
+game-events.resolver.ts: ⏳ PENDING (requires gameEvent→gameTeam→team lookup)
 - removeFromLineup          → Require: Owner, Manager, Coach
 - updatePlayerPosition      → Require: Owner, Manager, Coach
 - deleteGoal                → Require: Owner, Manager, Coach
@@ -244,18 +256,8 @@ game-events.resolver.ts:
 - deleteEventWithCascade    → Require: Owner, Manager, Coach
 - resolveEventConflict      → Require: Owner, Manager, Coach
 
-teams.resolver.ts:
-- createTeam                → Any authenticated user (becomes owner)
-- updateTeam                → Require: Owner, Manager
-- deleteTeam                → Require: Owner
-
-players.resolver.ts:
-- addPlayerToTeam           → Require: Owner, Manager, Coach
-- removePlayerFromTeam      → Require: Owner, Manager, Coach
-- updatePlayerPosition      → Require: Owner, Manager, Coach
-
-games.resolver.ts:
-- createGame                → Require: Owner, Manager
+games.resolver.ts: ⏳ PENDING (games involve 2 teams, needs multi-team logic)
+- createGame                → Require: Owner, Manager (of homeTeam)
 - updateGame                → Require: Owner, Manager, Coach
 - deleteGame                → Require: Owner, Manager
 ```
