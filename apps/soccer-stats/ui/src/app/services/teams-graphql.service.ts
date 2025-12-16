@@ -38,6 +38,16 @@ export const GET_TEAM_BY_ID = graphql(/* GraphQL */ `
       sourceType
       createdAt
       updatedAt
+      owner {
+        id
+        role
+        user {
+          id
+          firstName
+          lastName
+          email
+        }
+      }
       playersWithJersey {
         id
         name

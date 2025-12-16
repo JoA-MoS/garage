@@ -85,6 +85,31 @@ pnpm nx show project <project-name>
 pnpm nx graph
 ```
 
+### Nx MCP Server Tools
+
+**IMPORTANT:** This workspace has an Nx MCP server configured. Prefer using these MCP tools over bash commands when working with Nx:
+
+| Tool                                        | Purpose                                                                |
+| ------------------------------------------- | ---------------------------------------------------------------------- |
+| `mcp__nx__nx_workspace`                     | Get project graph and nx.json configuration                            |
+| `mcp__nx__nx_project_details`               | Get detailed configuration for a specific project                      |
+| `mcp__nx__nx_current_running_tasks_details` | **Check status of running Nx tasks** (builds, tests, serves)           |
+| `mcp__nx__nx_current_running_task_output`   | Get terminal output from a specific running task                       |
+| `mcp__nx__nx_docs`                          | Look up Nx documentation for questions about configuration or features |
+| `mcp__nx__nx_generators`                    | List all available Nx generators                                       |
+| `mcp__nx__nx_generator_schema`              | Get the schema/options for a specific generator                        |
+| `mcp__nx__nx_run_generator`                 | Open Nx Console Generate UI with pre-filled options                    |
+| `mcp__nx__nx_visualize_graph`               | Visualize project or task dependency graph                             |
+| `mcp__nx__nx_available_plugins`             | List available Nx plugins                                              |
+
+**When to use MCP tools vs bash:**
+
+- **Checking task status:** Use `mcp__nx__nx_current_running_tasks_details` instead of parsing bash output
+- **Getting project info:** Use `mcp__nx__nx_project_details` instead of `pnpm nx show project`
+- **Looking up Nx docs:** Use `mcp__nx__nx_docs` for questions about Nx configuration, options, or best practices
+- **Running generators:** Use `mcp__nx__nx_run_generator` to open the IDE's Generate UI with options pre-filled
+- **Debugging build failures:** Use `mcp__nx__nx_current_running_task_output` to get logs from running or recent tasks
+
 ### Database Management (soccer-stats-api)
 
 The soccer-stats-api uses PostgreSQL with Docker:

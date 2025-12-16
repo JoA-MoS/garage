@@ -8,17 +8,22 @@ import {
   ResolveField,
   Parent,
 } from '@nestjs/graphql';
-import { Inject, UseGuards } from '@nestjs/common';
+import { BadRequestException, Inject, UseGuards } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
 
 import { Team } from '../../entities/team.entity';
+import { TeamMember, TeamRole } from '../../entities/team-member.entity';
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
+import { TeamAccessGuard } from '../auth/team-access.guard';
+import { RequireTeamRole } from '../auth/require-team-role.decorator';
 import { CurrentUser } from '../auth/user.decorator';
 import { ClerkUser } from '../auth/clerk.service';
 import { TeamPlayer } from '../../entities/team-player.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { User } from '../../entities/user.entity';
 import { PlayersService } from '../players/players.service';
+import { TeamMembersService } from '../team-members/team-members.service';
+import { UsersService } from '../users/users.service';
 
 import { TeamPlayerWithJersey } from './dto/team-player-with-jersey.dto';
 import { TeamsService } from './teams.service';
@@ -32,8 +37,29 @@ export class TeamsResolver {
   constructor(
     private readonly teamsService: TeamsService,
     private readonly playersService: PlayersService,
+    private readonly teamMembersService: TeamMembersService,
+    private readonly usersService: UsersService,
     @Inject('PUB_SUB') private pubSub: PubSub
   ) {}
+
+  /**
+   * Converts a Clerk user to internal user ID by looking up via email.
+   */
+  private async getInternalUserId(clerkUser: ClerkUser): Promise<string> {
+    const email = clerkUser.emailAddresses?.[0]?.emailAddress;
+    if (!email) {
+      throw new BadRequestException('User email not found');
+    }
+
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      throw new BadRequestException(
+        `No internal user found for email ${email}`
+      );
+    }
+
+    return user.id;
+  }
 
   @Query(() => [Team], { name: 'teams' })
   findAll() {
@@ -95,18 +121,33 @@ export class TeamsResolver {
     return this.teamsService.getGameTeams(team.id);
   }
 
+  @ResolveField(() => TeamMember, {
+    nullable: true,
+    description: 'The owner of the team (TeamMember with OWNER role)',
+  })
+  owner(@Parent() team: Team): Promise<TeamMember | null> {
+    return this.teamMembersService.findTeamOwner(team.id);
+  }
+
   @Mutation(() => Team)
   @UseGuards(ClerkAuthGuard)
   async createTeam(
     @Args('createTeamInput') createTeamInput: CreateTeamInput,
-    @CurrentUser() user: ClerkUser
+    @CurrentUser() clerkUser: ClerkUser
   ) {
-    const team = await this.teamsService.create(createTeamInput, user.id);
+    const internalUserId = await this.getInternalUserId(clerkUser);
+    const team = await this.teamsService.create(
+      createTeamInput,
+      clerkUser.id,
+      internalUserId
+    );
     this.pubSub.publish('teamCreated', { teamCreated: team });
     return team;
   }
 
   @Mutation(() => Team)
+  @UseGuards(ClerkAuthGuard, TeamAccessGuard)
+  @RequireTeamRole([TeamRole.OWNER, TeamRole.MANAGER], { teamIdArg: 'id' })
   async updateTeam(
     @Args('id', { type: () => ID }) id: string,
     @Args('updateTeamInput') updateTeamInput: UpdateTeamInput
@@ -117,6 +158,8 @@ export class TeamsResolver {
   }
 
   @Mutation(() => Boolean)
+  @UseGuards(ClerkAuthGuard, TeamAccessGuard)
+  @RequireTeamRole([TeamRole.OWNER], { teamIdArg: 'id' })
   removeTeam(@Args('id', { type: () => ID }) id: string) {
     return this.teamsService.remove(id);
   }
@@ -138,6 +181,8 @@ export class TeamsResolver {
   }
 
   @Mutation(() => Team)
+  @UseGuards(ClerkAuthGuard, TeamAccessGuard)
+  @RequireTeamRole([TeamRole.OWNER, TeamRole.MANAGER], { teamIdArg: 'id' })
   async upgradeToManagedTeam(
     @Args('id', { type: () => ID }) id: string,
     @Args('upgradeTeamInput') upgradeTeamInput: UpgradeTeamInput
@@ -146,6 +191,10 @@ export class TeamsResolver {
   }
 
   @Mutation(() => Team)
+  @UseGuards(ClerkAuthGuard, TeamAccessGuard)
+  @RequireTeamRole([TeamRole.OWNER, TeamRole.MANAGER, TeamRole.COACH], {
+    teamIdPath: 'addPlayerToTeamInput.teamId',
+  })
   async addPlayerToTeam(
     @Args('addPlayerToTeamInput') addPlayerToTeamInput: AddPlayerToTeamInput
   ) {
@@ -153,11 +202,27 @@ export class TeamsResolver {
   }
 
   @Mutation(() => Team)
+  @UseGuards(ClerkAuthGuard, TeamAccessGuard)
+  @RequireTeamRole([TeamRole.OWNER, TeamRole.MANAGER, TeamRole.COACH])
   async removePlayerFromTeam(
     @Args('teamId', { type: () => ID }) teamId: string,
     @Args('playerId', { type: () => ID }) playerId: string
   ) {
     return this.teamsService.removePlayerFromTeam(teamId, playerId);
+  }
+
+  @Mutation(() => [Team], {
+    name: 'backfillMyTeamOwners',
+    description:
+      'Backfill ownership for teams created by the current user that do not have an owner. Returns the list of teams that were updated.',
+  })
+  @UseGuards(ClerkAuthGuard)
+  async backfillMyTeamOwners(@CurrentUser() clerkUser: ClerkUser) {
+    const internalUserId = await this.getInternalUserId(clerkUser);
+    return this.teamsService.backfillOwnersForUser(
+      clerkUser.id,
+      internalUserId
+    );
   }
 
   @Subscription(() => Team, {
