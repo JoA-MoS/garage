@@ -12,6 +12,10 @@ import {
   TeamFormFields,
   createTeamFormValues,
 } from './team-form-fields.presentation';
+import {
+  TransferOwnershipModal,
+  TeamMemberForTransfer,
+} from './transfer-ownership-modal.presentation';
 
 interface TeamSettingsPresentationProps {
   team?: UITeam;
@@ -55,6 +59,12 @@ interface TeamSettingsPresentationProps {
   loading: boolean;
   error?: string;
   saveSuccess?: boolean;
+  // Ownership transfer props
+  isOwner?: boolean;
+  teamMembers?: TeamMemberForTransfer[];
+  onTransferOwnership?: (newOwnerId: string) => void;
+  transferLoading?: boolean;
+  transferError?: string;
 }
 
 export const TeamSettingsPresentation = ({
@@ -73,7 +83,13 @@ export const TeamSettingsPresentation = ({
   loading,
   error,
   saveSuccess = false,
+  isOwner = false,
+  teamMembers = [],
+  onTransferOwnership,
+  transferLoading = false,
+  transferError,
 }: TeamSettingsPresentationProps) => {
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [basicInfo, setBasicInfo] = useState<UICreateTeamInput>(
     team
       ? createTeamFormValues(team)
@@ -110,6 +126,16 @@ export const TeamSettingsPresentation = ({
     positions,
     onSaveSettings,
   ]);
+
+  const handleTransferOwnership = useCallback(
+    (newOwnerId: string) => {
+      if (onTransferOwnership) {
+        onTransferOwnership(newOwnerId);
+        setIsTransferModalOpen(false);
+      }
+    },
+    [onTransferOwnership]
+  );
 
   return (
     <div className="rounded-lg bg-white shadow-lg">
@@ -402,7 +428,44 @@ export const TeamSettingsPresentation = ({
             )}
           </button>
         </div>
+
+        {/* Danger Zone - Transfer Ownership (Owner Only) */}
+        {isOwner && onTransferOwnership && (
+          <div className="mt-8 space-y-4 border-t border-red-200 pt-6">
+            <h3 className="text-lg font-medium text-red-600">Danger Zone</h3>
+
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="font-medium text-gray-900">
+                    Transfer Team Ownership
+                  </h4>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Transfer ownership of this team to another member. You will
+                    become a Manager and lose owner privileges.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsTransferModalOpen(true)}
+                  className="ml-4 flex-shrink-0 rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                >
+                  Transfer Ownership
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Transfer Ownership Modal */}
+      <TransferOwnershipModal
+        isOpen={isTransferModalOpen}
+        onClose={() => setIsTransferModalOpen(false)}
+        onConfirm={handleTransferOwnership}
+        teamMembers={teamMembers}
+        loading={transferLoading}
+        error={transferError}
+      />
     </div>
   );
 };

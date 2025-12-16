@@ -11,6 +11,8 @@ import { EventType } from '../../entities/event-type.entity';
 import { GameEvent } from '../../entities/game-event.entity';
 import { GameFormat } from '../../entities/game-format.entity';
 import { AuthModule } from '../auth/auth.module';
+import { TeamMembersModule } from '../team-members/team-members.module';
+import { UsersModule } from '../users/users.module';
 
 import { GamesResolver } from './games.resolver';
 import { GamesService } from './games.service';
@@ -28,6 +30,8 @@ import { GamesService } from './games.service';
       GameFormat,
     ]),
     AuthModule,
+    TeamMembersModule,
+    UsersModule,
   ],
   providers: [
     GamesResolver,

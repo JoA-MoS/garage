@@ -9,6 +9,7 @@ import { Game } from '../../entities/game.entity';
 import { Team } from '../../entities/team.entity';
 import { AuthModule } from '../auth/auth.module';
 import { UsersModule } from '../users/users.module';
+import { TeamMembersModule } from '../team-members/team-members.module';
 
 import { GameEventsService } from './game-events.service';
 import { GameEventsResolver } from './game-events.resolver';
@@ -18,6 +19,7 @@ import { GameEventsResolver } from './game-events.resolver';
     TypeOrmModule.forFeature([GameEvent, EventType, GameTeam, Game, Team]),
     AuthModule,
     UsersModule,
+    TeamMembersModule,
   ],
   providers: [
     GameEventsService,

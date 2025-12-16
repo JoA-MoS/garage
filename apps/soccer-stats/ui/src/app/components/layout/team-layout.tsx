@@ -60,6 +60,12 @@ export const TeamLayout = () => {
       path: `/teams/${teamId}/stats`,
     },
     {
+      id: 'members',
+      label: 'Staff',
+      icon: '🧑‍💼',
+      path: `/teams/${teamId}/members`,
+    },
+    {
       id: 'settings',
       label: 'Settings',
       icon: '⚙️',

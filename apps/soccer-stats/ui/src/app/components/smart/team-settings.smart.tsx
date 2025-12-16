@@ -9,7 +9,13 @@ import {
   UpdateTeamResponse,
   GET_TEAMS,
 } from '../../services/teams-graphql.service';
+import {
+  GET_TEAM_MEMBERS,
+  GET_MY_ROLE_IN_TEAM,
+  TRANSFER_TEAM_OWNERSHIP,
+} from '../../services/team-members-graphql.service';
 import { TeamSettingsPresentation } from '../presentation/team-settings.presentation';
+import { TeamMemberForTransfer } from '../presentation/transfer-ownership-modal.presentation';
 import { UICreateTeamInput, UIPosition } from '../types/ui.types';
 
 import { useTeamConfigurationManager } from './team-configuration-manager.smart';
@@ -18,6 +24,7 @@ export const TeamSettingsSmart = () => {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [transferError, setTransferError] = useState<string | undefined>();
 
   // Team configuration manager
   const {
@@ -49,6 +56,54 @@ export const TeamSettingsSmart = () => {
     useMutation<UpdateTeamResponse>(UPDATE_TEAM, {
       refetchQueries: [{ query: GET_TEAMS }],
     });
+
+  // Fetch current user's role in the team
+  const { data: myRoleData } = useQuery(GET_MY_ROLE_IN_TEAM, {
+    variables: { teamId: teamId! },
+    skip: !teamId,
+  });
+
+  // Fetch team members for ownership transfer
+  const { data: teamMembersData } = useQuery(GET_TEAM_MEMBERS, {
+    variables: { teamId: teamId! },
+    skip: !teamId,
+  });
+
+  // Transfer ownership mutation
+  const [transferOwnership, { loading: transferLoading }] = useMutation(
+    TRANSFER_TEAM_OWNERSHIP,
+    {
+      refetchQueries: [
+        { query: GET_MY_ROLE_IN_TEAM, variables: { teamId } },
+        { query: GET_TEAM_MEMBERS, variables: { teamId } },
+      ],
+      onCompleted: () => {
+        setTransferError(undefined);
+        // Navigate away after successful transfer since user is no longer owner
+        navigate('/teams');
+      },
+      onError: (error) => {
+        setTransferError(error.message);
+      },
+    }
+  );
+
+  // Determine if current user is owner
+  const isOwner = myRoleData?.myRoleInTeam?.role === 'OWNER';
+
+  // Map team members for transfer modal
+  const teamMembersForTransfer: TeamMemberForTransfer[] =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (teamMembersData?.teamMembers as any[])?.map((member) => ({
+      id: member.id,
+      role: member.role,
+      user: {
+        id: member.user.id,
+        firstName: member.user.firstName,
+        lastName: member.user.lastName,
+        email: member.user.email,
+      },
+    })) ?? [];
 
   // Initialize configuration from team data when loaded
   useEffect(() => {
@@ -124,6 +179,23 @@ export const TeamSettingsSmart = () => {
     [teamId, updateTeam]
   );
 
+  const handleTransferOwnership = useCallback(
+    async (newOwnerId: string) => {
+      if (!teamId) return;
+      try {
+        await transferOwnership({
+          variables: {
+            teamId,
+            newOwnerId,
+          },
+        });
+      } catch (err) {
+        console.error('Error transferring ownership:', err);
+      }
+    },
+    [teamId, transferOwnership]
+  );
+
   // Show loading state for fetching
   if (fetchLoading) {
     return (
@@ -184,6 +256,11 @@ export const TeamSettingsSmart = () => {
         loading={updateLoading}
         error={updateError?.message}
         saveSuccess={saveSuccess}
+        isOwner={isOwner}
+        teamMembers={teamMembersForTransfer}
+        onTransferOwnership={handleTransferOwnership}
+        transferLoading={transferLoading}
+        transferError={transferError}
       />
     </div>
   );

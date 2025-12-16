@@ -45,7 +45,7 @@ export class TeamMembersService {
       .leftJoinAndSelect('teamMember.invitedBy', 'invitedBy')
       .where('teamMember.teamId = :teamId', { teamId })
       .orderBy(
-        `CASE teamMember.role
+        `CASE "teamMember"."role"
           WHEN 'OWNER' THEN 1
           WHEN 'MANAGER' THEN 2
           WHEN 'COACH' THEN 3
@@ -55,7 +55,7 @@ export class TeamMembersService {
         END`,
         'ASC'
       )
-      .addOrderBy('teamMember.createdAt', 'ASC')
+      .addOrderBy('"teamMember"."createdAt"', 'ASC')
       .getMany();
   }
 

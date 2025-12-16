@@ -8,21 +8,24 @@ import {
 } from '@nestjs/common';
 import { GqlExecutionContext } from '@nestjs/graphql';
 import { Reflector } from '@nestjs/core';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
+import { GameEvent } from '../../entities/game-event.entity';
+import { GameTeam } from '../../entities/game-team.entity';
+import { TeamRole } from '../../entities/team-member.entity';
 import { TeamMembersService } from '../team-members/team-members.service';
 import { UsersService } from '../users/users.service';
-import { TeamRole } from '../../entities/team-member.entity';
 
 import {
-  TEAM_ROLES_KEY,
-  TeamRoleMetadata,
-} from './require-team-role.decorator';
+  GAME_EVENT_ROLES_KEY,
+  GameEventRoleMetadata,
+} from './require-game-event-role.decorator';
 import { ClerkUser } from './clerk.service';
 
 /**
  * Role hierarchy for team access control.
  * Higher values indicate more permissions.
- * A user with OWNER role can perform any action that MANAGER, COACH, etc. can perform.
  */
 const ROLE_HIERARCHY: Record<TeamRole, number> = {
   [TeamRole.OWNER]: 5,
@@ -33,26 +36,31 @@ const ROLE_HIERARCHY: Record<TeamRole, number> = {
 };
 
 /**
- * Guard that checks if the current user has the required team role.
+ * Guard that checks if the current user has the required team role for game event operations.
  *
- * This guard should be used after ClerkAuthGuard to ensure the user is authenticated.
- * It reads the @RequireTeamRole metadata to determine required roles and how to extract
- * the teamId from the request.
+ * This guard traces from gameEventId → GameEvent → GameTeam → Team (or gameTeamId → GameTeam → Team),
+ * then checks if the user has the required role in that team.
+ *
+ * Should be used after ClerkAuthGuard to ensure the user is authenticated.
  *
  * @example
- * @Mutation(() => Team)
- * @UseGuards(ClerkAuthGuard, TeamAccessGuard)
- * @RequireTeamRole([TeamRole.OWNER, TeamRole.MANAGER])
- * async updateTeam(@Args('id') id: string, ...) { ... }
+ * @Mutation(() => Boolean)
+ * @UseGuards(ClerkAuthGuard, GameEventAccessGuard)
+ * @RequireGameEventRole([TeamRole.COACH])
+ * async deleteGoal(@Args('gameEventId') gameEventId: string) { ... }
  */
 @Injectable()
-export class TeamAccessGuard implements CanActivate {
-  private readonly logger = new Logger(TeamAccessGuard.name);
+export class GameEventAccessGuard implements CanActivate {
+  private readonly logger = new Logger(GameEventAccessGuard.name);
 
   constructor(
     private readonly reflector: Reflector,
     private readonly teamMembersService: TeamMembersService,
-    private readonly usersService: UsersService
+    private readonly usersService: UsersService,
+    @InjectRepository(GameEvent)
+    private readonly gameEventRepository: Repository<GameEvent>,
+    @InjectRepository(GameTeam)
+    private readonly gameTeamRepository: Repository<GameTeam>
   ) {}
 
   /**
@@ -75,12 +83,12 @@ export class TeamAccessGuard implements CanActivate {
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const metadata = this.reflector.get<TeamRoleMetadata>(
-      TEAM_ROLES_KEY,
+    const metadata = this.reflector.get<GameEventRoleMetadata>(
+      GAME_EVENT_ROLES_KEY,
       context.getHandler()
     );
 
-    // If no role metadata, allow access (method doesn't require team roles)
+    // If no role metadata, allow access (method doesn't require game event roles)
     if (!metadata || !metadata.roles || metadata.roles.length === 0) {
       return true;
     }
@@ -95,11 +103,34 @@ export class TeamAccessGuard implements CanActivate {
       throw new ForbiddenException('User not authenticated');
     }
 
-    // Extract teamId from args
-    const teamId = this.extractTeamId(args, metadata);
+    // Try to get teamId from gameEventId or gameTeamId
+    let teamId: string | undefined;
+
+    // Try gameEventId first
+    const gameEventId = this.extractId(args, {
+      idArg: metadata.gameEventIdArg || 'gameEventId',
+      idPath: metadata.gameEventIdPath,
+    });
+
+    if (gameEventId) {
+      teamId = await this.getTeamIdFromGameEvent(gameEventId);
+    }
+
+    // If no gameEventId, try gameTeamId
+    if (!teamId) {
+      const gameTeamId = this.extractId(args, {
+        idArg: metadata.gameTeamIdArg || 'gameTeamId',
+        idPath: metadata.gameTeamIdPath,
+      });
+
+      if (gameTeamId) {
+        teamId = await this.getTeamIdFromGameTeam(gameTeamId);
+      }
+    }
+
     if (!teamId) {
       this.logger.warn(
-        `TeamAccessGuard: Could not extract teamId from args. Metadata: ${JSON.stringify(
+        `GameEventAccessGuard: Could not extract teamId from args. Metadata: ${JSON.stringify(
           metadata
         )}`
       );
@@ -150,15 +181,46 @@ export class TeamAccessGuard implements CanActivate {
   }
 
   /**
-   * Extracts the teamId from GraphQL args based on metadata configuration.
+   * Get team ID from a game event ID by tracing GameEvent → GameTeam → Team
    */
-  private extractTeamId(
+  private async getTeamIdFromGameEvent(
+    gameEventId: string
+  ): Promise<string | undefined> {
+    const gameEvent = await this.gameEventRepository.findOne({
+      where: { id: gameEventId },
+      relations: ['gameTeam'],
+    });
+
+    if (!gameEvent?.gameTeam) {
+      return undefined;
+    }
+
+    return gameEvent.gameTeam.teamId;
+  }
+
+  /**
+   * Get team ID from a game team ID
+   */
+  private async getTeamIdFromGameTeam(
+    gameTeamId: string
+  ): Promise<string | undefined> {
+    const gameTeam = await this.gameTeamRepository.findOne({
+      where: { id: gameTeamId },
+    });
+
+    return gameTeam?.teamId;
+  }
+
+  /**
+   * Extracts an ID from GraphQL args based on configuration.
+   */
+  private extractId(
     args: Record<string, unknown>,
-    metadata: TeamRoleMetadata
+    config: { idArg: string; idPath?: string }
   ): string | undefined {
-    // If teamIdPath is specified, navigate the nested path
-    if (metadata.teamIdPath) {
-      const parts = metadata.teamIdPath.split('.');
+    // If idPath is specified, navigate the nested path
+    if (config.idPath) {
+      const parts = config.idPath.split('.');
       let value: unknown = args;
       for (const part of parts) {
         if (value && typeof value === 'object' && part in value) {
@@ -170,23 +232,9 @@ export class TeamAccessGuard implements CanActivate {
       return typeof value === 'string' ? value : undefined;
     }
 
-    // If teamIdArg is specified, use that argument name
-    if (metadata.teamIdArg) {
-      const value = args[metadata.teamIdArg];
-      return typeof value === 'string' ? value : undefined;
-    }
-
-    // Default: look for 'teamId' in common locations
-    if (args.teamId && typeof args.teamId === 'string') {
-      return args.teamId;
-    }
-
-    // Check 'id' as fallback for team-specific operations
-    if (args.id && typeof args.id === 'string') {
-      return args.id;
-    }
-
-    return undefined;
+    // Use the argument name
+    const value = args[config.idArg];
+    return typeof value === 'string' ? value : undefined;
   }
 
   /**

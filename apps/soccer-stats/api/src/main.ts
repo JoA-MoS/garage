@@ -1,6 +1,7 @@
 /**
  * Soccer Stats API - NestJS GraphQL Backend
  * This server provides a GraphQL API for the soccer statistics tracker application.
+ * Supports role-based access control via team membership guards.
  */
 
 import { Logger } from '@nestjs/common';

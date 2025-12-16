@@ -10,8 +10,11 @@ import { UseGuards, BadRequestException, Inject } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
 
 import { GameEvent } from '../../entities/game-event.entity';
+import { TeamRole } from '../../entities/team-member.entity';
 import { Public } from '../auth/public.decorator';
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
+import { GameEventAccessGuard } from '../auth/game-event-access.guard';
+import { RequireGameEventRole } from '../auth/require-game-event-role.decorator';
 import { CurrentUser } from '../auth/user.decorator';
 import { ClerkUser } from '../auth/clerk.service';
 import { UsersService } from '../users/users.service';
@@ -80,6 +83,10 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => GameEvent, { name: 'addPlayerToLineup' })
+  @UseGuards(GameEventAccessGuard)
+  @RequireGameEventRole([TeamRole.COACH], {
+    gameTeamIdPath: 'input.gameTeamId',
+  })
   async addPlayerToLineup(
     @Args('input') input: AddToLineupInput,
     @CurrentUser() clerkUser: ClerkUser
@@ -89,6 +96,10 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => GameEvent, { name: 'addPlayerToBench' })
+  @UseGuards(GameEventAccessGuard)
+  @RequireGameEventRole([TeamRole.COACH], {
+    gameTeamIdPath: 'input.gameTeamId',
+  })
   async addPlayerToBench(
     @Args('input') input: AddToBenchInput,
     @CurrentUser() clerkUser: ClerkUser
@@ -98,7 +109,8 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => Boolean, { name: 'removeFromLineup' })
-  @Public() // TODO: Add proper auth
+  @UseGuards(GameEventAccessGuard)
+  @RequireGameEventRole([TeamRole.COACH])
   removeFromLineup(
     @Args('gameEventId', { type: () => ID }) gameEventId: string
   ): Promise<boolean> {
@@ -106,7 +118,8 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => GameEvent, { name: 'updatePlayerPosition' })
-  @Public() // TODO: Add proper auth
+  @UseGuards(GameEventAccessGuard)
+  @RequireGameEventRole([TeamRole.COACH])
   updatePlayerPosition(
     @Args('gameEventId', { type: () => ID }) gameEventId: string,
     @Args('position') position: string
@@ -115,6 +128,10 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => [GameEvent], { name: 'substitutePlayer' })
+  @UseGuards(GameEventAccessGuard)
+  @RequireGameEventRole([TeamRole.COACH], {
+    gameTeamIdPath: 'input.gameTeamId',
+  })
   async substitutePlayer(
     @Args('input') input: SubstitutePlayerInput,
     @CurrentUser() clerkUser: ClerkUser
@@ -124,6 +141,10 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => GameEvent, { name: 'recordGoal' })
+  @UseGuards(GameEventAccessGuard)
+  @RequireGameEventRole([TeamRole.COACH], {
+    gameTeamIdPath: 'input.gameTeamId',
+  })
   async recordGoal(
     @Args('input') input: RecordGoalInput,
     @CurrentUser() clerkUser: ClerkUser
@@ -133,7 +154,8 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => Boolean, { name: 'deleteGoal' })
-  @Public() // TODO: Add proper auth
+  @UseGuards(GameEventAccessGuard)
+  @RequireGameEventRole([TeamRole.COACH])
   deleteGoal(
     @Args('gameEventId', { type: () => ID }) gameEventId: string
   ): Promise<boolean> {
@@ -141,7 +163,8 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => Boolean, { name: 'deleteSubstitution' })
-  @Public() // TODO: Add proper auth
+  @UseGuards(GameEventAccessGuard)
+  @RequireGameEventRole([TeamRole.COACH])
   deleteSubstitution(
     @Args('gameEventId', { type: () => ID }) gameEventId: string
   ): Promise<boolean> {
@@ -149,7 +172,8 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => Boolean, { name: 'deletePositionSwap' })
-  @Public() // TODO: Add proper auth
+  @UseGuards(GameEventAccessGuard)
+  @RequireGameEventRole([TeamRole.COACH])
   deletePositionSwap(
     @Args('gameEventId', { type: () => ID }) gameEventId: string
   ): Promise<boolean> {
@@ -157,7 +181,8 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => Boolean, { name: 'deleteStarterEntry' })
-  @Public() // TODO: Add proper auth
+  @UseGuards(GameEventAccessGuard)
+  @RequireGameEventRole([TeamRole.COACH])
   deleteStarterEntry(
     @Args('gameEventId', { type: () => ID }) gameEventId: string
   ): Promise<boolean> {
@@ -165,12 +190,19 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => GameEvent, { name: 'updateGoal' })
-  @Public() // TODO: Add proper auth
+  @UseGuards(GameEventAccessGuard)
+  @RequireGameEventRole([TeamRole.COACH], {
+    gameEventIdPath: 'input.gameEventId',
+  })
   updateGoal(@Args('input') input: UpdateGoalInput): Promise<GameEvent> {
     return this.gameEventsService.updateGoal(input);
   }
 
   @Mutation(() => [GameEvent], { name: 'swapPositions' })
+  @UseGuards(GameEventAccessGuard)
+  @RequireGameEventRole([TeamRole.COACH], {
+    gameTeamIdPath: 'input.gameTeamId',
+  })
   async swapPositions(
     @Args('input') input: SwapPositionsInput,
     @CurrentUser() clerkUser: ClerkUser
@@ -204,7 +236,8 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => Boolean, { name: 'deleteEventWithCascade' })
-  @Public() // TODO: Add proper auth
+  @UseGuards(GameEventAccessGuard)
+  @RequireGameEventRole([TeamRole.COACH])
   deleteEventWithCascade(
     @Args('gameEventId', { type: () => ID }) gameEventId: string,
     @Args('eventType') eventType: string
@@ -229,7 +262,8 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => GameEvent, { name: 'resolveEventConflict' })
-  @Public() // TODO: Add proper auth
+  @UseGuards(GameEventAccessGuard)
+  @RequireGameEventRole([TeamRole.COACH], { gameEventIdArg: 'selectedEventId' })
   resolveEventConflict(
     @Args('conflictId', { type: () => ID }) conflictId: string,
     @Args('selectedEventId', { type: () => ID }) selectedEventId: string,

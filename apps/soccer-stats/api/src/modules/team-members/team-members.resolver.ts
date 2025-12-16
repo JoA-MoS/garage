@@ -7,7 +7,7 @@ import {
   ResolveField,
   Parent,
 } from '@nestjs/graphql';
-import { UseGuards } from '@nestjs/common';
+import { UseGuards, BadRequestException } from '@nestjs/common';
 
 import { TeamMember, TeamRole } from '../../entities/team-member.entity';
 import { Team } from '../../entities/team.entity';
@@ -15,13 +15,36 @@ import { User } from '../../entities/user.entity';
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
 import { CurrentUser } from '../auth/user.decorator';
 import { ClerkUser } from '../auth/clerk.service';
+import { UsersService } from '../users/users.service';
 
 import { TeamMembersService } from './team-members.service';
 
 @Resolver(() => TeamMember)
 @UseGuards(ClerkAuthGuard)
 export class TeamMembersResolver {
-  constructor(private readonly teamMembersService: TeamMembersService) {}
+  constructor(
+    private readonly teamMembersService: TeamMembersService,
+    private readonly usersService: UsersService
+  ) {}
+
+  /**
+   * Converts a Clerk user to internal user ID by looking up via email.
+   */
+  private async getInternalUserId(clerkUser: ClerkUser): Promise<string> {
+    const email = clerkUser.emailAddresses?.[0]?.emailAddress;
+    if (!email) {
+      throw new BadRequestException('User email not found');
+    }
+
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      throw new BadRequestException(
+        `No internal user found for email ${email}`
+      );
+    }
+
+    return user.id;
+  }
 
   /**
    * Get all members of a team
@@ -35,14 +58,13 @@ export class TeamMembersResolver {
 
   /**
    * Get current user's team memberships.
-   * Note: Clerk user IDs (e.g., "user_xxx") are stored directly in the database as the primary
-   * user identifier. This is intentional - see User entity and ClerkAuthGuard for the sync logic.
    */
   @Query(() => [TeamMember], { name: 'myTeamMemberships' })
   async getMyTeamMemberships(
     @CurrentUser() user: ClerkUser
   ): Promise<TeamMember[]> {
-    return this.teamMembersService.findByUser(user.id);
+    const internalUserId = await this.getInternalUserId(user);
+    return this.teamMembersService.findByUser(internalUserId);
   }
 
   /**
@@ -63,7 +85,8 @@ export class TeamMembersResolver {
     @Args('teamId', { type: () => ID }) teamId: string,
     @CurrentUser() user: ClerkUser
   ): Promise<TeamMember | null> {
-    return this.teamMembersService.findUserRoleInTeam(user.id, teamId);
+    const internalUserId = await this.getInternalUserId(user);
+    return this.teamMembersService.findUserRoleInTeam(internalUserId, teamId);
   }
 
   /**
@@ -74,7 +97,8 @@ export class TeamMembersResolver {
     @Args('teamId', { type: () => ID }) teamId: string,
     @CurrentUser() user: ClerkUser
   ): Promise<boolean> {
-    return this.teamMembersService.isTeamMember(user.id, teamId);
+    const internalUserId = await this.getInternalUserId(user);
+    return this.teamMembersService.isTeamMember(internalUserId, teamId);
   }
 
   /**
@@ -91,11 +115,14 @@ export class TeamMembersResolver {
     @Args('isGuest', { nullable: true }) isGuest?: boolean,
     @CurrentUser() currentUser?: ClerkUser
   ): Promise<TeamMember> {
+    const invitedById = currentUser
+      ? await this.getInternalUserId(currentUser)
+      : undefined;
     return this.teamMembersService.addMember(
       teamId,
       userId,
       role,
-      currentUser?.id,
+      invitedById,
       linkedPlayerId,
       isGuest ?? false
     );
@@ -122,9 +149,10 @@ export class TeamMembersResolver {
     @Args('newOwnerId', { type: () => ID }) newOwnerId: string,
     @CurrentUser() currentUser: ClerkUser
   ): Promise<TeamMember> {
+    const internalUserId = await this.getInternalUserId(currentUser);
     const result = await this.teamMembersService.transferOwnership(
       teamId,
-      currentUser.id,
+      internalUserId,
       newOwnerId
     );
     return result.newOwner;

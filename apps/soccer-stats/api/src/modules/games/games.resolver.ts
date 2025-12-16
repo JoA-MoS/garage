@@ -10,7 +10,10 @@ import { Inject, UseGuards } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
 
 import { Game } from '../../entities/game.entity';
+import { TeamRole } from '../../entities/team-member.entity';
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
+import { GameAccessGuard } from '../auth/game-access.guard';
+import { RequireGameRole } from '../auth/require-game-role.decorator';
 import { CurrentUser } from '../auth/user.decorator';
 import { Public } from '../auth/public.decorator';
 import { ClerkUser } from '../auth/clerk.service';
@@ -40,7 +43,11 @@ export class GamesResolver {
   }
 
   @Mutation(() => Game)
-  @Public() // Temporarily public for MVP
+  @UseGuards(GameAccessGuard)
+  @RequireGameRole([TeamRole.OWNER, TeamRole.MANAGER], {
+    homeTeamIdPath: 'createGameInput.homeTeamId',
+    requireHomeTeam: true,
+  })
   async createGame(@Args('createGameInput') createGameInput: CreateGameInput) {
     console.log('Creating game with input:', createGameInput);
     const game = await this.gamesService.create(createGameInput);
@@ -49,6 +56,8 @@ export class GamesResolver {
   }
 
   @Mutation(() => Game)
+  @UseGuards(GameAccessGuard)
+  @RequireGameRole([TeamRole.COACH])
   async updateGame(
     @Args('id', { type: () => ID }) id: string,
     @Args('updateGameInput') updateGameInput: UpdateGameInput,
@@ -61,6 +70,8 @@ export class GamesResolver {
   }
 
   @Mutation(() => Boolean)
+  @UseGuards(GameAccessGuard)
+  @RequireGameRole([TeamRole.OWNER, TeamRole.MANAGER])
   removeGame(@Args('id', { type: () => ID }) id: string) {
     return this.gamesService.remove(id);
   }
