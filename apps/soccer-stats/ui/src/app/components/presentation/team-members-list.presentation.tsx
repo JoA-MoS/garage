@@ -27,6 +27,7 @@ interface TeamMembersListPresentationProps {
   onUpdateRole?: (membershipId: string, newRole: string) => void;
   onRemoveMember?: (membershipId: string) => void;
   onPromoteGuest?: (membershipId: string) => void;
+  onAddMember?: () => void;
 }
 
 const ROLE_ORDER = ['OWNER', 'MANAGER', 'COACH', 'PLAYER', 'PARENT_FAN'];
@@ -68,6 +69,7 @@ export const TeamMembersListPresentation = ({
   onUpdateRole,
   onRemoveMember,
   onPromoteGuest,
+  onAddMember,
 }: TeamMembersListPresentationProps) => {
   const [expandedRole, setExpandedRole] = useState<string | null>(null);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
@@ -143,6 +145,14 @@ export const TeamMembersListPresentation = ({
               team
             </p>
           </div>
+          {onAddMember && canManageRole(currentUserRole, 'PARENT_FAN') && (
+            <button
+              onClick={onAddMember}
+              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              Add Member
+            </button>
+          )}
         </div>
       </div>
 

@@ -117,3 +117,26 @@ export const PROMOTE_GUEST_COACH = graphql(/* GraphQL */ `
     }
   }
 `);
+
+// Query to get all users for member selection
+export const GET_ALL_USERS_FOR_MEMBER_SELECTION = graphql(/* GraphQL */ `
+  query GetAllUsersForMemberSelection {
+    users {
+      id
+      firstName
+      lastName
+      email
+    }
+  }
+`);
+
+// Query to get team players for parent/fan linking
+export const GET_TEAM_PLAYERS_FOR_LINKING = graphql(/* GraphQL */ `
+  query GetTeamPlayersForLinking($teamId: ID!) {
+    playersByTeam(teamId: $teamId) {
+      id
+      firstName
+      lastName
+    }
+  }
+`);
