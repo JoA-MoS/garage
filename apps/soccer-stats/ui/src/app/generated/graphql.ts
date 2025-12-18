@@ -256,6 +256,12 @@ export type GameTeam = {
   updatedAt: Scalars['DateTime']['output'];
 };
 
+/** Controls visibility of last name to other users */
+export enum LastNameVisibility {
+  Public = 'PUBLIC',
+  TeamOnly = 'TEAM_ONLY',
+}
+
 export type LineupPlayer = {
   __typename?: 'LineupPlayer';
   externalPlayerName?: Maybe<Scalars['String']['output']>;
@@ -275,6 +281,9 @@ export type Mutation = {
   addPlayerToBench: GameEvent;
   addPlayerToLineup: GameEvent;
   addPlayerToTeam: TeamPlayer;
+  addTeamMember: TeamMember;
+  /** Backfill ownership for teams created by the current user that do not have an owner. Returns the list of teams that were updated. */
+  backfillMyTeamOwners: Array<Team>;
   createCoach: User;
   createGame: Game;
   createGameFormat: GameFormat;
@@ -288,6 +297,7 @@ export type Mutation = {
   deleteStarterEntry: Scalars['Boolean']['output'];
   deleteSubstitution: Scalars['Boolean']['output'];
   findOrCreateUnmanagedTeam: Team;
+  promoteGuestCoach: TeamMember;
   recordGoal: GameEvent;
   removeCoachFromTeam: Scalars['Boolean']['output'];
   removeFromLineup: Scalars['Boolean']['output'];
@@ -295,17 +305,21 @@ export type Mutation = {
   removePlayer: Scalars['Boolean']['output'];
   removePlayerFromTeam: Scalars['Boolean']['output'];
   removeTeam: Scalars['Boolean']['output'];
+  removeTeamMember: Scalars['Boolean']['output'];
   removeUser: Scalars['Boolean']['output'];
   resolveEventConflict: GameEvent;
   seedGameFormats: Scalars['Boolean']['output'];
   substitutePlayer: Array<GameEvent>;
   swapPositions: Array<GameEvent>;
+  /** Returns the new owner */
+  transferTeamOwnership: TeamMember;
   updateCoach: User;
   updateGame: Game;
   updateGoal: GameEvent;
   updatePlayer: User;
   updatePlayerPosition: GameEvent;
   updateTeam: Team;
+  updateTeamMemberRole: TeamMember;
   updateUser: User;
   upgradeToManagedTeam: Team;
 };
@@ -329,6 +343,14 @@ export type MutationAddPlayerToTeamArgs = {
   jerseyNumber?: InputMaybe<Scalars['String']['input']>;
   joinedDate?: InputMaybe<Scalars['DateTime']['input']>;
   primaryPosition?: InputMaybe<Scalars['String']['input']>;
+  teamId: Scalars['ID']['input'];
+  userId: Scalars['ID']['input'];
+};
+
+export type MutationAddTeamMemberArgs = {
+  isGuest?: InputMaybe<Scalars['Boolean']['input']>;
+  linkedPlayerId?: InputMaybe<Scalars['ID']['input']>;
+  role: TeamRole;
   teamId: Scalars['ID']['input'];
   userId: Scalars['ID']['input'];
 };
@@ -388,6 +410,10 @@ export type MutationFindOrCreateUnmanagedTeamArgs = {
   shortName?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type MutationPromoteGuestCoachArgs = {
+  membershipId: Scalars['ID']['input'];
+};
+
 export type MutationRecordGoalArgs = {
   input: RecordGoalInput;
 };
@@ -420,6 +446,10 @@ export type MutationRemoveTeamArgs = {
   id: Scalars['ID']['input'];
 };
 
+export type MutationRemoveTeamMemberArgs = {
+  membershipId: Scalars['ID']['input'];
+};
+
 export type MutationRemoveUserArgs = {
   id: Scalars['ID']['input'];
 };
@@ -436,6 +466,11 @@ export type MutationSubstitutePlayerArgs = {
 
 export type MutationSwapPositionsArgs = {
   input: SwapPositionsInput;
+};
+
+export type MutationTransferTeamOwnershipArgs = {
+  newOwnerId: Scalars['ID']['input'];
+  teamId: Scalars['ID']['input'];
 };
 
 export type MutationUpdateCoachArgs = {
@@ -465,6 +500,11 @@ export type MutationUpdatePlayerPositionArgs = {
 export type MutationUpdateTeamArgs = {
   id: Scalars['ID']['input'];
   updateTeamInput: UpdateTeamInput;
+};
+
+export type MutationUpdateTeamMemberRoleArgs = {
+  membershipId: Scalars['ID']['input'];
+  newRole: TeamRole;
 };
 
 export type MutationUpdateUserArgs = {
@@ -527,6 +567,7 @@ export type PositionTime = {
 
 export type Query = {
   __typename?: 'Query';
+  amITeamMember: Scalars['Boolean']['output'];
   coaches: Array<User>;
   coachesByName: Array<User>;
   coachesByRole: Array<User>;
@@ -544,6 +585,8 @@ export type Query = {
   gameLineup: GameLineup;
   games: Array<Game>;
   managedTeams: Array<Team>;
+  myRoleInTeam?: Maybe<TeamMember>;
+  myTeamMemberships: Array<TeamMember>;
   /** Get teams the current user has access to (created, plays on, or coaches) */
   myTeams: Array<Team>;
   player: User;
@@ -554,6 +597,8 @@ export type Query = {
   playersByPosition: Array<User>;
   playersByTeam: Array<User>;
   team: Team;
+  teamMember?: Maybe<TeamMember>;
+  teamMembers: Array<TeamMember>;
   teams: Array<Team>;
   teamsByManagedStatus: Array<Team>;
   teamsByName: Array<Team>;
@@ -562,6 +607,10 @@ export type Query = {
   users: Array<User>;
   usersByName: Array<User>;
   usersByTeam: Array<User>;
+};
+
+export type QueryAmITeamMemberArgs = {
+  teamId: Scalars['ID']['input'];
 };
 
 export type QueryCoachesByNameArgs = {
@@ -612,6 +661,10 @@ export type QueryGameLineupArgs = {
   gameTeamId: Scalars['ID']['input'];
 };
 
+export type QueryMyRoleInTeamArgs = {
+  teamId: Scalars['ID']['input'];
+};
+
 export type QueryPlayerArgs = {
   id: Scalars['ID']['input'];
 };
@@ -638,6 +691,14 @@ export type QueryPlayersByTeamArgs = {
 
 export type QueryTeamArgs = {
   id: Scalars['ID']['input'];
+};
+
+export type QueryTeamMemberArgs = {
+  id: Scalars['ID']['input'];
+};
+
+export type QueryTeamMembersArgs = {
+  teamId: Scalars['ID']['input'];
 };
 
 export type QueryTeamsByManagedStatusArgs = {
@@ -746,12 +807,15 @@ export type Team = {
   isManaged: Scalars['Boolean']['output'];
   logoUrl?: Maybe<Scalars['String']['output']>;
   name: Scalars['String']['output'];
+  /** The owner of the team (TeamMember with OWNER role) */
+  owner?: Maybe<TeamMember>;
   players: Array<User>;
   playersWithJersey: Array<TeamPlayerWithJersey>;
   shortName?: Maybe<Scalars['String']['output']>;
   sourceType: SourceType;
   teamCoaches?: Maybe<Array<TeamCoach>>;
   teamConfiguration?: Maybe<TeamConfiguration>;
+  teamMembers?: Maybe<Array<TeamMember>>;
   teamPlayers?: Maybe<Array<TeamPlayer>>;
   updatedAt: Scalars['DateTime']['output'];
 };
@@ -783,6 +847,25 @@ export type TeamConfiguration = {
   team: Team;
   teamId: Scalars['ID']['output'];
   updatedAt: Scalars['DateTime']['output'];
+};
+
+export type TeamMember = {
+  __typename?: 'TeamMember';
+  acceptedAt?: Maybe<Scalars['DateTime']['output']>;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  invitedAt?: Maybe<Scalars['DateTime']['output']>;
+  invitedBy?: Maybe<User>;
+  invitedById?: Maybe<Scalars['ID']['output']>;
+  isGuest: Scalars['Boolean']['output'];
+  linkedPlayer?: Maybe<User>;
+  linkedPlayerId?: Maybe<Scalars['ID']['output']>;
+  role: TeamRole;
+  team: Team;
+  teamId: Scalars['ID']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+  user: User;
+  userId: Scalars['ID']['output'];
 };
 
 export type TeamPlayer = {
@@ -818,6 +901,15 @@ export type TeamPositionInput = {
   x: Scalars['Float']['input'];
   y: Scalars['Float']['input'];
 };
+
+/** Role of a user within a team */
+export enum TeamRole {
+  Coach = 'COACH',
+  Manager = 'MANAGER',
+  Owner = 'OWNER',
+  ParentFan = 'PARENT_FAN',
+  Player = 'PLAYER',
+}
 
 export type UpdateGameInput = {
   actualEnd?: InputMaybe<Scalars['DateTime']['input']>;
@@ -909,10 +1001,12 @@ export type User = {
   id: Scalars['ID']['output'];
   isActive: Scalars['Boolean']['output'];
   lastName: Scalars['String']['output'];
+  lastNameVisibility: LastNameVisibility;
   performedEvents: Array<GameEvent>;
   phone?: Maybe<Scalars['String']['output']>;
   recordedEvents: Array<GameEvent>;
   teamCoaches: Array<TeamCoach>;
+  teamMemberships: Array<TeamMember>;
   teamPlayers: Array<TeamPlayer>;
   teams: Array<Team>;
   updatedAt: Scalars['DateTime']['output'];
@@ -1736,6 +1830,18 @@ export type GetTeamByIdQuery = {
     sourceType: SourceType;
     createdAt: any;
     updatedAt: any;
+    owner?: {
+      __typename?: 'TeamMember';
+      id: string;
+      role: TeamRole;
+      user: {
+        __typename?: 'User';
+        id: string;
+        firstName: string;
+        lastName: string;
+        email?: string | null;
+      };
+    } | null;
     playersWithJersey: Array<{
       __typename?: 'TeamPlayerWithJersey';
       id: string;
@@ -5540,6 +5646,42 @@ export const GetTeamByIdDocument = {
                 { kind: 'Field', name: { kind: 'Name', value: 'sourceType' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'owner' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'role' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'user' },
+                        selectionSet: {
+                          kind: 'SelectionSet',
+                          selections: [
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'id' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'firstName' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'lastName' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'email' },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
                 {
                   kind: 'Field',
                   name: { kind: 'Name', value: 'playersWithJersey' },

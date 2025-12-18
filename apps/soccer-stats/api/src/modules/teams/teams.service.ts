@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -10,6 +12,8 @@ import { Team, SourceType } from '../../entities/team.entity';
 import { User } from '../../entities/user.entity';
 import { TeamPlayer } from '../../entities/team-player.entity';
 import { GameTeam } from '../../entities/game-team.entity';
+import { TeamRole } from '../../entities/team-member.entity';
+import { TeamMembersService } from '../team-members/team-members.service';
 
 import { CreateTeamInput } from './dto/create-team.input';
 import { UpdateTeamInput } from './dto/update-team.input';
@@ -24,7 +28,9 @@ export class TeamsService {
     @InjectRepository(TeamPlayer)
     private readonly teamPlayerRepository: Repository<TeamPlayer>,
     @InjectRepository(GameTeam)
-    private readonly gameTeamRepository: Repository<GameTeam>
+    private readonly gameTeamRepository: Repository<GameTeam>,
+    @Inject(forwardRef(() => TeamMembersService))
+    private readonly teamMembersService: TeamMembersService
   ) {}
 
   async findAll(): Promise<Team[]> {
@@ -45,13 +51,25 @@ export class TeamsService {
 
   async create(
     createTeamInput: CreateTeamInput,
-    createdById?: string
+    createdById?: string,
+    internalUserId?: string
   ): Promise<Team> {
     const team = this.teamRepository.create({
       ...createTeamInput,
       createdById,
     });
-    return this.teamRepository.save(team);
+    const savedTeam = await this.teamRepository.save(team);
+
+    // Create TeamMember with OWNER role for the creator
+    if (internalUserId) {
+      await this.teamMembersService.addMember(
+        savedTeam.id,
+        internalUserId,
+        TeamRole.OWNER
+      );
+    }
+
+    return savedTeam;
   }
 
   async update(id: string, updateTeamInput: UpdateTeamInput): Promise<Team> {
@@ -377,5 +395,51 @@ export class TeamsService {
     return this.teamRepository.find({
       where: { sourceType },
     });
+  }
+
+  /**
+   * Backfill owners for all teams created by a user that don't have an owner yet.
+   * This is useful for teams created before the owner assignment was implemented.
+   *
+   * @param clerkUserId - The Clerk user ID (stored in createdById)
+   * @param internalUserId - The internal User entity ID
+   * @returns Array of teams that were updated with owners
+   */
+  async backfillOwnersForUser(
+    clerkUserId: string,
+    internalUserId: string
+  ): Promise<Team[]> {
+    // Find all teams created by this user
+    const teamsCreatedByUser = await this.teamRepository.find({
+      where: { createdById: clerkUserId },
+    });
+
+    const updatedTeams: Team[] = [];
+
+    for (const team of teamsCreatedByUser) {
+      // Check if team already has an owner
+      const existingOwner = await this.teamMembersService.findTeamOwner(
+        team.id
+      );
+
+      if (!existingOwner) {
+        // Add the creator as owner
+        try {
+          await this.teamMembersService.addMember(
+            team.id,
+            internalUserId,
+            TeamRole.OWNER
+          );
+          updatedTeams.push(team);
+        } catch {
+          // Skip if there's an error (e.g., user already has another role)
+          console.warn(
+            `Could not add owner to team ${team.id}: user may already have a role`
+          );
+        }
+      }
+    }
+
+    return updatedTeams;
   }
 }
