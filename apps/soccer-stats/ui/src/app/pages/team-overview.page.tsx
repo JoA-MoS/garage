@@ -1,10 +1,8 @@
 import { useParams } from 'react-router';
 import { useQuery } from '@apollo/client/react';
 
-import {
-  GET_TEAM_BY_ID,
-  TeamResponse,
-} from '../services/teams-graphql.service';
+import { GET_TEAM_BY_ID } from '../services/teams-graphql.service';
+import { GetTeamByIdQuery } from '../generated/graphql';
 
 /**
  * Page component for team overview information
@@ -12,7 +10,7 @@ import {
 export const TeamOverviewPage = () => {
   const { teamId } = useParams<{ teamId: string }>();
 
-  const { data, loading, error, refetch } = useQuery<TeamResponse>(
+  const { data, loading, error, refetch } = useQuery<GetTeamByIdQuery>(
     GET_TEAM_BY_ID,
     {
       variables: { id: teamId },
@@ -79,6 +77,14 @@ export const TeamOverviewPage = () => {
                 <span className="font-medium">{team.name}</span>
               </div>
               <div className="flex justify-between">
+                <span className="text-gray-600">Owner:</span>
+                <span className="font-medium">
+                  {team.owner
+                    ? `${team.owner.user.firstName} ${team.owner.user.lastName}`
+                    : 'Not assigned'}
+                </span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-gray-600">Created:</span>
                 <span className="font-medium">
                   {team.createdAt
@@ -125,7 +131,9 @@ export const TeamOverviewPage = () => {
               <div className="flex items-center space-x-3">
                 <div
                   className="h-8 w-8 rounded border border-gray-300"
-                  style={{ backgroundColor: team.homePrimaryColor }}
+                  style={{
+                    backgroundColor: team.homePrimaryColor ?? undefined,
+                  }}
                 />
                 <div>
                   <div className="text-sm font-medium">Primary</div>
@@ -138,7 +146,9 @@ export const TeamOverviewPage = () => {
                 <div className="flex items-center space-x-3">
                   <div
                     className="h-8 w-8 rounded border border-gray-300"
-                    style={{ backgroundColor: team.homeSecondaryColor }}
+                    style={{
+                      backgroundColor: team.homeSecondaryColor ?? undefined,
+                    }}
                   />
                   <div>
                     <div className="text-sm font-medium">Secondary</div>

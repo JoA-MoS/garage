@@ -9,6 +9,8 @@ import { TeamCoach } from '../../entities/team-coach.entity';
 import { TeamConfiguration } from '../../entities/team-configuration.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { PlayersModule } from '../players/players.module';
+import { TeamMembersModule } from '../team-members/team-members.module';
+import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
 
 import { TeamsResolver } from './teams.resolver';
@@ -25,6 +27,8 @@ import { TeamsService } from './teams.service';
       GameTeam,
     ]),
     forwardRef(() => PlayersModule),
+    TeamMembersModule,
+    forwardRef(() => UsersModule),
     AuthModule,
   ],
   providers: [
