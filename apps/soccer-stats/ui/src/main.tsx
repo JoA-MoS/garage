@@ -58,6 +58,17 @@ function App() {
   // Fetch configuration once on mount
   // This ensures configuration is loaded before the app initializes
   useEffect(() => {
+    // Check if VITE_CLERK_PUBLISHABLE_KEY is defined for debugging purposes
+    const buildTimeKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+    
+    if (buildTimeKey) {
+      // Use build-time key if available (useful for debugging)
+      console.log('Using build-time VITE_CLERK_PUBLISHABLE_KEY for debugging');
+      setConfig({ clerkPublishableKey: buildTimeKey });
+      return;
+    }
+
+    // Otherwise, fetch from API (production path)
     fetchPublicConfig()
       .then((fetchedConfig) => {
         setConfig(fetchedConfig);
