@@ -12,6 +12,14 @@ function getEnv(key: string, defaultValue?: string): string | undefined {
 }
 
 /**
+ * Parse port number from environment variable with fallback
+ */
+function parsePort(value: string): number {
+  const parsed = parseInt(value, 10);
+  return isNaN(parsed) ? 3333 : parsed;
+}
+
+/**
  * Node environment (development, production, test)
  */
 export const getNodeEnv = (): string => getEnv('NODE_ENV', 'development')!;
@@ -24,7 +32,7 @@ export const isProduction = (): boolean => getNodeEnv() === 'production';
 /**
  * Server configuration
  */
-export const getPort = (): number => parseInt(getEnv('PORT', '3333')!);
+export const getPort = (): number => parsePort(getEnv('PORT', '3333')!);
 
 /**
  * Frontend URLs for CORS configuration
@@ -36,7 +44,7 @@ export const getFrontendUrl = (): string => getEnv('FRONTEND_URL', 'http://local
  * Database configuration
  */
 export const getDbHost = (): string => getEnv('DB_HOST', 'localhost')!;
-export const getDbPort = (): number => parseInt(getEnv('DB_PORT', '5432')!);
+export const getDbPort = (): number => parsePort(getEnv('DB_PORT', '5432')!);
 export const getDbUsername = (): string => getEnv('DB_USERNAME', 'postgres')!;
 export const getDbPassword = (): string => getEnv('DB_PASSWORD', 'postgres')!;
 export const getDbName = (): string => getEnv('DB_NAME', 'soccer_stats')!;

@@ -58,13 +58,9 @@ export class ClerkService {
     const secretKey = getClerkSecretKey();
     const audience = getClerkJwtAudience();
     
-    if (!secretKey) {
-      throw new Error('CLERK_SECRET_KEY environment variable is not set');
-    }
-    
     try {
       const payload = await verifyToken(token, {
-        secretKey,
+        secretKey: secretKey!, // Safe: validated in constructor
         audience,
       });
       return payload as ClerkPayload;
