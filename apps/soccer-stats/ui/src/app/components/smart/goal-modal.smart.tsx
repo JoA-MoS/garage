@@ -113,6 +113,7 @@ export const GoalModal = ({
   const [scorerId, setScorerId] = useState(getInitialScorerId);
   const [assisterId, setAssisterId] = useState(getInitialAssisterId);
   const [showBench, setShowBench] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Quick entry fields - extract number from externalPlayerNumber
   const [quickScorerNumber, setQuickScorerNumber] = useState(
@@ -161,6 +162,8 @@ export const GoalModal = ({
   });
 
   const handleSubmit = async () => {
+    setError(null); // Clear any previous error
+
     // Find the selected scorer player (lineup mode)
     const scorer =
       entryMode === 'lineup' && scorerId
@@ -256,6 +259,9 @@ export const GoalModal = ({
       onClose();
     } catch (err) {
       console.error(`Failed to ${isEditMode ? 'update' : 'record'} goal:`, err);
+      const message =
+        err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(message);
     }
   };
 
@@ -487,6 +493,13 @@ export const GoalModal = ({
             </>
           )}
         </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <span className="font-medium">Error:</span> {error}
+          </div>
+        )}
 
         {/* Actions */}
         <div className="mt-6 flex gap-3">
