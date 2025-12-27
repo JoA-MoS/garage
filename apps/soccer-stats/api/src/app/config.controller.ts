@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, InternalServerErrorException } from '@nestjs/common';
 
 /**
  * Public configuration endpoint that serves runtime configuration
@@ -12,7 +12,9 @@ export class ConfigController {
     const clerkPublishableKey = process.env['CLERK_PUBLISHABLE_KEY'];
 
     if (!clerkPublishableKey) {
-      throw new Error('CLERK_PUBLISHABLE_KEY environment variable is not set');
+      throw new InternalServerErrorException(
+        'CLERK_PUBLISHABLE_KEY environment variable is not set'
+      );
     }
 
     return {
