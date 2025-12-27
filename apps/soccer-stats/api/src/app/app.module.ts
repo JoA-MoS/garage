@@ -24,6 +24,7 @@ import {
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { StartupService } from './startup.service';
+import { ConfigController } from './config.controller';
 
 interface AuthenticatedRequest extends Request {
   user?: ClerkUser;
@@ -100,7 +101,7 @@ const typeOrmConfig = {
     GameEventsModule,
     TeamMembersModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, ConfigController],
   providers: [AppService, StartupService],
 })
 export class AppModule {}
