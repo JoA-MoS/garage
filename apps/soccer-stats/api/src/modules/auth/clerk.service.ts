@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { createClerkClient, verifyToken } from '@clerk/backend';
 
+import { getClerkSecretKey, getClerkJwtAudience } from '../../app/environment';
+
 export interface ClerkUser {
   id: string;
   emailAddresses: Array<{ emailAddress: string; id: string }>;
@@ -43,15 +45,15 @@ export class ClerkService {
 
   constructor() {
     this.clerkClient = createClerkClient({
-      secretKey: process.env['CLERK_SECRET_KEY'],
+      secretKey: getClerkSecretKey(),
     });
   }
 
   async verifyToken(token: string): Promise<ClerkPayload> {
     try {
       const payload = await verifyToken(token, {
-        secretKey: process.env['CLERK_SECRET_KEY'] as string,
-        audience: process.env['CLERK_JWT_AUDIENCE'],
+        secretKey: getClerkSecretKey() as string,
+        audience: getClerkJwtAudience(),
       });
       return payload as ClerkPayload;
     } catch (error) {
