@@ -496,7 +496,7 @@ export const GoalModal = ({
 
         {/* Error Display */}
         {error && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-base text-red-700 sm:p-5 sm:text-sm md:p-6">
             <span className="font-medium">Error:</span> {error}
           </div>
         )}
