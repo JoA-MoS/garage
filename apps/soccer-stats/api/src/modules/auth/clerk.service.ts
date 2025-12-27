@@ -44,16 +44,28 @@ export class ClerkService {
   private clerkClient;
 
   constructor() {
+    const secretKey = getClerkSecretKey();
+    if (!secretKey) {
+      throw new Error('CLERK_SECRET_KEY environment variable is not set');
+    }
+    
     this.clerkClient = createClerkClient({
-      secretKey: getClerkSecretKey(),
+      secretKey,
     });
   }
 
   async verifyToken(token: string): Promise<ClerkPayload> {
+    const secretKey = getClerkSecretKey();
+    const audience = getClerkJwtAudience();
+    
+    if (!secretKey) {
+      throw new Error('CLERK_SECRET_KEY environment variable is not set');
+    }
+    
     try {
       const payload = await verifyToken(token, {
-        secretKey: getClerkSecretKey() as string,
-        audience: getClerkJwtAudience(),
+        secretKey,
+        audience,
       });
       return payload as ClerkPayload;
     } catch (error) {
