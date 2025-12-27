@@ -7,6 +7,12 @@ export interface PublicConfig {
 }
 
 /**
+ * Default API URL used when VITE_API_URL is not set.
+ * This is typically used during local development.
+ */
+const DEFAULT_API_URL = 'http://localhost:3333';
+
+/**
  * Fetches public configuration from the API.
  * This function is called once at application initialization.
  *
@@ -14,7 +20,7 @@ export interface PublicConfig {
  * @throws Error if the configuration cannot be fetched or is invalid
  */
 export async function fetchPublicConfig(): Promise<PublicConfig> {
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3333';
+  const apiUrl = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
   const configUrl = `${apiUrl}/api/config/public`;
 
   try {
