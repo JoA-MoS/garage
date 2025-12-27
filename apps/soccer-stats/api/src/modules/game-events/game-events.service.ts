@@ -68,6 +68,22 @@ export class GameEventsService {
   ) {}
 
   /**
+   * Validates that at least one player reference is provided.
+   * Used for events that require player info (lineup, substitutions, etc.)
+   */
+  private ensurePlayerInfoProvided(
+    playerId?: string,
+    externalPlayerName?: string,
+    context = 'event'
+  ): void {
+    if (!playerId && !externalPlayerName) {
+      throw new BadRequestException(
+        `Either playerId or externalPlayerName must be provided for this ${context}`
+      );
+    }
+  }
+
+  /**
    * Publish a game event change to all subscribers
    */
   private async publishGameEvent(
@@ -215,6 +231,13 @@ export class GameEventsService {
     input: AddToLineupInput,
     recordedByUserId: string
   ): Promise<GameEvent> {
+    // Lineup entries require player info
+    this.ensurePlayerInfoProvided(
+      input.playerId,
+      input.externalPlayerName,
+      'lineup entry'
+    );
+
     const gameTeam = await this.getGameTeam(input.gameTeamId);
     const eventType = await this.getEventTypeByName('STARTING_LINEUP');
 
@@ -259,6 +282,13 @@ export class GameEventsService {
     input: AddToBenchInput,
     recordedByUserId: string
   ): Promise<GameEvent> {
+    // Bench entries require player info
+    this.ensurePlayerInfoProvided(
+      input.playerId,
+      input.externalPlayerName,
+      'bench entry'
+    );
+
     const gameTeam = await this.getGameTeam(input.gameTeamId);
     const eventType = await this.getEventTypeByName('BENCH');
 
@@ -340,6 +370,13 @@ export class GameEventsService {
     input: SubstitutePlayerInput,
     recordedByUserId: string
   ): Promise<GameEvent[]> {
+    // Player coming in must be identified
+    this.ensurePlayerInfoProvided(
+      input.playerInId,
+      input.externalPlayerInName,
+      'substitution (player in)'
+    );
+
     const gameTeam = await this.getGameTeam(input.gameTeamId);
 
     // Get the player being subbed out
