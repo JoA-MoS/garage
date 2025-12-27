@@ -50,10 +50,13 @@ function ErrorScreen({ error }: { error: string }) {
 }
 
 // Main App component that handles configuration loading
+// Configuration is fetched once on mount and cached in state
 function App() {
   const [config, setConfig] = useState<PublicConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Fetch configuration once on mount
+  // This ensures configuration is loaded before the app initializes
   useEffect(() => {
     fetchPublicConfig()
       .then((fetchedConfig) => {
@@ -63,7 +66,7 @@ function App() {
         console.error('Failed to load configuration:', err);
         setError(err.message || 'Failed to load configuration');
       });
-  }, []);
+  }, []); // Empty dependency array ensures this runs only once
 
   // Show loading state while configuration is being fetched
   if (error) {

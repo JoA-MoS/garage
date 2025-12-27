@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { InternalServerErrorException } from '@nestjs/common';
 
 import { ConfigController } from './config.controller';
 
@@ -33,19 +34,19 @@ describe('ConfigController', () => {
       });
     });
 
-    it('should throw an error when CLERK_PUBLISHABLE_KEY is not set', () => {
+    it('should throw InternalServerErrorException when CLERK_PUBLISHABLE_KEY is not set', () => {
       delete process.env['CLERK_PUBLISHABLE_KEY'];
 
       expect(() => controller.getPublicConfig()).toThrow(
-        'CLERK_PUBLISHABLE_KEY environment variable is not set'
+        InternalServerErrorException
       );
     });
 
-    it('should throw an error when CLERK_PUBLISHABLE_KEY is empty string', () => {
+    it('should throw InternalServerErrorException when CLERK_PUBLISHABLE_KEY is empty string', () => {
       process.env['CLERK_PUBLISHABLE_KEY'] = '';
 
       expect(() => controller.getPublicConfig()).toThrow(
-        'CLERK_PUBLISHABLE_KEY environment variable is not set'
+        InternalServerErrorException
       );
     });
   });
