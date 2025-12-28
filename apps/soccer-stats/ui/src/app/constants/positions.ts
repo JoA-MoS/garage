@@ -1,20 +1,98 @@
 // Formation positions for soccer
+// Traditional numbers based on classic 2-3-5 / 4-4-2 numbering conventions
 export const POSITIONS = {
-  GK: { code: 'GK', name: 'Goalkeeper', category: 'defense' },
-  LB: { code: 'LB', name: 'Left Back', category: 'defense' },
-  CB: { code: 'CB', name: 'Center Back', category: 'defense' },
-  RB: { code: 'RB', name: 'Right Back', category: 'defense' },
-  LWB: { code: 'LWB', name: 'Left Wing Back', category: 'defense' },
-  RWB: { code: 'RWB', name: 'Right Wing Back', category: 'defense' },
-  CDM: { code: 'CDM', name: 'Defensive Midfielder', category: 'midfield' },
-  CM: { code: 'CM', name: 'Central Midfielder', category: 'midfield' },
-  CAM: { code: 'CAM', name: 'Attacking Midfielder', category: 'midfield' },
-  LM: { code: 'LM', name: 'Left Midfielder', category: 'midfield' },
-  RM: { code: 'RM', name: 'Right Midfielder', category: 'midfield' },
-  LW: { code: 'LW', name: 'Left Wing', category: 'attack' },
-  RW: { code: 'RW', name: 'Right Wing', category: 'attack' },
-  CF: { code: 'CF', name: 'Center Forward', category: 'attack' },
-  ST: { code: 'ST', name: 'Striker', category: 'attack' },
+  // Goalkeeper
+  GK: {
+    code: 'GK',
+    name: 'Goalkeeper',
+    category: 'defense',
+    traditionalNumber: 1,
+  },
+
+  // Defenders (2-5)
+  RB: {
+    code: 'RB',
+    name: 'Right Back',
+    category: 'defense',
+    traditionalNumber: 2,
+  },
+  LB: {
+    code: 'LB',
+    name: 'Left Back',
+    category: 'defense',
+    traditionalNumber: 3,
+  },
+  CB: {
+    code: 'CB',
+    name: 'Center Back',
+    category: 'defense',
+    traditionalNumber: 4,
+  }, // or 5
+  RWB: {
+    code: 'RWB',
+    name: 'Right Wing Back',
+    category: 'defense',
+    traditionalNumber: 2,
+  },
+  LWB: {
+    code: 'LWB',
+    name: 'Left Wing Back',
+    category: 'defense',
+    traditionalNumber: 3,
+  },
+
+  // Midfielders (4, 6, 8, 10)
+  CDM: {
+    code: 'CDM',
+    name: 'Defensive Midfielder',
+    category: 'midfield',
+    traditionalNumber: 6,
+  },
+  CM: {
+    code: 'CM',
+    name: 'Central Midfielder',
+    category: 'midfield',
+    traditionalNumber: 8,
+  },
+  CAM: {
+    code: 'CAM',
+    name: 'Attacking Midfielder',
+    category: 'midfield',
+    traditionalNumber: 10,
+  },
+  LM: {
+    code: 'LM',
+    name: 'Left Midfielder',
+    category: 'midfield',
+    traditionalNumber: 11,
+  },
+  RM: {
+    code: 'RM',
+    name: 'Right Midfielder',
+    category: 'midfield',
+    traditionalNumber: 7,
+  },
+
+  // Attackers (7, 9, 10, 11)
+  RW: {
+    code: 'RW',
+    name: 'Right Wing',
+    category: 'attack',
+    traditionalNumber: 7,
+  },
+  LW: {
+    code: 'LW',
+    name: 'Left Wing',
+    category: 'attack',
+    traditionalNumber: 11,
+  },
+  CF: {
+    code: 'CF',
+    name: 'Center Forward',
+    category: 'attack',
+    traditionalNumber: 10,
+  },
+  ST: { code: 'ST', name: 'Striker', category: 'attack', traditionalNumber: 9 },
 } as const;
 
 export type PositionCode = keyof typeof POSITIONS;
@@ -110,6 +188,22 @@ export const FORMATIONS_9V9: Formation[] = [
       { position: 'RM', x: 80, y: 50 },
       { position: 'ST', x: 35, y: 75 },
       { position: 'ST', x: 65, y: 75 },
+    ],
+  },
+  {
+    name: '3-4-1',
+    code: '3-4-1',
+    playersPerTeam: 9,
+    positions: [
+      { position: 'GK', x: 50, y: 5 },
+      { position: 'LB', x: 20, y: 25 },
+      { position: 'CB', x: 50, y: 20 },
+      { position: 'RB', x: 80, y: 25 },
+      { position: 'LM', x: 15, y: 50 },
+      { position: 'CM', x: 38, y: 45 },
+      { position: 'CM', x: 62, y: 45 },
+      { position: 'RM', x: 85, y: 50 },
+      { position: 'ST', x: 50, y: 75 },
     ],
   },
   {

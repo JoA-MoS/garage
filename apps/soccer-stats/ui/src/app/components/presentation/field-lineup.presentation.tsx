@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import {
   Formation,
   FormationPosition,
@@ -50,13 +52,32 @@ export function FieldLineup({
   isHome = true,
   disabled = false,
 }: FieldLineupProps) {
-  // Map lineup players to their positions
-  const playersByPosition = new Map<string, LineupPlayer>();
-  lineup.forEach((player) => {
-    if (player.position) {
-      playersByPosition.set(player.position, player);
-    }
-  });
+  // Precompute player assignments for each formation position slot
+  // This handles formations with multiple slots sharing the same position code (e.g., two CBs)
+  const positionAssignments = useMemo(() => {
+    // Group lineup players by position code
+    const playersByPositionCode = new Map<string, LineupPlayer[]>();
+    lineup.forEach((player) => {
+      if (player.position) {
+        const existing = playersByPositionCode.get(player.position) || [];
+        existing.push(player);
+        playersByPositionCode.set(player.position, existing);
+      }
+    });
+
+    // Assign players to formation slots, distributing across same-position slots
+    const assignments = new Map<number, LineupPlayer | undefined>();
+    const positionIndex = new Map<string, number>();
+
+    formation.positions.forEach((pos, slotIndex) => {
+      const players = playersByPositionCode.get(pos.position) || [];
+      const playerIndex = positionIndex.get(pos.position) || 0;
+      assignments.set(slotIndex, players[playerIndex]);
+      positionIndex.set(pos.position, playerIndex + 1);
+    });
+
+    return assignments;
+  }, [formation.positions, lineup]);
 
   // For away team, flip the y coordinates
   const getAdjustedY = (y: number) => (isHome ? y : 100 - y);
@@ -186,7 +207,7 @@ export function FieldLineup({
 
         {/* Player positions */}
         {formation.positions.map((pos, index) => {
-          const assignedPlayer = playersByPosition.get(pos.position);
+          const assignedPlayer = positionAssignments.get(index);
           const adjustedY = getAdjustedY(pos.y);
           const positionInfo = POSITIONS[pos.position];
 
