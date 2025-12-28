@@ -5,10 +5,12 @@
 
 /**
  * Get environment variable value
- * This function is used instead of direct constants to allow for better testing
+ * This function is used instead of direct constants to allow for better testing.
+ * Uses explicit undefined check to differentiate between unset and empty string values.
  */
 function getEnv(key: string, defaultValue?: string): string | undefined {
-  return process.env[key] || defaultValue;
+  const value = process.env[key];
+  return value !== undefined ? value : defaultValue;
 }
 
 /**

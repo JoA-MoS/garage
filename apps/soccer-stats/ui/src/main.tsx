@@ -35,12 +35,12 @@ function LoadingScreen() {
 function ErrorScreen({ error }: { error: string }) {
   return (
     <div className="flex h-screen items-center justify-center bg-gray-50">
-      <div className="max-w-md rounded-lg bg-white p-8 shadow-lg">
+      <div className="max-w-md rounded-lg bg-white p-4 shadow-lg sm:p-6 md:p-8">
         <h1 className="mb-4 text-2xl font-bold text-red-600">Configuration Error</h1>
         <p className="mb-4 text-gray-700">{error}</p>
         <button
           onClick={() => window.location.reload()}
-          className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+          className="min-h-[44px] min-w-[44px] rounded bg-blue-600 px-4 py-3 text-white hover:bg-blue-700 active:bg-blue-800"
         >
           Retry
         </button>
@@ -63,7 +63,6 @@ function App() {
     
     if (buildTimeKey) {
       // Use build-time key if available (useful for debugging)
-      console.log('Using build-time VITE_CLERK_PUBLISHABLE_KEY for debugging');
       setConfig({ clerkPublishableKey: buildTimeKey });
       return;
     }
