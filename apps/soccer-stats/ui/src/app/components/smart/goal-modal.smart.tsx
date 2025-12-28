@@ -7,7 +7,7 @@ import {
   GET_GAME_BY_ID,
   GET_PLAYER_STATS,
 } from '../../services/games-graphql.service';
-import { LineupPlayer } from '../../generated/graphql';
+import { LineupPlayer, StatsTrackingLevel } from '../../generated/graphql';
 
 // Data for an existing goal being edited
 export interface EditGoalData {
@@ -38,6 +38,8 @@ interface GoalModalProps {
   onSuccess?: () => void;
   // Edit mode props
   editGoal?: EditGoalData;
+  // Stats tracking level - determines which fields to show
+  statsTrackingLevel?: StatsTrackingLevel | null;
 }
 
 /**
@@ -81,7 +83,12 @@ export const GoalModal = ({
   onClose,
   onSuccess,
   editGoal,
+  statsTrackingLevel,
 }: GoalModalProps) => {
+  // Determine which fields to show based on tracking level
+  const showScorerField = statsTrackingLevel !== StatsTrackingLevel.GoalsOnly;
+  const showAssisterField =
+    statsTrackingLevel === StatsTrackingLevel.Full || !statsTrackingLevel;
   const isEditMode = !!editGoal;
   const hasLineupPlayers = currentOnField.length > 0 || bench.length > 0;
 
@@ -340,8 +347,8 @@ export const GoalModal = ({
           </div>
         )}
 
-        {/* Entry Mode Toggle - only show if lineup players exist */}
-        {hasLineupPlayers && (
+        {/* Entry Mode Toggle - only show if lineup players exist and scorer field is shown */}
+        {showScorerField && hasLineupPlayers && (
           <div className="mb-4 flex rounded-lg bg-gray-100 p-1">
             <button
               type="button"
@@ -370,7 +377,26 @@ export const GoalModal = ({
 
         {/* Form */}
         <div className="space-y-4">
-          {entryMode === 'lineup' ? (
+          {/* Goals Only Mode - just show confirmation message */}
+          {!showScorerField && (
+            <div className="rounded-lg bg-gray-50 p-4 text-center text-sm text-gray-600">
+              Recording goal at{' '}
+              {String(isEditMode ? editMinute : defaultGameMinute).padStart(
+                2,
+                '0'
+              )}
+              :
+              {String(isEditMode ? editSecond : defaultGameSecond).padStart(
+                2,
+                '0'
+              )}
+              <p className="mt-1 text-xs text-gray-500">
+                Player tracking is disabled for this game
+              </p>
+            </div>
+          )}
+
+          {showScorerField && entryMode === 'lineup' ? (
             <>
               {/* Scorer - Lineup Mode */}
               <div>
@@ -407,33 +433,35 @@ export const GoalModal = ({
                 </select>
               </div>
 
-              {/* Assist - Lineup Mode */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Who assisted? (optional)
-                </label>
-                <select
-                  value={assisterId}
-                  onChange={(e) => setAssisterId(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">No assist / Select player...</option>
-                  {assistOptions.map((player) => {
-                    const id =
-                      player.playerId || player.externalPlayerName || '';
-                    const jersey = getJerseyNumber(player);
-                    const name = getPlayerDisplayName(player);
-                    const isBench = !player.isOnField;
-                    return (
-                      <option key={id} value={id}>
-                        {jersey ? `${jersey} ` : ''}
-                        {name}
-                        {isBench ? ' (bench)' : ''}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
+              {/* Assist - Lineup Mode (only if showAssisterField) */}
+              {showAssisterField && (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Who assisted? (optional)
+                  </label>
+                  <select
+                    value={assisterId}
+                    onChange={(e) => setAssisterId(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">No assist / Select player...</option>
+                    {assistOptions.map((player) => {
+                      const id =
+                        player.playerId || player.externalPlayerName || '';
+                      const jersey = getJerseyNumber(player);
+                      const name = getPlayerDisplayName(player);
+                      const isBench = !player.isOnField;
+                      return (
+                        <option key={id} value={id}>
+                          {jersey ? `${jersey} ` : ''}
+                          {name}
+                          {isBench ? ' (bench)' : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              )}
 
               {/* Show bench toggle - only when not in edit mode */}
               {!isEditMode && (
@@ -451,7 +479,7 @@ export const GoalModal = ({
                 </div>
               )}
             </>
-          ) : (
+          ) : showScorerField ? (
             <>
               {/* Quick Entry Mode */}
               <div>
@@ -474,24 +502,26 @@ export const GoalModal = ({
                 </p>
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Assister jersey number (optional)
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={quickAssisterNumber}
-                  onChange={(e) =>
-                    setQuickAssisterNumber(e.target.value.replace(/\D/g, ''))
-                  }
-                  placeholder="e.g. 7"
-                  className="w-full rounded-lg border border-gray-300 p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              {showAssisterField && (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Assister jersey number (optional)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={quickAssisterNumber}
+                    onChange={(e) =>
+                      setQuickAssisterNumber(e.target.value.replace(/\D/g, ''))
+                    }
+                    placeholder="e.g. 7"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
             </>
-          )}
+          ) : null}
         </div>
 
         {/* Error Display */}
@@ -514,7 +544,11 @@ export const GoalModal = ({
             type="button"
             onClick={handleSubmit}
             disabled={
-              (!isEditMode && entryMode === 'lineup' && !scorerId) || loading
+              (!isEditMode &&
+                showScorerField &&
+                entryMode === 'lineup' &&
+                !scorerId) ||
+              loading
             }
             className="flex-1 rounded-lg bg-green-600 px-4 py-2.5 font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-300"
           >

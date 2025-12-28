@@ -8,6 +8,7 @@ import { GameTeam } from '../../entities/game-team.entity';
 import { GameFormat } from '../../entities/game-format.entity';
 import { GameEvent } from '../../entities/game-event.entity';
 import { EventType } from '../../entities/event-type.entity';
+import { TeamConfiguration } from '../../entities/team-configuration.entity';
 
 import { CreateGameInput } from './dto/create-game.input';
 import { UpdateGameInput } from './dto/update-game.input';
@@ -26,7 +27,9 @@ export class GamesService {
     @InjectRepository(GameEvent)
     private readonly gameEventRepository: Repository<GameEvent>,
     @InjectRepository(EventType)
-    private readonly eventTypeRepository: Repository<EventType>
+    private readonly eventTypeRepository: Repository<EventType>,
+    @InjectRepository(TeamConfiguration)
+    private readonly teamConfigurationRepository: Repository<TeamConfiguration>
   ) {}
 
   async findAll(): Promise<Game[]> {
@@ -94,6 +97,11 @@ export class GamesService {
       );
     }
 
+    // Fetch home team's configuration for defaults
+    const homeTeamConfig = await this.teamConfigurationRepository.findOne({
+      where: { teamId: createGameInput.homeTeamId },
+    });
+
     // Verify that the game format exists
     const gameFormat = await this.gameFormatRepository.findOne({
       where: { id: createGameInput.gameFormatId },
@@ -105,18 +113,20 @@ export class GamesService {
       );
     }
 
-    // Create the game
+    // Create the game with inherited settings from team configuration
     const game = this.gameRepository.create({
       gameFormatId: createGameInput.gameFormatId,
+      statsTrackingLevel: homeTeamConfig?.statsTrackingLevel,
     });
 
     const savedGame = await this.gameRepository.save(game);
 
-    // Create GameTeam relationships
+    // Create GameTeam relationships with inherited formation for home team
     const homeGameTeam = this.gameTeamRepository.create({
       gameId: savedGame.id,
       teamId: createGameInput.homeTeamId,
       teamType: 'home',
+      formation: homeTeamConfig?.defaultFormation,
     });
 
     const awayGameTeam = this.gameTeamRepository.create({

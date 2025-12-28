@@ -81,6 +81,15 @@ export type CreateGameInput = {
   homeTeamId: Scalars['ID']['input'];
 };
 
+export type CreatePlayerInput = {
+  dateOfBirth?: InputMaybe<Scalars['DateTime']['input']>;
+  email: Scalars['String']['input'];
+  firstName: Scalars['String']['input'];
+  lastName: Scalars['String']['input'];
+  passwordHash: Scalars['String']['input'];
+  phone?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type CreateTeamInput = {
   awayPrimaryColor?: InputMaybe<Scalars['String']['input']>;
   awaySecondaryColor?: InputMaybe<Scalars['String']['input']>;
@@ -154,6 +163,8 @@ export type Game = {
   pausedAt?: Maybe<Scalars['DateTime']['output']>;
   scheduledStart?: Maybe<Scalars['DateTime']['output']>;
   secondHalfStart?: Maybe<Scalars['DateTime']['output']>;
+  /** Override for stats tracking level (null = use team default) */
+  statsTrackingLevel?: Maybe<StatsTrackingLevel>;
   status: GameStatus;
   updatedAt: Scalars['DateTime']['output'];
   venue?: Maybe<Scalars['String']['output']>;
@@ -319,6 +330,8 @@ export type Mutation = {
   updatePlayer: User;
   updatePlayerPosition: GameEvent;
   updateTeam: Team;
+  /** Update team configuration settings (defaults for stats tracking, formation, lineup) */
+  updateTeamConfiguration: TeamConfiguration;
   updateTeamMemberRole: TeamMember;
   updateUser: User;
   upgradeToManagedTeam: Team;
@@ -368,7 +381,7 @@ export type MutationCreateGameFormatArgs = {
 };
 
 export type MutationCreatePlayerArgs = {
-  createPlayerInput: CreateUserInput;
+  createPlayerInput: CreatePlayerInput;
 };
 
 export type MutationCreateTeamArgs = {
@@ -489,7 +502,7 @@ export type MutationUpdateGoalArgs = {
 
 export type MutationUpdatePlayerArgs = {
   id: Scalars['ID']['input'];
-  updatePlayerInput: UpdateUserInput;
+  updatePlayerInput: UpdatePlayerInput;
 };
 
 export type MutationUpdatePlayerPositionArgs = {
@@ -500,6 +513,11 @@ export type MutationUpdatePlayerPositionArgs = {
 export type MutationUpdateTeamArgs = {
   id: Scalars['ID']['input'];
   updateTeamInput: UpdateTeamInput;
+};
+
+export type MutationUpdateTeamConfigurationArgs = {
+  input: UpdateTeamConfigurationInput;
+  teamId: Scalars['ID']['input'];
 };
 
 export type MutationUpdateTeamMemberRoleArgs = {
@@ -745,6 +763,13 @@ export enum SourceType {
   Internal = 'INTERNAL',
 }
 
+/** Level of detail for tracking game statistics */
+export enum StatsTrackingLevel {
+  Full = 'FULL',
+  GoalsOnly = 'GOALS_ONLY',
+  ScorerOnly = 'SCORER_ONLY',
+}
+
 export type Subscription = {
   __typename?: 'Subscription';
   gameCreated: Game;
@@ -840,10 +865,11 @@ export type TeamConfiguration = {
   createdAt: Scalars['DateTime']['output'];
   defaultFormation: Scalars['String']['output'];
   defaultGameDuration: Scalars['Int']['output'];
-  defaultGameFormat: GameFormat;
-  defaultGameFormatId: Scalars['ID']['output'];
+  defaultGameFormat?: Maybe<GameFormat>;
+  defaultGameFormatId?: Maybe<Scalars['ID']['output']>;
   defaultPlayerCount: Scalars['Int']['output'];
   id: Scalars['ID']['output'];
+  statsTrackingLevel: StatsTrackingLevel;
   team: Team;
   teamId: Scalars['ID']['output'];
   updatedAt: Scalars['DateTime']['output'];
@@ -926,6 +952,8 @@ export type UpdateGameInput = {
   /** If true, resets the game to SCHEDULED status and clears all timestamps */
   resetGame?: InputMaybe<Scalars['Boolean']['input']>;
   secondHalfStart?: InputMaybe<Scalars['DateTime']['input']>;
+  /** Override stats tracking level for this game (null = use team default) */
+  statsTrackingLevel?: InputMaybe<StatsTrackingLevel>;
   status?: InputMaybe<GameStatus>;
 };
 
@@ -948,6 +976,23 @@ export type UpdateGoalInput = {
   gameSecond?: InputMaybe<Scalars['Int']['input']>;
   /** Player ID for managed team scorer */
   scorerId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+export type UpdatePlayerInput = {
+  dateOfBirth?: InputMaybe<Scalars['DateTime']['input']>;
+  email?: InputMaybe<Scalars['String']['input']>;
+  firstName?: InputMaybe<Scalars['String']['input']>;
+  lastName?: InputMaybe<Scalars['String']['input']>;
+  passwordHash?: InputMaybe<Scalars['String']['input']>;
+  phone?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type UpdateTeamConfigurationInput = {
+  defaultFormation?: InputMaybe<Scalars['String']['input']>;
+  defaultGameDuration?: InputMaybe<Scalars['Float']['input']>;
+  defaultGameFormatId?: InputMaybe<Scalars['ID']['input']>;
+  defaultPlayerCount?: InputMaybe<Scalars['Float']['input']>;
+  statsTrackingLevel?: InputMaybe<StatsTrackingLevel>;
 };
 
 export type UpdateTeamInput = {
@@ -1220,6 +1265,7 @@ export type GetGameByIdQuery = {
     secondHalfStart?: any | null;
     actualEnd?: any | null;
     pausedAt?: any | null;
+    statsTrackingLevel?: StatsTrackingLevel | null;
     notes?: string | null;
     venue?: string | null;
     weatherConditions?: string | null;
@@ -1873,13 +1919,14 @@ export type GetTeamByIdQuery = {
       defaultFormation: string;
       defaultGameDuration: number;
       defaultPlayerCount: number;
-      defaultGameFormat: {
+      statsTrackingLevel: StatsTrackingLevel;
+      defaultGameFormat?: {
         __typename?: 'GameFormat';
         id: string;
         name: string;
         playersPerTeam: number;
         durationMinutes: number;
-      };
+      } | null;
     } | null;
     gameTeams?: Array<{
       __typename?: 'GameTeam';
@@ -1945,6 +1992,31 @@ export type UpdateTeamMutation = {
     isManaged: boolean;
     createdAt: any;
     updatedAt: any;
+  };
+};
+
+export type UpdateTeamConfigurationMutationVariables = Exact<{
+  teamId: Scalars['ID']['input'];
+  input: UpdateTeamConfigurationInput;
+}>;
+
+export type UpdateTeamConfigurationMutation = {
+  __typename?: 'Mutation';
+  updateTeamConfiguration: {
+    __typename?: 'TeamConfiguration';
+    id: string;
+    teamId: string;
+    defaultFormation: string;
+    defaultGameDuration: number;
+    defaultPlayerCount: number;
+    statsTrackingLevel: StatsTrackingLevel;
+    defaultGameFormat?: {
+      __typename?: 'GameFormat';
+      id: string;
+      name: string;
+      playersPerTeam: number;
+      durationMinutes: number;
+    } | null;
   };
 };
 
@@ -2548,7 +2620,7 @@ export type RemoveCoachFromTeamMutation = {
 };
 
 export type CreateUserAccountMutationVariables = Exact<{
-  createPlayerInput: CreateUserInput;
+  createPlayerInput: CreatePlayerInput;
 }>;
 
 export type CreateUserAccountMutation = {
@@ -2589,7 +2661,7 @@ export type CreateCoachMutation = {
 
 export type UpdateUserAccountMutationVariables = Exact<{
   id: Scalars['ID']['input'];
-  updatePlayerInput: UpdateUserInput;
+  updatePlayerInput: UpdatePlayerInput;
 }>;
 
 export type UpdateUserAccountMutation = {
@@ -3281,6 +3353,10 @@ export const GetGameByIdDocument = {
                 },
                 { kind: 'Field', name: { kind: 'Name', value: 'actualEnd' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'pausedAt' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'statsTrackingLevel' },
+                },
                 { kind: 'Field', name: { kind: 'Name', value: 'notes' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'venue' } },
                 {
@@ -5785,6 +5861,10 @@ export const GetTeamByIdDocument = {
                       },
                       {
                         kind: 'Field',
+                        name: { kind: 'Name', value: 'statsTrackingLevel' },
+                      },
+                      {
+                        kind: 'Field',
                         name: { kind: 'Name', value: 'defaultGameFormat' },
                         selectionSet: {
                           kind: 'SelectionSet',
@@ -6030,6 +6110,115 @@ export const UpdateTeamDocument = {
     },
   ],
 } as unknown as DocumentNode<UpdateTeamMutation, UpdateTeamMutationVariables>;
+export const UpdateTeamConfigurationDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'mutation',
+      name: { kind: 'Name', value: 'UpdateTeamConfiguration' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'teamId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'input' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: {
+              kind: 'NamedType',
+              name: { kind: 'Name', value: 'UpdateTeamConfigurationInput' },
+            },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'updateTeamConfiguration' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'teamId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'teamId' },
+                },
+              },
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'input' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'input' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'teamId' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'defaultFormation' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'defaultGameDuration' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'defaultPlayerCount' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'statsTrackingLevel' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'defaultGameFormat' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'playersPerTeam' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'durationMinutes' },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  UpdateTeamConfigurationMutation,
+  UpdateTeamConfigurationMutationVariables
+>;
 export const CreateUnmanagedTeamDocument = {
   kind: 'Document',
   definitions: [
@@ -8188,7 +8377,7 @@ export const CreateUserAccountDocument = {
             kind: 'NonNullType',
             type: {
               kind: 'NamedType',
-              name: { kind: 'Name', value: 'CreateUserInput' },
+              name: { kind: 'Name', value: 'CreatePlayerInput' },
             },
           },
         },
@@ -8317,7 +8506,7 @@ export const UpdateUserAccountDocument = {
             kind: 'NonNullType',
             type: {
               kind: 'NamedType',
-              name: { kind: 'Name', value: 'UpdateUserInput' },
+              name: { kind: 'Name', value: 'UpdatePlayerInput' },
             },
           },
         },

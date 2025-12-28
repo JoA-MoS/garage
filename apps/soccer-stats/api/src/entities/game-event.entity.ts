@@ -134,6 +134,7 @@ export class GameEvent extends BaseEntity {
     const hasExternalPlayer = !!this.externalPlayerName;
 
     // Only enforce mutual exclusivity - can't have both types of player reference
+    // (null players allowed for GOALS_ONLY mode and opponent goals)
     if (hasInternalPlayer && hasExternalPlayer) {
       throw new Error('Cannot have both playerId and externalPlayerName');
     }

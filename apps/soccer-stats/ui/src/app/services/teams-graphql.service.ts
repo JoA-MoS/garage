@@ -1,4 +1,5 @@
 import { graphql } from '../generated/gql';
+import { StatsTrackingLevel } from '../generated/graphql';
 
 export const GET_TEAMS = graphql(/* GraphQL */ `
   query GetTeams {
@@ -75,6 +76,7 @@ export const GET_TEAM_BY_ID = graphql(/* GraphQL */ `
         defaultFormation
         defaultGameDuration
         defaultPlayerCount
+        statsTrackingLevel
         defaultGameFormat {
           id
           name
@@ -135,6 +137,28 @@ export const UPDATE_TEAM = graphql(/* GraphQL */ `
       isManaged
       createdAt
       updatedAt
+    }
+  }
+`);
+
+export const UPDATE_TEAM_CONFIGURATION = graphql(/* GraphQL */ `
+  mutation UpdateTeamConfiguration(
+    $teamId: ID!
+    $input: UpdateTeamConfigurationInput!
+  ) {
+    updateTeamConfiguration(teamId: $teamId, input: $input) {
+      id
+      teamId
+      defaultFormation
+      defaultGameDuration
+      defaultPlayerCount
+      statsTrackingLevel
+      defaultGameFormat {
+        id
+        name
+        playersPerTeam
+        durationMinutes
+      }
     }
   }
 `);
@@ -330,15 +354,31 @@ export interface TeamPlayer {
 
 export interface TeamConfiguration {
   id: string;
+  teamId?: string;
   defaultFormation: string;
   defaultGameDuration: number;
   defaultPlayerCount: number;
+  statsTrackingLevel: StatsTrackingLevel;
+  // TODO: Add defaultLineup when implementing lineup defaults feature
   defaultGameFormat: {
     id: string;
     name: string;
     playersPerTeam: number;
     durationMinutes: number;
   };
+}
+
+export interface UpdateTeamConfigurationInput {
+  defaultGameFormatId?: string;
+  defaultFormation?: string;
+  defaultGameDuration?: number;
+  defaultPlayerCount?: number;
+  statsTrackingLevel?: StatsTrackingLevel;
+  // TODO: Add defaultLineup when implementing lineup defaults feature
+}
+
+export interface UpdateTeamConfigurationResponse {
+  updateTeamConfiguration: TeamConfiguration;
 }
 
 export interface GameTeam {
@@ -402,3 +442,6 @@ export interface UpdateTeamResponse {
 export interface AddPlayerToTeamResponse {
   addPlayerToTeam: Team;
 }
+
+// Re-export from generated types for consumers
+export { StatsTrackingLevel };

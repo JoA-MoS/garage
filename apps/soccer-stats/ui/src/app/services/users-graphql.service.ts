@@ -503,7 +503,7 @@ export const REMOVE_COACH_FROM_TEAM = graphql(`
  * Legacy mutation for backward compatibility
  */
 export const CREATE_PLAYER = graphql(`
-  mutation CreateUserAccount($createPlayerInput: CreateUserInput!) {
+  mutation CreateUserAccount($createPlayerInput: CreatePlayerInput!) {
     createPlayer(createPlayerInput: $createPlayerInput) {
       id
       firstName
@@ -543,7 +543,7 @@ export const CREATE_COACH = graphql(`
  * Legacy mutation for backward compatibility
  */
 export const UPDATE_PLAYER = graphql(`
-  mutation UpdateUserAccount($id: ID!, $updatePlayerInput: UpdateUserInput!) {
+  mutation UpdateUserAccount($id: ID!, $updatePlayerInput: UpdatePlayerInput!) {
     updatePlayer(id: $id, updatePlayerInput: $updatePlayerInput) {
       id
       firstName
