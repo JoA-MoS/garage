@@ -43,6 +43,18 @@ jobs:
       - run: pnpm nx affected --target=lint --parallel --max-parallel=3
       - run: pnpm nx affected --target=test --parallel --max-parallel=2
       - run: pnpm nx affected --target=build --parallel --max-parallel=3
+      # Preview deployment on PRs
+      - name: Deploy (Preview)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: NX_CLOUD_DISTRIBUTED_EXECUTION=false pnpm nx affected --target=deploy --configuration=preview
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      # Production deployment on trunk
+      - name: Deploy (Production)
+        if: ${{ github.event_name != 'pull_request' }}
+        run: NX_CLOUD_DISTRIBUTED_EXECUTION=false pnpm nx affected --target=deploy --configuration=production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       - run: NX_CLOUD_DISTRIBUTED_EXECUTION=false pnpm nx affected --target=docker-build
       - run: NX_CLOUD_DISTRIBUTED_EXECUTION=false pnpm nx affected --target=release
       - run: pnpm nx-cloud stop-all-agents
