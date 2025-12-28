@@ -7,10 +7,19 @@ export interface PublicConfig {
 }
 
 /**
- * Default API URL used when VITE_API_URL is not set.
- * This is typically used during local development.
+ * Determines the API base URL.
+ * - In production: Uses same-origin (empty string) since Vercel rewrites /api/* to Railway
+ * - In development: Falls back to localhost:3333
+ * - Can be overridden with VITE_API_URL for custom setups
  */
-const DEFAULT_API_URL = 'http://localhost:3333';
+function getDefaultApiUrl(): string {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    // Production: use same-origin (Vercel rewrites handle routing to Railway)
+    return '';
+  }
+  // Development: use local API server
+  return 'http://localhost:3333';
+}
 
 /**
  * Fetches public configuration from the API.
@@ -20,7 +29,7 @@ const DEFAULT_API_URL = 'http://localhost:3333';
  * @throws Error if the configuration cannot be fetched or is invalid
  */
 export async function fetchPublicConfig(): Promise<PublicConfig> {
-  const apiUrl = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
+  const apiUrl = import.meta.env.VITE_API_URL || getDefaultApiUrl();
   const configUrl = `${apiUrl}/api/config/public`;
 
   try {
@@ -45,9 +54,10 @@ export async function fetchPublicConfig(): Promise<PublicConfig> {
   } catch (error) {
     // Re-throw with more context
     if (error instanceof Error) {
+      const apiLocation = apiUrl || 'same origin (via Vercel rewrites)';
       throw new Error(
         `Configuration fetch failed: ${error.message}. ` +
-        `Make sure the API is running at ${apiUrl}`
+        `Make sure the API is running at ${apiLocation}`
       );
     }
     throw error;
