@@ -1,4 +1,5 @@
 import { graphql } from '../generated/gql';
+import { StatsTrackingLevel } from '../generated/graphql';
 
 export const GET_TEAMS = graphql(/* GraphQL */ `
   query GetTeams {
@@ -351,8 +352,6 @@ export interface TeamPlayer {
   };
 }
 
-export type StatsTrackingLevel = 'FULL' | 'SCORER_ONLY' | 'GOALS_ONLY';
-
 export interface TeamConfiguration {
   id: string;
   teamId?: string;
@@ -443,3 +442,6 @@ export interface UpdateTeamResponse {
 export interface AddPlayerToTeamResponse {
   addPlayerToTeam: Team;
 }
+
+// Re-export from generated types for consumers
+export { StatsTrackingLevel };
