@@ -16,7 +16,7 @@ describe('Deploy Executor', () => {
     mockWorkspaceRoot,
     mockProjectRoot,
     '.vercel',
-    'output'
+    'output',
   );
 
   const options: DeployExecutorSchema = {
@@ -51,7 +51,7 @@ describe('Deploy Executor', () => {
     fs.mkdirSync(mockBuildOutputPath, { recursive: true });
     fs.writeFileSync(
       path.join(mockBuildOutputPath, 'index.html'),
-      '<html></html>'
+      '<html></html>',
     );
 
     // Ensure project root exists
@@ -78,7 +78,7 @@ describe('Deploy Executor', () => {
     expect(fs.existsSync(mockVercelOutputDir)).toBe(true);
     expect(fs.existsSync(path.join(mockVercelOutputDir, 'static'))).toBe(true);
     expect(fs.existsSync(path.join(mockVercelOutputDir, 'config.json'))).toBe(
-      true
+      true,
     );
   });
 
@@ -111,7 +111,7 @@ describe('Deploy Executor', () => {
       expect.arrayContaining(['deploy', '--prebuilt', '--yes']),
       expect.objectContaining({
         cwd: path.join(mockWorkspaceRoot, mockProjectRoot),
-      })
+      }),
     );
   });
 
@@ -121,7 +121,7 @@ describe('Deploy Executor', () => {
     expect(execFileSyncSpy).toHaveBeenCalledWith(
       'vercel',
       expect.arrayContaining(['deploy', '--prebuilt', '--prod', '--yes']),
-      expect.anything()
+      expect.anything(),
     );
   });
 
@@ -140,5 +140,35 @@ describe('Deploy Executor', () => {
     const output = await executor(options, noProjectContext);
 
     expect(output.success).toBe(false);
+  });
+
+  it('should include rewrites in config.json when provided', async () => {
+    const optionsWithRewrites = {
+      ...options,
+      rewrites: [
+        {
+          source: '/api/:path*',
+          destination: 'https://api.example.com/:path*',
+        },
+      ],
+    };
+
+    await executor(optionsWithRewrites, context);
+
+    const configPath = path.join(mockVercelOutputDir, 'config.json');
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+
+    expect(config.routes).toContainEqual({
+      src: '/api/:path*',
+      dest: 'https://api.example.com/:path*',
+    });
+    // Ensure rewrite comes before SPA fallback
+    const rewriteIndex = config.routes.findIndex(
+      (r: { src?: string }) => r.src === '/api/:path*',
+    );
+    const spaIndex = config.routes.findIndex(
+      (r: { src?: string }) => r.src === '/(.*)',
+    );
+    expect(rewriteIndex).toBeLessThan(spaIndex);
   });
 });

@@ -29,6 +29,24 @@
     "projectId": {
       "type": "string",
       "description": "Vercel project ID. Falls back to VERCEL_PROJECT_ID environment variable."
+    },
+    "rewrites": {
+      "type": "array",
+      "description": "URL rewrites for proxying requests (e.g., API routes to backend services).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "description": "Source path pattern (e.g., /api/:path*)"
+          },
+          "destination": {
+            "type": "string",
+            "description": "Destination URL (e.g., https://api.example.com/:path*)"
+          }
+        },
+        "required": ["source", "destination"]
+      }
     }
   },
   "required": ["outputPath"]
