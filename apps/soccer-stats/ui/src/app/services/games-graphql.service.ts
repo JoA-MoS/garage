@@ -62,6 +62,7 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
       secondHalfStart
       actualEnd
       pausedAt
+      statsTrackingLevel
       notes
       venue
       weatherConditions

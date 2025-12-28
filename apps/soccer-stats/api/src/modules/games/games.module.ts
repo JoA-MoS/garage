@@ -7,6 +7,7 @@ import { Team } from '../../entities/team.entity';
 import { User } from '../../entities/user.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { TeamPlayer } from '../../entities/team-player.entity';
+import { TeamConfiguration } from '../../entities/team-configuration.entity';
 import { EventType } from '../../entities/event-type.entity';
 import { GameEvent } from '../../entities/game-event.entity';
 import { GameFormat } from '../../entities/game-format.entity';
@@ -23,6 +24,7 @@ import { GamesService } from './games.service';
       User,
       GameTeam,
       TeamPlayer,
+      TeamConfiguration,
       EventType,
       GameEvent,
       GameFormat,

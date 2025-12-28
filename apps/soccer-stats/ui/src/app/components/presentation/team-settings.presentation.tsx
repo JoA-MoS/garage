@@ -7,16 +7,19 @@ import {
   UIGameFormat,
   UIFormation,
 } from '../types/ui.types';
+import { StatsTrackingLevel } from '../../generated/graphql';
 
 import {
   TeamFormFields,
   createTeamFormValues,
 } from './team-form-fields.presentation';
+import { StatsTrackingSelector } from './stats-tracking-selector.presentation';
 
 interface TeamSettingsPresentationProps {
   team?: UITeam;
   selectedGameFormat?: string;
   selectedFormation?: string;
+  statsTrackingLevel: StatsTrackingLevel;
   gameFormats: UIGameFormat[];
   formations: UIFormation[];
   positions: Array<{
@@ -30,6 +33,7 @@ interface TeamSettingsPresentationProps {
     basicInfo: UICreateTeamInput;
     gameFormat?: string;
     formation?: string;
+    statsTrackingLevel: StatsTrackingLevel;
     positions: Array<{
       id: string;
       name: string;
@@ -40,6 +44,7 @@ interface TeamSettingsPresentationProps {
   }) => void;
   onGameFormatSelect: (formatId: string) => void;
   onFormationSelect: (formationId: string) => void;
+  onStatsTrackingLevelChange: (level: StatsTrackingLevel) => void;
   onPositionUpdate: (
     positionId: string,
     updates: Partial<{
@@ -61,12 +66,14 @@ export const TeamSettingsPresentation = ({
   team,
   selectedGameFormat,
   selectedFormation,
+  statsTrackingLevel,
   gameFormats,
   formations,
   positions,
   onSaveSettings,
   onGameFormatSelect,
   onFormationSelect,
+  onStatsTrackingLevelChange,
   onPositionUpdate,
   onAddPosition,
   onRemovePosition,
@@ -99,6 +106,7 @@ export const TeamSettingsPresentation = ({
       basicInfo,
       gameFormat: selectedGameFormat,
       formation: selectedFormation,
+      statsTrackingLevel,
       positions,
     };
 
@@ -107,6 +115,7 @@ export const TeamSettingsPresentation = ({
     basicInfo,
     selectedGameFormat,
     selectedFormation,
+    statsTrackingLevel,
     positions,
     onSaveSettings,
   ]);
@@ -143,6 +152,20 @@ export const TeamSettingsPresentation = ({
             value={basicInfo}
             onChange={setBasicInfo}
             disabled={loading}
+          />
+        </div>
+
+        {/* Stats Tracking Level */}
+        <div className="space-y-6">
+          <h3 className="border-b border-gray-200 pb-2 text-lg font-medium text-gray-900">
+            Stats Tracking
+          </h3>
+          <StatsTrackingSelector
+            value={statsTrackingLevel}
+            onChange={onStatsTrackingLevelChange}
+            variant="grid"
+            disabled={loading}
+            description="Choose how detailed you want to track statistics during games. This setting will be the default for all new games."
           />
         </div>
 
