@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "version": 2,
+  "title": "Deploy to Vercel",
+  "description": "Deploy a static site to Vercel using the Build Output API",
+  "type": "object",
+  "properties": {
+    "outputPath": {
+      "type": "string",
+      "description": "Path to the build output directory (e.g., dist/apps/my-app)"
+    },
+    "projectName": {
+      "type": "string",
+      "description": "Vercel project name. Defaults to the Nx project name."
+    },
+    "prod": {
+      "type": "boolean",
+      "default": false,
+      "description": "Deploy to production. When false, creates a preview deployment."
+    },
+    "token": {
+      "type": "string",
+      "description": "Vercel API token. Falls back to VERCEL_TOKEN environment variable."
+    },
+    "org": {
+      "type": "string",
+      "description": "Vercel organization/team ID. Falls back to VERCEL_ORG_ID environment variable."
+    },
+    "projectId": {
+      "type": "string",
+      "description": "Vercel project ID. Falls back to VERCEL_PROJECT_ID environment variable."
+    }
+  },
+  "required": ["outputPath"]
+}

@@ -1,0 +1,9 @@
+{
+  "executors": {
+    "deploy": {
+      "implementation": "./src/executors/deploy/deploy",
+      "schema": "./src/executors/deploy/schema.json",
+      "description": "Deploy a static site to Vercel using the Build Output API"
+    }
+  }
+}
