@@ -1,3 +1,10 @@
+export interface VercelRewrite {
+  /** Source path pattern (e.g., /api/:path*) */
+  source: string;
+  /** Destination URL (e.g., https://api.example.com/:path*) */
+  destination: string;
+}
+
 export interface DeployExecutorSchema {
   /** Path to the build output directory (e.g., dist/apps/my-app) */
   outputPath: string;
@@ -11,4 +18,6 @@ export interface DeployExecutorSchema {
   org?: string;
   /** Vercel project ID. Falls back to VERCEL_PROJECT_ID environment variable. */
   projectId?: string;
+  /** URL rewrites for proxying requests (e.g., API routes to backend services) */
+  rewrites?: VercelRewrite[];
 }

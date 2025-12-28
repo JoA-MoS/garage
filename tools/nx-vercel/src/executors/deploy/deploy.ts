@@ -4,21 +4,32 @@ import * as path from 'path';
 
 import { ExecutorContext, logger } from '@nx/devkit';
 
-import { DeployExecutorSchema } from './schema';
+import { DeployExecutorSchema, VercelRewrite } from './schema';
 
 /**
  * Vercel Build Output API config for SPA routing.
  * Routes all requests to index.html except for static assets.
+ * Rewrites are applied before the SPA fallback for API proxying.
  */
-function createVercelConfig(): object {
+function createVercelConfig(rewrites?: VercelRewrite[]): object {
+  const routes: object[] = [
+    // Serve static files directly
+    { handle: 'filesystem' },
+  ];
+
+  // Add rewrites before SPA fallback (for API proxying, etc.)
+  if (rewrites && rewrites.length > 0) {
+    for (const rewrite of rewrites) {
+      routes.push({ src: rewrite.source, dest: rewrite.destination });
+    }
+  }
+
+  // SPA fallback: route all other requests to index.html
+  routes.push({ src: '/(.*)', dest: '/index.html' });
+
   return {
     version: 3,
-    routes: [
-      // Serve static files directly
-      { handle: 'filesystem' },
-      // SPA fallback: route all other requests to index.html
-      { src: '/(.*)', dest: '/index.html' },
-    ],
+    routes,
   };
 }
 
@@ -28,7 +39,7 @@ function createVercelConfig(): object {
  */
 export default async function runExecutor(
   options: DeployExecutorSchema,
-  context: ExecutorContext
+  context: ExecutorContext,
 ): Promise<{ success: boolean }> {
   const { outputPath, prod = false } = options;
 
@@ -59,7 +70,9 @@ export default async function runExecutor(
   // Validate build output exists
   if (!fs.existsSync(buildOutputPath)) {
     logger.error(`Build output not found at: ${buildOutputPath}`);
-    logger.error('Make sure to run the build target first (dependsOn: ["build"])');
+    logger.error(
+      'Make sure to run the build target first (dependsOn: ["build"])',
+    );
     return { success: false };
   }
 
@@ -76,8 +89,12 @@ export default async function runExecutor(
 
     // Create config.json for Vercel Build Output API
     const configPath = path.join(vercelOutputDir, 'config.json');
-    fs.writeFileSync(configPath, JSON.stringify(createVercelConfig(), null, 2));
+    const vercelConfig = createVercelConfig(options.rewrites);
+    fs.writeFileSync(configPath, JSON.stringify(vercelConfig, null, 2));
     logger.info('Created .vercel/output/config.json');
+    if (options.rewrites && options.rewrites.length > 0) {
+      logger.info(`  Configured ${options.rewrites.length} rewrite(s)`);
+    }
 
     // Build vercel deploy command arguments
     const vercelArgs = ['deploy', '--prebuilt'];
@@ -105,7 +122,8 @@ export default async function runExecutor(
         ...process.env,
         // Pass through Vercel env vars if set
         VERCEL_ORG_ID: options.org || process.env['VERCEL_ORG_ID'],
-        VERCEL_PROJECT_ID: options.projectId || process.env['VERCEL_PROJECT_ID'],
+        VERCEL_PROJECT_ID:
+          options.projectId || process.env['VERCEL_PROJECT_ID'],
       },
     });
 
