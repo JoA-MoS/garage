@@ -13,6 +13,7 @@ import type { PubSub } from 'graphql-subscriptions';
 
 import { Team } from '../../entities/team.entity';
 import { TeamMember, TeamRole } from '../../entities/team-member.entity';
+import { TeamConfiguration } from '../../entities/team-configuration.entity';
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
 import { TeamAccessGuard } from '../auth/team-access.guard';
 import { RequireTeamRole } from '../auth/require-team-role.decorator';
@@ -31,6 +32,7 @@ import { CreateTeamInput } from './dto/create-team.input';
 import { UpdateTeamInput } from './dto/update-team.input';
 import { AddPlayerToTeamInput } from './dto/add-player-to-team.input';
 import { UpgradeTeamInput } from './dto/upgrade-team.input';
+import { UpdateTeamConfigurationInput } from './dto/update-team-configuration.input';
 
 @Resolver(() => Team)
 export class TeamsResolver {
@@ -129,6 +131,14 @@ export class TeamsResolver {
     return this.teamMembersService.findTeamOwner(team.id);
   }
 
+  @ResolveField(() => TeamConfiguration, {
+    nullable: true,
+    description: 'Team configuration settings (defaults for games)',
+  })
+  teamConfiguration(@Parent() team: Team): Promise<TeamConfiguration | null> {
+    return this.teamsService.getTeamConfiguration(team.id);
+  }
+
   @Mutation(() => Team)
   @UseGuards(ClerkAuthGuard)
   async createTeam(
@@ -223,6 +233,19 @@ export class TeamsResolver {
       clerkUser.id,
       internalUserId
     );
+  }
+
+  @Mutation(() => TeamConfiguration, {
+    description:
+      'Update team configuration settings (defaults for stats tracking, formation, lineup)',
+  })
+  @UseGuards(ClerkAuthGuard, TeamAccessGuard)
+  @RequireTeamRole([TeamRole.OWNER, TeamRole.MANAGER], { teamIdArg: 'teamId' })
+  async updateTeamConfiguration(
+    @Args('teamId', { type: () => ID }) teamId: string,
+    @Args('input') input: UpdateTeamConfigurationInput
+  ): Promise<TeamConfiguration> {
+    return this.teamsService.updateTeamConfiguration(teamId, input);
   }
 
   @Subscription(() => Team, {

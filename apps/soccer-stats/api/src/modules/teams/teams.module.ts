@@ -27,9 +27,9 @@ import { TeamsService } from './teams.service';
       GameTeam,
     ]),
     forwardRef(() => PlayersModule),
-    TeamMembersModule,
+    forwardRef(() => TeamMembersModule),
     forwardRef(() => UsersModule),
-    AuthModule,
+    forwardRef(() => AuthModule),
   ],
   providers: [
     TeamsResolver,
