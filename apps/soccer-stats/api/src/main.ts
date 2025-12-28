@@ -7,6 +7,7 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from './app/app.module';
+import { getPort, getFrontendUrl, isProduction } from './app/environment';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -24,11 +25,7 @@ async function bootstrap() {
   // Supports:
   // - Comma-separated explicit origins (e.g., "http://localhost:4200,https://example.com")
   // - Wildcard patterns using regex (e.g., "*.joamos-projects.vercel.app")
-  const frontendUrls = (
-    process.env['FRONTEND_URL'] || 'http://localhost:4200,http://localhost:3333'
-  )
-    .split(',')
-    .map((origin) => origin.trim());
+  const frontendUrls = getFrontendUrl().split(',').map((origin) => origin.trim());
 
   // Convert wildcard patterns to regex, keep explicit origins as strings
   const allowedOrigins: (string | RegExp)[] = frontendUrls.map((origin) => {
@@ -73,16 +70,15 @@ async function bootstrap() {
     credentials: true,
   });
 
-  const port = process.env['PORT'] || 3333;
+  const port = getPort();
   await app.listen(port);
 
   const logger = new Logger('Bootstrap');
-  const isProduction = process.env['NODE_ENV'] === 'production';
 
   logger.log(`Soccer Stats API running on port ${port}`);
   logger.log(`GraphQL endpoint: /graphql`);
 
-  if (!isProduction) {
+  if (!isProduction()) {
     logger.log(`Local URL: http://localhost:${port}/${globalPrefix}`);
     logger.log(`GraphQL Playground: http://localhost:${port}/graphql`);
   }
