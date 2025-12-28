@@ -118,15 +118,23 @@ export class GameEvent extends BaseEntity {
   @OneToMany(() => GameEvent, (gameEvent) => gameEvent.parentEvent)
   childEvents: GameEvent[];
 
+  /**
+   * Validates player reference constraints.
+   * - Cannot have BOTH playerId and externalPlayerName (ambiguous reference)
+   * - Having neither is allowed for event types like GOAL where scorer may be unknown
+   * - Service layer enforces player requirements for events that need them
+   *   (STARTING_LINEUP, BENCH, SUBSTITUTION_IN, SUBSTITUTION_OUT).
+   *   POSITION_SWAP events instead reference existing player events and are
+   *   validated separately when swapping positions.
+   */
   @BeforeInsert()
   @BeforeUpdate()
   validatePlayerReference() {
     const hasInternalPlayer = !!this.playerId;
     const hasExternalPlayer = !!this.externalPlayerName;
 
-    // Allow null players for GOALS_ONLY mode (no player attribution)
-    // The service layer handles validation when player info is required
-
+    // Only enforce mutual exclusivity - can't have both types of player reference
+    // (null players allowed for GOALS_ONLY mode and opponent goals)
     if (hasInternalPlayer && hasExternalPlayer) {
       throw new Error('Cannot have both playerId and externalPlayerName');
     }
