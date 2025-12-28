@@ -12,6 +12,7 @@ import { Team, SourceType } from '../../entities/team.entity';
 import { User } from '../../entities/user.entity';
 import { TeamPlayer } from '../../entities/team-player.entity';
 import { GameTeam } from '../../entities/game-team.entity';
+import { TeamConfiguration } from '../../entities/team-configuration.entity';
 import { TeamRole } from '../../entities/team-member.entity';
 import { TeamMembersService } from '../team-members/team-members.service';
 
@@ -19,6 +20,7 @@ import { CreateTeamInput } from './dto/create-team.input';
 import { UpdateTeamInput } from './dto/update-team.input';
 import { AddPlayerToTeamInput } from './dto/add-player-to-team.input';
 import { TeamPlayerWithJersey } from './dto/team-player-with-jersey.dto';
+import { UpdateTeamConfigurationInput } from './dto/update-team-configuration.input';
 
 @Injectable()
 export class TeamsService {
@@ -29,6 +31,8 @@ export class TeamsService {
     private readonly teamPlayerRepository: Repository<TeamPlayer>,
     @InjectRepository(GameTeam)
     private readonly gameTeamRepository: Repository<GameTeam>,
+    @InjectRepository(TeamConfiguration)
+    private readonly teamConfigurationRepository: Repository<TeamConfiguration>,
     @Inject(forwardRef(() => TeamMembersService))
     private readonly teamMembersService: TeamMembersService
   ) {}
@@ -441,5 +445,48 @@ export class TeamsService {
     }
 
     return updatedTeams;
+  }
+
+  // Team Configuration methods
+
+  /**
+   * Get the configuration for a team. Returns null if no configuration exists.
+   */
+  async getTeamConfiguration(
+    teamId: string
+  ): Promise<TeamConfiguration | null> {
+    return this.teamConfigurationRepository.findOne({
+      where: { teamId },
+    });
+  }
+
+  /**
+   * Update or create team configuration settings.
+   * If no configuration exists for the team, a new one is created.
+   */
+  async updateTeamConfiguration(
+    teamId: string,
+    input: UpdateTeamConfigurationInput
+  ): Promise<TeamConfiguration> {
+    // Verify team exists
+    await this.findOne(teamId);
+
+    // Find existing configuration
+    let config = await this.teamConfigurationRepository.findOne({
+      where: { teamId },
+    });
+
+    if (config) {
+      // Update existing configuration
+      Object.assign(config, input);
+    } else {
+      // Create new configuration
+      config = this.teamConfigurationRepository.create({
+        teamId,
+        ...input,
+      });
+    }
+
+    return this.teamConfigurationRepository.save(config);
   }
 }

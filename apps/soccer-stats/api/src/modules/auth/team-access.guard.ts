@@ -9,6 +9,7 @@ import { GqlExecutionContext } from '@nestjs/graphql';
 import { Reflector } from '@nestjs/core';
 
 import { TeamMembersService } from '../team-members/team-members.service';
+import { UsersService } from '../users/users.service';
 import { TeamRole } from '../../entities/team-member.entity';
 
 import {
@@ -49,7 +50,8 @@ export class TeamAccessGuard implements CanActivate {
 
   constructor(
     private readonly reflector: Reflector,
-    private readonly teamMembersService: TeamMembersService
+    private readonly teamMembersService: TeamMembersService,
+    private readonly usersService: UsersService
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -68,8 +70,8 @@ export class TeamAccessGuard implements CanActivate {
     const args = gqlContext.getArgs();
 
     // Get the authenticated user from the request (set by ClerkAuthGuard)
-    const user: ClerkUser = req.user;
-    if (!user) {
+    const clerkUser: ClerkUser = req.user;
+    if (!clerkUser) {
       throw new ForbiddenException('User not authenticated');
     }
 
@@ -84,14 +86,28 @@ export class TeamAccessGuard implements CanActivate {
       throw new ForbiddenException('Team ID not found in request');
     }
 
-    // Get user's role in the team
+    // Look up internal user by email (Clerk ID != internal UUID)
+    const email = clerkUser.emailAddresses?.[0]?.emailAddress;
+    if (!email) {
+      throw new ForbiddenException('User email not found');
+    }
+
+    const internalUser = await this.usersService.findByEmail(email);
+    if (!internalUser) {
+      this.logger.debug(`No internal user found for email ${email}`);
+      throw new ForbiddenException('User not registered in the system');
+    }
+
+    // Get user's role in the team using internal user ID
     const membership = await this.teamMembersService.findUserRoleInTeam(
-      user.id,
+      internalUser.id,
       teamId
     );
 
     if (!membership) {
-      this.logger.debug(`User ${user.id} is not a member of team ${teamId}`);
+      this.logger.debug(
+        `User ${internalUser.id} is not a member of team ${teamId}`
+      );
       throw new ForbiddenException('You are not a member of this team');
     }
 
@@ -104,7 +120,7 @@ export class TeamAccessGuard implements CanActivate {
 
     if (!hasRequiredRole) {
       this.logger.debug(
-        `User ${user.id} with role ${
+        `User ${internalUser.id} with role ${
           membership.role
         } does not have required roles: ${metadata.roles.join(', ')}`
       );
@@ -116,7 +132,7 @@ export class TeamAccessGuard implements CanActivate {
     }
 
     this.logger.debug(
-      `User ${user.id} with role ${membership.role} granted access to team ${teamId}`
+      `User ${internalUser.id} with role ${membership.role} granted access to team ${teamId}`
     );
 
     return true;

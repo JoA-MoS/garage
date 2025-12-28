@@ -5,6 +5,7 @@ import { BaseEntity } from './base.entity';
 import { GameTeam } from './game-team.entity';
 import { GameEvent } from './game-event.entity';
 import { GameFormat } from './game-format.entity';
+import { StatsTrackingLevel } from './team-configuration.entity';
 
 export enum GameStatus {
   SCHEDULED = 'SCHEDULED',
@@ -78,6 +79,17 @@ export class Game extends BaseEntity {
   })
   @Column({ type: 'timestamp', nullable: true })
   pausedAt?: Date;
+
+  @Field(() => StatsTrackingLevel, {
+    nullable: true,
+    description: 'Override for stats tracking level (null = use team default)',
+  })
+  @Column({
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  statsTrackingLevel?: StatsTrackingLevel;
 
   @Field(() => GameFormat)
   @ManyToOne(() => GameFormat, (gameFormat) => gameFormat.games, {

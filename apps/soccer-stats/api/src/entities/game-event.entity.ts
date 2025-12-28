@@ -124,9 +124,8 @@ export class GameEvent extends BaseEntity {
     const hasInternalPlayer = !!this.playerId;
     const hasExternalPlayer = !!this.externalPlayerName;
 
-    if (!hasInternalPlayer && !hasExternalPlayer) {
-      throw new Error('Either playerId or externalPlayerName must be provided');
-    }
+    // Allow null players for GOALS_ONLY mode (no player attribution)
+    // The service layer handles validation when player info is required
 
     if (hasInternalPlayer && hasExternalPlayer) {
       throw new Error('Cannot have both playerId and externalPlayerName');

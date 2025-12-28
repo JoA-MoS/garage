@@ -20,8 +20,9 @@ import {
   GET_DEPENDENT_EVENTS,
   DELETE_EVENT_WITH_CASCADE,
   RESOLVE_EVENT_CONFLICT,
+  RECORD_GOAL,
 } from '../services/games-graphql.service';
-import { GameStatus } from '../generated/graphql';
+import { GameStatus, StatsTrackingLevel } from '../generated/graphql';
 import { GameLineupTab } from '../components/smart/game-lineup-tab.smart';
 import { GoalModal, EditGoalData } from '../components/smart/goal-modal.smart';
 import { SubstitutionModal } from '../components/smart/substitution-modal.smart';
@@ -32,6 +33,7 @@ import {
 } from '../components/presentation/event-card.presentation';
 import { CascadeDeleteModal } from '../components/presentation/cascade-delete-modal.presentation';
 import { ConflictResolutionModal } from '../components/presentation/conflict-resolution-modal.presentation';
+import { StatsTrackingSelector } from '../components/presentation/stats-tracking-selector.presentation';
 import { useGameEventSubscription } from '../hooks/use-game-event-subscription';
 
 // Fragment for writing GameEvent to cache
@@ -150,6 +152,35 @@ export const GamePage = () => {
   const [updateGame, { loading: updatingGame }] = useMutation(UPDATE_GAME, {
     refetchQueries: [{ query: GET_GAME_BY_ID, variables: { id: gameId } }],
   });
+
+  // Direct goal recording for GOALS_ONLY mode (skips modal)
+  const [recordGoalDirect, { loading: recordingGoal }] = useMutation(
+    RECORD_GOAL,
+    {
+      refetchQueries: () => {
+        const queries: Array<{
+          query: typeof GET_GAME_BY_ID | typeof GET_PLAYER_STATS;
+          variables: object;
+        }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
+        const game = data?.game;
+        const homeTeam = game?.gameTeams?.find((gt) => gt.teamType === 'home');
+        const awayTeam = game?.gameTeams?.find((gt) => gt.teamType === 'away');
+        if (homeTeam) {
+          queries.push({
+            query: GET_PLAYER_STATS,
+            variables: { input: { teamId: homeTeam.team.id, gameId } },
+          });
+        }
+        if (awayTeam) {
+          queries.push({
+            query: GET_PLAYER_STATS,
+            variables: { input: { teamId: awayTeam.team.id, gameId } },
+          });
+        }
+        return queries;
+      },
+    }
+  );
 
   const [deleteGoal, { loading: deletingGoal }] = useMutation(DELETE_GOAL, {
     refetchQueries: () => {
@@ -807,6 +838,53 @@ export const GamePage = () => {
     }
   };
 
+  // Change stats tracking level for this game
+  const handleStatsTrackingChange = async (level: StatsTrackingLevel) => {
+    try {
+      await updateGame({
+        variables: {
+          id: gameId!,
+          updateGameInput: {
+            statsTrackingLevel: level,
+          },
+        },
+      });
+      setShowGameMenu(false);
+    } catch (err) {
+      console.error('Failed to update stats tracking level:', err);
+    }
+  };
+
+  // Handle goal button click - skip modal for GOALS_ONLY mode
+  const handleGoalClick = async (team: 'home' | 'away') => {
+    const game = data?.game;
+    if (game?.statsTrackingLevel === StatsTrackingLevel.GoalsOnly) {
+      // Skip modal - record goal directly without player attribution
+      const gameTeam = game?.gameTeams?.find((gt) => gt.teamType === team);
+      if (!gameTeam) return;
+
+      const minute = Math.floor(elapsedSeconds / 60);
+      const second = elapsedSeconds % 60;
+
+      try {
+        await recordGoalDirect({
+          variables: {
+            input: {
+              gameTeamId: gameTeam.id,
+              gameMinute: minute,
+              gameSecond: second,
+            },
+          },
+        });
+      } catch (err) {
+        console.error('Failed to record goal:', err);
+      }
+    } else {
+      // Open modal for FULL or SCORER_ONLY modes
+      setGoalModalTeam(team);
+    }
+  };
+
   // Track which half the timer was initialized for
   const timerHalfRef = useRef<'first' | 'second' | null>(null);
 
@@ -1080,6 +1158,19 @@ export const GamePage = () => {
                         )}
                       </button>
                     )}
+
+                    {/* Stats Tracking Level */}
+                    <div className="border-t border-gray-100 py-2">
+                      <StatsTrackingSelector
+                        value={
+                          game.statsTrackingLevel || StatsTrackingLevel.Full
+                        }
+                        onChange={handleStatsTrackingChange}
+                        variant="compact"
+                        disabled={updatingGame}
+                        label="Stats Tracking"
+                      />
+                    </div>
 
                     {/* Reset Game */}
                     {!showResetConfirm ? (
@@ -1387,8 +1478,9 @@ export const GamePage = () => {
             {isActivePlay && (
               <div className="mt-2 flex justify-center gap-2">
                 <button
-                  onClick={() => setGoalModalTeam('home')}
-                  className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-200"
+                  onClick={() => handleGoalClick('home')}
+                  disabled={recordingGoal}
+                  className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
                   type="button"
                 >
                   <svg
@@ -1450,8 +1542,9 @@ export const GamePage = () => {
             {isActivePlay && (
               <div className="mt-2 flex justify-center gap-2">
                 <button
-                  onClick={() => setGoalModalTeam('away')}
-                  className="inline-flex items-center gap-1 rounded-lg bg-red-100 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-200"
+                  onClick={() => handleGoalClick('away')}
+                  disabled={recordingGoal}
+                  className="inline-flex items-center gap-1 rounded-lg bg-red-100 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50"
                   type="button"
                 >
                   <svg
@@ -2086,6 +2179,7 @@ export const GamePage = () => {
           gameMinute={gameMinute}
           gameSecond={gameSecond}
           onClose={() => setGoalModalTeam(null)}
+          statsTrackingLevel={game?.statsTrackingLevel}
         />
       )}
 
@@ -2123,6 +2217,7 @@ export const GamePage = () => {
           gameSecond={gameSecond}
           onClose={() => setEditGoalData(null)}
           editGoal={editGoalData.goal}
+          statsTrackingLevel={game?.statsTrackingLevel}
         />
       )}
 

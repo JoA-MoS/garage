@@ -5,10 +5,13 @@ import { useParams, useNavigate } from 'react-router';
 import {
   GET_TEAM_BY_ID,
   UPDATE_TEAM,
+  UPDATE_TEAM_CONFIGURATION,
   TeamResponse,
   UpdateTeamResponse,
+  UpdateTeamConfigurationResponse,
   GET_TEAMS,
 } from '../../services/teams-graphql.service';
+import { StatsTrackingLevel } from '../../generated/graphql';
 import { TeamSettingsPresentation } from '../presentation/team-settings.presentation';
 import { UICreateTeamInput, UIPosition } from '../types/ui.types';
 
@@ -18,6 +21,8 @@ export const TeamSettingsSmart = () => {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [statsTrackingLevel, setStatsTrackingLevel] =
+    useState<StatsTrackingLevel>(StatsTrackingLevel.Full);
 
   // Team configuration manager
   const {
@@ -50,27 +55,34 @@ export const TeamSettingsSmart = () => {
       refetchQueries: [{ query: GET_TEAMS }],
     });
 
+  // Update team configuration mutation
+  const [
+    updateTeamConfiguration,
+    { loading: configLoading, error: configError },
+  ] = useMutation<UpdateTeamConfigurationResponse>(UPDATE_TEAM_CONFIGURATION, {
+    refetchQueries: [{ query: GET_TEAM_BY_ID, variables: { id: teamId } }],
+  });
+
   // Initialize configuration from team data when loaded
   useEffect(() => {
     if (teamData?.team) {
       const team = teamData.team;
+      const config = team.teamConfiguration;
 
-      // TODO: These fields may have been moved to a separate team configuration entity
-      // Set game format if it exists
-      // if (team.gameFormat) {
-      //   selectGameFormat(team.gameFormat);
-      // }
+      // Initialize stats tracking level from team configuration
+      if (config?.statsTrackingLevel) {
+        setStatsTrackingLevel(config.statsTrackingLevel);
+      }
 
-      // Set formation if it exists
-      // if (team.formation) {
-      //   selectFormation(team.formation);
-      // }
+      // Initialize game format from configuration
+      if (config?.defaultGameFormat?.id) {
+        selectGameFormat(config.defaultGameFormat.id);
+      }
 
-      // Set custom positions if they exist
-      // if (team.customPositions && team.customPositions.length > 0) {
-      //   // Set positions directly - need to update the configuration manager to support this
-      //   // For now, we'll handle this in the save handler
-      // }
+      // Initialize formation from configuration
+      if (config?.defaultFormation) {
+        selectFormation(config.defaultFormation);
+      }
     }
   }, [teamData, selectGameFormat, selectFormation]);
 
@@ -79,6 +91,7 @@ export const TeamSettingsSmart = () => {
       basicInfo: UICreateTeamInput;
       gameFormat?: string;
       formation?: string;
+      statsTrackingLevel: StatsTrackingLevel;
       positions: Array<{
         id: string;
         name: string;
@@ -91,7 +104,7 @@ export const TeamSettingsSmart = () => {
         // Map UI data to service format
         const serviceTeamData = settingsData.basicInfo;
 
-        // Add configuration data
+        // Add configuration data for team update
         const updateData = {
           ...serviceTeamData,
           gameFormat: settingsData.gameFormat,
@@ -105,10 +118,24 @@ export const TeamSettingsSmart = () => {
           })),
         };
 
+        // Update team basic info
         await updateTeam({
           variables: {
             id: teamId,
             updateTeamInput: updateData,
+          },
+        });
+
+        // Update team configuration (stats tracking, formation, etc.)
+        // Convert empty strings to undefined to avoid UUID parse errors
+        await updateTeamConfiguration({
+          variables: {
+            teamId,
+            input: {
+              statsTrackingLevel: settingsData.statsTrackingLevel,
+              defaultFormation: settingsData.formation || undefined,
+              defaultGameFormatId: settingsData.gameFormat || undefined,
+            },
           },
         });
 
@@ -121,7 +148,7 @@ export const TeamSettingsSmart = () => {
         console.error('Error saving team settings:', err);
       }
     },
-    [teamId, updateTeam]
+    [teamId, updateTeam, updateTeamConfiguration]
   );
 
   // Show loading state for fetching
@@ -166,23 +193,29 @@ export const TeamSettingsSmart = () => {
     addPosition(newPosition);
   };
 
+  // Combine loading and error states
+  const isLoading = updateLoading || configLoading;
+  const errorMessage = updateError?.message || configError?.message;
+
   return (
     <div className="mx-auto max-w-6xl p-6">
       <TeamSettingsPresentation
         team={team as any} // TODO: Fix type when migrating to new architecture
         selectedGameFormat={selectedGameFormat}
         selectedFormation={selectedFormation}
+        statsTrackingLevel={statsTrackingLevel}
         gameFormats={gameFormats}
         formations={formations}
         positions={positions}
         onSaveSettings={handleSaveSettings}
         onGameFormatSelect={selectGameFormat}
         onFormationSelect={selectFormation}
+        onStatsTrackingLevelChange={setStatsTrackingLevel}
         onPositionUpdate={updatePosition}
         onAddPosition={handleAddPosition}
         onRemovePosition={removePosition}
-        loading={updateLoading}
-        error={updateError?.message}
+        loading={isLoading}
+        error={errorMessage}
         saveSuccess={saveSuccess}
       />
     </div>
