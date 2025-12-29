@@ -10,16 +10,50 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
 
+/**
+ * Determines the API base URL for GraphQL.
+ * - In production: Uses same-origin (empty string) since Vercel rewrites /api/* to Railway
+ * - In development: Falls back to localhost:3333
+ * - Can be overridden with VITE_API_URL for custom setups
+ */
+function getApiUrl(): string {
+  // Check for explicit override first
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl !== undefined && envUrl !== '') {
+    return envUrl;
+  }
+
+  if (
+    typeof window !== 'undefined' &&
+    window.location.hostname !== 'localhost'
+  ) {
+    // Production: use same-origin (Vercel rewrites handle routing to Railway)
+    return '';
+  }
+  // Development: use local API server
+  return 'http://localhost:3333';
+}
+
 // Create HTTP link to the GraphQL endpoint
-// Uses VITE_API_URL env var in production, falls back to localhost for development
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3333';
+// In production, uses /api/graphql which Vercel rewrites to Railway's /graphql
+const apiUrl = getApiUrl();
+const graphqlPath = apiUrl ? '/graphql' : '/api/graphql';
 const httpLink = createHttpLink({
-  uri: `${apiUrl}/graphql`,
+  uri: `${apiUrl}${graphqlPath}`,
 });
 
 // Create WebSocket URL from API URL
-// Convert http:// to ws:// and https:// to wss://
-const wsUrl = apiUrl.replace(/^http/, 'ws') + '/graphql';
+// In development: convert http://localhost:3333 to ws://localhost:3333/graphql
+// In production: WebSockets don't go through Vercel rewrites, so connect directly to Railway
+function getWsUrl(): string {
+  if (apiUrl) {
+    // Development or custom URL: convert http to ws
+    return apiUrl.replace(/^http/, 'ws') + '/graphql';
+  }
+  // Production: connect directly to Railway for WebSockets
+  return 'wss://soccer-stats.up.railway.app/graphql';
+}
+const wsUrl = getWsUrl();
 
 // Token getter function - will be set by the AuthApolloProvider
 let getToken: (() => Promise<string | null>) | null = null;
@@ -41,7 +75,7 @@ const wsLink = new GraphQLWsLink(
     // Reconnect on connection loss
     shouldRetry: () => true,
     retryAttempts: Infinity,
-  })
+  }),
 );
 
 // Auth link that adds the token to HTTP requests
@@ -65,7 +99,7 @@ const splitLink = split(
     );
   },
   wsLink,
-  ApolloLink.from([authLink, httpLink])
+  ApolloLink.from([authLink, httpLink]),
 );
 
 // Create Apollo Client instance

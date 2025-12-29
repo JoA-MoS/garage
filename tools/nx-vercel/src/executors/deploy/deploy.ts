@@ -76,7 +76,6 @@ export default async function runExecutor(
   }
 
   const workspaceRoot = context.root;
-  const projectRoot = path.join(workspaceRoot, projectConfig.root);
   // Put Vercel output in dist/deploy/{projectPath}/.vercel/output
   // Separate from build output to avoid recursive copy issues
   // Vercel CLI expects .vercel/output inside the deploy directory
