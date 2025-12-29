@@ -62,7 +62,12 @@ export default async function runExecutor(
   const staticDir = path.join(vercelOutputDir, 'static');
   const buildOutputPath = path.join(workspaceRoot, outputPath);
 
-  logger.info(`Deploying ${projectName} to Vercel...`);
+  // Use options.projectName for Vercel project, fallback to Nx project name
+  const vercelProjectName = options.projectName || projectName;
+
+  logger.info(
+    `Deploying ${projectName} to Vercel project "${vercelProjectName}"...`,
+  );
   logger.info(`  Build output: ${buildOutputPath}`);
   logger.info(`  Project root: ${projectRoot}`);
   logger.info(`  Production: ${prod}`);
@@ -111,7 +116,11 @@ export default async function runExecutor(
     // Add confirm flag to skip prompts in CI
     vercelArgs.push('--yes');
 
-    logger.info(`Running: vercel ${vercelArgs.join(' ')}`);
+    // Log command with redacted token to avoid leaking credentials
+    const argsForLogging = vercelArgs.map((arg, i) =>
+      vercelArgs[i - 1] === '--token' ? '***' : arg,
+    );
+    logger.info(`Running: vercel ${argsForLogging.join(' ')}`);
 
     // Execute vercel deploy from project root using execFileSync (safer than execSync)
     const output = execFileSync('vercel', vercelArgs, {
