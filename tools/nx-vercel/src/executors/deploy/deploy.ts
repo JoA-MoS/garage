@@ -7,6 +7,22 @@ import { ExecutorContext, logger } from '@nx/devkit';
 import { DeployExecutorSchema, VercelRewrite } from './schema';
 
 /**
+ * Convert Next.js-style path patterns to PCRE regex for Vercel Build Output API.
+ * e.g., "/api/:path*" → "^/api/(.*)$"
+ * e.g., "https://example.com/:path*" → "https://example.com/$1"
+ */
+function convertPathPattern(pattern: string, isDestination: boolean): string {
+  if (isDestination) {
+    // For destinations, replace :path* with $1 capture group reference
+    return pattern.replace(/:path\*/, '$1');
+  }
+  // For sources, convert to PCRE regex with capture group
+  // /api/:path* → ^/api/(.*)$
+  const regexPattern = pattern.replace(/:path\*/, '(.*)');
+  return `^${regexPattern}$`;
+}
+
+/**
  * Vercel Build Output API config for SPA routing.
  * Routes all requests to index.html except for static assets.
  * Rewrites are applied before the SPA fallback for API proxying.
@@ -20,12 +36,15 @@ function createVercelConfig(rewrites?: VercelRewrite[]): object {
   // Add rewrites before SPA fallback (for API proxying, etc.)
   if (rewrites && rewrites.length > 0) {
     for (const rewrite of rewrites) {
-      routes.push({ src: rewrite.source, dest: rewrite.destination });
+      routes.push({
+        src: convertPathPattern(rewrite.source, false),
+        dest: convertPathPattern(rewrite.destination, true),
+      });
     }
   }
 
   // SPA fallback: route all other requests to index.html
-  routes.push({ src: '/(.*)', dest: '/index.html' });
+  routes.push({ src: '^/(.*)$', dest: '/index.html' });
 
   return {
     version: 3,

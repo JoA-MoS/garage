@@ -133,7 +133,7 @@
         "rewrites": [
           {
             "source": "/api/:path*",
-            "destination": "https://soccer-stats.up.railway.app/api/:path*"
+            "destination": "https://soccer-stats.up.railway.app/:path*"
           }
         ]
       },
