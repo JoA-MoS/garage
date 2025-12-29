@@ -68,8 +68,9 @@ export class ClerkService {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const wrappedError = new Error(`Token verification failed: ${message}`);
+      // Preserve original error for debugging (ES2022 Error.cause pattern via Object.assign)
       if (error instanceof Error) {
-        wrappedError.cause = error;
+        Object.assign(wrappedError, { cause: error });
       }
       throw wrappedError;
     }
@@ -89,8 +90,9 @@ export class ClerkService {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const wrappedError = new Error(`Failed to get user: ${message}`);
+      // Preserve original error for debugging (ES2022 Error.cause pattern via Object.assign)
       if (error instanceof Error) {
-        wrappedError.cause = error;
+        Object.assign(wrappedError, { cause: error });
       }
       throw wrappedError;
     }
