@@ -46,10 +46,21 @@ export function AuthErrorProvider({ children }: AuthErrorProviderProps) {
       console.warn('Authentication error detected, signing out...');
       setAuthError('Your session has expired. Please sign in again.');
       // Sign out after a brief delay to show the error message
-      setTimeout(() => {
-        signOut({ redirectUrl: '/' });
+      setTimeout(async () => {
+        try {
+          await signOut({ redirectUrl: '/' });
+        } catch (error) {
+          console.error('Failed to sign out:', error);
+          // Force navigation as fallback if signOut fails
+          window.location.href = '/';
+        }
       }, 2000);
     });
+
+    // Cleanup: clear handler on unmount to prevent stale references
+    return () => {
+      setAuthErrorHandler(null);
+    };
   }, [signOut]);
 
   // Show error screen when auth error occurs

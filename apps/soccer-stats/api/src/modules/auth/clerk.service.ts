@@ -66,7 +66,12 @@ export class ClerkService {
       });
       return payload as ClerkPayload;
     } catch (error) {
-      throw new Error(`Token verification failed: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      const wrappedError = new Error(`Token verification failed: ${message}`);
+      if (error instanceof Error) {
+        wrappedError.cause = error;
+      }
+      throw wrappedError;
     }
   }
 
@@ -82,7 +87,12 @@ export class ClerkService {
         imageUrl: user.imageUrl ?? undefined,
       };
     } catch (error) {
-      throw new Error(`Failed to get user: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      const wrappedError = new Error(`Failed to get user: ${message}`);
+      if (error instanceof Error) {
+        wrappedError.cause = error;
+      }
+      throw wrappedError;
     }
   }
 

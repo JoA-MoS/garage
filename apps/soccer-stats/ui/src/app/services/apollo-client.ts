@@ -39,17 +39,28 @@ export function setTokenGetter(getter: () => Promise<string | null>) {
 // Auth error handler - will be set by the AuthApolloProvider
 let onAuthError: (() => void) | null = null;
 
-export function setAuthErrorHandler(handler: () => void) {
+export function setAuthErrorHandler(handler: (() => void) | null) {
   onAuthError = handler;
 }
 
 // Error link to handle GraphQL errors globally
-const errorLink = onError(({ graphQLErrors, networkError }) => {
+const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
   if (graphQLErrors) {
     for (const err of graphQLErrors) {
-      // Check for authentication errors
-      if (err.extensions?.code === 'UNAUTHENTICATED') {
-        console.error('Authentication error:', err.message);
+      const errorCode = err.extensions?.code;
+
+      // Log all GraphQL errors for debugging/monitoring
+      console.error(
+        `[GraphQL Error] ${operation.operationName || 'Unknown'}:`,
+        {
+          message: err.message,
+          code: errorCode,
+          path: err.path,
+        },
+      );
+
+      // Trigger auth error handler for authentication failures
+      if (errorCode === 'UNAUTHENTICATED') {
         if (onAuthError) {
           onAuthError();
         }
@@ -57,7 +68,7 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
     }
   }
   if (networkError) {
-    console.error('Network error:', networkError);
+    console.error('[Network Error]:', networkError);
   }
 });
 
@@ -74,6 +85,18 @@ const wsLink = new GraphQLWsLink(
     // Reconnect on connection loss
     shouldRetry: () => true,
     retryAttempts: Infinity,
+    // WebSocket connection event handlers for debugging/monitoring
+    on: {
+      connected: () => {
+        console.log('[WebSocket] Connected to', wsUrl);
+      },
+      closed: (event) => {
+        console.warn('[WebSocket] Connection closed:', event);
+      },
+      error: (error) => {
+        console.error('[WebSocket] Connection error:', error);
+      },
+    },
   }),
 );
 
