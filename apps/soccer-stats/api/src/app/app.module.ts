@@ -26,6 +26,7 @@ import { AppService } from './app.service';
 import { StartupService } from './startup.service';
 import { ConfigController } from './config.controller';
 import {
+  API_PREFIX,
   isProduction,
   getDbHost,
   getDbPort,
@@ -61,6 +62,8 @@ const typeOrmConfig = {
   imports: [
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
+      // Use /api/graphql to match REST controller prefix for consistent routing
+      path: `/${API_PREFIX}/graphql`,
       autoSchemaFile: join(__dirname, 'schema.gql'),
       sortSchema: true,
       playground: false,

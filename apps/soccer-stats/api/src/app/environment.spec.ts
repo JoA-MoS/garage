@@ -12,7 +12,6 @@ import {
   getDbLogging,
   getGraphqlIntrospection,
   getClerkSecretKey,
-  getClerkJwtAudience,
   getClerkPublishableKey,
 } from './environment';
 
@@ -84,7 +83,7 @@ describe('Environment Configuration', () => {
     it('should return default localhost URLs when not set', () => {
       delete process.env['FRONTEND_URL'];
       expect(getFrontendUrl()).toBe(
-        'http://localhost:4200,http://localhost:3333'
+        'http://localhost:4200,http://localhost:3333',
       );
     });
   });
@@ -213,16 +212,6 @@ describe('Environment Configuration', () => {
     it('should return undefined when CLERK_SECRET_KEY is not set', () => {
       delete process.env['CLERK_SECRET_KEY'];
       expect(getClerkSecretKey()).toBeUndefined();
-    });
-
-    it('should return CLERK_JWT_AUDIENCE when set', () => {
-      process.env['CLERK_JWT_AUDIENCE'] = 'my-audience';
-      expect(getClerkJwtAudience()).toBe('my-audience');
-    });
-
-    it('should return undefined when CLERK_JWT_AUDIENCE is not set', () => {
-      delete process.env['CLERK_JWT_AUDIENCE'];
-      expect(getClerkJwtAudience()).toBeUndefined();
     });
 
     it('should return CLERK_PUBLISHABLE_KEY when set', () => {

@@ -37,10 +37,17 @@ export const isProduction = (): boolean => getNodeEnv() === 'production';
 export const getPort = (): number => parsePort(getEnv('PORT', '3333')!);
 
 /**
+ * API base path prefix (used by both REST controllers and GraphQL)
+ * Can be overridden via API_PREFIX environment variable
+ */
+export const API_PREFIX = getEnv('API_PREFIX', 'api')!;
+
+/**
  * Frontend URLs for CORS configuration
  * Comma-separated list of allowed origins
  */
-export const getFrontendUrl = (): string => getEnv('FRONTEND_URL', 'http://localhost:4200,http://localhost:3333')!;
+export const getFrontendUrl = (): string =>
+  getEnv('FRONTEND_URL', 'http://localhost:4200,http://localhost:3333')!;
 
 /**
  * Database configuration
@@ -50,17 +57,21 @@ export const getDbPort = (): number => parsePort(getEnv('DB_PORT', '5432')!);
 export const getDbUsername = (): string => getEnv('DB_USERNAME', 'postgres')!;
 export const getDbPassword = (): string => getEnv('DB_PASSWORD', 'postgres')!;
 export const getDbName = (): string => getEnv('DB_NAME', 'soccer_stats')!;
-export const getDbSynchronize = (): boolean => getEnv('DB_SYNCHRONIZE') === 'true' || !isProduction();
-export const getDbLogging = (): boolean => getEnv('DB_LOGGING') === 'true' || !isProduction();
+export const getDbSynchronize = (): boolean =>
+  getEnv('DB_SYNCHRONIZE') === 'true' || !isProduction();
+export const getDbLogging = (): boolean =>
+  getEnv('DB_LOGGING') === 'true' || !isProduction();
 
 /**
  * GraphQL configuration
  */
-export const getGraphqlIntrospection = (): boolean => getEnv('GRAPHQL_INTROSPECTION') === 'true' || !isProduction();
+export const getGraphqlIntrospection = (): boolean =>
+  getEnv('GRAPHQL_INTROSPECTION') === 'true' || !isProduction();
 
 /**
  * Clerk authentication configuration
  */
-export const getClerkSecretKey = (): string | undefined => getEnv('CLERK_SECRET_KEY');
-export const getClerkJwtAudience = (): string | undefined => getEnv('CLERK_JWT_AUDIENCE');
-export const getClerkPublishableKey = (): string | undefined => getEnv('CLERK_PUBLISHABLE_KEY');
+export const getClerkSecretKey = (): string | undefined =>
+  getEnv('CLERK_SECRET_KEY');
+export const getClerkPublishableKey = (): string | undefined =>
+  getEnv('CLERK_PUBLISHABLE_KEY');
