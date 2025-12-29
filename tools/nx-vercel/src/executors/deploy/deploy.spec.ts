@@ -13,19 +13,18 @@ describe('Deploy Executor', () => {
   const mockProjectName = 'test-app';
   const mockOutputPath = 'dist/apps/test-app';
   const mockBuildOutputPath = path.join(mockWorkspaceRoot, mockOutputPath);
-  // Vercel output now goes to dist/.vercel/{projectPath}/output to mirror build output structure
-  const mockVercelOutputDir = path.join(
-    mockWorkspaceRoot,
-    'dist',
-    '.vercel',
-    mockProjectRoot,
-    'output',
-  );
+  // Vercel output goes to dist/deploy/{projectPath}/.vercel/output
+  // Separate from build output, Vercel CLI expects .vercel/output inside deploy dir
   const mockVercelDeployDir = path.join(
     mockWorkspaceRoot,
     'dist',
-    '.vercel',
+    'deploy',
     mockProjectRoot,
+  );
+  const mockVercelOutputDir = path.join(
+    mockVercelDeployDir,
+    '.vercel',
+    'output',
   );
 
   const options: DeployExecutorSchema = {
@@ -117,9 +116,14 @@ describe('Deploy Executor', () => {
 
     expect(execFileSyncSpy).toHaveBeenCalledWith(
       'vercel',
-      expect.arrayContaining(['deploy', '--prebuilt', '--yes']),
+      expect.arrayContaining([
+        'deploy',
+        mockVercelDeployDir,
+        '--prebuilt',
+        '--yes',
+      ]),
       expect.objectContaining({
-        cwd: mockVercelDeployDir,
+        cwd: mockWorkspaceRoot,
       }),
     );
   });
@@ -129,8 +133,16 @@ describe('Deploy Executor', () => {
 
     expect(execFileSyncSpy).toHaveBeenCalledWith(
       'vercel',
-      expect.arrayContaining(['deploy', '--prebuilt', '--prod', '--yes']),
-      expect.anything(),
+      expect.arrayContaining([
+        'deploy',
+        mockVercelDeployDir,
+        '--prebuilt',
+        '--prod',
+        '--yes',
+      ]),
+      expect.objectContaining({
+        cwd: mockWorkspaceRoot,
+      }),
     );
   });
 

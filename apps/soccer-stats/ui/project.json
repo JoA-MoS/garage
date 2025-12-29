@@ -120,6 +120,11 @@
       "executor": "nx-vercel:deploy",
       "dependsOn": ["build"],
       "cache": false,
+      "inputs": [
+        "production",
+        "^production",
+        "{workspaceRoot}/tools/nx-vercel/src/**/*"
+      ],
       "options": {
         "outputPath": "dist/apps/soccer-stats/ui",
         "projectName": "soccer-stats",
