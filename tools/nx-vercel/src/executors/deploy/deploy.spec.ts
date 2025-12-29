@@ -106,7 +106,7 @@ describe('Deploy Executor', () => {
     expect(config.version).toBe(3);
     expect(config.routes).toContainEqual({ handle: 'filesystem' });
     expect(config.routes).toContainEqual({
-      src: '/(.*)',
+      src: '^/(.*)$',
       dest: '/index.html',
     });
   });
@@ -179,16 +179,17 @@ describe('Deploy Executor', () => {
     const configPath = path.join(mockVercelOutputDir, 'config.json');
     const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
 
+    // Rewrites are converted to PCRE regex format for Vercel Build Output API
     expect(config.routes).toContainEqual({
-      src: '/api/:path*',
-      dest: 'https://api.example.com/:path*',
+      src: '^/api/(.*)$',
+      dest: 'https://api.example.com/$1',
     });
     // Ensure rewrite comes before SPA fallback
     const rewriteIndex = config.routes.findIndex(
-      (r: { src?: string }) => r.src === '/api/:path*',
+      (r: { src?: string }) => r.src === '^/api/(.*)$',
     );
     const spaIndex = config.routes.findIndex(
-      (r: { src?: string }) => r.src === '/(.*)',
+      (r: { src?: string }) => r.src === '^/(.*)$',
     );
     expect(rewriteIndex).toBeLessThan(spaIndex);
   });
