@@ -121,6 +121,7 @@
       "dependsOn": ["build"],
       "options": {
         "outputPath": "dist/apps/soccer-stats/ui",
+        "projectName": "soccer-stats",
         "org": "team_10d4zK2wwm7wqaGMq7zgua8w",
         "projectId": "prj_lkXNHKu9yeggBRZy4AkPGV4ajGET",
         "rewrites": [
