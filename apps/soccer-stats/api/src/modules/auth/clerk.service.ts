@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { createClerkClient, verifyToken } from '@clerk/backend';
 
-import { getClerkSecretKey, getClerkJwtAudience } from '../../app/environment';
+import { getClerkSecretKey } from '../../app/environment';
 
 export interface ClerkUser {
   id: string;
@@ -41,27 +41,28 @@ export interface ClerkPayload {
 
 @Injectable()
 export class ClerkService {
-  private clerkClient;
+  private readonly clerkClient;
+  private readonly secretKey: string;
 
   constructor() {
     const secretKey = getClerkSecretKey();
     if (!secretKey) {
       throw new Error('CLERK_SECRET_KEY environment variable is not set');
     }
-    
-    this.clerkClient = createClerkClient({
-      secretKey,
-    });
+
+    this.secretKey = secretKey;
+    this.clerkClient = createClerkClient({ secretKey });
   }
 
+  /**
+   * Verifies a Clerk JWT token and returns the payload.
+   * Clerk handles JWT verification using JWKS (JSON Web Key Set) -
+   * it fetches public keys from Clerk's servers to verify the signature.
+   */
   async verifyToken(token: string): Promise<ClerkPayload> {
-    const secretKey = getClerkSecretKey();
-    const audience = getClerkJwtAudience();
-    
     try {
       const payload = await verifyToken(token, {
-        secretKey: secretKey!, // Safe: validated in constructor
-        audience,
+        secretKey: this.secretKey,
       });
       return payload as ClerkPayload;
     } catch (error) {
