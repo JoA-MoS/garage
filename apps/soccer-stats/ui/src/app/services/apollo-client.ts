@@ -6,54 +6,28 @@ import {
   split,
 } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
+import { onError } from '@apollo/client/link/error';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
 
-/**
- * Determines the API base URL for GraphQL.
- * - In production: Uses same-origin (empty string) since Vercel rewrites /api/* to Railway
- * - In development: Falls back to localhost:3333
- * - Can be overridden with VITE_API_URL for custom setups
- */
-function getApiUrl(): string {
-  // Check for explicit override first
-  const envUrl = import.meta.env.VITE_API_URL;
-  if (envUrl !== undefined && envUrl !== '') {
-    return envUrl;
-  }
+import { API_PREFIX, getApiUrl } from './environment';
 
-  if (
-    typeof window !== 'undefined' &&
-    window.location.hostname !== 'localhost'
-  ) {
-    // Production: use same-origin (Vercel rewrites handle routing to Railway)
-    return '';
-  }
-  // Development: use local API server
-  return 'http://localhost:3333';
-}
-
-// Create HTTP link to the GraphQL endpoint
-// In production, uses /api/graphql which Vercel rewrites to Railway's /graphql
 const apiUrl = getApiUrl();
-const graphqlPath = apiUrl ? '/graphql' : '/api/graphql';
+
+// GraphQL endpoint - uses API_PREFIX for consistent routing
 const httpLink = createHttpLink({
-  uri: `${apiUrl}${graphqlPath}`,
+  uri: `${apiUrl}/${API_PREFIX}/graphql`,
 });
 
-// Create WebSocket URL from API URL
-// In development: convert http://localhost:3333 to ws://localhost:3333/graphql
-// In production: WebSockets don't go through Vercel rewrites, so connect directly to Railway
-function getWsUrl(): string {
-  if (apiUrl) {
-    // Development or custom URL: convert http to ws
-    return apiUrl.replace(/^http/, 'ws') + '/graphql';
-  }
-  // Production: connect directly to Railway for WebSockets
-  return 'wss://soccer-stats.up.railway.app/graphql';
-}
-const wsUrl = getWsUrl();
+/**
+ * WebSocket URL for subscriptions.
+ * - Development: ws://localhost:3333/{API_PREFIX}/graphql
+ * - Production: Direct connection to Railway (Vercel doesn't proxy WebSockets)
+ */
+const wsUrl = apiUrl
+  ? apiUrl.replace(/^http/, 'ws') + `/${API_PREFIX}/graphql`
+  : `wss://soccer-stats.up.railway.app/${API_PREFIX}/graphql`;
 
 // Token getter function - will be set by the AuthApolloProvider
 let getToken: (() => Promise<string | null>) | null = null;
@@ -61,6 +35,31 @@ let getToken: (() => Promise<string | null>) | null = null;
 export function setTokenGetter(getter: () => Promise<string | null>) {
   getToken = getter;
 }
+
+// Auth error handler - will be set by the AuthApolloProvider
+let onAuthError: (() => void) | null = null;
+
+export function setAuthErrorHandler(handler: () => void) {
+  onAuthError = handler;
+}
+
+// Error link to handle GraphQL errors globally
+const errorLink = onError(({ graphQLErrors, networkError }) => {
+  if (graphQLErrors) {
+    for (const err of graphQLErrors) {
+      // Check for authentication errors
+      if (err.extensions?.code === 'UNAUTHENTICATED') {
+        console.error('Authentication error:', err.message);
+        if (onAuthError) {
+          onAuthError();
+        }
+      }
+    }
+  }
+  if (networkError) {
+    console.error('Network error:', networkError);
+  }
+});
 
 // Create WebSocket link for subscriptions
 const wsLink = new GraphQLWsLink(
@@ -99,7 +98,7 @@ const splitLink = split(
     );
   },
   wsLink,
-  ApolloLink.from([authLink, httpLink]),
+  ApolloLink.from([errorLink, authLink, httpLink]),
 );
 
 // Create Apollo Client instance
