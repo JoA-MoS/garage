@@ -7,14 +7,18 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from './app/app.module';
-import { getPort, getFrontendUrl, isProduction } from './app/environment';
+import {
+  API_PREFIX,
+  getPort,
+  getFrontendUrl,
+  isProduction,
+} from './app/environment';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Global configuration
-  const globalPrefix = 'api';
-  app.setGlobalPrefix(globalPrefix);
+  // Global configuration - uses API_PREFIX from environment.ts for consistency with GraphQL path
+  app.setGlobalPrefix(API_PREFIX);
 
   // Note: ValidationPipe is not used for this GraphQL API.
   // GraphQL provides its own schema-based validation.
@@ -25,7 +29,9 @@ async function bootstrap() {
   // Supports:
   // - Comma-separated explicit origins (e.g., "http://localhost:4200,https://example.com")
   // - Wildcard patterns using regex (e.g., "*.joamos-projects.vercel.app")
-  const frontendUrls = getFrontendUrl().split(',').map((origin) => origin.trim());
+  const frontendUrls = getFrontendUrl()
+    .split(',')
+    .map((origin) => origin.trim());
 
   // Convert wildcard patterns to regex, keep explicit origins as strings
   const allowedOrigins: (string | RegExp)[] = frontendUrls.map((origin) => {
@@ -46,7 +52,7 @@ async function bootstrap() {
   app.enableCors({
     origin: (
       requestOrigin: string | undefined,
-      callback: (err: Error | null, allow?: boolean) => void
+      callback: (err: Error | null, allow?: boolean) => void,
     ) => {
       // Allow requests with no origin (like mobile apps, curl, etc.)
       if (!requestOrigin) {
@@ -76,11 +82,13 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
   logger.log(`Soccer Stats API running on port ${port}`);
-  logger.log(`GraphQL endpoint: /graphql`);
+  logger.log(`GraphQL endpoint: /${API_PREFIX}/graphql`);
 
   if (!isProduction()) {
-    logger.log(`Local URL: http://localhost:${port}/${globalPrefix}`);
-    logger.log(`GraphQL Playground: http://localhost:${port}/graphql`);
+    logger.log(`Local URL: http://localhost:${port}/${API_PREFIX}`);
+    logger.log(
+      `GraphQL Playground: http://localhost:${port}/${API_PREFIX}/graphql`,
+    );
   }
 }
 

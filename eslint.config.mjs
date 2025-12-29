@@ -13,6 +13,8 @@ export default [
   {
     ignores: [
       '**/dist',
+      '**/.vercel',
+      '**/storybook-static',
       '**/vite.config.*.timestamp*',
       '**/vitest.config.*.timestamp*',
     ],

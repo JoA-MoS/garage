@@ -22,7 +22,8 @@
         "libs/campsite-watcher/recreation-gov/src/index.ts"
       ],
       "@garage/ng/lib-example": ["libs/ng/lib-example/src/index.ts"],
-      "@garage/wordle/core": ["libs/wordle/core/src/index.ts"]
+      "@garage/wordle/core": ["libs/wordle/core/src/index.ts"],
+      "nx-vercel": ["tools/nx-vercel/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

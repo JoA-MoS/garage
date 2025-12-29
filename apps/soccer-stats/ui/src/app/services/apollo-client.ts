@@ -5,21 +5,30 @@ import {
   ApolloLink,
   split,
 } from '@apollo/client';
+import { CombinedGraphQLErrors } from '@apollo/client/errors';
 import { setContext } from '@apollo/client/link/context';
+import { ErrorLink } from '@apollo/client/link/error';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
 
-// Create HTTP link to the GraphQL endpoint
-// Uses VITE_API_URL env var in production, falls back to localhost for development
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3333';
+import { API_PREFIX, getApiUrl } from './environment';
+
+const apiUrl = getApiUrl();
+
+// GraphQL endpoint - uses API_PREFIX for consistent routing
 const httpLink = createHttpLink({
-  uri: `${apiUrl}/graphql`,
+  uri: `${apiUrl}/${API_PREFIX}/graphql`,
 });
 
-// Create WebSocket URL from API URL
-// Convert http:// to ws:// and https:// to wss://
-const wsUrl = apiUrl.replace(/^http/, 'ws') + '/graphql';
+/**
+ * WebSocket URL for subscriptions.
+ * - Development: ws://localhost:3333/{API_PREFIX}/graphql
+ * - Production: Direct connection to Railway (Vercel doesn't proxy WebSockets)
+ */
+const wsUrl = apiUrl
+  ? apiUrl.replace(/^http/, 'ws') + `/${API_PREFIX}/graphql`
+  : `wss://soccer-stats.up.railway.app/${API_PREFIX}/graphql`;
 
 // Token getter function - will be set by the AuthApolloProvider
 let getToken: (() => Promise<string | null>) | null = null;
@@ -27,6 +36,43 @@ let getToken: (() => Promise<string | null>) | null = null;
 export function setTokenGetter(getter: () => Promise<string | null>) {
   getToken = getter;
 }
+
+// Auth error handler - will be set by the AuthApolloProvider
+let onAuthError: (() => void) | null = null;
+
+export function setAuthErrorHandler(handler: (() => void) | null) {
+  onAuthError = handler;
+}
+
+// Error link to handle GraphQL errors globally
+const errorLink = new ErrorLink(({ error, operation }) => {
+  if (CombinedGraphQLErrors.is(error)) {
+    // Handle GraphQL errors
+    for (const err of error.errors) {
+      const errorCode = err.extensions?.code;
+
+      // Log all GraphQL errors for debugging/monitoring
+      console.error(
+        `[GraphQL Error] ${operation.operationName || 'Unknown'}:`,
+        {
+          message: err.message,
+          code: errorCode,
+          path: err.path,
+        },
+      );
+
+      // Trigger auth error handler for authentication failures
+      if (errorCode === 'UNAUTHENTICATED') {
+        if (onAuthError) {
+          onAuthError();
+        }
+      }
+    }
+  } else {
+    // Handle network errors
+    console.error('[Network Error]:', error);
+  }
+});
 
 // Create WebSocket link for subscriptions
 const wsLink = new GraphQLWsLink(
@@ -41,7 +87,19 @@ const wsLink = new GraphQLWsLink(
     // Reconnect on connection loss
     shouldRetry: () => true,
     retryAttempts: Infinity,
-  })
+    // WebSocket connection event handlers for debugging/monitoring
+    on: {
+      connected: () => {
+        console.log('[WebSocket] Connected to', wsUrl);
+      },
+      closed: (event) => {
+        console.warn('[WebSocket] Connection closed:', event);
+      },
+      error: (error) => {
+        console.error('[WebSocket] Connection error:', error);
+      },
+    },
+  }),
 );
 
 // Auth link that adds the token to HTTP requests
@@ -65,7 +123,7 @@ const splitLink = split(
     );
   },
   wsLink,
-  ApolloLink.from([authLink, httpLink])
+  ApolloLink.from([errorLink, authLink, httpLink]),
 );
 
 // Create Apollo Client instance

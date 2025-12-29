@@ -72,28 +72,33 @@ export const TeamsListSmart = ({
   const { isSignedIn, isLoaded } = useUserProfile();
 
   // Use myTeams query when authenticated, otherwise fall back to all teams
-  const { data: myTeamsData, loading: myTeamsLoading } = useQuery(
-    GetMyTeamsQueryDocument,
-    {
-      skip: !isLoaded || !isSignedIn,
-    }
-  );
+  const {
+    data: myTeamsData,
+    loading: myTeamsLoading,
+    error: myTeamsError,
+  } = useQuery(GetMyTeamsQueryDocument, {
+    skip: !isLoaded || !isSignedIn,
+  });
 
-  const { data: allTeamsData, loading: allTeamsLoading } = useQuery(
-    GetTeamsQueryDocument,
-    {
-      skip: !isLoaded || isSignedIn,
-    }
-  );
+  const {
+    data: allTeamsData,
+    loading: allTeamsLoading,
+    error: allTeamsError,
+  } = useQuery(GetTeamsQueryDocument, {
+    skip: !isLoaded || isSignedIn,
+  });
 
   // Loading if auth state isn't loaded yet, or if the active query is loading
   const isLoading =
     !isLoaded || (isSignedIn ? myTeamsLoading : allTeamsLoading);
 
+  // Check for errors
+  const error = isSignedIn ? myTeamsError : allTeamsError;
+
   // Use authenticated user's teams if signed in, otherwise show all teams
   // Cast to UITeam[] since GraphQL returns compatible types with sourceType as string
   const teams: UITeam[] = (
-    isSignedIn ? myTeamsData?.myTeams ?? [] : allTeamsData?.teams ?? []
+    isSignedIn ? (myTeamsData?.myTeams ?? []) : (allTeamsData?.teams ?? [])
   ) as UITeam[];
 
   const handleCreateTeam = useCallback(() => {
@@ -112,13 +117,14 @@ export const TeamsListSmart = ({
         navigate(`/teams/${teamId}/settings`);
       }
     },
-    [onEditTeam, navigate]
+    [onEditTeam, navigate],
   );
 
   return (
     <TeamsListPresentation
       teams={teams}
       loading={isLoading}
+      error={error?.message}
       onCreateTeam={handleCreateTeam}
       onEditTeam={handleEditTeam}
     />
