@@ -36,15 +36,27 @@ function createVercelConfig(rewrites?: VercelRewrite[]): object {
   // Add rewrites before SPA fallback (for API proxying, etc.)
   if (rewrites && rewrites.length > 0) {
     for (const rewrite of rewrites) {
-      routes.push({
+      const route: Record<string, unknown> = {
         src: convertPathPattern(rewrite.source, false),
         dest: convertPathPattern(rewrite.destination, true),
-      });
+      };
+      // Add headers if configured (e.g., Cache-Control)
+      if (rewrite.headers && Object.keys(rewrite.headers).length > 0) {
+        route['headers'] = rewrite.headers;
+      }
+      routes.push(route);
     }
   }
 
   // SPA fallback: route all other requests to index.html
-  routes.push({ src: '^/(.*)$', dest: '/index.html' });
+  // Disable caching to ensure users always get the latest version
+  routes.push({
+    src: '^/(.*)$',
+    dest: '/index.html',
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    },
+  });
 
   return {
     version: 3,
