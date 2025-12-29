@@ -10,13 +10,22 @@ import { DeployExecutorSchema } from './schema';
 describe('Deploy Executor', () => {
   const mockWorkspaceRoot = '/tmp/test-workspace';
   const mockProjectRoot = 'apps/test-app';
+  const mockProjectName = 'test-app';
   const mockOutputPath = 'dist/apps/test-app';
   const mockBuildOutputPath = path.join(mockWorkspaceRoot, mockOutputPath);
+  // Vercel output now goes to dist/.vercel/{projectPath}/output to mirror build output structure
   const mockVercelOutputDir = path.join(
     mockWorkspaceRoot,
-    mockProjectRoot,
+    'dist',
     '.vercel',
+    mockProjectRoot,
     'output',
+  );
+  const mockVercelDeployDir = path.join(
+    mockWorkspaceRoot,
+    'dist',
+    '.vercel',
+    mockProjectRoot,
   );
 
   const options: DeployExecutorSchema = {
@@ -110,7 +119,7 @@ describe('Deploy Executor', () => {
       'vercel',
       expect.arrayContaining(['deploy', '--prebuilt', '--yes']),
       expect.objectContaining({
-        cwd: path.join(mockWorkspaceRoot, mockProjectRoot),
+        cwd: mockVercelDeployDir,
       }),
     );
   });
