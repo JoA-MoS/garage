@@ -45,7 +45,7 @@
         "buildTarget": "campsite-watcher-lambda:build:production"
       }
     },
-    "deploy": {
+    "deploy-lambda": {
       "executor": "@ns3/nx-serverless:sls",
       "outputs": [
         "{projectRoot}/.serverless",
