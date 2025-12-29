@@ -29,7 +29,7 @@
       "defaultConfiguration": "development",
       "options": {
         "buildTarget": "soccer-stats-ui:build",
-        "proxyConfig": "apps/soccer-stats/ui/proxy.conf.json"
+        "proxyConfig": "apps/soccer-stats/ui/proxy.conf.js"
       },
       "configurations": {
         "development": {
@@ -115,6 +115,40 @@
           "quiet": true
         }
       }
+    },
+    "deploy": {
+      "executor": "nx-vercel:deploy",
+      "dependsOn": ["build"],
+      "cache": false,
+      "inputs": [
+        "production",
+        "^production",
+        "{workspaceRoot}/tools/nx-vercel/src/**/*"
+      ],
+      "options": {
+        "outputPath": "dist/apps/soccer-stats/ui",
+        "projectName": "soccer-stats",
+        "org": "team_10d4zK2wwm7wqaGMq7zgua8w",
+        "projectId": "prj_lkXNHKu9yeggBRZy4AkPGV4ajGET",
+        "rewrites": [
+          {
+            "source": "/api/:path*",
+            "destination": "https://soccer-stats.up.railway.app/api/:path*",
+            "headers": {
+              "Cache-Control": "no-cache, no-store, must-revalidate"
+            }
+          }
+        ]
+      },
+      "configurations": {
+        "production": {
+          "prod": true
+        },
+        "preview": {
+          "prod": false
+        }
+      },
+      "defaultConfiguration": "preview"
     }
   }
 }
