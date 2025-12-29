@@ -170,10 +170,16 @@ export default async function runExecutor(
       stdio: ['inherit', 'pipe', 'pipe'],
       env: {
         ...process.env,
-        // Pass through Vercel env vars if set
-        VERCEL_ORG_ID: options.org || process.env['VERCEL_ORG_ID'],
-        VERCEL_PROJECT_ID:
-          options.projectId || process.env['VERCEL_PROJECT_ID'],
+        // Pass through Vercel env vars if set (only add if defined)
+        ...(options.org || process.env['VERCEL_ORG_ID']
+          ? { VERCEL_ORG_ID: options.org || process.env['VERCEL_ORG_ID'] }
+          : {}),
+        ...(options.projectId || process.env['VERCEL_PROJECT_ID']
+          ? {
+              VERCEL_PROJECT_ID:
+                options.projectId || process.env['VERCEL_PROJECT_ID'],
+            }
+          : {}),
       },
     });
 
