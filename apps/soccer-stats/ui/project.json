@@ -29,7 +29,7 @@
       "defaultConfiguration": "development",
       "options": {
         "buildTarget": "soccer-stats-ui:build",
-        "proxyConfig": "apps/soccer-stats/ui/proxy.conf.json"
+        "proxyConfig": "apps/soccer-stats/ui/proxy.conf.js"
       },
       "configurations": {
         "development": {
@@ -133,7 +133,7 @@
         "rewrites": [
           {
             "source": "/api/:path*",
-            "destination": "https://soccer-stats.up.railway.app/:path*",
+            "destination": "https://soccer-stats.up.railway.app/api/:path*",
             "headers": {
               "Cache-Control": "no-cache, no-store, must-revalidate"
             }
