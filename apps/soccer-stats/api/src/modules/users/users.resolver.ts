@@ -8,7 +8,7 @@ import {
   ResolveField,
   Parent,
 } from '@nestjs/graphql';
-import { Inject } from '@nestjs/common';
+import { Inject, UseGuards } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
 
 import { User } from '../../entities/user.entity';
@@ -16,17 +16,19 @@ import { TeamPlayer } from '../../entities/team-player.entity';
 import { TeamCoach } from '../../entities/team-coach.entity';
 import { Team } from '../../entities/team.entity';
 import { TeamsService } from '../teams/teams.service';
+import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
 
 import { UsersService, UserType } from './users.service';
 import { CreateUserInput } from './dto/create-user.input';
 import { UpdateUserInput } from './dto/update-user.input';
 
 @Resolver(() => User)
+@UseGuards(ClerkAuthGuard)
 export class UsersResolver {
   constructor(
     private readonly usersService: UsersService,
     private readonly teamsService: TeamsService,
-    @Inject('PUB_SUB') private pubSub: PubSub
+    @Inject('PUB_SUB') private pubSub: PubSub,
   ) {}
 
   // General user queries
@@ -102,7 +104,7 @@ export class UsersResolver {
     // Combine and deduplicate teams
     const allTeams = [...playerTeams, ...coachTeams];
     const uniqueTeams = allTeams.filter(
-      (team, index, arr) => arr.findIndex((t) => t.id === team.id) === index
+      (team, index, arr) => arr.findIndex((t) => t.id === team.id) === index,
     );
 
     return uniqueTeams;
@@ -129,7 +131,7 @@ export class UsersResolver {
   @Mutation(() => User)
   async updateUser(
     @Args('id', { type: () => ID }) id: string,
-    @Args('updateUserInput') updateUserInput: UpdateUserInput
+    @Args('updateUserInput') updateUserInput: UpdateUserInput,
   ) {
     const user = await this.usersService.update(id, updateUserInput);
     this.pubSub.publish('userUpdated', { userUpdated: user });
@@ -148,14 +150,14 @@ export class UsersResolver {
     @Args('teamId', { type: () => ID }) teamId: string,
     @Args('jerseyNumber', { nullable: true }) jerseyNumber?: string,
     @Args('primaryPosition', { nullable: true }) primaryPosition?: string,
-    @Args('joinedDate', { nullable: true }) joinedDate?: Date
+    @Args('joinedDate', { nullable: true }) joinedDate?: Date,
   ) {
     return this.usersService.addPlayerToTeam(
       userId,
       teamId,
       jerseyNumber,
       primaryPosition,
-      joinedDate
+      joinedDate,
     );
   }
 
@@ -163,7 +165,7 @@ export class UsersResolver {
   removePlayerFromTeam(
     @Args('userId', { type: () => ID }) userId: string,
     @Args('teamId', { type: () => ID }) teamId: string,
-    @Args('leftDate', { nullable: true }) leftDate?: Date
+    @Args('leftDate', { nullable: true }) leftDate?: Date,
   ) {
     return this.usersService.removePlayerFromTeam(userId, teamId, leftDate);
   }
@@ -174,7 +176,7 @@ export class UsersResolver {
     @Args('userId', { type: () => ID }) userId: string,
     @Args('teamId', { type: () => ID }) teamId: string,
     @Args('role') role: string,
-    @Args('startDate') startDate: Date
+    @Args('startDate') startDate: Date,
   ) {
     return this.usersService.addCoachToTeam(userId, teamId, role, startDate);
   }
@@ -183,7 +185,7 @@ export class UsersResolver {
   removeCoachFromTeam(
     @Args('userId', { type: () => ID }) userId: string,
     @Args('teamId', { type: () => ID }) teamId: string,
-    @Args('endDate', { nullable: true }) endDate?: Date
+    @Args('endDate', { nullable: true }) endDate?: Date,
   ) {
     return this.usersService.removeCoachFromTeam(userId, teamId, endDate);
   }
@@ -202,14 +204,14 @@ export class UsersResolver {
   // Legacy aliases for backward compatibility
   @Mutation(() => User)
   async createPlayer(
-    @Args('createPlayerInput') createPlayerInput: CreateUserInput
+    @Args('createPlayerInput') createPlayerInput: CreateUserInput,
   ) {
     return this.createUser(createPlayerInput);
   }
 
   @Mutation(() => User)
   async createCoach(
-    @Args('createCoachInput') createCoachInput: CreateUserInput
+    @Args('createCoachInput') createCoachInput: CreateUserInput,
   ) {
     return this.createUser(createCoachInput);
   }
@@ -217,7 +219,7 @@ export class UsersResolver {
   @Mutation(() => User)
   async updatePlayer(
     @Args('id', { type: () => ID }) id: string,
-    @Args('updatePlayerInput') updatePlayerInput: UpdateUserInput
+    @Args('updatePlayerInput') updatePlayerInput: UpdateUserInput,
   ) {
     return this.updateUser(id, updatePlayerInput);
   }
@@ -225,7 +227,7 @@ export class UsersResolver {
   @Mutation(() => User)
   async updateCoach(
     @Args('id', { type: () => ID }) id: string,
-    @Args('updateCoachInput') updateCoachInput: UpdateUserInput
+    @Args('updateCoachInput') updateCoachInput: UpdateUserInput,
   ) {
     return this.updateUser(id, updateCoachInput);
   }
