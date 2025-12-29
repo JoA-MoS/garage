@@ -58,21 +58,17 @@ export default async function runExecutor(
 
   const workspaceRoot = context.root;
   const projectRoot = path.join(workspaceRoot, projectConfig.root);
-  // Put Vercel output in dist/.vercel/{projectPath}/output to mirror build output structure
-  // e.g., apps/soccer-stats/ui → dist/.vercel/apps/soccer-stats/ui/output
-  const vercelOutputDir = path.join(
-    workspaceRoot,
-    'dist',
-    '.vercel',
-    projectConfig.root,
-    'output',
-  );
+  // Put Vercel output in dist/deploy/{projectPath}/.vercel/output
+  // Separate from build output to avoid recursive copy issues
+  // Vercel CLI expects .vercel/output inside the deploy directory
+  // e.g., apps/soccer-stats/ui → dist/deploy/apps/soccer-stats/ui/.vercel/output
   const vercelDeployDir = path.join(
     workspaceRoot,
     'dist',
-    '.vercel',
+    'deploy',
     projectConfig.root,
   );
+  const vercelOutputDir = path.join(vercelDeployDir, '.vercel', 'output');
   const staticDir = path.join(vercelOutputDir, 'static');
   const buildOutputPath = path.join(workspaceRoot, outputPath);
 
@@ -116,7 +112,8 @@ export default async function runExecutor(
     }
 
     // Build vercel deploy command arguments
-    const vercelArgs = ['deploy', '--prebuilt'];
+    // Pass the deploy directory as the first argument (contains .vercel/output)
+    const vercelArgs = ['deploy', vercelDeployDir, '--prebuilt'];
     if (prod) {
       vercelArgs.push('--prod');
     }
@@ -136,9 +133,9 @@ export default async function runExecutor(
     );
     logger.info(`Running: vercel ${argsForLogging.join(' ')}`);
 
-    // Execute vercel deploy from the vercel output directory
+    // Execute vercel deploy from workspace root
     const output = execFileSync('vercel', vercelArgs, {
-      cwd: vercelDeployDir,
+      cwd: workspaceRoot,
       encoding: 'utf-8',
       stdio: ['inherit', 'pipe', 'pipe'],
       env: {
