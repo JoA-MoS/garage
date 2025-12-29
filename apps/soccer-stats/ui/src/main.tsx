@@ -7,6 +7,7 @@ import { ApolloProvider } from '@apollo/client/react';
 import { router } from './app/router/router';
 import { apolloClient, setTokenGetter } from './app/services/apollo-client';
 import { fetchPublicConfig, PublicConfig } from './app/services/config.service';
+import { AuthErrorProvider } from './app/providers/auth-error-provider';
 
 // Component that sets up the auth token getter for Apollo
 function AuthApolloProvider({ children }: { children: React.ReactNode }) {
@@ -36,7 +37,9 @@ function ErrorScreen({ error }: { error: string }) {
   return (
     <div className="flex h-screen items-center justify-center bg-gray-50">
       <div className="max-w-md rounded-lg bg-white p-4 shadow-lg sm:p-6 md:p-8">
-        <h1 className="mb-4 text-2xl font-bold text-red-600">Configuration Error</h1>
+        <h1 className="mb-4 text-2xl font-bold text-red-600">
+          Configuration Error
+        </h1>
         <p className="mb-4 text-gray-700">{error}</p>
         <button
           onClick={() => window.location.reload()}
@@ -60,7 +63,7 @@ function App() {
   useEffect(() => {
     // Check if VITE_CLERK_PUBLISHABLE_KEY is defined for debugging purposes
     const buildTimeKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-    
+
     if (buildTimeKey) {
       // Use build-time key if available (useful for debugging)
       setConfig({ clerkPublishableKey: buildTimeKey });
@@ -89,20 +92,25 @@ function App() {
 
   // Render the app with the fetched configuration
   return (
-    <ClerkProvider publishableKey={config.clerkPublishableKey} afterSignOutUrl="/">
-      <AuthApolloProvider>
-        <RouterProvider router={router} />
-      </AuthApolloProvider>
+    <ClerkProvider
+      publishableKey={config.clerkPublishableKey}
+      afterSignOutUrl="/"
+    >
+      <AuthErrorProvider>
+        <AuthApolloProvider>
+          <RouterProvider router={router} />
+        </AuthApolloProvider>
+      </AuthErrorProvider>
     </ClerkProvider>
   );
 }
 
 const root = ReactDOM.createRoot(
-  document.getElementById('root') as HTMLElement
+  document.getElementById('root') as HTMLElement,
 );
 
 root.render(
   <StrictMode>
     <App />
-  </StrictMode>
+  </StrictMode>,
 );
