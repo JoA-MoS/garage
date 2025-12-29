@@ -43,6 +43,13 @@
           "destination": {
             "type": "string",
             "description": "Destination URL (e.g., https://api.example.com/:path*)"
+          },
+          "headers": {
+            "type": "object",
+            "description": "Optional response headers (e.g., Cache-Control)",
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         },
         "required": ["source", "destination"]

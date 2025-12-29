@@ -108,6 +108,9 @@ describe('Deploy Executor', () => {
     expect(config.routes).toContainEqual({
       src: '^/(.*)$',
       dest: '/index.html',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      },
     });
   });
 
@@ -192,5 +195,35 @@ describe('Deploy Executor', () => {
       (r: { src?: string }) => r.src === '^/(.*)$',
     );
     expect(rewriteIndex).toBeLessThan(spaIndex);
+  });
+
+  it('should include headers in rewrite routes when provided', async () => {
+    const optionsWithHeaders = {
+      ...options,
+      rewrites: [
+        {
+          source: '/api/:path*',
+          destination: 'https://api.example.com/:path*',
+          headers: {
+            'Cache-Control': 'no-cache, no-store',
+            'X-Custom-Header': 'test-value',
+          },
+        },
+      ],
+    };
+
+    await executor(optionsWithHeaders, context);
+
+    const configPath = path.join(mockVercelOutputDir, 'config.json');
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+
+    expect(config.routes).toContainEqual({
+      src: '^/api/(.*)$',
+      dest: 'https://api.example.com/$1',
+      headers: {
+        'Cache-Control': 'no-cache, no-store',
+        'X-Custom-Header': 'test-value',
+      },
+    });
   });
 });

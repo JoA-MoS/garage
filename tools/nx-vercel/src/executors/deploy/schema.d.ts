@@ -3,6 +3,8 @@ export interface VercelRewrite {
   source: string;
   /** Destination URL (e.g., https://api.example.com/:path*) */
   destination: string;
+  /** Optional response headers (e.g., Cache-Control) */
+  headers?: Record<string, string>;
 }
 
 export interface DeployExecutorSchema {
