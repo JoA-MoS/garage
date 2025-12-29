@@ -5,8 +5,9 @@ import {
   ApolloLink,
   split,
 } from '@apollo/client';
+import { CombinedGraphQLErrors } from '@apollo/client/errors';
 import { setContext } from '@apollo/client/link/context';
-import { onError } from '@apollo/client/link/error';
+import { ErrorLink } from '@apollo/client/link/error';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
@@ -44,9 +45,10 @@ export function setAuthErrorHandler(handler: (() => void) | null) {
 }
 
 // Error link to handle GraphQL errors globally
-const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
-  if (graphQLErrors) {
-    for (const err of graphQLErrors) {
+const errorLink = new ErrorLink(({ error, operation }) => {
+  if (CombinedGraphQLErrors.is(error)) {
+    // Handle GraphQL errors
+    for (const err of error.errors) {
       const errorCode = err.extensions?.code;
 
       // Log all GraphQL errors for debugging/monitoring
@@ -66,9 +68,9 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
         }
       }
     }
-  }
-  if (networkError) {
-    console.error('[Network Error]:', networkError);
+  } else {
+    // Handle network errors
+    console.error('[Network Error]:', error);
   }
 });
 
