@@ -218,7 +218,7 @@ types/                     # TypeScript type definitions
 
 **GraphQL Integration:**
 
-1. Backend exposes GraphQL schema at `http://localhost:3333/graphql`
+1. Backend exposes GraphQL schema at `http://localhost:3333/api/graphql`
 2. Frontend queries/mutations are defined in `.tsx` files using `gql` template tags
 3. GraphQL Code Generator reads the schema and frontend documents
 4. Generates TypeScript types and Apollo Client hooks in `generated/`
