@@ -571,6 +571,24 @@ export class GameEventsService {
           });
           break;
         }
+
+        case 'POSITION_SWAP': {
+          // Update the player's position in currentOnField
+          // The POSITION_SWAP event's position field contains the NEW position
+          const existingOnField = currentOnField.get(playerKey);
+          if (existingOnField) {
+            existingOnField.position = event.position;
+          }
+          // Also update the lineupPlayer and status map
+          lineupPlayer.isOnField = true;
+          lineupPlayer.position = event.position;
+          currentOnField.set(playerKey, lineupPlayer);
+          playerStatusMap.set(playerKey, {
+            isOnField: true,
+            latestEvent: lineupPlayer,
+          });
+          break;
+        }
       }
     }
 
