@@ -511,6 +511,24 @@ export const SWAP_POSITIONS = graphql(/* GraphQL */ `
   }
 `);
 
+export const BATCH_LINEUP_CHANGES = graphql(/* GraphQL */ `
+  mutation BatchLineupChanges($input: BatchLineupChangesInput!) {
+    batchLineupChanges(input: $input) {
+      id
+      gameMinute
+      gameSecond
+      position
+      playerId
+      externalPlayerName
+      externalPlayerNumber
+      eventType {
+        id
+        name
+      }
+    }
+  }
+`);
+
 export const GET_PLAYER_POSITION_STATS = graphql(/* GraphQL */ `
   query GetPlayerPositionStats($gameTeamId: ID!) {
     playerPositionStats(gameTeamId: $gameTeamId) {

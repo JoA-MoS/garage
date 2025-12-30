@@ -13,7 +13,7 @@ export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & {
 };
 export type MakeEmpty<
   T extends { [key: string]: unknown },
-  K extends keyof T,
+  K extends keyof T
 > = { [_ in K]?: never };
 export type Incremental<T> =
   | T
@@ -44,6 +44,43 @@ export type AddToLineupInput = {
   gameTeamId: Scalars['ID']['input'];
   playerId?: InputMaybe<Scalars['ID']['input']>;
   position: Scalars['String']['input'];
+};
+
+export type BatchLineupChangesInput = {
+  /** Game minute when changes occur */
+  gameMinute: Scalars['Int']['input'];
+  /** Game second when changes occur */
+  gameSecond?: Scalars['Int']['input'];
+  gameTeamId: Scalars['ID']['input'];
+  /** List of substitutions to process (processed first) */
+  substitutions?: Array<BatchSubstitutionInput>;
+  /** List of position swaps to process (processed after substitutions) */
+  swaps?: Array<BatchSwapInput>;
+};
+
+export type BatchSubstitutionInput = {
+  /** External player name if substituting in an opponent player */
+  externalPlayerInName?: InputMaybe<Scalars['String']['input']>;
+  /** External player number if substituting in an opponent player */
+  externalPlayerInNumber?: InputMaybe<Scalars['String']['input']>;
+  /** Player ID if substituting in a managed roster player */
+  playerInId?: InputMaybe<Scalars['ID']['input']>;
+  /** The GameEvent ID of the player being substituted out */
+  playerOutEventId: Scalars['ID']['input'];
+};
+
+export type BatchSwapInput = {
+  /** First player reference (will get player2 position). Use eventId for on-field players, or substitutionIndex to reference an incoming player from a queued substitution. */
+  player1: BatchSwapPlayerRef;
+  /** Second player reference (will get player1 position). Use eventId for on-field players, or substitutionIndex to reference an incoming player from a queued substitution. */
+  player2: BatchSwapPlayerRef;
+};
+
+export type BatchSwapPlayerRef = {
+  /** The GameEvent ID for an on-field player */
+  eventId?: InputMaybe<Scalars['ID']['input']>;
+  /** Index of a substitution in the batch (0-based) to reference the incoming player */
+  substitutionIndex?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type ConflictInfo = {
@@ -295,6 +332,8 @@ export type Mutation = {
   addTeamMember: TeamMember;
   /** Backfill ownership for teams created by the current user that do not have an owner. Returns the list of teams that were updated. */
   backfillMyTeamOwners: Array<Team>;
+  /** Process multiple lineup changes (substitutions and swaps) in a single request */
+  batchLineupChanges: Array<GameEvent>;
   createCoach: User;
   createGame: Game;
   createGameFormat: GameFormat;
@@ -366,6 +405,10 @@ export type MutationAddTeamMemberArgs = {
   role: TeamRole;
   teamId: Scalars['ID']['input'];
   userId: Scalars['ID']['input'];
+};
+
+export type MutationBatchLineupChangesArgs = {
+  input: BatchLineupChangesInput;
 };
 
 export type MutationCreateCoachArgs = {
@@ -1674,6 +1717,25 @@ export type SwapPositionsMutationVariables = Exact<{
 export type SwapPositionsMutation = {
   __typename?: 'Mutation';
   swapPositions: Array<{
+    __typename?: 'GameEvent';
+    id: string;
+    gameMinute: number;
+    gameSecond: number;
+    position?: string | null;
+    playerId?: string | null;
+    externalPlayerName?: string | null;
+    externalPlayerNumber?: string | null;
+    eventType: { __typename?: 'EventType'; id: string; name: string };
+  }>;
+};
+
+export type BatchLineupChangesMutationVariables = Exact<{
+  input: BatchLineupChangesInput;
+}>;
+
+export type BatchLineupChangesMutation = {
+  __typename?: 'Mutation';
+  batchLineupChanges: Array<{
     __typename?: 'GameEvent';
     id: string;
     gameMinute: number;
@@ -5086,6 +5148,83 @@ export const SwapPositionsDocument = {
 } as unknown as DocumentNode<
   SwapPositionsMutation,
   SwapPositionsMutationVariables
+>;
+export const BatchLineupChangesDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'mutation',
+      name: { kind: 'Name', value: 'BatchLineupChanges' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'input' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: {
+              kind: 'NamedType',
+              name: { kind: 'Name', value: 'BatchLineupChangesInput' },
+            },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'batchLineupChanges' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'input' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'input' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'position' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'playerId' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'externalPlayerName' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'externalPlayerNumber' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'eventType' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  BatchLineupChangesMutation,
+  BatchLineupChangesMutationVariables
 >;
 export const GetPlayerPositionStatsDocument = {
   kind: 'Document',
