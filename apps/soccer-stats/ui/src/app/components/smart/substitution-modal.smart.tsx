@@ -83,7 +83,7 @@ function getJerseyNumber(player: LineupPlayer): string | null {
 
 export const SubstitutionModal = ({
   gameTeamId,
-  gameId: _gameId, // Used by parent, kept for interface compatibility
+  gameId,
   teamName,
   teamColor,
   currentOnField,
@@ -114,6 +114,7 @@ export const SubstitutionModal = ({
   // Execution state
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionProgress, setExecutionProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   // Apollo client for manual refetch after all operations complete
   const client = useApolloClient();
@@ -304,6 +305,7 @@ export const SubstitutionModal = ({
 
     setIsExecuting(true);
     setExecutionProgress(0);
+    setError(null); // Clear any previous error
 
     // Separate subs and swaps
     const subs = queue.filter(
@@ -361,15 +363,27 @@ export const SubstitutionModal = ({
 
       setExecutionProgress(queue.length);
 
-      // Refetch queries once after batch completes
-      await client.refetchQueries({
-        include: [GET_GAME_BY_ID, GET_GAME_LINEUP],
-      });
+      // Refetch queries with explicit variables after batch completes
+      await Promise.all([
+        client.query({
+          query: GET_GAME_BY_ID,
+          variables: { id: gameId },
+          fetchPolicy: 'network-only',
+        }),
+        client.query({
+          query: GET_GAME_LINEUP,
+          variables: { gameTeamId },
+          fetchPolicy: 'network-only',
+        }),
+      ]);
 
       onSuccess?.();
       onClose();
     } catch (err) {
       console.error('Failed to execute batch changes:', err);
+      const message =
+        err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(message);
       setIsExecuting(false);
     }
   };
@@ -1146,6 +1160,13 @@ export const SubstitutionModal = ({
             <p className="text-gray-600">
               Processing changes... ({executionProgress}/{queue.length})
             </p>
+          </div>
+        )}
+
+        {/* Error Display */}
+        {error && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-base text-red-700 sm:p-5 sm:text-sm md:p-6">
+            <span className="font-medium">Error:</span> {error}
           </div>
         )}
 
