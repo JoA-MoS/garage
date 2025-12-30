@@ -23,6 +23,7 @@ import { SubstitutePlayerInput } from './dto/substitute-player.input';
 import { RecordGoalInput } from './dto/record-goal.input';
 import { UpdateGoalInput } from './dto/update-goal.input';
 import { SwapPositionsInput } from './dto/swap-positions.input';
+import { BatchLineupChangesInput } from './dto/batch-lineup-changes.input';
 import { GameLineup } from './dto/game-lineup.output';
 import { PlayerPositionStats } from './dto/player-position-stats.output';
 import { PlayerFullStats } from './dto/player-full-stats.output';
@@ -177,6 +178,23 @@ export class GameEventsResolver {
   ): Promise<GameEvent[]> {
     const userId = await this.getInternalUserId(clerkUser);
     return this.gameEventsService.swapPositions(input, userId);
+  }
+
+  @Mutation(() => [GameEvent], {
+    name: 'batchLineupChanges',
+    description:
+      'Process multiple lineup changes (substitutions and swaps) in a single request',
+  })
+  async batchLineupChanges(
+    @Args('input') input: BatchLineupChangesInput,
+    @CurrentUser() clerkUser: ClerkUser
+  ): Promise<GameEvent[]> {
+    const userId = await this.getInternalUserId(clerkUser);
+    const result = await this.gameEventsService.batchLineupChanges(
+      input,
+      userId
+    );
+    return result.events;
   }
 
   @Query(() => [PlayerPositionStats], { name: 'playerPositionStats' })

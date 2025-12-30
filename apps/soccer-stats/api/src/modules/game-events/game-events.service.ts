@@ -22,6 +22,7 @@ import { SubstitutePlayerInput } from './dto/substitute-player.input';
 import { RecordGoalInput } from './dto/record-goal.input';
 import { UpdateGoalInput } from './dto/update-goal.input';
 import { SwapPositionsInput } from './dto/swap-positions.input';
+import { BatchLineupChangesInput } from './dto/batch-lineup-changes.input';
 import { GameLineup, LineupPlayer } from './dto/game-lineup.output';
 import {
   PlayerPositionStats,
@@ -564,6 +565,24 @@ export class GameEventsService {
             inStatus.isOnField = true;
             inStatus.latestEvent.isOnField = true;
           }
+          playerStatusMap.set(playerKey, {
+            isOnField: true,
+            latestEvent: lineupPlayer,
+          });
+          break;
+        }
+
+        case 'POSITION_SWAP': {
+          // Update the player's position in currentOnField
+          // The POSITION_SWAP event's position field contains the NEW position
+          const existingOnField = currentOnField.get(playerKey);
+          if (existingOnField) {
+            existingOnField.position = event.position;
+          }
+          // Also update the lineupPlayer and status map
+          lineupPlayer.isOnField = true;
+          lineupPlayer.position = event.position;
+          currentOnField.set(playerKey, lineupPlayer);
           playerStatusMap.set(playerKey, {
             isOnField: true,
             latestEvent: lineupPlayer,
@@ -1278,6 +1297,105 @@ export class GameEventsService {
     );
 
     return [swap1WithRelations, swap2WithRelations];
+  }
+
+  /**
+   * Process multiple lineup changes (substitutions and position swaps) in a single operation.
+   * Substitutions are processed first, then swaps. This allows swaps to reference
+   * players who just came on as substitutes.
+   *
+   * @returns Object containing all created events and a map of substitution indices to their SUBSTITUTION_IN event IDs
+   */
+  async batchLineupChanges(
+    input: BatchLineupChangesInput,
+    recordedByUserId: string
+  ): Promise<{
+    events: GameEvent[];
+    substitutionEventIds: Map<number, string>;
+  }> {
+    const allEvents: GameEvent[] = [];
+    const substitutionEventIds = new Map<number, string>();
+
+    // Process all substitutions first
+    for (let i = 0; i < input.substitutions.length; i++) {
+      const sub = input.substitutions[i];
+      const subInput: SubstitutePlayerInput = {
+        gameTeamId: input.gameTeamId,
+        playerOutEventId: sub.playerOutEventId,
+        playerInId: sub.playerInId,
+        externalPlayerInName: sub.externalPlayerInName,
+        externalPlayerInNumber: sub.externalPlayerInNumber,
+        gameMinute: input.gameMinute,
+        gameSecond: input.gameSecond,
+      };
+
+      const events = await this.substitutePlayer(subInput, recordedByUserId);
+      allEvents.push(...events);
+
+      // Find the SUBSTITUTION_IN event and store its ID for swap references
+      const subInEvent = events.find(
+        (e) => e.eventType?.name === 'SUBSTITUTION_IN'
+      );
+      if (subInEvent) {
+        substitutionEventIds.set(i, subInEvent.id);
+      }
+    }
+
+    // Process all position swaps, resolving player references
+    for (const swap of input.swaps) {
+      // Resolve player1 event ID
+      let player1EventId: string;
+      if (swap.player1.eventId) {
+        player1EventId = swap.player1.eventId;
+      } else if (swap.player1.substitutionIndex !== undefined) {
+        const resolvedId = substitutionEventIds.get(
+          swap.player1.substitutionIndex
+        );
+        if (!resolvedId) {
+          throw new BadRequestException(
+            `Could not resolve substitution index ${swap.player1.substitutionIndex} for player1`
+          );
+        }
+        player1EventId = resolvedId;
+      } else {
+        throw new BadRequestException(
+          'Swap player1 must have either eventId or substitutionIndex'
+        );
+      }
+
+      // Resolve player2 event ID
+      let player2EventId: string;
+      if (swap.player2.eventId) {
+        player2EventId = swap.player2.eventId;
+      } else if (swap.player2.substitutionIndex !== undefined) {
+        const resolvedId = substitutionEventIds.get(
+          swap.player2.substitutionIndex
+        );
+        if (!resolvedId) {
+          throw new BadRequestException(
+            `Could not resolve substitution index ${swap.player2.substitutionIndex} for player2`
+          );
+        }
+        player2EventId = resolvedId;
+      } else {
+        throw new BadRequestException(
+          'Swap player2 must have either eventId or substitutionIndex'
+        );
+      }
+
+      const swapInput: SwapPositionsInput = {
+        gameTeamId: input.gameTeamId,
+        player1EventId,
+        player2EventId,
+        gameMinute: input.gameMinute,
+        gameSecond: input.gameSecond,
+      };
+
+      const events = await this.swapPositions(swapInput, recordedByUserId);
+      allEvents.push(...events);
+    }
+
+    return { events: allEvents, substitutionEventIds };
   }
 
   async getPlayerPositionStats(

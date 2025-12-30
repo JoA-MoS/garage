@@ -100,6 +100,7 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
         }
         gameEvents {
           id
+          createdAt
           gameMinute
           gameSecond
           position
@@ -496,6 +497,24 @@ export const UPDATE_GOAL = graphql(/* GraphQL */ `
 export const SWAP_POSITIONS = graphql(/* GraphQL */ `
   mutation SwapPositions($input: SwapPositionsInput!) {
     swapPositions(input: $input) {
+      id
+      gameMinute
+      gameSecond
+      position
+      playerId
+      externalPlayerName
+      externalPlayerNumber
+      eventType {
+        id
+        name
+      }
+    }
+  }
+`);
+
+export const BATCH_LINEUP_CHANGES = graphql(/* GraphQL */ `
+  mutation BatchLineupChanges($input: BatchLineupChangesInput!) {
+    batchLineupChanges(input: $input) {
       id
       gameMinute
       gameSecond
