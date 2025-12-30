@@ -1354,6 +1354,7 @@ export type GetGameByIdQuery = {
       gameEvents?: Array<{
         __typename?: 'GameEvent';
         id: string;
+        createdAt: any;
         gameMinute: number;
         gameSecond: number;
         position?: string | null;
@@ -3577,6 +3578,10 @@ export const GetGameByIdDocument = {
                             {
                               kind: 'Field',
                               name: { kind: 'Name', value: 'id' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'createdAt' },
                             },
                             {
                               kind: 'Field',

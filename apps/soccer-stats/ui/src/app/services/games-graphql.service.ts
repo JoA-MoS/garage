@@ -100,6 +100,7 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
         }
         gameEvents {
           id
+          createdAt
           gameMinute
           gameSecond
           position
