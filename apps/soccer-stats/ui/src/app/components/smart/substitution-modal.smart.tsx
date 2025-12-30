@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation } from '@apollo/client/react';
+import { useApolloClient, useMutation } from '@apollo/client/react';
 
 import {
   SUBSTITUTE_PLAYER,
@@ -80,7 +80,7 @@ function getJerseyNumber(player: LineupPlayer): string | null {
 
 export const SubstitutionModal = ({
   gameTeamId,
-  gameId,
+  gameId: _gameId, // Used by parent, kept for interface compatibility
   teamName,
   teamColor,
   currentOnField,
@@ -112,19 +112,13 @@ export const SubstitutionModal = ({
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionProgress, setExecutionProgress] = useState(0);
 
-  const [substitutePlayer] = useMutation(SUBSTITUTE_PLAYER, {
-    refetchQueries: [
-      { query: GET_GAME_BY_ID, variables: { id: gameId } },
-      { query: GET_GAME_LINEUP, variables: { gameTeamId } },
-    ],
-  });
+  // Apollo client for manual refetch after all operations complete
+  const client = useApolloClient();
 
-  const [swapPositions] = useMutation(SWAP_POSITIONS, {
-    refetchQueries: [
-      { query: GET_GAME_BY_ID, variables: { id: gameId } },
-      { query: GET_GAME_LINEUP, variables: { gameTeamId } },
-    ],
-  });
+  // Mutations without refetchQueries - we'll refetch manually once at the end
+  // to avoid N*2 refetch requests when confirming multiple queued operations
+  const [substitutePlayer] = useMutation(SUBSTITUTE_PLAYER);
+  const [swapPositions] = useMutation(SWAP_POSITIONS);
 
   // Helper to get player ID for matching
   const getPlayerId = (player: LineupPlayer) =>
@@ -399,6 +393,12 @@ export const SubstitutionModal = ({
 
         setExecutionProgress(subs.length + i + 1);
       }
+
+      // Refetch queries once after all operations complete (instead of after each mutation)
+      // Apollo will use the variables from active queries watching these documents
+      await client.refetchQueries({
+        include: [GET_GAME_BY_ID, GET_GAME_LINEUP],
+      });
 
       onSuccess?.();
       onClose();
