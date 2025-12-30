@@ -45,6 +45,9 @@ Thumbs.db
 
 .angular
 
+# Playwright MCP screenshots
+.playwright-mcp/
+
 # env files
 .env.local
 # Serverless

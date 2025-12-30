@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { useMutation } from '@apollo/client/react';
+import { useApolloClient, useMutation } from '@apollo/client/react';
 
 import {
-  SUBSTITUTE_PLAYER,
-  SWAP_POSITIONS,
+  BATCH_LINEUP_CHANGES,
   GET_GAME_BY_ID,
   GET_GAME_LINEUP,
 } from '../../services/games-graphql.service';
-import { LineupPlayer } from '../../generated/graphql';
+import {
+  LineupPlayer,
+  BatchSubstitutionInput,
+  BatchSwapInput,
+} from '../../generated/graphql';
 
 interface SubstitutionModalProps {
   gameTeamId: string;
@@ -111,20 +114,14 @@ export const SubstitutionModal = ({
   // Execution state
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionProgress, setExecutionProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  const [substitutePlayer] = useMutation(SUBSTITUTE_PLAYER, {
-    refetchQueries: [
-      { query: GET_GAME_BY_ID, variables: { id: gameId } },
-      { query: GET_GAME_LINEUP, variables: { gameTeamId } },
-    ],
-  });
+  // Apollo client for manual refetch after all operations complete
+  const client = useApolloClient();
 
-  const [swapPositions] = useMutation(SWAP_POSITIONS, {
-    refetchQueries: [
-      { query: GET_GAME_BY_ID, variables: { id: gameId } },
-      { query: GET_GAME_LINEUP, variables: { gameTeamId } },
-    ],
-  });
+  // Single batch mutation for all lineup changes
+  // This reduces N+M requests down to 1 request for better performance
+  const [batchLineupChanges] = useMutation(BATCH_LINEUP_CHANGES);
 
   // Helper to get player ID for matching
   const getPlayerId = (player: LineupPlayer) =>
@@ -302,12 +299,13 @@ export const SubstitutionModal = ({
     setQueue((prev) => prev.filter((q) => q.id !== queueId));
   };
 
-  // Execute all queued items
+  // Execute all queued items using a single batch mutation
   const handleConfirmAll = async () => {
     if (queue.length === 0) return;
 
     setIsExecuting(true);
     setExecutionProgress(0);
+    setError(null); // Clear any previous error
 
     // Separate subs and swaps
     const subs = queue.filter(
@@ -318,92 +316,74 @@ export const SubstitutionModal = ({
       (q): q is Extract<QueuedItem, { type: 'swap' }> => q.type === 'swap'
     );
 
-    // Map from queuedSubId to the new SUBSTITUTION_IN event ID
-    const subIdToNewEventId = new Map<string, string>();
+    // Map from queuedSubId to substitution index for swap references
+    const subIdToIndex = new Map<string, number>();
+    subs.forEach((sub, index) => {
+      subIdToIndex.set(sub.id, index);
+    });
 
     try {
-      // Execute all substitutions first
-      for (let i = 0; i < subs.length; i++) {
-        const sub = subs[i];
-        const result = await substitutePlayer({
-          variables: {
-            input: {
-              gameTeamId,
-              playerOutEventId: sub.playerOut.gameEventId,
-              gameMinute,
-              gameSecond,
-              playerInId: sub.playerIn.playerId || undefined,
-              externalPlayerInName:
-                sub.playerIn.externalPlayerName || undefined,
-              externalPlayerInNumber:
-                sub.playerIn.externalPlayerNumber || undefined,
-            },
+      // Build substitution inputs
+      const substitutionInputs: BatchSubstitutionInput[] = subs.map((sub) => ({
+        playerOutEventId: sub.playerOut.gameEventId,
+        playerInId: sub.playerIn.playerId || undefined,
+        externalPlayerInName: sub.playerIn.externalPlayerName || undefined,
+        externalPlayerInNumber: sub.playerIn.externalPlayerNumber || undefined,
+      }));
+
+      // Build swap inputs with player references
+      const swapInputs: BatchSwapInput[] = swaps.map((swap) => {
+        // Resolve player1 reference
+        const player1 =
+          swap.player1.source === 'onField'
+            ? { eventId: swap.player1.gameEventId }
+            : { substitutionIndex: subIdToIndex.get(swap.player1.queuedSubId) };
+
+        // Resolve player2 reference
+        const player2 =
+          swap.player2.source === 'onField'
+            ? { eventId: swap.player2.gameEventId }
+            : { substitutionIndex: subIdToIndex.get(swap.player2.queuedSubId) };
+
+        return { player1, player2 };
+      });
+
+      // Execute single batch mutation for all changes
+      await batchLineupChanges({
+        variables: {
+          input: {
+            gameTeamId,
+            gameMinute,
+            gameSecond,
+            substitutions: substitutionInputs,
+            swaps: swapInputs,
           },
-        });
+        },
+      });
 
-        // Find the SUBSTITUTION_IN event (the one for the incoming player)
-        const events = result.data?.substitutePlayer;
-        if (events) {
-          const subInEvent = events.find(
-            (e) => e.eventType?.name === 'SUBSTITUTION_IN'
-          );
-          if (subInEvent) {
-            subIdToNewEventId.set(sub.id, subInEvent.id);
-          }
-        }
+      setExecutionProgress(queue.length);
 
-        setExecutionProgress(i + 1);
-      }
-
-      // Execute all swaps
-      for (let i = 0; i < swaps.length; i++) {
-        const swap = swaps[i];
-
-        // Resolve player1 event ID
-        let player1EventId: string;
-        if (swap.player1.source === 'onField') {
-          player1EventId = swap.player1.gameEventId;
-        } else {
-          const newId = subIdToNewEventId.get(swap.player1.queuedSubId);
-          if (!newId) {
-            console.error('Could not find event ID for queued sub player1');
-            continue;
-          }
-          player1EventId = newId;
-        }
-
-        // Resolve player2 event ID
-        let player2EventId: string;
-        if (swap.player2.source === 'onField') {
-          player2EventId = swap.player2.gameEventId;
-        } else {
-          const newId = subIdToNewEventId.get(swap.player2.queuedSubId);
-          if (!newId) {
-            console.error('Could not find event ID for queued sub player2');
-            continue;
-          }
-          player2EventId = newId;
-        }
-
-        await swapPositions({
-          variables: {
-            input: {
-              gameTeamId,
-              player1EventId,
-              player2EventId,
-              gameMinute,
-              gameSecond,
-            },
-          },
-        });
-
-        setExecutionProgress(subs.length + i + 1);
-      }
+      // Refetch queries with explicit variables after batch completes
+      await Promise.all([
+        client.query({
+          query: GET_GAME_BY_ID,
+          variables: { id: gameId },
+          fetchPolicy: 'network-only',
+        }),
+        client.query({
+          query: GET_GAME_LINEUP,
+          variables: { gameTeamId },
+          fetchPolicy: 'network-only',
+        }),
+      ]);
 
       onSuccess?.();
       onClose();
     } catch (err) {
-      console.error('Failed to execute changes:', err);
+      console.error('Failed to execute batch changes:', err);
+      const message =
+        err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(message);
       setIsExecuting(false);
     }
   };
@@ -1180,6 +1160,13 @@ export const SubstitutionModal = ({
             <p className="text-gray-600">
               Processing changes... ({executionProgress}/{queue.length})
             </p>
+          </div>
+        )}
+
+        {/* Error Display */}
+        {error && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-base text-red-700 sm:p-5 sm:text-sm md:p-6">
+            <span className="font-medium">Error:</span> {error}
           </div>
         )}
 

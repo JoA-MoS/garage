@@ -1752,6 +1752,7 @@ export const GamePage = () => {
                 // Define event types for the timeline
                 type MatchEvent = {
                   id: string;
+                  createdAt: string;
                   eventType:
                     | 'goal'
                     | 'substitution'
@@ -1822,6 +1823,7 @@ export const GamePage = () => {
                       );
                       matchEvents.push({
                         id: event.id,
+                        createdAt: event.createdAt,
                         eventType: 'goal',
                         gameMinute: event.gameMinute,
                         gameSecond: event.gameSecond,
@@ -1859,6 +1861,7 @@ export const GamePage = () => {
 
                       matchEvents.push({
                         id: event.id,
+                        createdAt: event.createdAt,
                         eventType: 'substitution',
                         gameMinute: event.gameMinute,
                         gameSecond: event.gameSecond,
@@ -1905,6 +1908,7 @@ export const GamePage = () => {
 
                       matchEvents.push({
                         id: event.id,
+                        createdAt: event.createdAt,
                         eventType: 'position_swap',
                         gameMinute: event.gameMinute,
                         gameSecond: event.gameSecond,
@@ -1940,6 +1944,7 @@ export const GamePage = () => {
                     ) {
                       matchEvents.push({
                         id: event.id,
+                        createdAt: event.createdAt,
                         eventType: 'starter_entry',
                         gameMinute: event.gameMinute,
                         gameSecond: event.gameSecond,
@@ -1961,12 +1966,12 @@ export const GamePage = () => {
                 processTeamEvents(homeTeam, 'home', '#3B82F6');
                 processTeamEvents(awayTeam, 'away', '#EF4444');
 
-                // Sort by game time
-                matchEvents.sort((a, b) => {
-                  if (a.gameMinute !== b.gameMinute)
-                    return a.gameMinute - b.gameMinute;
-                  return a.gameSecond - b.gameSecond;
-                });
+                // Sort by createdAt (most recent first, substitutions before swaps in batch)
+                matchEvents.sort(
+                  (a, b) =>
+                    new Date(b.createdAt).getTime() -
+                    new Date(a.createdAt).getTime()
+                );
 
                 // Helper to find player name from team roster
                 const getPlayerName = (
