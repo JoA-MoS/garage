@@ -30,7 +30,7 @@ export const Dashboard = {
 export const NewGame = {
   parameters: {
     reactRouter: {
-      location: { pathname: '/game/new' },
+      location: { pathname: '/games/new' },
     },
   },
 };
@@ -78,7 +78,7 @@ export const Settings = {
 export const GameSubRoute = {
   parameters: {
     reactRouter: {
-      location: { pathname: '/game/123/lineup' },
+      location: { pathname: '/games/123/lineup' },
     },
   },
 };
@@ -128,7 +128,7 @@ export const AllNavigationStates = {
   render: () => {
     const routes = [
       '/',
-      '/game/new',
+      '/games/new',
       '/history',
       '/players',
       '/teams',
@@ -140,10 +140,10 @@ export const AllNavigationStates = {
       <div className="space-y-4">
         {routes.map((route) => (
           <div key={route}>
-            <h3 className="text-lg font-semibold mb-2">
+            <h3 className="mb-2 text-lg font-semibold">
               Navigation for: {route === '/' ? 'Dashboard' : route}
             </h3>
-            <div className="border rounded-lg overflow-hidden">
+            <div className="overflow-hidden rounded-lg border">
               {/* This would need to be wrapped with Router provider with specific location */}
               <NavigationPresentation />
             </div>
