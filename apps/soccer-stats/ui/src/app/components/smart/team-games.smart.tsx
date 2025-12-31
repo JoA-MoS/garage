@@ -72,7 +72,7 @@ export const TeamGamesSmart = ({ teamId }: TeamGamesSmartProps) => {
         refetchGames();
 
         // Navigate to the created game
-        navigate(`/game/${data.createGame.id}`);
+        navigate(`/games/${data.createGame.id}`);
       },
       onError: (error: any) => {
         console.error('Error creating game:', error);
@@ -120,7 +120,7 @@ export const TeamGamesSmart = ({ teamId }: TeamGamesSmartProps) => {
 
   const handleViewGame = useCallback(
     (gameId: string) => {
-      navigate(`/game/${gameId}`);
+      navigate(`/games/${gameId}`);
     },
     [navigate]
   );

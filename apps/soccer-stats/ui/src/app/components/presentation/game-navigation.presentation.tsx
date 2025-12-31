@@ -18,19 +18,19 @@ export const GameNavigationPresentation = ({
 
   const navigationItems = [
     {
-      path: `/game/${gameId}/lineup/home`,
+      path: `/games/${gameId}/lineup/home`,
       label: `${homeTeamName} Team`,
       icon: '👥',
     },
     {
-      path: `/game/${gameId}/lineup/away`,
+      path: `/games/${gameId}/lineup/away`,
       label: `${awayTeamName} Team`,
       icon: '👥',
     },
-    { path: `/game/${gameId}/roster`, label: 'Roster', icon: '📋' },
-    { path: `/game/${gameId}/stats`, label: 'Statistics', icon: '📊' },
+    { path: `/games/${gameId}/roster`, label: 'Roster', icon: '📋' },
+    { path: `/games/${gameId}/stats`, label: 'Statistics', icon: '📊' },
     {
-      path: `/game/${gameId}/substitutions`,
+      path: `/games/${gameId}/substitutions`,
       label: 'Substitutions',
       icon: '🔄',
     },
@@ -39,12 +39,12 @@ export const GameNavigationPresentation = ({
   const isActive = (path: string) => currentPath === path;
 
   return (
-    <div className="flex space-x-1 mb-6 bg-gray-100 p-1 rounded-lg">
+    <div className="mb-6 flex space-x-1 rounded-lg bg-gray-100 p-1">
       {navigationItems.map((item) => (
         <Link
           key={item.path}
           to={item.path}
-          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200 text-center ${
+          className={`flex-1 rounded-md px-4 py-2 text-center text-sm font-medium transition-colors duration-200 ${
             isActive(item.path)
               ? 'bg-white text-blue-600 shadow-sm'
               : 'text-gray-600 hover:text-gray-800'

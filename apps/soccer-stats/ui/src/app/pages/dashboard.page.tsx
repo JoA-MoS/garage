@@ -188,7 +188,7 @@ export const DashboardPage = () => {
             <div className="text-center text-gray-500">
               <p className="mb-3">No upcoming games scheduled.</p>
               <Link
-                to="/game/new"
+                to="/games/new"
                 className="text-sm text-blue-600 hover:underline"
               >
                 Schedule a game →
@@ -256,7 +256,7 @@ export const DashboardPage = () => {
         </h3>
         <div className="flex flex-wrap gap-3">
           <Link
-            to="/game/new"
+            to="/games/new"
             className="rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
           >
             Start New Game
