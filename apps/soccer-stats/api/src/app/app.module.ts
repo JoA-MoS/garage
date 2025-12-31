@@ -15,6 +15,7 @@ import { GameFormatsModule } from '../modules/game-formats/game-formats.module';
 import { EventTypesModule } from '../modules/event-types/event-types.module';
 import { GameEventsModule } from '../modules/game-events/game-events.module';
 import { TeamMembersModule } from '../modules/team-members/team-members.module';
+import { MyModule } from '../modules/my/my.module';
 import {
   ClerkActor,
   ClerkPayload,
@@ -111,6 +112,7 @@ const typeOrmConfig = {
     EventTypesModule,
     GameEventsModule,
     TeamMembersModule,
+    MyModule,
   ],
   controllers: [AppController, ConfigController],
   providers: [AppService, StartupService],

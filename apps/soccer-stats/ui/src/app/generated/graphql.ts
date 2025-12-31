@@ -578,6 +578,35 @@ export type MutationUpgradeToManagedTeamArgs = {
   upgradeTeamInput: UpgradeTeamInput;
 };
 
+/** User-scoped data accessible via the `my` query */
+export type MyData = {
+  __typename?: 'MyData';
+  /** Games currently in progress across all teams */
+  liveGames: Array<Game>;
+  /** Teams where the user is OWNER or MANAGER */
+  managedTeams: Array<Team>;
+  /** Teams where the user is OWNER */
+  ownedTeams: Array<Team>;
+  /** Recent completed games across all teams */
+  recentGames: Array<Game>;
+  /** All teams the user belongs to */
+  teams: Array<Team>;
+  /** Upcoming games across all teams (scheduled, not completed) */
+  upcomingGames: Array<Game>;
+  /** The authenticated user */
+  user: User;
+};
+
+/** User-scoped data accessible via the `my` query */
+export type MyDataRecentGamesArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** User-scoped data accessible via the `my` query */
+export type MyDataUpcomingGamesArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+};
+
 export type PlayerFullStats = {
   __typename?: 'PlayerFullStats';
   assists: Scalars['Int']['output'];
@@ -646,6 +675,8 @@ export type Query = {
   gameLineup: GameLineup;
   games: Array<Game>;
   managedTeams: Array<Team>;
+  /** Get data for the authenticated user. Returns null if not authenticated. */
+  my?: Maybe<MyData>;
   myRoleInTeam?: Maybe<TeamMember>;
   myTeamMemberships: Array<TeamMember>;
   /** Get teams the current user has access to (created, plays on, or coaches) */
@@ -1899,6 +1930,145 @@ export type GameUpdatedSubscription = {
     actualEnd?: any | null;
     pausedAt?: any | null;
   };
+};
+
+export type GetMyDashboardQueryVariables = Exact<{
+  upcomingLimit?: InputMaybe<Scalars['Int']['input']>;
+  recentLimit?: InputMaybe<Scalars['Int']['input']>;
+}>;
+
+export type GetMyDashboardQuery = {
+  __typename?: 'Query';
+  my?: {
+    __typename?: 'MyData';
+    user: {
+      __typename?: 'User';
+      id: string;
+      firstName: string;
+      lastName: string;
+      email?: string | null;
+    };
+    teams: Array<{
+      __typename?: 'Team';
+      id: string;
+      name: string;
+      shortName?: string | null;
+      homePrimaryColor?: string | null;
+      homeSecondaryColor?: string | null;
+      isManaged: boolean;
+    }>;
+    ownedTeams: Array<{ __typename?: 'Team'; id: string; name: string }>;
+    managedTeams: Array<{ __typename?: 'Team'; id: string; name: string }>;
+    upcomingGames: Array<{
+      __typename?: 'Game';
+      id: string;
+      name?: string | null;
+      scheduledStart?: any | null;
+      status: GameStatus;
+      venue?: string | null;
+      gameTeams?: Array<{
+        __typename?: 'GameTeam';
+        id: string;
+        teamType: string;
+        team: {
+          __typename?: 'Team';
+          id: string;
+          name: string;
+          shortName?: string | null;
+          homePrimaryColor?: string | null;
+        };
+      }> | null;
+    }>;
+    recentGames: Array<{
+      __typename?: 'Game';
+      id: string;
+      name?: string | null;
+      status: GameStatus;
+      actualEnd?: any | null;
+      gameTeams?: Array<{
+        __typename?: 'GameTeam';
+        id: string;
+        teamType: string;
+        finalScore?: number | null;
+        team: {
+          __typename?: 'Team';
+          id: string;
+          name: string;
+          shortName?: string | null;
+          homePrimaryColor?: string | null;
+        };
+      }> | null;
+    }>;
+    liveGames: Array<{
+      __typename?: 'Game';
+      id: string;
+      name?: string | null;
+      status: GameStatus;
+      actualStart?: any | null;
+      gameTeams?: Array<{
+        __typename?: 'GameTeam';
+        id: string;
+        teamType: string;
+        finalScore?: number | null;
+        team: {
+          __typename?: 'Team';
+          id: string;
+          name: string;
+          shortName?: string | null;
+          homePrimaryColor?: string | null;
+        };
+      }> | null;
+    }>;
+  } | null;
+};
+
+export type GetMyTeamsViewerQueryVariables = Exact<{ [key: string]: never }>;
+
+export type GetMyTeamsViewerQuery = {
+  __typename?: 'Query';
+  my?: {
+    __typename?: 'MyData';
+    teams: Array<{
+      __typename?: 'Team';
+      id: string;
+      name: string;
+      shortName?: string | null;
+      homePrimaryColor?: string | null;
+      homeSecondaryColor?: string | null;
+      isManaged: boolean;
+    }>;
+    ownedTeams: Array<{ __typename?: 'Team'; id: string; name: string }>;
+  } | null;
+};
+
+export type GetMyLiveGamesQueryVariables = Exact<{ [key: string]: never }>;
+
+export type GetMyLiveGamesQuery = {
+  __typename?: 'Query';
+  my?: {
+    __typename?: 'MyData';
+    liveGames: Array<{
+      __typename?: 'Game';
+      id: string;
+      name?: string | null;
+      status: GameStatus;
+      actualStart?: any | null;
+      pausedAt?: any | null;
+      gameTeams?: Array<{
+        __typename?: 'GameTeam';
+        id: string;
+        teamType: string;
+        finalScore?: number | null;
+        team: {
+          __typename?: 'Team';
+          id: string;
+          name: string;
+          shortName?: string | null;
+          homePrimaryColor?: string | null;
+        };
+      }> | null;
+    }>;
+  } | null;
 };
 
 export type GetTeamsQueryVariables = Exact<{ [key: string]: never }>;
@@ -5786,6 +5956,498 @@ export const GameUpdatedDocument = {
   GameUpdatedSubscription,
   GameUpdatedSubscriptionVariables
 >;
+export const GetMyDashboardDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'query',
+      name: { kind: 'Name', value: 'GetMyDashboard' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'upcomingLimit' },
+          },
+          type: { kind: 'NamedType', name: { kind: 'Name', value: 'Int' } },
+        },
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'recentLimit' },
+          },
+          type: { kind: 'NamedType', name: { kind: 'Name', value: 'Int' } },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'my' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'user' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'firstName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'lastName' },
+                      },
+                      { kind: 'Field', name: { kind: 'Name', value: 'email' } },
+                    ],
+                  },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'teams' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'shortName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'homePrimaryColor' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'homeSecondaryColor' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'isManaged' },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'ownedTeams' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    ],
+                  },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'managedTeams' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    ],
+                  },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'upcomingGames' },
+                  arguments: [
+                    {
+                      kind: 'Argument',
+                      name: { kind: 'Name', value: 'limit' },
+                      value: {
+                        kind: 'Variable',
+                        name: { kind: 'Name', value: 'upcomingLimit' },
+                      },
+                    },
+                  ],
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'scheduledStart' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'status' },
+                      },
+                      { kind: 'Field', name: { kind: 'Name', value: 'venue' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameTeams' },
+                        selectionSet: {
+                          kind: 'SelectionSet',
+                          selections: [
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'id' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'teamType' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'team' },
+                              selectionSet: {
+                                kind: 'SelectionSet',
+                                selections: [
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'id' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'name' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'shortName' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: {
+                                      kind: 'Name',
+                                      value: 'homePrimaryColor',
+                                    },
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'recentGames' },
+                  arguments: [
+                    {
+                      kind: 'Argument',
+                      name: { kind: 'Name', value: 'limit' },
+                      value: {
+                        kind: 'Variable',
+                        name: { kind: 'Name', value: 'recentLimit' },
+                      },
+                    },
+                  ],
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'status' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'actualEnd' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameTeams' },
+                        selectionSet: {
+                          kind: 'SelectionSet',
+                          selections: [
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'id' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'teamType' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'finalScore' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'team' },
+                              selectionSet: {
+                                kind: 'SelectionSet',
+                                selections: [
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'id' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'name' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'shortName' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: {
+                                      kind: 'Name',
+                                      value: 'homePrimaryColor',
+                                    },
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'liveGames' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'status' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'actualStart' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameTeams' },
+                        selectionSet: {
+                          kind: 'SelectionSet',
+                          selections: [
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'id' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'teamType' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'finalScore' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'team' },
+                              selectionSet: {
+                                kind: 'SelectionSet',
+                                selections: [
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'id' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'name' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'shortName' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: {
+                                      kind: 'Name',
+                                      value: 'homePrimaryColor',
+                                    },
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<GetMyDashboardQuery, GetMyDashboardQueryVariables>;
+export const GetMyTeamsViewerDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'query',
+      name: { kind: 'Name', value: 'GetMyTeamsViewer' },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'my' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'teams' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'shortName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'homePrimaryColor' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'homeSecondaryColor' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'isManaged' },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'ownedTeams' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  GetMyTeamsViewerQuery,
+  GetMyTeamsViewerQueryVariables
+>;
+export const GetMyLiveGamesDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'query',
+      name: { kind: 'Name', value: 'GetMyLiveGames' },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'my' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'liveGames' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'status' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'actualStart' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'pausedAt' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameTeams' },
+                        selectionSet: {
+                          kind: 'SelectionSet',
+                          selections: [
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'id' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'teamType' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'finalScore' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'team' },
+                              selectionSet: {
+                                kind: 'SelectionSet',
+                                selections: [
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'id' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'name' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'shortName' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: {
+                                      kind: 'Name',
+                                      value: 'homePrimaryColor',
+                                    },
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<GetMyLiveGamesQuery, GetMyLiveGamesQueryVariables>;
 export const GetTeamsDocument = {
   kind: 'Document',
   definitions: [

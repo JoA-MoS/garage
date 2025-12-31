@@ -6,6 +6,10 @@ This document outlines planned features, improvements, and cleanup tasks for the
 
 ## Table of Contents
 
+0. [MVP Prioritization](#mvp-prioritization)
+   - [MVP Tiers Overview](#mvp-tiers-overview)
+   - [MVP Quick Reference](#mvp-quick-reference)
+   - [MVP Sprints](#mvp-sprints)
 1. [Priority 1: Security & Access Control - Team Access Management](#priority-1-security--access-control---team-access-management)
    - [1.1 Foundation - Data Model & Impersonation Support](#11-foundation---data-model--impersonation-support)
    - [1.2 Team Ownership & Transfer](#12-team-ownership--transfer)
@@ -16,7 +20,106 @@ This document outlines planned features, improvements, and cleanup tasks for the
 2. [Priority 2: Core Feature Enhancements](#priority-2-core-feature-enhancements)
 3. [Priority 3: New Features](#priority-3-new-features)
 4. [Priority 4: Code Cleanup](#priority-4-code-cleanup)
-5. [Future Considerations](#future-considerations)
+5. [Priority 5: UX Enhancements & New Features (GitHub Issues Backlog)](#priority-5-ux-enhancements--new-features-github-issues-backlog)
+   - [#179: Primary Team Always on Left](#issue-179-primary-team-always-on-left-during-game-tracking)
+   - [#180: Feature Toggles for Stats Tracking](#issue-180-feature-toggles-for-stats-tracking-per-team)
+   - [#181: Media Uploads for Game Events](#issue-181-media-uploads-for-game-events)
+   - [#182: Game Summary Page](#issue-182-game-summary-page)
+   - [#183: Team Association View for Users](#issue-183-team-association-view-for-users)
+   - [#184: One-Time Game Invite Links](#issue-184-one-time-game-invite-links)
+   - [#185: Bug - Full Page Refresh After Goal](#issue-185-bug---full-page-refresh-after-scoring-goal-vercelrailway)
+   - [#186: Per-Game Stats Configuration](#issue-186-per-game-stats-configuration-with-team-defaults)
+   - [#187: Sticky Score Header](#issue-187-sticky-score-header-when-scrolling)
+   - [#188: Player Photos and Field Quick View](#issue-188-player-photos-and-field-quick-view)
+6. [Future Considerations](#future-considerations)
+
+---
+
+## MVP Prioritization
+
+> **Target Users:** Coach (primary) + select parents from the team
+> **Security Stance:** Trusted users only (small group)
+> **Last Updated:** December 2025
+
+### MVP Tiers Overview
+
+| Tier          | Name         | Description                                              |
+| ------------- | ------------ | -------------------------------------------------------- |
+| 🔴 **Tier 1** | Must Have    | Core functionality - app isn't usable without these      |
+| 🟡 **Tier 2** | Should Have  | Significantly improves UX for parents viewing games      |
+| 🟢 **Tier 3** | Nice to Have | Polish items that can wait until after initial launch    |
+| ⚪ **Tier 4** | Post-MVP     | Explicitly deferred - not needed for trusted user launch |
+
+### MVP Quick Reference
+
+#### 🔴 Tier 1: Must Have
+
+| Item                         | Source                                               | Status     | Notes                                  |
+| ---------------------------- | ---------------------------------------------------- | ---------- | -------------------------------------- |
+| Game tracking flow           | Core                                                 | ✅ Done    | Create → record goals → end game works |
+| Team roster management       | Core                                                 | ✅ Done    | Add/remove players functional          |
+| Real stats display           | 2.6                                                  | ⚠️ Partial | Some stats hardcoded as 0 - needs fix  |
+| Team association for parents | [#183](https://github.com/JoA-MoS/garage/issues/183) | ⚠️ Partial | Parents need to see their team's games |
+| Multi-team dashboard         | [#183](https://github.com/JoA-MoS/garage/issues/183) | ⚠️ Partial | Aggregate games across user's teams    |
+
+#### 🟡 Tier 2: Should Have
+
+| Item                           | Source                                               | Status          | Effort |
+| ------------------------------ | ---------------------------------------------------- | --------------- | ------ |
+| Per-team stats config UI       | [#186](https://github.com/JoA-MoS/garage/issues/186) | ⚠️ Backend done | Small  |
+| Primary team on left           | [#179](https://github.com/JoA-MoS/garage/issues/179) | ❌ Not started  | Small  |
+| Sticky score header            | [#187](https://github.com/JoA-MoS/garage/issues/187) | ❌ Not started  | Medium |
+| Game summary view (simplified) | [#182](https://github.com/JoA-MoS/garage/issues/182) | ❌ Not started  | Medium |
+
+#### 🟢 Tier 3: Nice to Have
+
+| Item                               | Source                                               | Status                 | Effort  |
+| ---------------------------------- | ---------------------------------------------------- | ---------------------- | ------- |
+| Team colors displaying properly    | 2.4                                                  | ✅ Done                | -       |
+| Feature toggles UI                 | [#180](https://github.com/JoA-MoS/garage/issues/180) | ⚠️ Backend done        | Small   |
+| Investigate production refresh bug | [#185](https://github.com/JoA-MoS/garage/issues/185) | ⚠️ Needs investigation | Unknown |
+
+#### ⚪ Tier 4: Post-MVP (Deferred)
+
+| Item                     | Source                                               | Reason for Deferral               |
+| ------------------------ | ---------------------------------------------------- | --------------------------------- |
+| Player privacy system    | 1.4                                                  | Trusted users - not needed yet    |
+| Invitation system        | 1.6                                                  | Manual team member creation works |
+| Games/Events auth guards | 1.3                                                  | Trusted users - can add later     |
+| Media uploads            | [#181](https://github.com/JoA-MoS/garage/issues/181) | Nice but not essential            |
+| Player photos            | [#188](https://github.com/JoA-MoS/garage/issues/188) | Nice but not essential            |
+| Game invites             | [#184](https://github.com/JoA-MoS/garage/issues/184) | Can share link directly for now   |
+| ICS import               | 3.7                                                  | Manual game creation works        |
+| Export/reporting         | 3.6                                                  | Can screenshot for now            |
+| Goalkeeper saves         | 3.2                                                  | Not tracking this yet             |
+| Game review system       | 3.3                                                  | Overkill for small group          |
+| Season/date filtering    | 2.1                                                  | First season, no history yet      |
+| Navigation restructure   | 4.3                                                  | Current nav works for MVP         |
+| Merge duplicate users    | 2.3                                                  | Small user base, manual fix ok    |
+
+### MVP Sprints
+
+#### Sprint 1: Parent Experience (Tier 1 Gaps)
+
+Focus: Enable parents to view their team's games with real statistics.
+
+- [ ] **Fix hardcoded stats** - Ensure player stats show actual calculated values
+- [ ] **Team association view** - Parents see games for teams they're members of ([#183](https://github.com/JoA-MoS/garage/issues/183))
+- [ ] **Multi-team dashboard** - Aggregate upcoming/recent games across all user's teams
+
+#### Sprint 2: Game Day UX (Tier 2)
+
+Focus: Improve the game tracking experience for the coach.
+
+- [ ] **Primary team on left** - User's team always displays on left side ([#179](https://github.com/JoA-MoS/garage/issues/179))
+- [ ] **Per-team stats config UI** - Connect UI to existing backend config ([#186](https://github.com/JoA-MoS/garage/issues/186))
+- [ ] **Sticky score header** - Score/clock visible while scrolling ([#187](https://github.com/JoA-MoS/garage/issues/187))
+
+#### Sprint 3: Post-Game Experience (Tier 2)
+
+Focus: Better experience after games end.
+
+- [ ] **Game summary page** - Simplified post-game summary with stats ([#182](https://github.com/JoA-MoS/garage/issues/182))
 
 ---
 
@@ -630,8 +733,6 @@ Team overview statistics are incomplete with stub implementations.
 - [ ] Add recent games widget
 - [ ] Add upcoming games widget
 
----
-
 ## Priority 3: New Features
 
 ### 3.1 Disciplinary Event Tracking
@@ -1001,6 +1102,741 @@ Current validation is minimal.
 
 ---
 
+## Priority 5: UX Enhancements & New Features (GitHub Issues Backlog)
+
+This section contains feature requests formatted as GitHub issues for future implementation.
+
+---
+
+### Issue [#179](https://github.com/JoA-MoS/garage/issues/179): Primary Team Always on Left During Game Tracking
+
+**Labels:** `enhancement`, `ux`, `game-tracking`
+**Priority:** Medium | **MVP Tier:** 🟡 Tier 2 (Should Have)
+**Affects:** Game Page UI
+
+#### Description
+
+During active game tracking, the team associated with the logged-in user (their "primary" team) should always be displayed on the left side of the screen, regardless of home/away designation.
+
+#### Current Behavior
+
+Teams are displayed based on home/away assignment, which may put the user's team on either side.
+
+#### Expected Behavior
+
+- Detect which team the current user is associated with (via `TeamMember` relationship)
+- Always render that team's score, lineup, and controls on the left
+- Opponent team renders on the right
+- Visual indicator showing which team is "home" vs "away" should still be present
+
+#### Acceptance Criteria
+
+- [ ] User's associated team is always displayed on left side of game page
+- [ ] Home/Away indicator still visible (badge or label)
+- [ ] Works correctly when user is associated with both teams (edge case - use home team)
+- [ ] Maintains consistency throughout the game session
+
+#### Technical Notes
+
+- Query `TeamMember` for current user to determine primary team
+- May need to swap team ordering in `GameTeam` rendering logic
+- Consider caching this determination to avoid re-queries
+
+#### Related
+
+- Relies on TeamMember entity (implemented in 1.1)
+
+---
+
+### Issue [#180](https://github.com/JoA-MoS/garage/issues/180): Feature Toggles for Stats Tracking Per Team
+
+**Labels:** `enhancement`, `feature-flags`, `team-configuration`
+**Priority:** High | **MVP Tier:** 🟢 Tier 3 (Nice to Have)
+**Affects:** Team Settings, Game Tracking
+
+#### Description
+
+Allow teams to toggle specific tracking features on/off. These act as feature flags that control which stats mechanisms are available during game tracking.
+
+#### Proposed Features to Toggle
+
+| Feature              | Description                      | Default |
+| -------------------- | -------------------------------- | ------- |
+| `trackSubstitutions` | Record player substitutions      | ON      |
+| `trackPossession`    | Track team possession time       | OFF     |
+| `trackShots`         | Track shots on goal / off target | OFF     |
+| `trackCorners`       | Track corner kicks               | OFF     |
+| `trackFouls`         | Track fouls committed            | OFF     |
+| `trackOffsides`      | Track offside calls              | OFF     |
+| `trackSaves`         | Track goalkeeper saves           | OFF     |
+
+#### Implementation
+
+**Extend `TeamConfiguration` entity:**
+
+```typescript
+// Add to team-configuration.entity.ts
+@Column({ default: true })
+trackSubstitutions: boolean;
+
+@Column({ default: false })
+trackPossession: boolean;
+
+@Column({ default: false })
+trackShots: boolean;
+
+@Column({ default: false })
+trackCorners: boolean;
+
+@Column({ default: false })
+trackFouls: boolean;
+
+@Column({ default: false })
+trackOffsides: boolean;
+
+@Column({ default: false })
+trackSaves: boolean;
+```
+
+#### Acceptance Criteria
+
+- [ ] Team settings page has toggles for each tracking feature
+- [ ] Game tracking UI only shows controls for enabled features
+- [ ] Changes take effect immediately for new games
+- [ ] In-progress games use configuration from when game started
+- [ ] Default values are sensible for youth soccer
+
+#### Related
+
+- Extends existing `TeamConfiguration` entity
+- Related to #108 (per-game stats config)
+
+---
+
+### Issue [#181](https://github.com/JoA-MoS/garage/issues/181): Media Uploads for Game Events
+
+**Labels:** `enhancement`, `media`, `new-feature`
+**Priority:** Medium | **MVP Tier:** ⚪ Tier 4 (Post-MVP)
+**Affects:** Game Events, Storage
+
+#### Description
+
+Allow users to upload photos and videos to match events (goals, saves, etc.) and to games generally for moments that don't correspond to tracked events.
+
+#### Use Cases
+
+1. **Event-specific:** Parent uploads video of their child's goal
+2. **General match:** Coach uploads team photo before kickoff
+3. **Highlight reel:** Multiple clips attached to different events
+
+#### Implementation
+
+**New Entity: `GameMedia`**
+
+```typescript
+GameMedia {
+  id: ID
+  gameId: ID
+  gameEventId?: ID  // Optional - if attached to specific event
+  uploadedById: ID
+  mediaType: 'IMAGE' | 'VIDEO'
+  url: string       // Cloud storage URL
+  thumbnailUrl?: string
+  caption?: string
+  uploadedAt: DateTime
+  durationSeconds?: number  // For videos
+  metadata: JSON    // EXIF, dimensions, etc.
+}
+```
+
+#### Acceptance Criteria
+
+- [ ] Users can upload photos/videos to a game
+- [ ] Users can attach media to specific game events
+- [ ] Media displays in game timeline alongside events
+- [ ] Thumbnail previews for videos
+- [ ] Maximum file size enforced (configurable)
+- [ ] Supported formats: JPG, PNG, MP4, MOV
+- [ ] Media can be deleted by uploader or team manager
+
+#### Technical Considerations
+
+- Cloud storage integration (S3, Cloudinary, or similar)
+- Video transcoding for web playback
+- Thumbnail generation for videos
+- Consider CDN for media delivery
+- Mobile upload optimization (compression, chunked upload)
+
+#### Related
+
+- Related to #104 (Game Summary Page with highlights)
+
+---
+
+### Issue [#182](https://github.com/JoA-MoS/garage/issues/182): Game Summary Page
+
+**Labels:** `enhancement`, `new-feature`, `post-game`
+**Priority:** Medium | **MVP Tier:** 🟡 Tier 2 (Should Have)
+**Affects:** Game Detail View
+
+#### Description
+
+Create a comprehensive game summary page that displays when a game is marked as complete. This page shows final stats, key moments, and highlight media.
+
+#### Features
+
+- Final score with team branding
+- Game timeline with key events (goals, cards, substitutions)
+- Player statistics table (goals, assists, minutes played)
+- Highlight videos/photos from the match (from #103)
+- Share functionality for social media
+- PDF export option
+
+#### Mockup Concept
+
+```
+┌─────────────────────────────────────────────────┐
+│  [Team Logo]  Thunder FC  3 - 1  Blue Dragons   │
+│              ⚽ 12' ⚽ 34' ⚽ 67'     ⚽ 45'       │
+├─────────────────────────────────────────────────┤
+│  Timeline                                        │
+│  12' ⚽ Goal - Alex (assist: Jordan)            │
+│  34' ⚽ Goal - Casey                             │
+│  45' ⚽ Goal - [Opponent]                        │
+│  67' ⚽ Goal - Alex (assist: Riley)              │
+├─────────────────────────────────────────────────┤
+│  Player Stats                                    │
+│  Alex:   2 goals, 0 assists, 65 min            │
+│  Jordan: 0 goals, 1 assist, 70 min             │
+│  ...                                            │
+├─────────────────────────────────────────────────┤
+│  Highlights  [▶ Video 1] [📷 Photo 1] [▶ Video 2]│
+└─────────────────────────────────────────────────┘
+```
+
+#### Acceptance Criteria
+
+- [ ] Summary page automatically displays when game status is COMPLETED
+- [ ] Final score prominently displayed
+- [ ] Timeline shows all key events in chronological order
+- [ ] Player stats table with sortable columns
+- [ ] Media gallery section (if media attached)
+- [ ] Share button generates shareable link
+- [ ] Mobile-optimized layout
+
+#### Related
+
+- Depends on #103 (Media Uploads) for highlight section
+- Uses existing game event data
+
+---
+
+### Issue [#183](https://github.com/JoA-MoS/garage/issues/183): Team Association View for Users
+
+**Labels:** `enhancement`, `ux`, `multi-team`
+**Priority:** High | **MVP Tier:** 🔴 Tier 1 (Must Have)
+**Affects:** Dashboard, Games List
+
+#### Description
+
+Users should be able to see games for all teams they are associated with. The dashboard should aggregate upcoming and recent games across all their teams.
+
+This feature implements the **GraphQL "my" Viewer Pattern** - a well-established pattern (used by GitHub, Shopify, Facebook) for user-scoped queries.
+
+#### Current State
+
+- `TeamMember` entity already supports multi-team association ✅
+- `User.teamMemberships` relationship exists ✅
+- UI only shows games for a single selected team
+
+#### Expected Behavior
+
+- Dashboard shows aggregated view across all user's teams
+- Games list can be filtered by team or show all
+- Clear team indicator on each game card
+- Quick team switcher in navigation
+
+#### Implementation: GraphQL "my" Viewer Pattern
+
+Instead of passing user IDs from the client:
+
+```graphql
+# Current approach (requires client to know user ID)
+query {
+  teams(userId: $currentUserId) {
+    name
+  }
+  games(userId: $currentUserId) {
+    name
+  }
+}
+
+# Viewer pattern (cleaner, more secure)
+query {
+  my {
+    teams {
+      name
+    }
+    games {
+      name
+    }
+  }
+}
+```
+
+**Benefits:**
+
+1. **Cleaner Query Ergonomics** - No user ID boilerplate from client
+2. **Security by Default** - User extracted from auth context, not client input
+3. **Type Safety** - Expose user-specific computed fields that don't make sense globally
+4. **Caching** - Apollo Client caches `my` as stable entry point per session
+
+#### Proposed Schema
+
+```graphql
+type Query {
+  my: MyData # nullable - returns null if not authenticated
+  # Keep direct access for deep links, admin views
+  team(id: ID!): Team
+  game(id: ID!): Game
+}
+
+type MyData {
+  # Identity
+  user: User!
+
+  # Teams
+  teams: [Team!]! # All teams I belong to
+  ownedTeams: [Team!]! # Teams where I'm OWNER
+  managedTeams: [Team!]! # Teams where I'm OWNER or MANAGER
+  # Games (aggregated across all my teams)
+  upcomingGames(limit: Int): [Game!]!
+  recentGames(limit: Int): [Game!]!
+  liveGames: [Game!]! # Games currently in progress
+  # Activity
+  recentActivity(limit: Int): [Activity!]!
+
+  # Stats
+  playerStats: PlayerFullStats # If user is also a player
+}
+```
+
+#### Implementation Tasks
+
+**Backend:**
+
+- [ ] Create `MyData` GraphQL object type
+- [ ] Create `my.resolver.ts` with `@Query(() => MyData)`
+- [ ] Implement field resolvers for teams, games, etc.
+- [ ] Add `@CurrentUser()` decorator usage for auth context
+- [ ] Handle null case when not authenticated
+- [ ] Ensure DataLoader is used to prevent N+1 queries
+
+**Example Backend Implementation:**
+
+```typescript
+// my.resolver.ts
+@Resolver(() => MyData)
+export class MyResolver {
+  @Query(() => MyData, { nullable: true, name: 'my' })
+  getMy(@CurrentUser() user: User | null): MyData | null {
+    if (!user) return null;
+    return { userId: user.id };
+  }
+
+  @ResolveField(() => [Team])
+  async teams(@Parent() my: MyData): Promise<Team[]> {
+    return this.teamsService.findByUserId(my.userId);
+  }
+
+  @ResolveField(() => [Game])
+  async upcomingGames(@Parent() my: MyData, @Args('limit', { nullable: true }) limit?: number): Promise<Game[]> {
+    return this.gamesService.findUpcomingByUserId(my.userId, limit);
+  }
+}
+```
+
+**Frontend:**
+
+- [ ] Create `useMyData()` hook or query
+- [ ] Update Dashboard to use `my { teams, upcomingGames, recentGames }`
+- [ ] Update navigation to use `my.teams` for team switcher
+- [ ] Cache `my` query appropriately in Apollo Client
+
+**UI Tasks:**
+
+- [ ] Games list has "All Teams" filter option
+- [ ] Each game card shows team name/color for context
+- [ ] User can quickly navigate to team-specific views
+
+#### Example Dashboard Query
+
+```graphql
+query MyDashboard {
+  my {
+    user {
+      firstName
+    }
+    teams {
+      id
+      name
+      primaryColor
+    }
+    upcomingGames(limit: 5) {
+      id
+      scheduledStart
+      homeTeam {
+        name
+      }
+      awayTeam {
+        name
+      }
+    }
+    recentGames(limit: 5) {
+      id
+      name
+      status
+      homeScore
+      awayScore
+    }
+  }
+}
+```
+
+#### Acceptance Criteria
+
+- [ ] `my` query returns null when not authenticated
+- [ ] `my.teams` returns only teams user is a member of
+- [ ] `my.upcomingGames` aggregates games across all user's teams
+- [ ] `my.recentGames` shows completed games from user's teams
+- [ ] Query performance is optimized (DataLoader, no N+1)
+- [ ] Frontend dashboard uses this pattern
+- [ ] User can quickly navigate to team-specific views
+
+#### Design Considerations
+
+1. **Hybrid Approach**: Keep direct queries like `team(id)` for deep links and admin views
+2. **Naming**: Using `my` (possessive) rather than `viewer` or `me` since most fields are collections the user belongs to
+3. **Nullability**: `my` is nullable to handle unauthenticated state gracefully
+
+---
+
+### Issue [#184](https://github.com/JoA-MoS/garage/issues/184): One-Time Game Invite Links
+
+**Labels:** `enhancement`, `sharing`, `new-feature`
+**Priority:** Low | **MVP Tier:** ⚪ Tier 4 (Post-MVP)
+**Affects:** Game Sharing
+
+#### Description
+
+Allow users to invite someone to view a specific game via a one-time invite link. The invitee must register/login with the email the invite was sent to.
+
+#### Flow
+
+1. User clicks "Invite to view game" on game page
+2. Enters invitee's email address
+3. System generates unique invite link and sends email
+4. Invitee clicks link → prompted to login/register with that email
+5. Upon successful auth with matching email, gains view access to that specific game
+
+#### Data Model
+
+```typescript
+GameInvite {
+  id: ID
+  gameId: ID
+  invitedEmail: string
+  invitedById: ID
+  token: string       // Secure random token for link
+  createdAt: DateTime
+  expiresAt: DateTime // 7 days default
+  acceptedAt?: DateTime
+  status: 'PENDING' | 'ACCEPTED' | 'EXPIRED'
+}
+```
+
+#### Acceptance Criteria
+
+- [ ] "Invite" button on game page generates invite link
+- [ ] Email sent with game details and invite link
+- [ ] Invite link validates email matches at login
+- [ ] Invited user gains view-only access to that specific game
+- [ ] Invite expires after 7 days if not accepted
+- [ ] Game owner can see pending invites and revoke them
+
+#### Security Considerations
+
+- Token must be cryptographically secure
+- Email validation prevents unauthorized access
+- View-only access (no editing/recording)
+- Rate limiting on invite creation
+
+---
+
+### Issue [#185](https://github.com/JoA-MoS/garage/issues/185): Bug - Full Page Refresh After Scoring Goal (Vercel/Railway)
+
+**Labels:** `bug`, `production`, `critical`
+**Priority:** Critical | **MVP Tier:** 🟢 Tier 3 (Nice to Have - Investigate)
+**Affects:** Game Tracking (Production)
+
+#### Description
+
+When deployed to Vercel (frontend) and Railway (backend), scoring a goal appears to cause a full view refresh instead of an optimistic update or smooth state change.
+
+#### Steps to Reproduce
+
+1. Deploy app to Vercel/Railway
+2. Start tracking a game
+3. Record a goal
+4. Observe: Page appears to fully refresh
+
+#### Expected Behavior
+
+- Goal records with optimistic update
+- UI updates smoothly without page refresh
+- Score increments immediately
+
+#### Investigation Areas
+
+- [ ] Check Apollo Client cache configuration in production
+- [ ] Verify WebSocket/subscription reconnection behavior
+- [ ] Check if optimistic response is configured on goal mutation
+- [ ] Review network tab for unexpected navigation
+- [ ] Check for unhandled errors triggering error boundary
+- [ ] Compare local dev behavior vs production
+
+#### Technical Notes
+
+This works correctly in local development, suggesting environment-specific issue:
+
+- Different WebSocket behavior in production?
+- Apollo cache invalidation triggering refetch?
+- Error in subscription causing reconnection?
+
+#### Related
+
+- May relate to real-time sync implementation
+
+---
+
+### Issue [#186](https://github.com/JoA-MoS/garage/issues/186): Per-Game Stats Configuration with Team Defaults
+
+**Labels:** `enhancement`, `game-configuration`
+**Priority:** High | **MVP Tier:** 🟡 Tier 2 (Should Have)
+**Affects:** Game Creation, Game Settings
+
+#### Description
+
+Stats tracking configuration should be settable per-game, with team defaults. Different games may warrant different tracking levels (e.g., track more for league games, less for scrimmages).
+
+#### Current State
+
+- `TeamConfiguration.statsTrackingLevel` exists (FULL, SCORER_ONLY, GOALS_ONLY) ✅
+- This is team-wide, cannot be overridden per game
+
+#### Proposed Changes
+
+**Extend `Game` entity:**
+
+```typescript
+// Add to game.entity.ts
+@Column({
+  type: 'varchar',
+  length: 20,
+  nullable: true, // null = use team default
+})
+statsTrackingLevel?: StatsTrackingLevel;
+
+// Feature toggles can also be per-game
+@Column({ type: 'json', nullable: true })
+statsFeatureOverrides?: {
+  trackSubstitutions?: boolean;
+  trackPossession?: boolean;
+  // ... etc
+};
+```
+
+**Additionally, support different tracking for each team in a game:**
+
+```typescript
+// Add to game-team.entity.ts
+@Column({
+  type: 'varchar',
+  length: 20,
+  nullable: true,
+})
+statsTrackingLevel?: StatsTrackingLevel;
+```
+
+#### Use Case Example
+
+> "For our team, I want to record scorer and assister, but for the opponent I'll just record goals."
+
+This requires `GameTeam.statsTrackingLevel` to override per-team-per-game.
+
+#### Acceptance Criteria
+
+- [ ] Game creation form shows stats config inherited from team defaults
+- [ ] User can override stats config when creating/editing game
+- [ ] Each team in a game can have different tracking level
+- [ ] UI adapts goal recording form based on team's tracking level
+- [ ] Team defaults apply when no override specified
+
+#### Related
+
+- Extends #102 (Feature Toggles)
+- Uses existing `TeamConfiguration` as defaults
+
+---
+
+### Issue [#187](https://github.com/JoA-MoS/garage/issues/187): Sticky Score Header When Scrolling
+
+**Labels:** `enhancement`, `ux`, `mobile`
+**Priority:** Medium | **MVP Tier:** 🟡 Tier 2 (Should Have)
+**Affects:** Game Page UI
+
+#### Description
+
+When scrolling down on the game page, the game clock and score should stick to the top of the page in a compact format, providing constant visibility of the game state.
+
+#### Current Behavior
+
+Score and clock scroll off screen when viewing lineup or events below.
+
+#### Expected Behavior
+
+When user scrolls past the header:
+
+- Header transforms to sticky compact mode
+- Single row format: `[Team 1 Score] | [Clock] | [Team 2 Score]`
+- Quick action buttons (Goal for each team) remain accessible
+- Tapping sticky header scrolls back to top
+
+#### Mockup
+
+**Normal Header:**
+
+```
+┌─────────────────────────────────┐
+│    Thunder FC                   │
+│       ⚽⚽⚽                       │
+│        3                        │
+│                                 │
+│      23:45                      │
+│      1st Half                   │
+│                                 │
+│        1                        │
+│       ⚽                        │
+│   Blue Dragons                  │
+└─────────────────────────────────┘
+```
+
+**Sticky Header (when scrolled):**
+
+```
+┌─────────────────────────────────┐
+│ Thunder 3 | 23:45 1H | Dragons 1│
+│ [+ Goal]            [+ Goal]   │
+└─────────────────────────────────┘
+```
+
+#### Acceptance Criteria
+
+- [ ] Score and clock stick to top when scrolling past threshold
+- [ ] Compact format shows both teams, scores, and time
+- [ ] Quick action buttons for recording goals (one per team)
+- [ ] Smooth transition animation between modes
+- [ ] Works correctly on mobile and desktop
+- [ ] Tapping sticky header scrolls to top
+
+#### Technical Notes
+
+- Use CSS `position: sticky` or Intersection Observer
+- May need to track scroll position for smooth transitions
+- Ensure touch targets are large enough on mobile (44px min)
+
+---
+
+### Issue [#188](https://github.com/JoA-MoS/garage/issues/188): Player Photos and Field Quick View
+
+**Labels:** `enhancement`, `new-feature`, `parent-ux`
+**Priority:** Low | **MVP Tier:** ⚪ Tier 4 (Post-MVP)
+**Affects:** Roster, Game View
+
+#### Description
+
+Allow uploading player photos and provide a "field view" that shows player photos and names for parents/spectators to quickly identify who is on the field.
+
+#### Use Case
+
+> Parents watching a game want to quickly identify players and learn their names based on appearance. A visual reference helps them cheer for teammates and learn the roster.
+
+#### Features
+
+1. **Player Photo Upload:** Profile photos for players
+2. **Field Quick View:** Visual display of current lineup with photos
+
+#### Field Quick View Mockup
+
+```
+┌─────────────────────────────────┐
+│        Current Lineup           │
+│                                 │
+│           [📷]                  │
+│          Jordan                 │
+│            GK                   │
+│                                 │
+│    [📷]   [📷]   [📷]   [📷]    │
+│   Alex   Casey  Riley  Morgan   │
+│    LB     CB     CB     RB      │
+│                                 │
+│    [📷]   [📷]   [📷]   [📷]    │
+│   Jamie  Quinn  Taylor Avery    │
+│    LM     CM     CM     RM      │
+│                                 │
+│         [📷]   [📷]             │
+│        Dylan  Parker            │
+│          ST     ST              │
+└─────────────────────────────────┘
+```
+
+#### Implementation
+
+**Extend `User` entity:**
+
+```typescript
+@Column({ nullable: true })
+photoUrl?: string;
+
+@Column({ nullable: true })
+thumbnailUrl?: string;
+```
+
+**New UI Component:** `FieldQuickView.presentation.tsx`
+
+- Takes current lineup data
+- Renders players in formation shape
+- Shows photo, name, and position for each
+
+#### Acceptance Criteria
+
+- [ ] Players can have profile photos uploaded
+- [ ] Photos display on roster page
+- [ ] Field Quick View accessible during active games
+- [ ] Formation layout adjusts to team's formation setting
+- [ ] Photos have placeholder for missing images
+- [ ] Mobile optimized (tappable to see larger photo)
+- [ ] Privacy respects `lastNameVisibility` setting
+
+#### Technical Notes
+
+- Image upload similar to #103 (Media Uploads)
+- Thumbnail generation for performance
+- Consider lazy loading for large rosters
+- Formation positioning based on `TeamConfiguration.defaultFormation`
+
+---
+
 ## Future Considerations
 
 ### Multi-Organization Support
@@ -1058,11 +1894,13 @@ For RBAC implementation:
 
 ## Version History
 
-| Version | Date       | Changes                                                                                                                    |
-| ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------- |
-| 0.1     | 2024-12-14 | Initial roadmap created                                                                                                    |
-| 0.2     | 2024-12-15 | Added: Merge duplicate users, Fix team colors, Team member management, Code quality review                                 |
-| 0.3     | 2024-12-15 | Added: PlayMetrics ICS game import feature                                                                                 |
-| 0.4     | 2024-12-15 | Added: Navigation restructure for multi-team UX                                                                            |
-| 0.5     | 2025-12-15 | Expanded: Team Access Management with 6 deliverables (Foundation, Ownership, Guards, Privacy, Parent Linking, Invitations) |
-| 0.6     | 2025-12-15 | Simplified: Replace Platform Admin role with Clerk's built-in impersonation feature                                        |
+| Version | Date       | Changes                                                                                                                                                                                     |
+| ------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1     | 2024-12-14 | Initial roadmap created                                                                                                                                                                     |
+| 0.2     | 2024-12-15 | Added: Merge duplicate users, Fix team colors, Team member management, Code quality review                                                                                                  |
+| 0.3     | 2024-12-15 | Added: PlayMetrics ICS game import feature                                                                                                                                                  |
+| 0.4     | 2024-12-15 | Added: Navigation restructure for multi-team UX                                                                                                                                             |
+| 0.5     | 2025-12-15 | Expanded: Team Access Management with 6 deliverables (Foundation, Ownership, Guards, Privacy, Parent Linking, Invitations)                                                                  |
+| 0.6     | 2025-12-15 | Simplified: Replace Platform Admin role with Clerk's built-in impersonation feature                                                                                                         |
+| 0.7     | 2025-12-30 | Added: Priority 5 - UX Enhancements (Issues #101-#110): Primary team positioning, feature toggles, media uploads, game summary, multi-team view, game invites, sticky header, player photos |
+| 0.8     | 2025-12-30 | Added: MVP Prioritization section with 4 tiers, sprint planning, and tier badges on all Priority 5 issues                                                                                   |
