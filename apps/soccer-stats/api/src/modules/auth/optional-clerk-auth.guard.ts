@@ -67,12 +67,27 @@ export class OptionalClerkAuthGuard implements CanActivate {
       req.actor = actor;
       req.isImpersonating = isImpersonating;
     } catch (error) {
-      // Invalid token - log and continue as anonymous
-      this.logger.debug(
-        `Optional auth failed: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`
-      );
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+
+      // Distinguish between token issues (expected) and system errors (unexpected)
+      const isTokenError =
+        errorMessage.includes('expired') ||
+        errorMessage.includes('invalid') ||
+        errorMessage.includes('jwt') ||
+        errorMessage.includes('malformed') ||
+        errorMessage.includes('signature');
+
+      if (isTokenError) {
+        // Token issues are expected - user needs to re-authenticate
+        this.logger.warn(`Optional auth failed (token issue): ${errorMessage}`);
+      } else {
+        // System errors (network, Clerk API down, etc.) - log with stack for debugging
+        this.logger.error(
+          `Optional auth failed (system error): ${errorMessage}`,
+          error instanceof Error ? error.stack : undefined
+        );
+      }
     }
 
     // Always allow - req.user will be set if authenticated, undefined otherwise

@@ -53,7 +53,7 @@ export const CreateGamePage = () => {
   const [createGame, { loading: createLoading }] =
     useMutation<CreateGameResponse>(CREATE_GAME, {
       onCompleted: (data: CreateGameResponse) => {
-        navigate(`/game/${data.createGame.id}`);
+        navigate(`/games/${data.createGame.id}`);
       },
       onError: (err) => {
         setError(err.message);

@@ -10,13 +10,16 @@ import { Logger, UseGuards } from '@nestjs/common';
 
 import { User } from '../../entities/user.entity';
 import { Team } from '../../entities/team.entity';
-import { Game } from '../../entities/game.entity';
+import { Game, GameStatus } from '../../entities/game.entity';
+import { TeamRole } from '../../entities/team-member.entity';
 import { CurrentUser } from '../auth/user.decorator';
 import { ClerkUser } from '../auth/clerk.service';
 import { OptionalClerkAuthGuard } from '../auth/optional-clerk-auth.guard';
+import { UsersService } from '../users/users.service';
+import { TeamMembersService } from '../team-members/team-members.service';
+import { GamesService } from '../games/games.service';
 
 import { MyData } from './my-data.type';
-import { MyService } from './my.service';
 
 /**
  * Resolver for the `my` query - implements the Viewer pattern.
@@ -28,6 +31,11 @@ import { MyService } from './my.service';
  * - `my.recentGames` - completed games across all teams
  * - `my.liveGames` - games currently in progress
  *
+ * Domain queries are delegated to their respective services:
+ * - User queries → UsersService
+ * - Team queries → TeamMembersService
+ * - Game queries → GamesService
+ *
  * @see FEATURE_ROADMAP.md Issue #183
  */
 @Resolver(() => MyData)
@@ -35,7 +43,11 @@ import { MyService } from './my.service';
 export class MyResolver {
   private readonly logger = new Logger(MyResolver.name);
 
-  constructor(private readonly myService: MyService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly teamMembersService: TeamMembersService,
+    private readonly gamesService: GamesService
+  ) {}
 
   /**
    * Root query for user-scoped data.
@@ -47,7 +59,6 @@ export class MyResolver {
    * User lookup strategy:
    * 1. Try to find by clerkId (stable, never changes)
    * 2. Fallback to email (for users who haven't been migrated yet)
-   * 3. If found by email, automatically set clerkId for future lookups
    *
    * The returned MyData contains only the userId - all other fields
    * are resolved via @ResolveField() to enable lazy loading and
@@ -69,7 +80,7 @@ export class MyResolver {
     const email = clerkUser.emailAddresses?.[0]?.emailAddress;
 
     // Look up internal user by clerkId (preferred) or email (fallback)
-    const user = await this.myService.findUserByClerkIdOrEmail(
+    const user = await this.usersService.findByClerkIdOrEmail(
       clerkUser.id,
       email
     );
@@ -86,47 +97,42 @@ export class MyResolver {
     return { userId: user.id } as MyData;
   }
 
-  /**
-   * Resolve the user field
-   */
   @ResolveField(() => User, { description: 'The authenticated user' })
   async user(@Parent() myData: MyData): Promise<User | null> {
-    return this.myService.findUserById(myData.userId);
+    try {
+      return await this.usersService.findOne(myData.userId);
+    } catch {
+      // findOne throws NotFoundException if not found
+      return null;
+    }
   }
 
-  /**
-   * Resolve all teams the user belongs to (any role)
-   */
   @ResolveField(() => [Team], {
     description: 'All teams the user belongs to',
   })
   async teams(@Parent() myData: MyData): Promise<Team[]> {
-    return this.myService.findTeamsByUserId(myData.userId);
+    return this.teamMembersService.findTeamsForUser(myData.userId);
   }
 
-  /**
-   * Resolve teams where user is OWNER
-   */
   @ResolveField(() => [Team], {
     description: 'Teams where the user is OWNER',
   })
   async ownedTeams(@Parent() myData: MyData): Promise<Team[]> {
-    return this.myService.findOwnedTeamsByUserId(myData.userId);
+    return this.teamMembersService.findTeamsForUser(myData.userId, [
+      TeamRole.OWNER,
+    ]);
   }
 
-  /**
-   * Resolve teams where user is OWNER or MANAGER
-   */
   @ResolveField(() => [Team], {
     description: 'Teams where the user is OWNER or MANAGER',
   })
   async managedTeams(@Parent() myData: MyData): Promise<Team[]> {
-    return this.myService.findManagedTeamsByUserId(myData.userId);
+    return this.teamMembersService.findTeamsForUser(myData.userId, [
+      TeamRole.OWNER,
+      TeamRole.MANAGER,
+    ]);
   }
 
-  /**
-   * Resolve upcoming games across all user's teams
-   */
   @ResolveField(() => [Game], {
     description: 'Upcoming games across all teams (SCHEDULED status)',
   })
@@ -134,12 +140,16 @@ export class MyResolver {
     @Parent() myData: MyData,
     @Args('limit', { type: () => Int, nullable: true }) limit?: number
   ): Promise<Game[]> {
-    return this.myService.findUpcomingGamesByUserId(myData.userId, limit);
+    const teamIds = await this.teamMembersService.findTeamIdsForUser(
+      myData.userId
+    );
+    return this.gamesService.findByTeamIds(teamIds, [GameStatus.SCHEDULED], {
+      limit,
+      orderBy: 'scheduledStart',
+      orderDirection: 'ASC',
+    });
   }
 
-  /**
-   * Resolve recent completed games across all user's teams
-   */
   @ResolveField(() => [Game], {
     description: 'Recent completed games across all teams',
   })
@@ -147,16 +157,35 @@ export class MyResolver {
     @Parent() myData: MyData,
     @Args('limit', { type: () => Int, nullable: true }) limit?: number
   ): Promise<Game[]> {
-    return this.myService.findRecentGamesByUserId(myData.userId, limit);
+    const teamIds = await this.teamMembersService.findTeamIdsForUser(
+      myData.userId
+    );
+    return this.gamesService.findByTeamIds(teamIds, [GameStatus.COMPLETED], {
+      limit,
+      orderBy: 'actualEnd',
+      orderDirection: 'DESC',
+    });
   }
 
-  /**
-   * Resolve games currently in progress across all user's teams
-   */
   @ResolveField(() => [Game], {
     description: 'Games currently in progress across all teams',
   })
   async liveGames(@Parent() myData: MyData): Promise<Game[]> {
-    return this.myService.findLiveGamesByUserId(myData.userId);
+    const teamIds = await this.teamMembersService.findTeamIdsForUser(
+      myData.userId
+    );
+    return this.gamesService.findByTeamIds(
+      teamIds,
+      [
+        GameStatus.FIRST_HALF,
+        GameStatus.HALFTIME,
+        GameStatus.SECOND_HALF,
+        GameStatus.IN_PROGRESS,
+      ],
+      {
+        orderBy: 'actualStart',
+        orderDirection: 'DESC',
+      }
+    );
   }
 }
