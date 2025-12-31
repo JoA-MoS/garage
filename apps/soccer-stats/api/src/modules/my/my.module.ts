@@ -1,14 +1,11 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { User } from '../../entities/user.entity';
-import { Game } from '../../entities/game.entity';
-import { TeamMember } from '../../entities/team-member.entity';
-import { GameTeam } from '../../entities/game-team.entity';
 import { AuthModule } from '../auth/auth.module';
+import { UsersModule } from '../users/users.module';
+import { TeamMembersModule } from '../team-members/team-members.module';
+import { GamesModule } from '../games/games.module';
 
 import { MyResolver } from './my.resolver';
-import { MyService } from './my.service';
 
 /**
  * Module for the `my` query - implements the Viewer pattern.
@@ -17,15 +14,20 @@ import { MyService } from './my.service';
  * GraphQL entry point, following patterns established by GitHub,
  * Shopify, and Facebook.
  *
+ * Domain queries are delegated to their respective services:
+ * - User queries → UsersService (via UsersModule)
+ * - Team queries → TeamMembersService (via TeamMembersModule)
+ * - Game queries → GamesService (via GamesModule)
+ *
  * @see FEATURE_ROADMAP.md Issue #183
  */
 @Module({
   imports: [
-    // Team entity not needed - teams are loaded via TeamMember relations
-    TypeOrmModule.forFeature([User, Game, TeamMember, GameTeam]),
     forwardRef(() => AuthModule),
+    forwardRef(() => UsersModule),
+    forwardRef(() => TeamMembersModule),
+    forwardRef(() => GamesModule),
   ],
-  providers: [MyResolver, MyService],
-  exports: [MyService],
+  providers: [MyResolver],
 })
 export class MyModule {}
