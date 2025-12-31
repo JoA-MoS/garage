@@ -1749,6 +1749,13 @@ export const GamePage = () => {
                 Match Events
               </h3>
               {(() => {
+                // Player info type for resolved names
+                type PlayerInfo = {
+                  firstName?: string | null;
+                  lastName?: string | null;
+                  email?: string | null;
+                };
+
                 // Define event types for the timeline
                 type MatchEvent = {
                   id: string;
@@ -1767,20 +1774,24 @@ export const GamePage = () => {
                   playerId?: string | null;
                   externalPlayerName?: string | null;
                   externalPlayerNumber?: string | null;
+                  player?: PlayerInfo | null;
                   assist?: {
                     playerId?: string | null;
                     externalPlayerName?: string | null;
+                    player?: PlayerInfo | null;
                   } | null;
                   // Substitution-specific
                   playerOut?: {
                     playerId?: string | null;
                     externalPlayerName?: string | null;
                     externalPlayerNumber?: string | null;
+                    player?: PlayerInfo | null;
                   };
                   playerIn?: {
                     playerId?: string | null;
                     externalPlayerName?: string | null;
                     externalPlayerNumber?: string | null;
+                    player?: PlayerInfo | null;
                   };
                   // Position swap-specific
                   swapPlayer1?: {
@@ -1788,12 +1799,14 @@ export const GamePage = () => {
                     externalPlayerName?: string | null;
                     externalPlayerNumber?: string | null;
                     position?: string | null;
+                    player?: PlayerInfo | null;
                   };
                   swapPlayer2?: {
                     playerId?: string | null;
                     externalPlayerName?: string | null;
                     externalPlayerNumber?: string | null;
                     position?: string | null;
+                    player?: PlayerInfo | null;
                   };
                 };
 
@@ -1834,11 +1847,13 @@ export const GamePage = () => {
                         playerId: event.playerId,
                         externalPlayerName: event.externalPlayerName,
                         externalPlayerNumber: event.externalPlayerNumber,
+                        player: event.player,
                         assist: assistEvent
                           ? {
                               playerId: assistEvent.playerId,
                               externalPlayerName:
                                 assistEvent.externalPlayerName,
+                              player: assistEvent.player,
                             }
                           : null,
                       });
@@ -1873,6 +1888,7 @@ export const GamePage = () => {
                           playerId: event.playerId,
                           externalPlayerName: event.externalPlayerName,
                           externalPlayerNumber: event.externalPlayerNumber,
+                          player: event.player,
                         },
                         playerIn: subInEvent
                           ? {
@@ -1880,6 +1896,7 @@ export const GamePage = () => {
                               externalPlayerName: subInEvent.externalPlayerName,
                               externalPlayerNumber:
                                 subInEvent.externalPlayerNumber,
+                              player: subInEvent.player,
                             }
                           : undefined,
                       });
@@ -1921,6 +1938,7 @@ export const GamePage = () => {
                           externalPlayerName: event.externalPlayerName,
                           externalPlayerNumber: event.externalPlayerNumber,
                           position: event.position,
+                          player: event.player,
                         },
                         swapPlayer2: pairedSwap
                           ? {
@@ -1929,6 +1947,7 @@ export const GamePage = () => {
                               externalPlayerNumber:
                                 pairedSwap.externalPlayerNumber,
                               position: pairedSwap.position,
+                              player: pairedSwap.player,
                             }
                           : undefined,
                       });
@@ -1956,6 +1975,7 @@ export const GamePage = () => {
                           playerId: event.playerId,
                           externalPlayerName: event.externalPlayerName,
                           externalPlayerNumber: event.externalPlayerNumber,
+                          player: event.player,
                         },
                       });
                     }
@@ -1973,25 +1993,36 @@ export const GamePage = () => {
                     new Date(a.createdAt).getTime()
                 );
 
-                // Helper to find player name from team roster
+                // Helper to get player name from event data or team roster
                 const getPlayerName = (
                   playerId?: string | null,
                   externalName?: string | null,
                   externalNumber?: string | null,
+                  player?: PlayerInfo | null,
                   team?: typeof homeTeam
                 ) => {
+                  // Priority 1: External player name (for unmanaged teams)
                   if (externalName) return externalName;
+                  // Priority 2: External player number
                   if (externalNumber) return `#${externalNumber}`;
-                  if (!playerId || !team?.team.teamPlayers) return 'Unknown';
-                  const player = team.team.teamPlayers.find(
-                    (tp) => tp.userId === playerId
-                  );
-                  if (player?.user) {
-                    return (
-                      `${player.user.firstName || ''} ${
-                        player.user.lastName || ''
-                      }`.trim() || player.user.email
+                  // Priority 3: Player data from event relation (most reliable)
+                  if (player) {
+                    const name = `${player.firstName || ''} ${
+                      player.lastName || ''
+                    }`.trim();
+                    return name || player.email || 'Unknown';
+                  }
+                  // Priority 4: Fallback to team roster lookup
+                  if (playerId && team?.team.teamPlayers) {
+                    const rosterPlayer = team.team.teamPlayers.find(
+                      (tp) => tp.userId === playerId
                     );
+                    if (rosterPlayer?.user) {
+                      const name = `${rosterPlayer.user.firstName || ''} ${
+                        rosterPlayer.user.lastName || ''
+                      }`.trim();
+                      return name || rosterPlayer.user.email;
+                    }
                   }
                   return 'Unknown';
                 };
@@ -2040,6 +2071,7 @@ export const GamePage = () => {
                               event.playerId,
                               event.externalPlayerName,
                               event.externalPlayerNumber,
+                              event.player,
                               team
                             )
                           : undefined;
@@ -2050,6 +2082,7 @@ export const GamePage = () => {
                               event.assist.playerId,
                               event.assist.externalPlayerName,
                               null,
+                              event.assist.player,
                               team
                             )
                           : null;
@@ -2061,6 +2094,7 @@ export const GamePage = () => {
                               event.playerIn?.playerId,
                               event.playerIn?.externalPlayerName,
                               event.playerIn?.externalPlayerNumber,
+                              event.playerIn?.player,
                               team
                             )
                           : undefined;
@@ -2071,6 +2105,7 @@ export const GamePage = () => {
                               event.playerOut?.playerId,
                               event.playerOut?.externalPlayerName,
                               event.playerOut?.externalPlayerNumber,
+                              event.playerOut?.player,
                               team
                             )
                           : undefined;
@@ -2081,6 +2116,7 @@ export const GamePage = () => {
                               event.swapPlayer1?.playerId,
                               event.swapPlayer1?.externalPlayerName,
                               event.swapPlayer1?.externalPlayerNumber,
+                              event.swapPlayer1?.player,
                               team
                             )
                           : undefined;
@@ -2091,6 +2127,7 @@ export const GamePage = () => {
                               event.swapPlayer2?.playerId,
                               event.swapPlayer2?.externalPlayerName,
                               event.swapPlayer2?.externalPlayerNumber,
+                              event.swapPlayer2?.player,
                               team
                             )
                           : undefined;

@@ -19,6 +19,7 @@ import { TeamSettingsPage } from '../pages/team-settings.page';
 import { AllGamesPage } from '../pages/all-games.page';
 import { TeamLayout } from '../components/layout/team-layout';
 import { GamePage } from '../pages/game.page';
+import { CreateGamePage } from '../pages/create-game.page';
 
 export const router = createBrowserRouter([
   {
@@ -28,6 +29,10 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <DashboardPage />,
+      },
+      {
+        path: 'game/new',
+        element: <CreateGamePage />,
       },
       {
         path: 'game/:gameId',
