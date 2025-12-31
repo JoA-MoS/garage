@@ -28,8 +28,10 @@ export const useMyDashboard = (options?: {
     },
     // Skip query if user isn't authenticated yet
     skip: !isLoaded || !isSignedIn,
-    // Refetch on window focus to get fresh data
+    // Initial load: show cached data immediately, then update from network
     fetchPolicy: 'cache-and-network',
+    // Subsequent renders: use cache to avoid unnecessary network requests
+    nextFetchPolicy: 'cache-first',
   });
 
   // Extract data from the `my` query response

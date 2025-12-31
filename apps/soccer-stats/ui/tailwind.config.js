@@ -12,7 +12,19 @@ module.exports = {
     ...createGlobPatternsForDependencies(__dirname),
   ],
   theme: {
-    extend: {},
+    extend: {
+      // Touch target accessibility - minimum 44px per Apple HIG / WCAG 2.1
+      minHeight: {
+        touch: '44px',
+      },
+      minWidth: {
+        touch: '44px',
+      },
+      // Optional: spacing value for touch-friendly padding
+      spacing: {
+        touch: '44px',
+      },
+    },
   },
   plugins: [],
 };
