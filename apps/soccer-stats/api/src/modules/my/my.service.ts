@@ -15,8 +15,6 @@ export class MyService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    @InjectRepository(Team)
-    private readonly teamRepository: Repository<Team>,
     @InjectRepository(TeamMember)
     private readonly teamMemberRepository: Repository<TeamMember>,
     @InjectRepository(Game)
