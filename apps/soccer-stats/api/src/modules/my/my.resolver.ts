@@ -6,12 +6,11 @@ import {
   Args,
   Int,
 } from '@nestjs/graphql';
-import { UseGuards } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 
 import { User } from '../../entities/user.entity';
 import { Team } from '../../entities/team.entity';
 import { Game } from '../../entities/game.entity';
-import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
 import { CurrentUser } from '../auth/user.decorator';
 import { ClerkUser } from '../auth/clerk.service';
 
@@ -32,11 +31,17 @@ import { MyService } from './my.service';
  */
 @Resolver(() => MyData)
 export class MyResolver {
+  private readonly logger = new Logger(MyResolver.name);
+
   constructor(private readonly myService: MyService) {}
 
   /**
    * Root query for user-scoped data.
-   * Returns null if not authenticated, MyData otherwise.
+   *
+   * Returns null if:
+   * - Not authenticated (no Clerk user in context)
+   * - Clerk user has no email address configured
+   * - No internal user found for the email (Clerk-to-app sync issue)
    *
    * The returned MyData contains only the userId - all other fields
    * are resolved via @ResolveField() to enable lazy loading and
@@ -48,20 +53,27 @@ export class MyResolver {
     description:
       'Get data for the authenticated user. Returns null if not authenticated.',
   })
-  @UseGuards(ClerkAuthGuard)
   async getMy(@CurrentUser() clerkUser: ClerkUser): Promise<MyData | null> {
+    // Not authenticated - expected for anonymous users
     if (!clerkUser) {
       return null;
     }
 
-    // Look up internal user by email
+    // Clerk user has no email - configuration issue
     const email = clerkUser.emailAddresses?.[0]?.emailAddress;
     if (!email) {
+      this.logger.warn(
+        `Clerk user ${clerkUser.id} has no email address configured`
+      );
       return null;
     }
 
+    // Look up internal user by email
     const user = await this.myService.findUserByEmail(email);
     if (!user) {
+      this.logger.warn(
+        `No internal user found for Clerk user ${clerkUser.id} with email ${email}`
+      );
       return null;
     }
 
