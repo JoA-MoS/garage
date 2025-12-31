@@ -45,18 +45,20 @@ export class TeamsResolver {
   ) {}
 
   /**
-   * Converts a Clerk user to internal user ID by looking up via email.
+   * Converts a Clerk user to internal user ID.
+   * Uses clerkId (preferred) with email fallback for migration.
    */
   private async getInternalUserId(clerkUser: ClerkUser): Promise<string> {
     const email = clerkUser.emailAddresses?.[0]?.emailAddress;
-    if (!email) {
-      throw new BadRequestException('User email not found');
-    }
 
-    const user = await this.usersService.findByEmail(email);
+    const user = await this.usersService.findByClerkIdOrEmail(
+      clerkUser.id,
+      email
+    );
+
     if (!user) {
       throw new BadRequestException(
-        `No internal user found for email ${email}`
+        `No internal user found for Clerk user ${clerkUser.id}`
       );
     }
 
