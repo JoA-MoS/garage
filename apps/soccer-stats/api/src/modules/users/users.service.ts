@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -17,6 +17,8 @@ export enum UserType {
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -80,6 +82,49 @@ export class UsersService {
     return this.userRepository.findOne({
       where: { email },
     });
+  }
+
+  /**
+   * Find a user by Clerk ID (preferred) with fallback to email (for migration).
+   * If found by email but clerkId is not set, automatically updates the user.
+   *
+   * @param clerkId - The Clerk user ID (stable identifier)
+   * @param email - Optional email for fallback lookup
+   * @returns The user if found, null otherwise
+   */
+  async findByClerkIdOrEmail(
+    clerkId: string,
+    email?: string
+  ): Promise<User | null> {
+    // First, try to find by clerkId (preferred)
+    let user = await this.userRepository.findOne({
+      where: { clerkId },
+    });
+
+    if (user) {
+      return user;
+    }
+
+    // Fallback: try to find by email
+    if (email) {
+      user = await this.userRepository.findOne({
+        where: { email },
+      });
+
+      if (user) {
+        // Migration: set the clerkId on the existing user
+        if (!user.clerkId) {
+          this.logger.log(
+            `Migrating user ${user.id} (${email}) to clerkId: ${clerkId}`
+          );
+          user.clerkId = clerkId;
+          await this.userRepository.save(user);
+        }
+        return user;
+      }
+    }
+
+    return null;
   }
 
   async findByName(

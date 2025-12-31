@@ -1113,6 +1113,7 @@ export type UpgradeTeamInput = {
 
 export type User = {
   __typename?: 'User';
+  clerkId?: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['DateTime']['output'];
   dateOfBirth?: Maybe<Scalars['DateTime']['output']>;
   email?: Maybe<Scalars['String']['output']>;

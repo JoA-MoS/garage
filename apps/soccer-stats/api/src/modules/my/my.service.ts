@@ -24,7 +24,77 @@ export class MyService {
   ) {}
 
   /**
-   * Find a user by their email address (for converting Clerk user to internal user)
+   * Find a user by their Clerk ID (preferred lookup method).
+   * This is the stable identifier that never changes.
+   */
+  async findUserByClerkId(clerkId: string): Promise<User | null> {
+    try {
+      return await this.userRepository.findOne({
+        where: { clerkId },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to find user by clerkId: ${clerkId}`,
+        error instanceof Error ? error.stack : String(error)
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Find a user by Clerk ID, with fallback to email for migration.
+   * If found by email but clerkId is not set, updates the user with the clerkId.
+   *
+   * @param clerkId - The Clerk user ID
+   * @param email - The user's email address (fallback)
+   * @returns The user if found, null otherwise
+   */
+  async findUserByClerkIdOrEmail(
+    clerkId: string,
+    email?: string
+  ): Promise<User | null> {
+    try {
+      // First, try to find by clerkId (preferred)
+      let user = await this.userRepository.findOne({
+        where: { clerkId },
+      });
+
+      if (user) {
+        return user;
+      }
+
+      // Fallback: try to find by email
+      if (email) {
+        user = await this.userRepository.findOne({
+          where: { email },
+        });
+
+        if (user) {
+          // Migration: set the clerkId on the existing user
+          if (!user.clerkId) {
+            this.logger.log(
+              `Migrating user ${user.id} (${email}) to clerkId: ${clerkId}`
+            );
+            user.clerkId = clerkId;
+            await this.userRepository.save(user);
+          }
+          return user;
+        }
+      }
+
+      return null;
+    } catch (error) {
+      this.logger.error(
+        `Failed to find user by clerkId or email: ${clerkId}, ${email}`,
+        error instanceof Error ? error.stack : String(error)
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Find a user by their email address (legacy - prefer findUserByClerkIdOrEmail)
+   * @deprecated Use findUserByClerkIdOrEmail instead
    */
   async findUserByEmail(email: string): Promise<User | null> {
     try {
