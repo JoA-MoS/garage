@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -17,8 +17,6 @@ export enum UserType {
 
 @Injectable()
 export class UsersService {
-  private readonly logger = new Logger(UsersService.name);
-
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -85,11 +83,12 @@ export class UsersService {
   }
 
   /**
-   * Find a user by Clerk ID (preferred) with fallback to email (for migration).
-   * If found by email but clerkId is not set, automatically updates the user.
+   * Find a user by Clerk ID, with fallback to email.
+   * ClerkId lookup is preferred; email is only used as a fallback
+   * for users who haven't been migrated yet.
    *
    * @param clerkId - The Clerk user ID (stable identifier)
-   * @param email - Optional email for fallback lookup
+   * @param email - Optional email for fallback lookup (for unmigrated users)
    * @returns The user if found, null otherwise
    */
   async findByClerkIdOrEmail(
@@ -97,7 +96,7 @@ export class UsersService {
     email?: string
   ): Promise<User | null> {
     // First, try to find by clerkId (preferred)
-    let user = await this.userRepository.findOne({
+    const user = await this.userRepository.findOne({
       where: { clerkId },
     });
 
@@ -105,23 +104,11 @@ export class UsersService {
       return user;
     }
 
-    // Fallback: try to find by email
+    // Fallback: try to find by email (for unmigrated users)
     if (email) {
-      user = await this.userRepository.findOne({
+      return await this.userRepository.findOne({
         where: { email },
       });
-
-      if (user) {
-        // Migration: set the clerkId on the existing user
-        if (!user.clerkId) {
-          this.logger.log(
-            `Migrating user ${user.id} (${email}) to clerkId: ${clerkId}`
-          );
-          user.clerkId = clerkId;
-          await this.userRepository.save(user);
-        }
-        return user;
-      }
     }
 
     return null;

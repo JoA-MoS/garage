@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 
 import { Game, GameStatus } from '../../entities/game.entity';
 import { Team } from '../../entities/team.entity';
@@ -195,6 +195,62 @@ export class GamesService {
   async remove(id: string): Promise<boolean> {
     const result = await this.gameRepository.delete(id);
     return (result.affected ?? 0) > 0;
+  }
+
+  /**
+   * Find games involving any of the given teams, filtered by status.
+   * Used for user-scoped game queries (upcoming, recent, live).
+   *
+   * @param teamIds - Team IDs to find games for
+   * @param statuses - Game statuses to filter by
+   * @param options - Query options (limit, orderBy, orderDirection)
+   */
+  async findByTeamIds(
+    teamIds: string[],
+    statuses: GameStatus[],
+    options?: {
+      limit?: number;
+      orderBy?: 'scheduledStart' | 'actualEnd' | 'actualStart' | 'createdAt';
+      orderDirection?: 'ASC' | 'DESC';
+    }
+  ): Promise<Game[]> {
+    if (teamIds.length === 0) {
+      return [];
+    }
+
+    // Find game IDs that involve any of the teams
+    const gameTeams = await this.gameTeamRepository.find({
+      where: { teamId: In(teamIds) },
+      select: ['gameId'],
+    });
+
+    const gameIds = [...new Set(gameTeams.map((gt) => gt.gameId))];
+
+    if (gameIds.length === 0) {
+      return [];
+    }
+
+    // Build query
+    const queryBuilder = this.gameRepository
+      .createQueryBuilder('game')
+      .leftJoinAndSelect('game.gameFormat', 'gameFormat')
+      .leftJoinAndSelect('game.gameTeams', 'gameTeams')
+      .leftJoinAndSelect('gameTeams.team', 'team')
+      .where('game.id IN (:...gameIds)', { gameIds })
+      .andWhere('game.status IN (:...statuses)', { statuses });
+
+    // Apply ordering
+    const orderBy = options?.orderBy ?? 'createdAt';
+    const orderDirection = options?.orderDirection ?? 'DESC';
+    queryBuilder.orderBy(`game.${orderBy}`, orderDirection, 'NULLS LAST');
+    queryBuilder.addOrderBy('game.createdAt', 'DESC');
+
+    // Apply limit
+    if (options?.limit) {
+      queryBuilder.take(options.limit);
+    }
+
+    return queryBuilder.getMany();
   }
 
   /**
