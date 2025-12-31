@@ -86,15 +86,17 @@ export class TeamAccessGuard implements CanActivate {
       throw new ForbiddenException('Team ID not found in request');
     }
 
-    // Look up internal user by email (Clerk ID != internal UUID)
+    // Look up internal user by clerkId (preferred) with email fallback
     const email = clerkUser.emailAddresses?.[0]?.emailAddress;
-    if (!email) {
-      throw new ForbiddenException('User email not found');
-    }
 
-    const internalUser = await this.usersService.findByEmail(email);
+    const internalUser = await this.usersService.findByClerkIdOrEmail(
+      clerkUser.id,
+      email
+    );
     if (!internalUser) {
-      this.logger.debug(`No internal user found for email ${email}`);
+      this.logger.debug(
+        `No internal user found for Clerk user ${clerkUser.id}`
+      );
       throw new ForbiddenException('User not registered in the system');
     }
 
