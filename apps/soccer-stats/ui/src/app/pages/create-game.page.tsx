@@ -28,16 +28,19 @@ export const CreateGamePage = () => {
   });
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch all teams
-  const { data: teamsData, loading: teamsLoading } = useQuery<TeamsResponse>(
-    GET_TEAMS,
-    { fetchPolicy: 'cache-first' }
-  );
+  const {
+    data: teamsData,
+    loading: teamsLoading,
+    error: teamsError,
+  } = useQuery<TeamsResponse>(GET_TEAMS, { fetchPolicy: 'cache-first' });
 
-  // Fetch available game formats
-  const { data: gameFormatsData, loading: gameFormatsLoading } = useQuery<{
-    gameFormats: GameFormat[];
-  }>(GET_GAME_FORMATS, { fetchPolicy: 'cache-first' });
+  const {
+    data: gameFormatsData,
+    loading: gameFormatsLoading,
+    error: gameFormatsError,
+  } = useQuery<{ gameFormats: GameFormat[] }>(GET_GAME_FORMATS, {
+    fetchPolicy: 'cache-first',
+  });
 
   // Create game mutation
   const [createGame, { loading: createLoading }] =
@@ -90,11 +93,33 @@ export const CreateGamePage = () => {
   const teams = teamsData?.teams || [];
   const gameFormats = gameFormatsData?.gameFormats || [];
   const isLoading = teamsLoading || gameFormatsLoading;
+  const queryError = teamsError || gameFormatsError;
 
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <div className="text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  if (queryError) {
+    return (
+      <div className="p-4">
+        <div className="mx-auto max-w-md rounded-lg bg-red-50 p-6 text-center">
+          <h2 className="mb-2 text-lg font-semibold text-red-800">
+            Failed to Load
+          </h2>
+          <p className="mb-4 text-red-700">
+            {queryError.message || 'Unable to load teams or game formats.'}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="inline-block rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
