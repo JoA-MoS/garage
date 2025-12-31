@@ -80,9 +80,9 @@ export const DashboardPage = () => {
                 <Link
                   key={game.id}
                   to={`/games/${game.id}`}
-                  className="flex items-center justify-between rounded-md bg-white p-3 shadow transition-shadow hover:shadow-md"
+                  className="min-h-touch flex flex-col items-center justify-between gap-2 rounded-md bg-white p-3 shadow transition-shadow hover:shadow-md sm:flex-row sm:gap-4"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
                     <span className="font-medium">
                       {homeTeam?.team?.shortName || homeTeam?.team?.name}
                     </span>
@@ -111,7 +111,7 @@ export const DashboardPage = () => {
                 <Link
                   key={team.id}
                   to={`/teams/${team.id}`}
-                  className="flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-gray-50"
+                  className="min-h-touch flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-gray-50"
                 >
                   <div
                     className="h-8 w-8 rounded-full"
@@ -159,7 +159,7 @@ export const DashboardPage = () => {
                   <Link
                     key={game.id}
                     to={`/games/${game.id}`}
-                    className="block rounded-md border border-gray-200 p-3 transition-shadow hover:shadow"
+                    className="min-h-touch block rounded-md border border-gray-200 p-3 transition-shadow hover:shadow"
                   >
                     <div className="mb-1 text-sm font-medium text-gray-900">
                       {homeTeam?.team?.shortName || 'TBD'} vs{' '}
@@ -215,7 +215,7 @@ export const DashboardPage = () => {
                   <Link
                     key={game.id}
                     to={`/games/${game.id}`}
-                    className="block rounded-md border border-gray-200 p-3 transition-shadow hover:shadow"
+                    className="min-h-touch block rounded-md border border-gray-200 p-3 transition-shadow hover:shadow"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">
