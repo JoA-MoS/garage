@@ -15,12 +15,19 @@ import {
   Team,
 } from '../services/teams-graphql.service';
 
+type GameFormState = {
+  homeTeamId: string;
+  awayTeamId: string;
+  gameFormatId: string;
+  duration: number;
+};
+
 /**
  * Page for creating a new game with team selection
  */
 export const CreateGamePage = () => {
   const navigate = useNavigate();
-  const [gameForm, setGameForm] = useState({
+  const [gameForm, setGameForm] = useState<GameFormState>({
     homeTeamId: '',
     awayTeamId: '',
     gameFormatId: '',
@@ -51,10 +58,15 @@ export const CreateGamePage = () => {
       onError: (err) => {
         setError(err.message);
       },
+      update: (cache) => {
+        // Evict games from cache to force refetch when returning to games list
+        cache.evict({ fieldName: 'games' });
+        cache.gc();
+      },
     });
 
   const handleFormChange = useCallback(
-    (field: string, value: string | number) => {
+    <K extends keyof GameFormState>(field: K, value: GameFormState[K]) => {
       setGameForm((prev) => ({ ...prev, [field]: value }));
       setError(null);
     },
@@ -85,7 +97,14 @@ export const CreateGamePage = () => {
         duration: gameForm.duration,
       };
 
-      await createGame({ variables: { createGameInput } });
+      try {
+        await createGame({ variables: { createGameInput } });
+      } catch (err) {
+        // Catches errors that bypass onError callback (e.g., network issues before request)
+        const message =
+          err instanceof Error ? err.message : 'Failed to create game';
+        setError(message);
+      }
     },
     [gameForm, createGame]
   );
