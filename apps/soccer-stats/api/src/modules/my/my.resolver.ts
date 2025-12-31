@@ -6,13 +6,14 @@ import {
   Args,
   Int,
 } from '@nestjs/graphql';
-import { Logger } from '@nestjs/common';
+import { Logger, UseGuards } from '@nestjs/common';
 
 import { User } from '../../entities/user.entity';
 import { Team } from '../../entities/team.entity';
 import { Game } from '../../entities/game.entity';
 import { CurrentUser } from '../auth/user.decorator';
 import { ClerkUser } from '../auth/clerk.service';
+import { OptionalClerkAuthGuard } from '../auth/optional-clerk-auth.guard';
 
 import { MyData } from './my-data.type';
 import { MyService } from './my.service';
@@ -30,6 +31,7 @@ import { MyService } from './my.service';
  * @see FEATURE_ROADMAP.md Issue #183
  */
 @Resolver(() => MyData)
+@UseGuards(OptionalClerkAuthGuard)
 export class MyResolver {
   private readonly logger = new Logger(MyResolver.name);
 
@@ -40,8 +42,12 @@ export class MyResolver {
    *
    * Returns null if:
    * - Not authenticated (no Clerk user in context)
-   * - Clerk user has no email address configured
-   * - No internal user found for the email (Clerk-to-app sync issue)
+   * - No internal user found (no clerkId match AND no email match)
+   *
+   * User lookup strategy:
+   * 1. Try to find by clerkId (stable, never changes)
+   * 2. Fallback to email (for users who haven't been migrated yet)
+   * 3. If found by email, automatically set clerkId for future lookups
    *
    * The returned MyData contains only the userId - all other fields
    * are resolved via @ResolveField() to enable lazy loading and
@@ -59,20 +65,19 @@ export class MyResolver {
       return null;
     }
 
-    // Clerk user has no email - configuration issue
+    // Get email for fallback lookup (may be undefined)
     const email = clerkUser.emailAddresses?.[0]?.emailAddress;
-    if (!email) {
-      this.logger.warn(
-        `Clerk user ${clerkUser.id} has no email address configured`
-      );
-      return null;
-    }
 
-    // Look up internal user by email
-    const user = await this.myService.findUserByEmail(email);
+    // Look up internal user by clerkId (preferred) or email (fallback)
+    const user = await this.myService.findUserByClerkIdOrEmail(
+      clerkUser.id,
+      email
+    );
+
     if (!user) {
       this.logger.warn(
-        `No internal user found for Clerk user ${clerkUser.id} with email ${email}`
+        `No internal user found for Clerk user ${clerkUser.id}` +
+          (email ? ` with email ${email}` : ' (no email configured)')
       );
       return null;
     }

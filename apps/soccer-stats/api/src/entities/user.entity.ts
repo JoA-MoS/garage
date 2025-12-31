@@ -31,6 +31,15 @@ registerEnumType(LastNameVisibility, {
 @ObjectType()
 @Entity('users')
 export class User extends BaseEntity {
+  /**
+   * Clerk user ID - the stable, primary identifier for linking to Clerk.
+   * Format: "user_2abc123..." - never changes for the lifetime of the account.
+   * This is the preferred lookup field over email.
+   */
+  @Field({ nullable: true })
+  @Column({ unique: true, length: 255, nullable: true })
+  clerkId?: string;
+
   @Field({ nullable: true })
   @Column({ unique: true, length: 255, nullable: true })
   email?: string;

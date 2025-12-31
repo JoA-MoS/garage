@@ -112,6 +112,20 @@
         "command": "semantic-release-plus",
         "cwd": "apps/soccer-stats/api"
       }
+    },
+    "migrate:clerk-ids": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx ts-node apps/soccer-stats/api/src/scripts/migrate-clerk-ids.ts",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "migrate:clerk-ids:dry-run": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "DRY_RUN=true npx ts-node apps/soccer-stats/api/src/scripts/migrate-clerk-ids.ts",
+        "cwd": "{workspaceRoot}"
+      }
     }
   }
 }
