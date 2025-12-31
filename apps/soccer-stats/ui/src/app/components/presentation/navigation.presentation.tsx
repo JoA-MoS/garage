@@ -18,7 +18,7 @@ export const NavigationPresentation = () => {
 
   const navigationItems = [
     { path: '/', label: 'Dashboard', icon: '🏠' },
-    { path: '/game/new', label: 'New Game', icon: '⚽' },
+    { path: '/games/new', label: 'New Game', icon: '⚽' },
     { path: '/history', label: 'History', icon: '📈' },
     { path: '/players', label: 'Players', icon: '👥' },
     { path: '/users', label: 'Users', icon: '👤' },
