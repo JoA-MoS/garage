@@ -107,6 +107,12 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
           playerId
           externalPlayerName
           externalPlayerNumber
+          player {
+            id
+            firstName
+            lastName
+            email
+          }
           eventType {
             id
             name
