@@ -70,6 +70,37 @@ export class TeamMembersService {
   }
 
   /**
+   * Find all teams a user belongs to, optionally filtered by roles.
+   * Returns Team[] sorted by name.
+   *
+   * @param userId - The user ID
+   * @param roles - Optional array of roles to filter by (e.g., [OWNER, MANAGER])
+   */
+  async findTeamsForUser(userId: string, roles?: TeamRole[]): Promise<Team[]> {
+    let memberships = await this.findByUser(userId);
+
+    if (roles && roles.length > 0) {
+      memberships = memberships.filter((m) => roles.includes(m.role));
+    }
+
+    return memberships
+      .filter((m) => m.team)
+      .map((m) => m.team)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /**
+   * Get team IDs for a user (optimized query for game lookups).
+   */
+  async findTeamIdsForUser(userId: string): Promise<string[]> {
+    const memberships = await this.teamMemberRepository.find({
+      where: { userId },
+      select: ['teamId'],
+    });
+    return memberships.map((m) => m.teamId);
+  }
+
+  /**
    * Find a specific team membership
    */
   async findOne(id: string): Promise<TeamMember | null> {
