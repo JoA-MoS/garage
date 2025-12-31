@@ -2,7 +2,6 @@ import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { User } from '../../entities/user.entity';
-import { Team } from '../../entities/team.entity';
 import { Game } from '../../entities/game.entity';
 import { TeamMember } from '../../entities/team-member.entity';
 import { GameTeam } from '../../entities/game-team.entity';
@@ -22,7 +21,8 @@ import { MyService } from './my.service';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Team, Game, TeamMember, GameTeam]),
+    // Team entity not needed - teams are loaded via TeamMember relations
+    TypeOrmModule.forFeature([User, Game, TeamMember, GameTeam]),
     forwardRef(() => AuthModule),
   ],
   providers: [MyResolver, MyService],
