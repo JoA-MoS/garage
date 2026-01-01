@@ -23,7 +23,7 @@ const httpLink = createHttpLink({
 
 /**
  * WebSocket URL for subscriptions.
- * - Development: Uses relative path through Vite proxy (ws://localhost:4200/api/graphql)
+ * - Development: Constructs URL from window.location (works with Vite proxy)
  * - Production with VITE_API_URL: Direct connection to specified URL
  * - Production on Vercel: Direct connection to Railway (Vercel doesn't proxy WebSockets)
  */
@@ -95,10 +95,20 @@ const wsLink = new GraphQLWsLink(
   createClient({
     url: wsUrl,
     connectionParams: async () => {
-      const token = getToken ? await getToken() : null;
-      return {
-        ...(token ? { authorization: `Bearer ${token}` } : {}),
-      };
+      try {
+        const token = getToken ? await getToken() : null;
+        return {
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        };
+      } catch (error) {
+        console.error(
+          '[WebSocket] Failed to retrieve authentication token:',
+          error
+        );
+        // Return empty params - connection will proceed without auth
+        // The server should reject unauthenticated requests appropriately
+        return {};
+      }
     },
     // Reconnect on connection loss
     shouldRetry: () => true,
@@ -120,7 +130,13 @@ const wsLink = new GraphQLWsLink(
 
 // Auth link that adds the token to HTTP requests
 const authLink = setContext(async (_, { headers }) => {
-  const token = getToken ? await getToken() : null;
+  let token: string | null = null;
+  try {
+    token = getToken ? await getToken() : null;
+  } catch (error) {
+    console.error('[Apollo] Failed to retrieve authentication token:', error);
+    // Proceed without token - let the server reject if auth is required
+  }
   return {
     headers: {
       ...headers,

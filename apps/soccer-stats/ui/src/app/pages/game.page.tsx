@@ -154,8 +154,9 @@ export const GamePage = () => {
   });
 
   // Debug: Log when loading spinner is displayed (for E2E testing)
+  // Only logs in development/test environments to avoid polluting production console
   useEffect(() => {
-    if (loading) {
+    if (import.meta.env.DEV && loading) {
       console.log(
         '[Game Page Loading Spinner] Displayed - loading state is true'
       );
