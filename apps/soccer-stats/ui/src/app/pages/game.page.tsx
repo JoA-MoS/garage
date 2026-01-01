@@ -372,6 +372,15 @@ export const GamePage = () => {
   const homeTeamId = homeTeamData?.id;
   const awayTeamId = awayTeamData?.id;
 
+  // Store team IDs in refs for stable access in subscription callbacks
+  // This prevents stale closure issues when cache updates cause re-renders
+  const homeTeamIdRef = useRef<string | undefined>(homeTeamId);
+  const awayTeamIdRef = useRef<string | undefined>(awayTeamId);
+  useEffect(() => {
+    homeTeamIdRef.current = homeTeamId;
+    awayTeamIdRef.current = awayTeamId;
+  }, [homeTeamId, awayTeamId]);
+
   // Memoize scores to prevent recalculation on every render
   const homeScore = useMemo(
     () => computeScore(homeTeamData?.gameEvents),
@@ -451,22 +460,17 @@ export const GamePage = () => {
       });
 
       // If a goal was scored, highlight the score for the correct team
+      // Use refs to get current team IDs to avoid stale closure issues
       if (event.eventType?.name === 'GOAL') {
-        const homeTeam = data?.game?.gameTeams?.find(
-          (gt) => gt.teamType === 'home'
-        );
-        const awayTeam = data?.game?.gameTeams?.find(
-          (gt) => gt.teamType === 'away'
-        );
-        if (event.gameTeamId === homeTeam?.id) {
+        if (event.gameTeamId === homeTeamIdRef.current) {
           setHighlightedScore('home');
-        } else if (event.gameTeamId === awayTeam?.id) {
+        } else if (event.gameTeamId === awayTeamIdRef.current) {
           setHighlightedScore('away');
         }
         setTimeout(() => setHighlightedScore(null), 1000);
       }
     },
-    [apolloClient, data?.game?.gameTeams]
+    [apolloClient]
   );
 
   const handleEventDeleted = useCallback(
@@ -560,10 +564,6 @@ export const GamePage = () => {
     [resolveConflict]
   );
 
-  // Track previous scores to detect which team scored
-  const prevHomeScore = useRef<number | null>(null);
-  const prevAwayScore = useRef<number | null>(null);
-
   const { isConnected, isEventHighlighted } = useGameEventSubscription({
     gameId: gameId || '',
     onEventCreated: handleEventCreated,
@@ -571,27 +571,6 @@ export const GamePage = () => {
     onConflictDetected: handleConflictDetected,
     onGameStateChanged: handleGameStateChanged,
   });
-
-  // Detect score changes and trigger highlight (using memoized scores)
-  useEffect(() => {
-    if (!data?.game) return;
-
-    // Check if home score increased
-    if (prevHomeScore.current !== null && homeScore > prevHomeScore.current) {
-      setHighlightedScore('home');
-      setTimeout(() => setHighlightedScore(null), 1000);
-    }
-
-    // Check if away score increased
-    if (prevAwayScore.current !== null && awayScore > prevAwayScore.current) {
-      setHighlightedScore('away');
-      setTimeout(() => setHighlightedScore(null), 1000);
-    }
-
-    // Update refs
-    prevHomeScore.current = homeScore;
-    prevAwayScore.current = awayScore;
-  }, [data?.game, homeScore, awayScore]);
 
   // Start first half
   const handleStartFirstHalf = async () => {
