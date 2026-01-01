@@ -147,40 +147,31 @@ export const GamePage = () => {
   } = useQuery(GET_GAME_BY_ID, {
     variables: { id: gameId! },
     skip: !gameId,
+    // Prevent loading state from becoming true during cache updates or background refetches
+    // Only show loading on initial fetch, not when cache is modified by subscriptions
+    notifyOnNetworkStatusChange: false,
+    fetchPolicy: 'cache-first',
   });
+
+  // Debug: Log when loading spinner is displayed (for E2E testing)
+  useEffect(() => {
+    if (loading) {
+      console.log(
+        '[Game Page Loading Spinner] Displayed - loading state is true'
+      );
+    }
+  }, [loading]);
 
   const [updateGame, { loading: updatingGame }] = useMutation(UPDATE_GAME, {
     refetchQueries: [{ query: GET_GAME_BY_ID, variables: { id: gameId } }],
   });
 
   // Direct goal recording for GOALS_ONLY mode (skips modal)
-  const [recordGoalDirect, { loading: recordingGoal }] = useMutation(
-    RECORD_GOAL,
-    {
-      refetchQueries: () => {
-        const queries: Array<{
-          query: typeof GET_GAME_BY_ID | typeof GET_PLAYER_STATS;
-          variables: object;
-        }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
-        const game = data?.game;
-        const homeTeam = game?.gameTeams?.find((gt) => gt.teamType === 'home');
-        const awayTeam = game?.gameTeams?.find((gt) => gt.teamType === 'away');
-        if (homeTeam) {
-          queries.push({
-            query: GET_PLAYER_STATS,
-            variables: { input: { teamId: homeTeam.team.id, gameId } },
-          });
-        }
-        if (awayTeam) {
-          queries.push({
-            query: GET_PLAYER_STATS,
-            variables: { input: { teamId: awayTeam.team.id, gameId } },
-          });
-        }
-        return queries;
-      },
-    }
-  );
+  // Note: We intentionally don't use refetchQueries here.
+  // The real-time subscription handles adding new events to the cache
+  // via apolloClient.cache.modify, preventing loading state flickers.
+  const [recordGoalDirect, { loading: recordingGoal }] =
+    useMutation(RECORD_GOAL);
 
   const [deleteGoal, { loading: deletingGoal }] = useMutation(DELETE_GOAL, {
     refetchQueries: () => {

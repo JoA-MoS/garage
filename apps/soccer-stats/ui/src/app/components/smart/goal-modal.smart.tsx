@@ -1,12 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useMutation } from '@apollo/client/react';
 
-import {
-  RECORD_GOAL,
-  UPDATE_GOAL,
-  GET_GAME_BY_ID,
-  GET_PLAYER_STATS,
-} from '../../services/games-graphql.service';
+import { RECORD_GOAL, UPDATE_GOAL } from '../../services/games-graphql.service';
 import { LineupPlayer, StatsTrackingLevel } from '../../generated/graphql';
 
 // Data for an existing goal being edited
@@ -141,19 +136,17 @@ export const GoalModal = ({
   // Track if we should clear the assist
   const [clearAssist, setClearAssist] = useState(false);
 
-  const [recordGoal, { loading: recordLoading }] = useMutation(RECORD_GOAL, {
-    refetchQueries: [
-      { query: GET_GAME_BY_ID, variables: { id: gameId } },
-      { query: GET_PLAYER_STATS, variables: { input: { teamId, gameId } } },
-    ],
-  });
+  // Note: We intentionally don't use refetchQueries here at all.
+  // The real-time subscription (useGameEventSubscription) handles adding new events
+  // to the cache via apolloClient.cache.modify, which updates the UI without
+  // triggering loading states.
+  //
+  // Player stats will update when the user navigates to the stats tab or
+  // the page is refreshed. This trade-off prevents the loading screen flicker
+  // that occurs when ANY refetchQueries are used with Apollo Client.
+  const [recordGoal, { loading: recordLoading }] = useMutation(RECORD_GOAL);
 
-  const [updateGoal, { loading: updateLoading }] = useMutation(UPDATE_GOAL, {
-    refetchQueries: [
-      { query: GET_GAME_BY_ID, variables: { id: gameId } },
-      { query: GET_PLAYER_STATS, variables: { input: { teamId, gameId } } },
-    ],
-  });
+  const [updateGoal, { loading: updateLoading }] = useMutation(UPDATE_GOAL);
 
   const loading = recordLoading || updateLoading;
 
