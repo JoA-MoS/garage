@@ -139,12 +139,7 @@ export const GamePage = () => {
 
   const apolloClient = useApolloClient();
 
-  const {
-    data,
-    loading,
-    error,
-    refetch: refetchGame,
-  } = useQuery(GET_GAME_BY_ID, {
+  const { data, loading, error } = useQuery(GET_GAME_BY_ID, {
     variables: { id: gameId! },
     skip: !gameId,
     // Prevent loading state from becoming true during cache updates or background refetches
@@ -2009,7 +2004,7 @@ export const GamePage = () => {
                 // Helper to check if deleting based on event type
                 const isDeletingEvent = (
                   eventId: string,
-                  eventType: EventCardType
+                  _eventType: EventCardType
                 ) => {
                   // If this event is the target of cascade delete
                   if (deleteTarget?.id === eventId) {
