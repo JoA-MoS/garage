@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { PubSub } from 'graphql-subscriptions';
 
 import { Game } from '../../entities/game.entity';
 import { Team } from '../../entities/team.entity';
@@ -31,14 +30,7 @@ import { GamesService } from './games.service';
     ]),
     AuthModule,
   ],
-  providers: [
-    GamesResolver,
-    GamesService,
-    {
-      provide: 'PUB_SUB',
-      useValue: new PubSub(),
-    },
-  ],
+  providers: [GamesResolver, GamesService],
   exports: [GamesService],
 })
 export class GamesModule {}
