@@ -12,8 +12,9 @@ export const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'api';
 /**
  * Railway backend URL for direct connections from Vercel.
  * Vercel can't proxy requests to Railway, so we connect directly.
+ * Exported for reuse in apollo-client.ts SSR fallback.
  */
-const RAILWAY_URL = 'https://soccer-stats.up.railway.app';
+export const RAILWAY_URL = 'https://soccer-stats.up.railway.app';
 
 /**
  * Detect if running on Vercel deployment.
