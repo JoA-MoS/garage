@@ -14,59 +14,28 @@ import { createClient } from 'graphql-ws';
 
 import { API_PREFIX, getApiUrl } from './environment';
 
-const apiUrl = getApiUrl();
-
-// Railway backend URL for direct connections from Vercel
-// Both HTTP and WebSocket connect directly to Railway, bypassing Vercel rewrites
-const RAILWAY_URL = 'https://soccer-stats.up.railway.app';
-
-/**
- * Detect if running on Vercel deployment.
- * Used to route requests directly to Railway instead of through Vercel.
- */
-function isVercelDeployment(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    window.location.host.includes('.vercel.app')
-  );
-}
-
 /**
  * Get the HTTP URL for GraphQL queries/mutations.
- * - Development: Uses Vite proxy (same-origin requests)
- * - Production with VITE_API_URL: Direct connection to specified URL
- * - Production on Vercel: Direct connection to Railway
+ * Uses getApiUrl() which handles Vercel detection and returns Railway URL when needed.
  */
 function getHttpUrl(): string {
-  // If apiUrl is explicitly set via VITE_API_URL, use it
-  if (apiUrl) {
-    return `${apiUrl}/${API_PREFIX}/graphql`;
-  }
-
-  // On Vercel, connect directly to Railway
-  if (isVercelDeployment()) {
-    return `${RAILWAY_URL}/${API_PREFIX}/graphql`;
-  }
-
-  // Development: Use same-origin (Vite proxy handles /api/*)
-  return `/${API_PREFIX}/graphql`;
+  const baseUrl = getApiUrl();
+  return baseUrl
+    ? `${baseUrl}/${API_PREFIX}/graphql`
+    : `/${API_PREFIX}/graphql`;
 }
 
 /**
  * Get the WebSocket URL for GraphQL subscriptions.
+ * - Production (Vercel/VITE_API_URL): Converts HTTP URL to WebSocket URL
  * - Development: Uses Vite proxy (ws: true in proxy config)
- * - Production with VITE_API_URL: Direct connection to specified URL
- * - Production on Vercel: Direct connection to Railway
  */
 function getWsUrl(): string {
-  // If apiUrl is explicitly set via VITE_API_URL, use it
-  if (apiUrl) {
-    return apiUrl.replace(/^http/, 'ws') + `/${API_PREFIX}/graphql`;
-  }
+  const baseUrl = getApiUrl();
 
-  // On Vercel, connect directly to Railway
-  if (isVercelDeployment()) {
-    return RAILWAY_URL.replace(/^http/, 'ws') + `/${API_PREFIX}/graphql`;
+  // If we have a base URL (Vercel or VITE_API_URL), convert to WebSocket
+  if (baseUrl) {
+    return baseUrl.replace(/^http/, 'ws') + `/${API_PREFIX}/graphql`;
   }
 
   // Development: Use Vite proxy (ws: true enables WebSocket proxying)
@@ -75,8 +44,8 @@ function getWsUrl(): string {
     return `${protocol}//${window.location.host}/${API_PREFIX}/graphql`;
   }
 
-  // Fallback for SSR or non-browser environments
-  return RAILWAY_URL.replace(/^http/, 'ws') + `/${API_PREFIX}/graphql`;
+  // Fallback for SSR - should not normally reach here
+  return `wss://soccer-stats.up.railway.app/${API_PREFIX}/graphql`;
 }
 
 const httpUrl = getHttpUrl();
