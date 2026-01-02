@@ -12,7 +12,7 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
 
-import { API_PREFIX, getApiUrl } from './environment';
+import { API_PREFIX, getApiUrl, RAILWAY_URL } from './environment';
 
 /**
  * Get the HTTP URL for GraphQL queries/mutations.
@@ -45,7 +45,7 @@ function getWsUrl(): string {
   }
 
   // Fallback for SSR - should not normally reach here
-  return `wss://soccer-stats.up.railway.app/${API_PREFIX}/graphql`;
+  return RAILWAY_URL.replace(/^http/, 'ws') + `/${API_PREFIX}/graphql`;
 }
 
 const httpUrl = getHttpUrl();
