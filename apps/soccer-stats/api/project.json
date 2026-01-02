@@ -126,6 +126,13 @@
         "command": "DRY_RUN=true npx ts-node apps/soccer-stats/api/src/scripts/migrate-clerk-ids.ts",
         "cwd": "{workspaceRoot}"
       }
+    },
+    "db:seed:mls-teams": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker exec -i soccer-stats-db psql -U postgres -d soccer_stats < apps/soccer-stats/api/database/seeds/seed-mls-demo-teams.sql",
+        "cwd": "{workspaceRoot}"
+      }
     }
   }
 }

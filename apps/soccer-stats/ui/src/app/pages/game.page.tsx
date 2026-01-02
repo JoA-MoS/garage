@@ -139,48 +139,35 @@ export const GamePage = () => {
 
   const apolloClient = useApolloClient();
 
-  const {
-    data,
-    loading,
-    error,
-    refetch: refetchGame,
-  } = useQuery(GET_GAME_BY_ID, {
+  const { data, loading, error } = useQuery(GET_GAME_BY_ID, {
     variables: { id: gameId! },
     skip: !gameId,
+    // Prevent loading state from becoming true during cache updates or background refetches
+    // Only show loading on initial fetch, not when cache is modified by subscriptions
+    notifyOnNetworkStatusChange: false,
+    fetchPolicy: 'cache-first',
   });
+
+  // Debug: Log when loading spinner is displayed (for E2E testing)
+  // Only logs in development/test environments to avoid polluting production console
+  useEffect(() => {
+    if (import.meta.env.DEV && loading) {
+      console.log(
+        '[Game Page Loading Spinner] Displayed - loading state is true'
+      );
+    }
+  }, [loading]);
 
   const [updateGame, { loading: updatingGame }] = useMutation(UPDATE_GAME, {
     refetchQueries: [{ query: GET_GAME_BY_ID, variables: { id: gameId } }],
   });
 
   // Direct goal recording for GOALS_ONLY mode (skips modal)
-  const [recordGoalDirect, { loading: recordingGoal }] = useMutation(
-    RECORD_GOAL,
-    {
-      refetchQueries: () => {
-        const queries: Array<{
-          query: typeof GET_GAME_BY_ID | typeof GET_PLAYER_STATS;
-          variables: object;
-        }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
-        const game = data?.game;
-        const homeTeam = game?.gameTeams?.find((gt) => gt.teamType === 'home');
-        const awayTeam = game?.gameTeams?.find((gt) => gt.teamType === 'away');
-        if (homeTeam) {
-          queries.push({
-            query: GET_PLAYER_STATS,
-            variables: { input: { teamId: homeTeam.team.id, gameId } },
-          });
-        }
-        if (awayTeam) {
-          queries.push({
-            query: GET_PLAYER_STATS,
-            variables: { input: { teamId: awayTeam.team.id, gameId } },
-          });
-        }
-        return queries;
-      },
-    }
-  );
+  // Note: We intentionally don't use refetchQueries here.
+  // The real-time subscription handles adding new events to the cache
+  // via apolloClient.cache.modify, preventing loading state flickers.
+  const [recordGoalDirect, { loading: recordingGoal }] =
+    useMutation(RECORD_GOAL);
 
   const [deleteGoal, { loading: deletingGoal }] = useMutation(DELETE_GOAL, {
     refetchQueries: () => {
@@ -380,6 +367,15 @@ export const GamePage = () => {
   const homeTeamId = homeTeamData?.id;
   const awayTeamId = awayTeamData?.id;
 
+  // Store team IDs in refs for stable access in subscription callbacks
+  // This prevents stale closure issues when cache updates cause re-renders
+  const homeTeamIdRef = useRef<string | undefined>(homeTeamId);
+  const awayTeamIdRef = useRef<string | undefined>(awayTeamId);
+  useEffect(() => {
+    homeTeamIdRef.current = homeTeamId;
+    awayTeamIdRef.current = awayTeamId;
+  }, [homeTeamId, awayTeamId]);
+
   // Memoize scores to prevent recalculation on every render
   const homeScore = useMemo(
     () => computeScore(homeTeamData?.gameEvents),
@@ -459,22 +455,17 @@ export const GamePage = () => {
       });
 
       // If a goal was scored, highlight the score for the correct team
+      // Use refs to get current team IDs to avoid stale closure issues
       if (event.eventType?.name === 'GOAL') {
-        const homeTeam = data?.game?.gameTeams?.find(
-          (gt) => gt.teamType === 'home'
-        );
-        const awayTeam = data?.game?.gameTeams?.find(
-          (gt) => gt.teamType === 'away'
-        );
-        if (event.gameTeamId === homeTeam?.id) {
+        if (event.gameTeamId === homeTeamIdRef.current) {
           setHighlightedScore('home');
-        } else if (event.gameTeamId === awayTeam?.id) {
+        } else if (event.gameTeamId === awayTeamIdRef.current) {
           setHighlightedScore('away');
         }
         setTimeout(() => setHighlightedScore(null), 1000);
       }
     },
-    [apolloClient, data?.game?.gameTeams]
+    [apolloClient]
   );
 
   const handleEventDeleted = useCallback(
@@ -568,10 +559,6 @@ export const GamePage = () => {
     [resolveConflict]
   );
 
-  // Track previous scores to detect which team scored
-  const prevHomeScore = useRef<number | null>(null);
-  const prevAwayScore = useRef<number | null>(null);
-
   const { isConnected, isEventHighlighted } = useGameEventSubscription({
     gameId: gameId || '',
     onEventCreated: handleEventCreated,
@@ -579,27 +566,6 @@ export const GamePage = () => {
     onConflictDetected: handleConflictDetected,
     onGameStateChanged: handleGameStateChanged,
   });
-
-  // Detect score changes and trigger highlight (using memoized scores)
-  useEffect(() => {
-    if (!data?.game) return;
-
-    // Check if home score increased
-    if (prevHomeScore.current !== null && homeScore > prevHomeScore.current) {
-      setHighlightedScore('home');
-      setTimeout(() => setHighlightedScore(null), 1000);
-    }
-
-    // Check if away score increased
-    if (prevAwayScore.current !== null && awayScore > prevAwayScore.current) {
-      setHighlightedScore('away');
-      setTimeout(() => setHighlightedScore(null), 1000);
-    }
-
-    // Update refs
-    prevHomeScore.current = homeScore;
-    prevAwayScore.current = awayScore;
-  }, [data?.game, homeScore, awayScore]);
 
   // Start first half
   const handleStartFirstHalf = async () => {
@@ -2038,7 +2004,7 @@ export const GamePage = () => {
                 // Helper to check if deleting based on event type
                 const isDeletingEvent = (
                   eventId: string,
-                  eventType: EventCardType
+                  _eventType: EventCardType
                 ) => {
                   // If this event is the target of cascade delete
                   if (deleteTarget?.id === eventId) {

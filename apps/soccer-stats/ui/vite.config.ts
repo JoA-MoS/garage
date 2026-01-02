@@ -10,10 +10,12 @@ export default defineConfig(() => ({
   server: {
     port: 4200,
     host: 'localhost',
+    // Proxy config is loaded from proxy.conf.js via project.json proxyConfig option
   },
   preview: {
     port: 4200,
     host: 'localhost',
+    // Proxy config is loaded from proxy.conf.js via project.json proxyConfig option
   },
   plugins: [react(), nxViteTsPaths(), nxCopyAssetsPlugin(['*.md'])],
   // Uncomment this if you are using workers.

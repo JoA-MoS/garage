@@ -23,12 +23,28 @@ const httpLink = createHttpLink({
 
 /**
  * WebSocket URL for subscriptions.
- * - Development: ws://localhost:3333/{API_PREFIX}/graphql
- * - Production: Direct connection to Railway (Vercel doesn't proxy WebSockets)
+ * - Development: Constructs URL from window.location (works with Vite proxy)
+ * - Production with VITE_API_URL: Direct connection to specified URL
+ * - Production on Vercel: Direct connection to Railway (Vercel doesn't proxy WebSockets)
  */
-const wsUrl = apiUrl
-  ? apiUrl.replace(/^http/, 'ws') + `/${API_PREFIX}/graphql`
-  : `wss://soccer-stats.up.railway.app/${API_PREFIX}/graphql`;
+function getWsUrl(): string {
+  // If apiUrl is set (not empty), use it for WebSocket connection
+  if (apiUrl) {
+    return apiUrl.replace(/^http/, 'ws') + `/${API_PREFIX}/graphql`;
+  }
+
+  // In browser, construct WebSocket URL from current location
+  // This works with Vite proxy in development (ws: true enables WebSocket proxying)
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}/${API_PREFIX}/graphql`;
+  }
+
+  // Fallback for SSR or non-browser environments
+  return `wss://soccer-stats.up.railway.app/${API_PREFIX}/graphql`;
+}
+
+const wsUrl = getWsUrl();
 
 // Token getter function - will be set by the AuthApolloProvider
 let getToken: (() => Promise<string | null>) | null = null;
@@ -58,7 +74,7 @@ const errorLink = new ErrorLink(({ error, operation }) => {
           message: err.message,
           code: errorCode,
           path: err.path,
-        },
+        }
       );
 
       // Trigger auth error handler for authentication failures
@@ -79,10 +95,20 @@ const wsLink = new GraphQLWsLink(
   createClient({
     url: wsUrl,
     connectionParams: async () => {
-      const token = getToken ? await getToken() : null;
-      return {
-        ...(token ? { authorization: `Bearer ${token}` } : {}),
-      };
+      try {
+        const token = getToken ? await getToken() : null;
+        return {
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        };
+      } catch (error) {
+        console.error(
+          '[WebSocket] Failed to retrieve authentication token:',
+          error
+        );
+        // Return empty params - connection will proceed without auth
+        // The server should reject unauthenticated requests appropriately
+        return {};
+      }
     },
     // Reconnect on connection loss
     shouldRetry: () => true,
@@ -99,12 +125,18 @@ const wsLink = new GraphQLWsLink(
         console.error('[WebSocket] Connection error:', error);
       },
     },
-  }),
+  })
 );
 
 // Auth link that adds the token to HTTP requests
 const authLink = setContext(async (_, { headers }) => {
-  const token = getToken ? await getToken() : null;
+  let token: string | null = null;
+  try {
+    token = getToken ? await getToken() : null;
+  } catch (error) {
+    console.error('[Apollo] Failed to retrieve authentication token:', error);
+    // Proceed without token - let the server reject if auth is required
+  }
   return {
     headers: {
       ...headers,
@@ -123,7 +155,7 @@ const splitLink = split(
     );
   },
   wsLink,
-  ApolloLink.from([errorLink, authLink, httpLink]),
+  ApolloLink.from([errorLink, authLink, httpLink])
 );
 
 // Create Apollo Client instance
