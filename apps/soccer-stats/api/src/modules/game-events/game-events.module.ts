@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { PubSub } from 'graphql-subscriptions';
 
 import { GameEvent } from '../../entities/game-event.entity';
 import { EventType } from '../../entities/event-type.entity';
@@ -19,14 +18,7 @@ import { GameEventsResolver } from './game-events.resolver';
     AuthModule,
     UsersModule,
   ],
-  providers: [
-    GameEventsService,
-    GameEventsResolver,
-    {
-      provide: 'PUB_SUB',
-      useValue: new PubSub(),
-    },
-  ],
+  providers: [GameEventsService, GameEventsResolver],
   exports: [GameEventsService],
 })
 export class GameEventsModule {}

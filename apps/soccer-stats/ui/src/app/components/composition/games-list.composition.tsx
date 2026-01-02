@@ -33,7 +33,7 @@ export const GamesListComposition = () => {
       />
 
       {/* Debug info in development */}
-      {process.env['NODE_ENV'] === 'development' && (
+      {import.meta.env.DEV && (
         <div className="fixed bottom-4 right-4 rounded-lg bg-gray-800 p-2 text-xs text-white">
           <div>Games: {data?.games?.length || 0}</div>
           <div>Loading: {loading ? 'Yes' : 'No'}</div>

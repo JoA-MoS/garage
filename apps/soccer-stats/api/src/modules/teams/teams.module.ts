@@ -1,6 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { PubSub } from 'graphql-subscriptions';
 
 import { Team } from '../../entities/team.entity';
 import { User } from '../../entities/user.entity';
@@ -31,14 +30,7 @@ import { TeamsService } from './teams.service';
     forwardRef(() => UsersModule),
     forwardRef(() => AuthModule),
   ],
-  providers: [
-    TeamsResolver,
-    TeamsService,
-    {
-      provide: 'PUB_SUB',
-      useFactory: () => new PubSub(),
-    },
-  ],
+  providers: [TeamsResolver, TeamsService],
   exports: [TeamsService],
 })
 export class TeamsModule {}

@@ -31,6 +31,9 @@ This document outlines planned features, improvements, and cleanup tasks for the
    - [#186: Per-Game Stats Configuration](#issue-186-per-game-stats-configuration-with-team-defaults)
    - [#187: Sticky Score Header](#issue-187-sticky-score-header-when-scrolling)
    - [#188: Player Photos and Field Quick View](#issue-188-player-photos-and-field-quick-view)
+   - [#191: Unbalanced Substitutions](#issue-191-unbalanced-substitutions-injury-red-card-late-arrival)
+   - [#192: Player Stack Ranking by Position](#issue-192-player-stack-ranking-by-position)
+   - [#193: Smart Substitution Recommendations](#issue-193-smart-substitution-recommendations)
 6. [Future Considerations](#future-considerations)
 
 ---
@@ -78,6 +81,9 @@ This document outlines planned features, improvements, and cleanup tasks for the
 | Team colors displaying properly    | 2.4                                                  | ✅ Done                | -       |
 | Feature toggles UI                 | [#180](https://github.com/JoA-MoS/garage/issues/180) | ⚠️ Backend done        | Small   |
 | Investigate production refresh bug | [#185](https://github.com/JoA-MoS/garage/issues/185) | ⚠️ Needs investigation | Unknown |
+| Unbalanced substitutions           | [#191](https://github.com/JoA-MoS/garage/issues/191) | ❌ Not started         | Medium  |
+| Player stack ranking by position   | [#192](https://github.com/JoA-MoS/garage/issues/192) | ❌ Not started         | Medium  |
+| Smart substitution recommendations | [#193](https://github.com/JoA-MoS/garage/issues/193) | ❌ Not started         | Large   |
 
 #### ⚪ Tier 4: Post-MVP (Deferred)
 
@@ -1837,6 +1843,121 @@ thumbnailUrl?: string;
 
 ---
 
+### Issue [#191](https://github.com/JoA-MoS/garage/issues/191): Unbalanced Substitutions (Injury, Red Card, Late Arrival)
+
+**Labels:** `enhancement`, `game-tracking`, `substitutions`
+**Priority:** Medium | **MVP Tier:** 🟢 Tier 3 (Nice to Have)
+**Affects:** Game Page, Substitution Tracking
+
+#### Description
+
+Allow substituting a player in or out without a corresponding opposite action. This handles real-world scenarios where the on-field player count changes temporarily.
+
+#### Use Cases
+
+1. **Injury without replacement:** Player gets hurt, no substitute available
+2. **Red card:** Player sent off with no replacement allowed
+3. **Late arrival:** Player shows up late when team started short-handed
+4. **Tactical break:** Playing short temporarily while player recovers
+
+#### Current vs Expected Behavior
+
+- **Current:** Substitutions require both IN and OUT players
+- **Expected:** Support "Sub Out Only" and "Sub In Only" actions
+
+#### Acceptance Criteria
+
+- [ ] Record player leaving field without replacement
+- [ ] Record player entering field without replacing anyone
+- [ ] Optional reason field (Injury, Red Card, Late Arrival, Tactical, Other)
+- [ ] Visual indicator when playing short-handed
+- [ ] Player stats correctly track minutes
+
+#### Related
+
+- See full issue for implementation details
+- Related to disciplinary tracking (3.1)
+
+---
+
+### Issue [#192](https://github.com/JoA-MoS/garage/issues/192): Player Stack Ranking by Position
+
+**Labels:** `enhancement`, `roster-management`, `lineup`
+**Priority:** Medium | **MVP Tier:** 🟢 Tier 3 (Nice to Have)
+**Affects:** Team Settings, Roster Page, Lineup Selection
+
+#### Description
+
+Allow coaches to rank players for each position, creating a "depth chart" that reflects player preferences and capabilities. A player can appear in rankings for multiple positions with different ranks.
+
+#### Example
+
+- **Goalkeeper:** 1st: Jordan, 2nd: Alex
+- **Center Back:** 1st: Casey, 2nd: Riley, 3rd: Jordan
+- **Striker:** 1st: Morgan, 2nd: Taylor, 3rd: Quinn
+
+#### Proposed Data Model
+
+New `PlayerPositionRank` entity with:
+
+- `teamId`, `playerId`, `position`, `rank`, `proficiencyLevel` (optional 1-5)
+
+#### Acceptance Criteria
+
+- [ ] Assign players to multiple positions
+- [ ] Ordered ranking per position with drag-and-drop reordering
+- [ ] Optional proficiency level (1-5 stars)
+- [ ] Player cards show their ranked positions
+- [ ] Rankings are team-scoped
+
+#### Related
+
+- Feeds into Smart Substitution Recommendations (#193)
+- See full issue for UI mockups and GraphQL API
+
+---
+
+### Issue [#193](https://github.com/JoA-MoS/garage/issues/193): Smart Substitution Recommendations
+
+**Labels:** `enhancement`, `game-tracking`, `substitutions`, `ai-assist`
+**Priority:** Medium | **MVP Tier:** 🟢 Tier 3 (Nice to Have)
+**Affects:** Game Page, Substitution Modal
+
+#### Description
+
+Provide intelligent substitution recommendations during games based on: play time balance, position stack rankings, fatigue estimation, and tactical considerations.
+
+#### Recommendation Factors
+
+| Factor               | Weight | Description                             |
+| -------------------- | ------ | --------------------------------------- |
+| Play Time Balance    | High   | Prioritize players with less game time  |
+| Position Proficiency | High   | Recommend based on stack ranking (#192) |
+| Time Since Last Sub  | Medium | Don't sub same player repeatedly        |
+| Game Time Remaining  | Medium | Ensure all players get time             |
+
+#### Implementation Phases
+
+1. **Phase 1:** Play time tracking & display
+2. **Phase 2:** Basic recommendations (balance play time)
+3. **Phase 3:** Position-aware recommendations (using #192)
+4. **Phase 4:** Advanced features (historical data, score-based)
+
+#### Acceptance Criteria
+
+- [ ] Real-time play time tracking during games
+- [ ] At least 3 substitution recommendations shown
+- [ ] One-click "Apply" to use recommendation
+- [ ] Enable/disable per team configuration
+- [ ] Recommendations explain reasoning with confidence levels
+
+#### Dependencies
+
+- Enhanced by: Position Stack Rankings (#192)
+- Enhanced by: Unbalanced Substitutions (#191)
+
+---
+
 ## Future Considerations
 
 ### Multi-Organization Support
@@ -1904,3 +2025,4 @@ For RBAC implementation:
 | 0.6     | 2025-12-15 | Simplified: Replace Platform Admin role with Clerk's built-in impersonation feature                                                                                                         |
 | 0.7     | 2025-12-30 | Added: Priority 5 - UX Enhancements (Issues #101-#110): Primary team positioning, feature toggles, media uploads, game summary, multi-team view, game invites, sticky header, player photos |
 | 0.8     | 2025-12-30 | Added: MVP Prioritization section with 4 tiers, sprint planning, and tier badges on all Priority 5 issues                                                                                   |
+| 0.9     | 2025-12-31 | Added: Advanced substitution features (#191 Unbalanced subs, #192 Position stack ranking, #193 Smart sub recommendations) as Tier 3                                                         |

@@ -16,6 +16,7 @@ import { EventTypesModule } from '../modules/event-types/event-types.module';
 import { GameEventsModule } from '../modules/game-events/game-events.module';
 import { TeamMembersModule } from '../modules/team-members/team-members.module';
 import { MyModule } from '../modules/my/my.module';
+import { PubSubModule } from '../modules/pubsub/pubsub.module';
 import {
   ClerkActor,
   ClerkPayload,
@@ -104,6 +105,7 @@ const typeOrmConfig = {
       },
     }),
     TypeOrmModule.forRoot(typeOrmConfig),
+    PubSubModule,
     GamesModule,
     TeamsModule,
     UsersModule,

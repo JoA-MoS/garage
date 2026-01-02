@@ -1,6 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { PubSub } from 'graphql-subscriptions';
 
 import { User } from '../../entities/user.entity';
 import { Team } from '../../entities/team.entity';
@@ -15,14 +14,7 @@ import { PlayersService } from './players.service';
     TypeOrmModule.forFeature([User, Team, TeamPlayer]),
     forwardRef(() => TeamsModule),
   ],
-  providers: [
-    PlayersResolver,
-    PlayersService,
-    {
-      provide: 'PUB_SUB',
-      useFactory: () => new PubSub(),
-    },
-  ],
+  providers: [PlayersResolver, PlayersService],
   exports: [PlayersService],
 })
 export class PlayersModule {}

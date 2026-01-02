@@ -48,7 +48,8 @@
       "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "soccer-stats-ui:build"
+        "buildTarget": "soccer-stats-ui:build",
+        "proxyConfig": "apps/soccer-stats/ui/proxy.conf.js"
       },
       "configurations": {
         "development": {
