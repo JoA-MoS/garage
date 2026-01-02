@@ -15,7 +15,8 @@
 --   If the user doesn't exist, teams will be created without an owner.
 -- =============================================================================
 
-\set OWNER_EMAIL 'joamos.dev@gmail.com'
+-- Change this to your user's email to assign ownership, or leave as-is for no owner
+\set OWNER_EMAIL 'admin@example.com'
 
 BEGIN;
 

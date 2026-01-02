@@ -6,7 +6,7 @@ module.exports = {
     target: 'http://localhost:3333',
     secure: false,
     changeOrigin: true,
-    // ws: true,
+    // ws: false - WebSocket proxying is configured in vite.config.ts instead
     configure: (proxy) => {
       proxy.on('proxyReq', (proxyReq, req) => {
         const target = `${proxyReq.protocol}//${proxyReq.host}${proxyReq.path}`;
