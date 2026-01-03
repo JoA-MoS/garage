@@ -1,8 +1,34 @@
 import { useState, useEffect } from 'react';
 import { useMutation } from '@apollo/client/react';
+import { gql } from '@apollo/client';
 
 import { RECORD_GOAL, UPDATE_GOAL } from '../../services/games-graphql.service';
 import { LineupPlayer, StatsTrackingLevel } from '../../generated/graphql';
+
+// Fragment for writing GameEvent to cache during optimistic updates
+const GameEventFragment = gql`
+  fragment GameEventFragment on GameEvent {
+    id
+    gameMinute
+    gameSecond
+    position
+    playerId
+    externalPlayerName
+    externalPlayerNumber
+    eventType {
+      id
+      name
+      category
+    }
+  }
+`;
+
+// Generate a temporary ID for optimistic updates
+// Uses a prefix to distinguish from real IDs and includes timestamp for uniqueness
+let optimisticIdCounter = 0;
+function generateOptimisticId(): string {
+  return `optimistic-goal-${Date.now()}-${++optimisticIdCounter}`;
+}
 
 // Data for an existing goal being edited
 export interface EditGoalData {
@@ -136,14 +162,8 @@ export const GoalModal = ({
   // Track if we should clear the assist
   const [clearAssist, setClearAssist] = useState(false);
 
-  // Note: We intentionally don't use refetchQueries here at all.
-  // The real-time subscription (useGameEventSubscription) handles adding new events
-  // to the cache via apolloClient.cache.modify, which updates the UI without
-  // triggering loading states.
-  //
-  // Player stats will update when the user navigates to the stats tab or
-  // the page is refreshed. This trade-off prevents the loading screen flicker
-  // that occurs when ANY refetchQueries are used with Apollo Client.
+  // Optimistic update: immediately add goal to cache before server responds
+  // This provides instant feedback when recording a goal
   const [recordGoal, { loading: recordLoading }] = useMutation(RECORD_GOAL);
 
   const [updateGoal, { loading: updateLoading }] = useMutation(UPDATE_GOAL);
@@ -219,38 +239,117 @@ export const GoalModal = ({
           },
         });
       } else {
-        // Create new goal
+        // Create new goal with optimistic update for instant feedback
+        const optimisticId = generateOptimisticId();
+        const externalScorerName =
+          scorer?.externalPlayerName ||
+          (entryMode === 'quick' && quickScorerNumber
+            ? `#${quickScorerNumber}`
+            : null);
+        const externalScorerNumber =
+          scorer?.externalPlayerNumber ||
+          (entryMode === 'quick' ? quickScorerNumber || null : null);
+        const externalAssisterName =
+          assister?.externalPlayerName ||
+          (entryMode === 'quick' && quickAssisterNumber
+            ? `#${quickAssisterNumber}`
+            : null);
+        const externalAssisterNumber =
+          assister?.externalPlayerNumber ||
+          (entryMode === 'quick' ? quickAssisterNumber || null : null);
+
         await recordGoal({
           variables: {
             input: {
               gameTeamId,
               gameMinute: defaultGameMinute,
               gameSecond: defaultGameSecond,
-              // Scorer info - from lineup or quick entry
               scorerId: scorer?.playerId || undefined,
-              externalScorerName:
-                scorer?.externalPlayerName ||
-                (entryMode === 'quick' && quickScorerNumber
-                  ? `#${quickScorerNumber}`
-                  : undefined),
-              externalScorerNumber:
-                scorer?.externalPlayerNumber ||
-                (entryMode === 'quick'
-                  ? quickScorerNumber || undefined
-                  : undefined),
-              // Assister info (optional)
+              externalScorerName: externalScorerName || undefined,
+              externalScorerNumber: externalScorerNumber || undefined,
               assisterId: assister?.playerId || undefined,
-              externalAssisterName:
-                assister?.externalPlayerName ||
-                (entryMode === 'quick' && quickAssisterNumber
-                  ? `#${quickAssisterNumber}`
-                  : undefined),
-              externalAssisterNumber:
-                assister?.externalPlayerNumber ||
-                (entryMode === 'quick'
-                  ? quickAssisterNumber || undefined
-                  : undefined),
+              externalAssisterName: externalAssisterName || undefined,
+              externalAssisterNumber: externalAssisterNumber || undefined,
             },
+          },
+          // Optimistic response provides instant feedback before server responds
+          optimisticResponse: {
+            __typename: 'Mutation',
+            recordGoal: {
+              __typename: 'GameEvent',
+              id: optimisticId,
+              gameMinute: defaultGameMinute,
+              gameSecond: defaultGameSecond,
+              playerId: scorer?.playerId || null,
+              externalPlayerName: externalScorerName,
+              externalPlayerNumber: externalScorerNumber,
+              eventType: {
+                __typename: 'EventType',
+                id: 'optimistic-goal-type',
+                name: 'GOAL',
+              },
+              childEvents: assister
+                ? [
+                    {
+                      __typename: 'GameEvent',
+                      id: `${optimisticId}-assist`,
+                      playerId: assister.playerId || null,
+                      externalPlayerName: externalAssisterName,
+                      externalPlayerNumber: externalAssisterNumber,
+                      eventType: {
+                        __typename: 'EventType',
+                        id: 'optimistic-assist-type',
+                        name: 'ASSIST',
+                      },
+                    },
+                  ]
+                : [],
+            },
+          },
+          // Update cache to add the goal event to the GameTeam's gameEvents
+          update: (cache, { data }) => {
+            if (!data?.recordGoal) return;
+
+            const newEvent = data.recordGoal;
+
+            // Add the event to the GameTeam's gameEvents array
+            cache.modify({
+              id: cache.identify({
+                __typename: 'GameTeam',
+                id: gameTeamId,
+              }),
+              fields: {
+                gameEvents(existingEvents = [], { readField }) {
+                  // Check if event already exists (prevents duplicates with subscription)
+                  const eventExists = existingEvents.some(
+                    (ref: { __ref: string }) =>
+                      readField('id', ref) === newEvent.id
+                  );
+                  if (eventExists) return existingEvents;
+
+                  // Create a cache reference for the new event
+                  const newEventRef = cache.writeFragment({
+                    data: {
+                      __typename: 'GameEvent',
+                      id: newEvent.id,
+                      gameMinute: newEvent.gameMinute,
+                      gameSecond: newEvent.gameSecond,
+                      playerId: newEvent.playerId,
+                      externalPlayerName: newEvent.externalPlayerName,
+                      externalPlayerNumber: newEvent.externalPlayerNumber,
+                      position: null,
+                      eventType: {
+                        ...newEvent.eventType,
+                        category: 'SCORING', // Add category for cache consistency
+                      },
+                    },
+                    fragment: GameEventFragment,
+                  });
+
+                  return [...existingEvents, newEventRef];
+                },
+              },
+            });
           },
         });
       }
