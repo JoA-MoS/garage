@@ -33,8 +33,9 @@ import {
 } from '../components/presentation/event-card.presentation';
 import { CascadeDeleteModal } from '../components/presentation/cascade-delete-modal.presentation';
 import { ConflictResolutionModal } from '../components/presentation/conflict-resolution-modal.presentation';
-import { StatsTrackingSelector } from '../components/presentation/stats-tracking-selector.presentation';
 import { useGameEventSubscription } from '../hooks/use-game-event-subscription';
+
+import { computeScore, GameHeader, StickyScoreBar } from './game';
 
 // Fragment for writing GameEvent to cache
 // Must include all fields that GET_GAME_BY_ID query expects for proper cache merging
@@ -67,27 +68,6 @@ const GameEventFragmentDoc = gql`
  */
 type TabType = 'lineup' | 'stats' | 'events';
 
-/**
- * Format elapsed seconds to MM:SS display
- */
-function formatGameTime(totalSeconds: number): string {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes.toString().padStart(2, '0')}:${seconds
-    .toString()
-    .padStart(2, '0')}`;
-}
-
-/**
- * Compute score from GOAL events for a team
- */
-function computeScore(
-  gameEvents: Array<{ eventType?: { name?: string } | null }> | null | undefined
-): number {
-  if (!gameEvents) return 0;
-  return gameEvents.filter((event) => event.eventType?.name === 'GOAL').length;
-}
-
 export const GamePage = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const [activeTab, setActiveTab] = useState<TabType>('lineup');
@@ -107,7 +87,6 @@ export const GamePage = () => {
   const [showGameMenu, setShowGameMenu] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [clearEventsOnReset, setClearEventsOnReset] = useState(false);
-  const [showStickyHeader, setShowStickyHeader] = useState(false);
 
   // Cascade delete state
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -145,9 +124,6 @@ export const GamePage = () => {
     startTime: number;
     baseElapsed: number;
   } | null>(null);
-
-  // Ref for the clock/score section - when this hits the top of the screen, show sticky header
-  const clockTriggerRef = useRef<HTMLDivElement>(null);
 
   const apolloClient = useApolloClient();
 
@@ -435,34 +411,6 @@ export const GamePage = () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [awayScore]);
-
-  // Intersection Observer for sticky header visibility
-  // Shows sticky header when the clock/score section reaches the top of the screen
-  // Note: Depends on `loading` because clockTriggerRef.current is null during loading state
-  useEffect(() => {
-    const trigger = clockTriggerRef.current;
-    if (!trigger) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        // Show sticky header when clock trigger is NOT intersecting (hit top of screen)
-        setShowStickyHeader(!entry.isIntersecting);
-      },
-      {
-        // Trigger as soon as element's top edge hits viewport top
-        threshold: 0,
-        rootMargin: '0px 0px 0px 0px',
-      }
-    );
-
-    observer.observe(trigger);
-    return () => observer.disconnect();
-  }, [loading]);
-
-  // Scroll to top handler for sticky header tap
-  const scrollToTop = useCallback(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
 
   // Subscribe to real-time game events
   // Update Apollo cache directly instead of refetching to prevent flickering
@@ -1075,681 +1023,56 @@ export const GamePage = () => {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       {/* Game Header */}
-      <div className="rounded-lg bg-white p-6 shadow">
-        <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">
-              {game.name || 'Game Details'}
-            </h1>
-            {/* Real-time sync indicator */}
-            {isConnected && (
-              <span
-                className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700"
-                title="Real-time sync active"
-              >
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
-                Live
-              </span>
-            )}
-            {/* Status Badge */}
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                game.status === GameStatus.Scheduled
-                  ? 'bg-gray-100 text-gray-800'
-                  : game.status === GameStatus.FirstHalf ||
-                    game.status === GameStatus.SecondHalf ||
-                    game.status === GameStatus.InProgress
-                  ? 'bg-green-100 text-green-800'
-                  : game.status === GameStatus.Halftime
-                  ? 'bg-yellow-100 text-yellow-800'
-                  : game.status === GameStatus.Completed
-                  ? 'bg-blue-100 text-blue-800'
-                  : 'bg-red-100 text-red-800'
-              }`}
-            >
-              {(game.status === GameStatus.FirstHalf ||
-                game.status === GameStatus.SecondHalf ||
-                game.status === GameStatus.InProgress) && (
-                <span className="mr-1.5 h-2 w-2 animate-pulse rounded-full bg-green-500" />
-              )}
-              {game.status === GameStatus.FirstHalf ||
-              game.status === GameStatus.InProgress
-                ? '1ST HALF'
-                : game.status === GameStatus.SecondHalf
-                ? '2ND HALF'
-                : game.status === GameStatus.Halftime
-                ? 'HALF TIME'
-                : game.status.replace('_', ' ')}
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-sm text-gray-600">
-              {game.gameFormat.name} ({game.gameFormat.durationMinutes} min)
-            </div>
-            {/* Three-dot menu */}
-            <div className="relative">
-              <button
-                onClick={() => setShowGameMenu(!showGameMenu)}
-                className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-                type="button"
-                title="Game options"
-              >
-                <svg
-                  className="h-5 w-5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                </svg>
-              </button>
+      <GameHeader
+        gameName={game.name || 'Game Details'}
+        status={game.status}
+        gameFormatName={game.gameFormat.name}
+        durationMinutes={game.gameFormat.durationMinutes}
+        statsTrackingLevel={game.statsTrackingLevel || StatsTrackingLevel.Full}
+        isPaused={!!game.pausedAt}
+        isConnected={isConnected}
+        showGameMenu={showGameMenu}
+        showResetConfirm={showResetConfirm}
+        clearEventsOnReset={clearEventsOnReset}
+        updatingGame={updatingGame}
+        onToggleMenu={() => setShowGameMenu(!showGameMenu)}
+        onCloseMenu={() => setShowGameMenu(false)}
+        onTogglePause={handleTogglePause}
+        onStatsTrackingChange={handleStatsTrackingChange}
+        onShowResetConfirm={setShowResetConfirm}
+        onClearEventsChange={setClearEventsOnReset}
+        onResetGame={handleResetGame}
+      />
 
-              {/* Dropdown menu */}
-              {showGameMenu && (
-                <>
-                  {/* Backdrop to close menu */}
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setShowGameMenu(false)}
-                  />
-                  <div className="absolute right-0 z-20 mt-2 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-                    {/* Pause/Resume - only during active play */}
-                    {(game.status === GameStatus.FirstHalf ||
-                      game.status === GameStatus.SecondHalf ||
-                      game.status === GameStatus.InProgress) && (
-                      <button
-                        onClick={handleTogglePause}
-                        disabled={updatingGame}
-                        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-                        type="button"
-                      >
-                        {game.pausedAt ? (
-                          <>
-                            <svg
-                              className="h-4 w-4"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            Resume Clock
-                          </>
-                        ) : (
-                          <>
-                            <svg
-                              className="h-4 w-4"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            Pause Clock
-                          </>
-                        )}
-                      </button>
-                    )}
-
-                    {/* Stats Tracking Level */}
-                    <div className="border-t border-gray-100 py-2">
-                      <StatsTrackingSelector
-                        value={
-                          game.statsTrackingLevel || StatsTrackingLevel.Full
-                        }
-                        onChange={handleStatsTrackingChange}
-                        variant="compact"
-                        disabled={updatingGame}
-                        label="Stats Tracking"
-                      />
-                    </div>
-
-                    {/* Reset Game */}
-                    {!showResetConfirm ? (
-                      <button
-                        onClick={() => setShowResetConfirm(true)}
-                        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-                        type="button"
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                          />
-                        </svg>
-                        Reset Game
-                      </button>
-                    ) : (
-                      <div className="space-y-2 px-4 py-2">
-                        <p className="text-xs font-medium text-red-600">
-                          Reset to scheduled?
-                        </p>
-                        <label className="flex cursor-pointer items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={clearEventsOnReset}
-                            onChange={(e) =>
-                              setClearEventsOnReset(e.target.checked)
-                            }
-                            className="h-3.5 w-3.5 rounded border-gray-300 text-red-600 focus:ring-red-500"
-                          />
-                          <span className="text-xs text-gray-600">
-                            Also clear all events
-                          </span>
-                        </label>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={handleResetGame}
-                            disabled={updatingGame}
-                            className="flex-1 rounded bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                            type="button"
-                          >
-                            {updatingGame ? '...' : 'Reset'}
-                          </button>
-                          <button
-                            onClick={() => {
-                              setShowResetConfirm(false);
-                              setClearEventsOnReset(false);
-                            }}
-                            className="flex-1 rounded bg-gray-200 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-300"
-                            type="button"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Trigger element for sticky header - when this hits the top, show compact mode */}
-        <div ref={clockTriggerRef} className="h-0" aria-hidden="true" />
-
-        {/* Morphing Score Bar - transitions between expanded and compact states */}
-        <div
-          className={`transition-all duration-300 ease-in-out ${
-            showStickyHeader
-              ? 'sticky top-0 z-40 -mx-6 rounded-none border-b border-gray-200 bg-white/95 px-4 py-2 shadow-md backdrop-blur-sm'
-              : ''
-          }`}
-        >
-          {/* Game Clock and Controls - Centered */}
-          {game.status === GameStatus.Scheduled && (
-            <div className="mb-6 flex justify-center">
-              <button
-                onClick={handleStartFirstHalf}
-                disabled={updatingGame}
-                className="inline-flex items-center rounded-xl bg-green-600 px-8 py-4 text-lg font-bold text-white shadow-lg transition-all hover:bg-green-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
-                type="button"
-              >
-                {updatingGame ? (
-                  <>
-                    <span className="border-3 mr-3 h-6 w-6 animate-spin rounded-full border-white border-t-transparent" />
-                    Starting...
-                  </>
-                ) : (
-                  <>
-                    <svg
-                      className="mr-3 h-6 w-6"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    Start 1st Half
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-
-          {/* First Half - Clock + Half Time button (also handles legacy IN_PROGRESS) */}
-          {(game.status === GameStatus.FirstHalf ||
-            game.status === GameStatus.InProgress) && (
-            <div className="mb-6 flex flex-col items-center gap-4">
-              <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                1st Half
-              </div>
-              <div
-                className={`font-mono text-6xl font-bold tabular-nums ${
-                  game.pausedAt ? 'text-yellow-600' : 'text-gray-900'
-                }`}
-              >
-                {formatGameTime(elapsedSeconds)}
-              </div>
-              {game.pausedAt && (
-                <div className="flex animate-pulse items-center gap-2 text-sm font-medium text-yellow-600">
-                  <svg
-                    className="h-4 w-4"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  PAUSED
-                </div>
-              )}
-              <button
-                onClick={handleEndFirstHalf}
-                disabled={updatingGame}
-                className="inline-flex items-center rounded-lg bg-yellow-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-yellow-700 disabled:cursor-not-allowed disabled:opacity-50"
-                type="button"
-              >
-                {updatingGame ? 'Ending half...' : 'Half Time'}
-              </button>
-            </div>
-          )}
-
-          {/* Halftime - Start 2nd Half button */}
-          {game.status === GameStatus.Halftime && (
-            <div className="mb-6 flex flex-col items-center gap-4">
-              <div className="font-mono text-4xl font-bold text-yellow-600">
-                HALF TIME
-              </div>
-              <div className="text-sm text-gray-500">
-                1st half ended at{' '}
-                {formatGameTime(
-                  game.firstHalfEnd && game.actualStart
-                    ? Math.floor(
-                        (new Date(game.firstHalfEnd).getTime() -
-                          new Date(game.actualStart).getTime()) /
-                          1000
-                      )
-                    : (game.gameFormat.durationMinutes / 2) * 60
-                )}
-              </div>
-              <button
-                onClick={handleStartSecondHalf}
-                disabled={updatingGame}
-                className="inline-flex items-center rounded-xl bg-green-600 px-8 py-4 text-lg font-bold text-white shadow-lg transition-all hover:bg-green-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
-                type="button"
-              >
-                {updatingGame ? (
-                  <>
-                    <span className="border-3 mr-3 h-6 w-6 animate-spin rounded-full border-white border-t-transparent" />
-                    Starting...
-                  </>
-                ) : (
-                  <>
-                    <svg
-                      className="mr-3 h-6 w-6"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    Start 2nd Half
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-
-          {/* Second Half - Clock + End Game button */}
-          {game.status === GameStatus.SecondHalf && (
-            <div className="mb-6 flex flex-col items-center gap-4">
-              <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                2nd Half
-              </div>
-              <div
-                className={`font-mono text-6xl font-bold tabular-nums ${
-                  game.pausedAt ? 'text-yellow-600' : 'text-gray-900'
-                }`}
-              >
-                {formatGameTime(elapsedSeconds)}
-              </div>
-              {game.pausedAt && (
-                <div className="flex animate-pulse items-center gap-2 text-sm font-medium text-yellow-600">
-                  <svg
-                    className="h-4 w-4"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  PAUSED
-                </div>
-              )}
-              <div className="flex items-center gap-3">
-                {!showEndGameConfirm ? (
-                  <button
-                    onClick={() => setShowEndGameConfirm(true)}
-                    className="inline-flex items-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
-                    type="button"
-                  >
-                    <svg
-                      className="mr-1.5 h-4 w-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    End Game
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2">
-                    <span className="text-sm font-medium text-red-700">
-                      End game?
-                    </span>
-                    <button
-                      onClick={handleEndGame}
-                      disabled={updatingGame}
-                      className="rounded bg-red-600 px-3 py-1 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                      type="button"
-                    >
-                      {updatingGame ? 'Ending...' : 'Yes'}
-                    </button>
-                    <button
-                      onClick={() => setShowEndGameConfirm(false)}
-                      className="rounded bg-gray-200 px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-300"
-                      type="button"
-                    >
-                      No
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Completed - Final score display */}
-          {game.status === GameStatus.Completed && (
-            <div className="mb-6 flex flex-col items-center gap-2">
-              <div className="font-mono text-4xl font-bold text-gray-400">
-                FINAL
-              </div>
-              {game.actualEnd && game.secondHalfStart && (
-                <div className="text-sm text-gray-500">
-                  Duration:{' '}
-                  {formatGameTime(
-                    Math.floor(
-                      (new Date(game.actualEnd).getTime() -
-                        new Date(game.actualStart).getTime()) /
-                        1000
-                    )
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Score Display - Morphs between expanded and compact layouts */}
-          <div
-            className={`grid items-center transition-all duration-300 ${
-              showStickyHeader ? 'grid-cols-3 gap-2' : 'grid-cols-3 gap-4'
-            }`}
-          >
-            {/* Home Team */}
-            <div
-              className={`flex transition-all duration-300 ${
-                showStickyHeader
-                  ? 'flex-row items-center justify-start gap-2'
-                  : 'flex-col items-center text-center'
-              }`}
-            >
-              <div
-                className={`font-semibold text-gray-900 transition-all duration-300 ${
-                  showStickyHeader ? 'truncate text-sm' : 'text-xl'
-                }`}
-                style={showStickyHeader ? { maxWidth: '80px' } : undefined}
-              >
-                {homeTeam?.team.name || 'Home Team'}
-              </div>
-              <div
-                className={`font-bold text-blue-600 transition-all duration-300 ${
-                  highlightedScore === 'home' ? 'score-highlight' : ''
-                } ${showStickyHeader ? 'text-xl' : 'mt-2 text-5xl'}`}
-              >
-                {homeScore}
-              </div>
-              {isActivePlay && !showStickyHeader && (
-                <div className="mt-2 flex justify-center gap-2">
-                  <button
-                    onClick={() => handleGoalClick('home')}
-                    disabled={recordingGoal}
-                    className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
-                    type="button"
-                  >
-                    <svg
-                      className="h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                      />
-                    </svg>
-                    Goal
-                  </button>
-                  <button
-                    onClick={() => setSubModalTeam('home')}
-                    className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
-                    type="button"
-                  >
-                    <svg
-                      className="h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                      />
-                    </svg>
-                    Sub
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Center: VS or Clock (when sticky) */}
-            <div className="flex flex-col items-center justify-center text-center">
-              {showStickyHeader ? (
-                <>
-                  <div
-                    className={`font-mono font-bold tabular-nums ${
-                      game.pausedAt ? 'text-yellow-600' : 'text-gray-900'
-                    }`}
-                  >
-                    {formatGameTime(elapsedSeconds)}
-                  </div>
-                  <div className="text-xs font-medium text-gray-500">
-                    {halfIndicator}
-                  </div>
-                </>
-              ) : (
-                <div className="text-2xl font-bold text-gray-400">VS</div>
-              )}
-            </div>
-
-            {/* Away Team */}
-            <div
-              className={`flex transition-all duration-300 ${
-                showStickyHeader
-                  ? 'flex-row-reverse items-center justify-start gap-2'
-                  : 'flex-col items-center text-center'
-              }`}
-            >
-              <div
-                className={`font-semibold text-gray-900 transition-all duration-300 ${
-                  showStickyHeader ? 'truncate text-sm' : 'text-xl'
-                }`}
-                style={showStickyHeader ? { maxWidth: '80px' } : undefined}
-              >
-                {awayTeam?.team.name || 'Away Team'}
-              </div>
-              <div
-                className={`font-bold text-red-600 transition-all duration-300 ${
-                  highlightedScore === 'away' ? 'score-highlight' : ''
-                } ${showStickyHeader ? 'text-xl' : 'mt-2 text-5xl'}`}
-              >
-                {awayScore}
-              </div>
-              {isActivePlay && !showStickyHeader && (
-                <div className="mt-2 flex justify-center gap-2">
-                  <button
-                    onClick={() => handleGoalClick('away')}
-                    disabled={recordingGoal}
-                    className="inline-flex items-center gap-1 rounded-lg bg-red-100 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50"
-                    type="button"
-                  >
-                    <svg
-                      className="h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                      />
-                    </svg>
-                    Goal
-                  </button>
-                  <button
-                    onClick={() => setSubModalTeam('away')}
-                    className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
-                    type="button"
-                  >
-                    <svg
-                      className="h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                      />
-                    </svg>
-                    Sub
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Compact Goal Buttons Row - Only shown in sticky mode during active play */}
-          {showStickyHeader && isActivePlay && (
-            <div className="mt-2 flex gap-3 border-t border-gray-100 pt-2">
-              <button
-                onClick={() => handleGoalClick('home')}
-                disabled={recordingGoal}
-                className="flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 active:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
-                type="button"
-              >
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                  />
-                </svg>
-                Goal
-              </button>
-              <button
-                onClick={() => handleGoalClick('away')}
-                disabled={recordingGoal}
-                className="flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 active:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50"
-                type="button"
-              >
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                  />
-                </svg>
-                Goal
-              </button>
-            </div>
-          )}
-        </div>
-        {/* End of Clock and Score Section wrapper */}
-
-        {/* Game Info */}
-        {(game.venue || game.scheduledStart) && (
-          <div className="mt-6 border-t border-gray-200 pt-6">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              {game.venue && (
-                <div>
-                  <span className="text-gray-600">Venue:</span>{' '}
-                  <span className="font-medium text-gray-900">
-                    {game.venue}
-                  </span>
-                </div>
-              )}
-              {game.scheduledStart && (
-                <div>
-                  <span className="text-gray-600">Date:</span>{' '}
-                  <span className="font-medium text-gray-900">
-                    {new Date(game.scheduledStart).toLocaleDateString()}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+      <StickyScoreBar
+        status={game.status}
+        elapsedSeconds={elapsedSeconds}
+        isPaused={!!game.pausedAt}
+        durationMinutes={game.gameFormat.durationMinutes}
+        halfIndicator={halfIndicator}
+        firstHalfEnd={game.firstHalfEnd}
+        actualStart={game.actualStart}
+        actualEnd={game.actualEnd}
+        secondHalfStart={game.secondHalfStart}
+        homeTeamName={homeTeam?.team.name || 'Home Team'}
+        awayTeamName={awayTeam?.team.name || 'Away Team'}
+        homeScore={homeScore}
+        awayScore={awayScore}
+        highlightedScore={highlightedScore}
+        venue={game.venue}
+        scheduledStart={game.scheduledStart}
+        isActivePlay={isActivePlay}
+        recordingGoal={recordingGoal}
+        updatingGame={updatingGame}
+        showEndGameConfirm={showEndGameConfirm}
+        onStartFirstHalf={handleStartFirstHalf}
+        onEndFirstHalf={handleEndFirstHalf}
+        onStartSecondHalf={handleStartSecondHalf}
+        onEndGame={handleEndGame}
+        onShowEndGameConfirm={setShowEndGameConfirm}
+        onGoalClick={handleGoalClick}
+        onSubClick={(team) => setSubModalTeam(team)}
+      />
 
       {/* Main Tabs */}
       <div className="rounded-lg bg-white shadow">
