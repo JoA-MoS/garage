@@ -12,6 +12,7 @@ export * from './event-card';
 export * from './game-overview';
 export * from './game-format-selection';
 export * from './formation-selection';
+export * from './position-configuration';
 
 // Player Components
 export * from './player-card';
