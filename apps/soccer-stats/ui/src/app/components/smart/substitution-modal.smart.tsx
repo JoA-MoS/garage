@@ -6,6 +6,7 @@ import {
   GET_GAME_BY_ID,
   GET_GAME_LINEUP,
 } from '../../services/games-graphql.service';
+import { ModalPortal } from '../presentation/modal-portal.presentation';
 import {
   LineupPlayer,
   BatchSubstitutionInput,
@@ -450,7 +451,7 @@ export const SubstitutionModal = ({
   const swapCount = queue.filter((q) => q.type === 'swap').length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <ModalPortal isOpen={true}>
       <div className="mx-4 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
         {/* Header */}
         <div className="mb-4 flex items-center gap-3">
@@ -1192,6 +1193,6 @@ export const SubstitutionModal = ({
           </div>
         )}
       </div>
-    </div>
+    </ModalPortal>
   );
 };

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useMutation } from '@apollo/client/react';
 
 import { RECORD_GOAL, UPDATE_GOAL } from '../../services/games-graphql.service';
+import { ModalPortal } from '../presentation/modal-portal.presentation';
 import { LineupPlayer, StatsTrackingLevel } from '../../generated/graphql';
 
 // Data for an existing goal being edited
@@ -270,7 +271,7 @@ export const GoalModal = ({
   }, [isEditMode, editGoal?.assist, assisterId, quickAssisterNumber]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <ModalPortal isOpen={true}>
       <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
         {/* Header */}
         <div className="mb-4 flex items-center gap-3">
@@ -550,6 +551,6 @@ export const GoalModal = ({
           </button>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 };
