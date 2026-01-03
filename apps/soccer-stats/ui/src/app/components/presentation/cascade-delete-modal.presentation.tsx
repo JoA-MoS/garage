@@ -1,6 +1,6 @@
 import { memo } from 'react';
 
-import { ModalPortal } from './modal-portal.presentation';
+import { ModalPortal } from '@garage/soccer-stats/ui-components';
 
 interface DependentEvent {
   id: string;

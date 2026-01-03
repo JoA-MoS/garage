@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useApolloClient, useMutation } from '@apollo/client/react';
 
+import { ModalPortal } from '@garage/soccer-stats/ui-components';
+
 import {
   BATCH_LINEUP_CHANGES,
   GET_GAME_BY_ID,
   GET_GAME_LINEUP,
 } from '../../services/games-graphql.service';
-import { ModalPortal } from '../presentation/modal-portal.presentation';
 import {
   LineupPlayer,
   BatchSubstitutionInput,
@@ -157,14 +158,14 @@ export const SubstitutionModal = ({
   // Get queued substitutions (for showing incoming players in swap mode)
   const queuedSubs = queue.filter(
     (q): q is Extract<QueuedItem, { type: 'substitution' }> =>
-      q.type === 'substitution'
+      q.type === 'substitution',
   );
 
   // Available players (excluding those already in queue)
   const availableOnField = currentOnField.filter(
     (p) =>
       !queuedOutIds.has(p.gameEventId) &&
-      !queuedSwapPlayerIds.has(getPlayerId(p))
+      !queuedSwapPlayerIds.has(getPlayerId(p)),
   );
   const availableBench = bench.filter((b) => {
     if (b.isOnField) return false;
@@ -177,7 +178,7 @@ export const SubstitutionModal = ({
   const availableOnFieldForSwap = currentOnField.filter(
     (p) =>
       !queuedOutIds.has(p.gameEventId) &&
-      !queuedSwapPlayerIds.has(getPlayerId(p))
+      !queuedSwapPlayerIds.has(getPlayerId(p)),
   );
 
   // Incoming players from queued subs (available for swaps, not already in a swap)
@@ -203,10 +204,10 @@ export const SubstitutionModal = ({
     if (!playerOutEventId || !playerInId) return;
 
     const playerOut = currentOnField.find(
-      (p) => p.gameEventId === playerOutEventId
+      (p) => p.gameEventId === playerOutEventId,
     );
     const playerIn = availableBench.find(
-      (p) => (p.playerId || p.externalPlayerName) === playerInId
+      (p) => (p.playerId || p.externalPlayerName) === playerInId,
     );
 
     if (!playerOut || !playerIn) return;
@@ -234,7 +235,7 @@ export const SubstitutionModal = ({
     let resolvedPlayer1: SwapPlayer | null = null;
     if (swapPlayer1.source === 'onField') {
       const player = currentOnField.find(
-        (p) => p.gameEventId === swapPlayer1.gameEventId
+        (p) => p.gameEventId === swapPlayer1.gameEventId,
       );
       if (player) {
         resolvedPlayer1 = {
@@ -258,7 +259,7 @@ export const SubstitutionModal = ({
     let resolvedPlayer2: SwapPlayer | null = null;
     if (swapPlayer2.source === 'onField') {
       const player = currentOnField.find(
-        (p) => p.gameEventId === swapPlayer2.gameEventId
+        (p) => p.gameEventId === swapPlayer2.gameEventId,
       );
       if (player) {
         resolvedPlayer2 = {
@@ -311,10 +312,10 @@ export const SubstitutionModal = ({
     // Separate subs and swaps
     const subs = queue.filter(
       (q): q is Extract<QueuedItem, { type: 'substitution' }> =>
-        q.type === 'substitution'
+        q.type === 'substitution',
     );
     const swaps = queue.filter(
-      (q): q is Extract<QueuedItem, { type: 'swap' }> => q.type === 'swap'
+      (q): q is Extract<QueuedItem, { type: 'swap' }> => q.type === 'swap',
     );
 
     // Map from queuedSubId to substitution index for swap references
@@ -864,11 +865,11 @@ export const SubstitutionModal = ({
                         let isIncoming = false;
                         if (swapPlayer1.source === 'onField') {
                           player = currentOnField.find(
-                            (p) => p.gameEventId === swapPlayer1.gameEventId
+                            (p) => p.gameEventId === swapPlayer1.gameEventId,
                           );
                         } else {
                           const sub = queuedSubs.find(
-                            (s) => s.id === swapPlayer1.queuedSubId
+                            (s) => s.id === swapPlayer1.queuedSubId,
                           );
                           player = sub?.playerIn;
                           isIncoming = true;
@@ -917,11 +918,11 @@ export const SubstitutionModal = ({
                         let isIncoming = false;
                         if (swapPlayer2.source === 'onField') {
                           player = currentOnField.find(
-                            (p) => p.gameEventId === swapPlayer2.gameEventId
+                            (p) => p.gameEventId === swapPlayer2.gameEventId,
                           );
                         } else {
                           const sub = queuedSubs.find(
-                            (s) => s.id === swapPlayer2.queuedSubId
+                            (s) => s.id === swapPlayer2.queuedSubId,
                           );
                           player = sub?.playerIn;
                           isIncoming = true;
@@ -993,8 +994,8 @@ export const SubstitutionModal = ({
                             isPlayer1
                               ? 'border-blue-500 bg-blue-50'
                               : isPlayer2
-                              ? 'border-purple-500 bg-purple-50'
-                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                ? 'border-purple-500 bg-purple-50'
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                           }`}
                         >
                           {jersey && (
@@ -1003,8 +1004,8 @@ export const SubstitutionModal = ({
                                 isPlayer1
                                   ? 'bg-blue-200 text-blue-700'
                                   : isPlayer2
-                                  ? 'bg-purple-200 text-purple-700'
-                                  : 'bg-gray-200 text-gray-700'
+                                    ? 'bg-purple-200 text-purple-700'
+                                    : 'bg-gray-200 text-gray-700'
                               }`}
                             >
                               {jersey}
@@ -1016,8 +1017,8 @@ export const SubstitutionModal = ({
                                 isPlayer1
                                   ? 'text-blue-700'
                                   : isPlayer2
-                                  ? 'text-purple-700'
-                                  : 'text-gray-900'
+                                    ? 'text-purple-700'
+                                    : 'text-gray-900'
                               }`}
                             >
                               {name}
@@ -1069,8 +1070,8 @@ export const SubstitutionModal = ({
                             isPlayer1
                               ? 'border-blue-500 bg-blue-50'
                               : isPlayer2
-                              ? 'border-purple-500 bg-purple-50'
-                              : 'border-green-200 bg-green-50 hover:border-green-300'
+                                ? 'border-purple-500 bg-purple-50'
+                                : 'border-green-200 bg-green-50 hover:border-green-300'
                           }`}
                         >
                           {jersey && (
@@ -1079,8 +1080,8 @@ export const SubstitutionModal = ({
                                 isPlayer1
                                   ? 'bg-blue-200 text-blue-700'
                                   : isPlayer2
-                                  ? 'bg-purple-200 text-purple-700'
-                                  : 'bg-green-200 text-green-700'
+                                    ? 'bg-purple-200 text-purple-700'
+                                    : 'bg-green-200 text-green-700'
                               }`}
                             >
                               {jersey}
@@ -1092,8 +1093,8 @@ export const SubstitutionModal = ({
                                 isPlayer1
                                   ? 'text-blue-700'
                                   : isPlayer2
-                                  ? 'text-purple-700'
-                                  : 'text-green-700'
+                                    ? 'text-purple-700'
+                                    : 'text-green-700'
                               }`}
                             >
                               {name}

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 
+import { TabNavigation } from '@garage/soccer-stats/ui-components';
+
 import { ConfigTab } from '../config-tab';
 import { GoalModal } from '../goal-modal';
 import { OpponentGoalModal } from '../opponent-goal-modal';
-import { TabNavigationPresentation } from '../presentation/tab-navigation.presentation';
 import { GamesListComposition } from '../composition/games-list.composition';
 
 import { useGameManager } from './game-manager.smart';
@@ -136,7 +137,7 @@ export const SoccerStatsTrackerSmart = () => {
                 onSaveAndNewGame={saveAndNewGame}
               />
 
-              <TabNavigationPresentation
+              <TabNavigation
                 activeTab={activeTab}
                 homeTeamName={gameConfig.homeTeamName}
                 awayTeamName={gameConfig.awayTeamName}

@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router';
 
-import { GamesListPresentation } from '../presentation/games-list.presentation';
+import { GamesList } from '@garage/soccer-stats/ui-components';
 
 /**
  * Layer 2: Smart Component (Fragment Wrapper) - Temporary without generated GraphQL
@@ -35,10 +35,10 @@ export const GamesListSmart = ({
 
     // Business logic: Extract scores
     const homeScore = game.gameTeams?.find(
-      (gt: any) => gt.teamType === 'HOME'
+      (gt: any) => gt.teamType === 'HOME',
     )?.finalScore;
     const awayScore = game.gameTeams?.find(
-      (gt: any) => gt.teamType === 'AWAY'
+      (gt: any) => gt.teamType === 'AWAY',
     )?.finalScore;
 
     return {
@@ -70,11 +70,11 @@ export const GamesListSmart = ({
     (gameId: string) => {
       navigate(`/games/${gameId}`);
     },
-    [navigate]
+    [navigate],
   );
 
   return (
-    <GamesListPresentation
+    <GamesList
       games={games}
       loading={loading}
       error={error}

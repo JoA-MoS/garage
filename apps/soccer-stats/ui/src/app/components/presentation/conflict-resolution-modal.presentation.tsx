@@ -1,6 +1,6 @@
 import { useState, memo } from 'react';
 
-import { ModalPortal } from './modal-portal.presentation';
+import { ModalPortal } from '@garage/soccer-stats/ui-components';
 
 interface ConflictingEvent {
   eventId: string;
@@ -20,7 +20,7 @@ export interface ConflictResolutionModalProps {
   onResolve: (
     conflictId: string,
     selectedEventId: string,
-    keepAll: boolean
+    keepAll: boolean,
   ) => void;
   onClose: () => void;
 }
