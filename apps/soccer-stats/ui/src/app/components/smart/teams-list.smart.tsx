@@ -2,10 +2,10 @@ import { useQuery } from '@apollo/client/react';
 import { useNavigate } from 'react-router';
 import { useCallback } from 'react';
 
-import { TeamsListPresentation } from '../presentation/teams-list.presentation';
+import { TeamsList, type UITeam } from '@garage/soccer-stats/ui-components';
+
 import { graphql } from '../../generated/gql';
 import { useUserProfile } from '../../hooks/use-user-profile';
-import type { UITeam } from '../types/ui.types';
 
 interface TeamsListSmartProps {
   onCreateTeam?: () => void;
@@ -121,7 +121,7 @@ export const TeamsListSmart = ({
   );
 
   return (
-    <TeamsListPresentation
+    <TeamsList
       teams={teams}
       loading={isLoading}
       error={error?.message}

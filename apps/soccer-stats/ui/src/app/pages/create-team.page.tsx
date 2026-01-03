@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useMutation } from '@apollo/client/react';
 
+import {
+  DEFAULT_TEAM_FORM_VALUES,
+  TeamFormFields,
+  type UICreateTeamInput,
+} from '@garage/soccer-stats/ui-components';
+
 import { graphql } from '../generated/gql';
 import { QuickCreateTeamMutation } from '../generated/graphql';
-import { UICreateTeamInput } from '../components/types/ui.types';
-import {
-  TeamFormFields,
-  DEFAULT_TEAM_FORM_VALUES,
-} from '../components/presentation/team-form-fields.presentation';
 
 const CREATE_TEAM_MUTATION = graphql(`
   mutation QuickCreateTeam($input: CreateTeamInput!) {
@@ -27,7 +28,7 @@ const CREATE_TEAM_MUTATION = graphql(`
 export const CreateTeamPage = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState<UICreateTeamInput>(
-    DEFAULT_TEAM_FORM_VALUES
+    DEFAULT_TEAM_FORM_VALUES,
   );
   const [error, setError] = useState<string | undefined>();
 
@@ -48,7 +49,7 @@ export const CreateTeamPage = () => {
         cache.evict({ fieldName: 'myTeams' });
         cache.gc();
       },
-    }
+    },
   );
 
   const handleSubmit = (e: React.FormEvent) => {

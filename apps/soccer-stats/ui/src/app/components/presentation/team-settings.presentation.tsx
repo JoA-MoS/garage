@@ -2,17 +2,14 @@ import { useState, useCallback, useEffect } from 'react';
 import { Link } from 'react-router';
 
 import {
-  UICreateTeamInput,
-  UITeam,
-  UIGameFormat,
-  UIFormation,
-} from '../types/ui.types';
+  createTeamFormValues,
+  TeamFormFields,
+  type UICreateTeamInput,
+} from '@garage/soccer-stats/ui-components';
+
+import { UITeam, UIGameFormat, UIFormation } from '../types/ui.types';
 import { StatsTrackingLevel } from '../../generated/graphql';
 
-import {
-  TeamFormFields,
-  createTeamFormValues,
-} from './team-form-fields.presentation';
 import { StatsTrackingSelector } from './stats-tracking-selector.presentation';
 
 interface TeamSettingsPresentationProps {
@@ -53,7 +50,7 @@ interface TeamSettingsPresentationProps {
       abbreviation: string;
       x: number;
       y: number;
-    }>
+    }>,
   ) => void;
   onAddPosition: () => void;
   onRemovePosition: (positionId: string) => void;
@@ -91,7 +88,7 @@ export const TeamSettingsPresentation = ({
           awayPrimaryColor: '#ffffff',
           awaySecondaryColor: '#3b82f6',
           logoUrl: '',
-        }
+        },
   );
 
   // Update form data when team changes

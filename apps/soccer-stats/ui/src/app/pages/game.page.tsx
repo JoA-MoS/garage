@@ -9,6 +9,13 @@ import {
 import { gql } from '@apollo/client';
 
 import {
+  CascadeDeleteModal,
+  ConflictResolutionModal,
+  EventCard,
+  type EventType as EventCardType,
+} from '@garage/soccer-stats/ui-components';
+
+import {
   GET_GAME_BY_ID,
   UPDATE_GAME,
   GET_GAME_LINEUP,
@@ -27,12 +34,6 @@ import { GameLineupTab } from '../components/smart/game-lineup-tab.smart';
 import { GoalModal, EditGoalData } from '../components/smart/goal-modal.smart';
 import { SubstitutionModal } from '../components/smart/substitution-modal.smart';
 import { GameStats } from '../components/smart/game-stats.smart';
-import {
-  EventCard,
-  EventType as EventCardType,
-} from '../components/presentation/event-card.presentation';
-import { CascadeDeleteModal } from '../components/presentation/cascade-delete-modal.presentation';
-import { ConflictResolutionModal } from '../components/presentation/conflict-resolution-modal.presentation';
 import { useGameEventSubscription } from '../hooks/use-game-event-subscription';
 
 import { computeScore, GameHeader, StickyScoreBar } from './game';
@@ -75,14 +76,14 @@ export const GamePage = () => {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
   const [goalModalTeam, setGoalModalTeam] = useState<'home' | 'away' | null>(
-    null
+    null,
   );
   const [editGoalData, setEditGoalData] = useState<{
     team: 'home' | 'away';
     goal: EditGoalData;
   } | null>(null);
   const [subModalTeam, setSubModalTeam] = useState<'home' | 'away' | null>(
-    null
+    null,
   );
   const [showGameMenu, setShowGameMenu] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -141,7 +142,7 @@ export const GamePage = () => {
   useEffect(() => {
     if (import.meta.env.DEV && loading) {
       console.log(
-        '[Game Page Loading Spinner] Displayed - loading state is true'
+        '[Game Page Loading Spinner] Displayed - loading state is true',
       );
     }
   }, [loading]);
@@ -219,7 +220,7 @@ export const GamePage = () => {
         }
         return queries;
       },
-    }
+    },
   );
 
   const [deletePositionSwap, { loading: deletingPositionSwap }] = useMutation(
@@ -247,7 +248,7 @@ export const GamePage = () => {
         }
         return queries;
       },
-    }
+    },
   );
 
   const [deleteStarterEntry, { loading: deletingStarterEntry }] = useMutation(
@@ -286,7 +287,7 @@ export const GamePage = () => {
         }
         return queries;
       },
-    }
+    },
   );
 
   // Cascade delete queries and mutations
@@ -294,7 +295,7 @@ export const GamePage = () => {
     GET_DEPENDENT_EVENTS,
     {
       fetchPolicy: 'network-only',
-    }
+    },
   );
 
   const [deleteWithCascade, { loading: deletingWithCascade }] = useMutation(
@@ -333,24 +334,24 @@ export const GamePage = () => {
         }
         return queries;
       },
-    }
+    },
   );
 
   const [resolveConflict, { loading: resolvingConflict }] = useMutation(
     RESOLVE_EVENT_CONFLICT,
     {
       refetchQueries: [{ query: GET_GAME_BY_ID, variables: { id: gameId } }],
-    }
+    },
   );
 
   // Memoize team lookups to prevent unnecessary recalculations
   const homeTeamData = useMemo(
     () => data?.game?.gameTeams?.find((gt) => gt.teamType === 'home'),
-    [data?.game?.gameTeams]
+    [data?.game?.gameTeams],
   );
   const awayTeamData = useMemo(
     () => data?.game?.gameTeams?.find((gt) => gt.teamType === 'away'),
-    [data?.game?.gameTeams]
+    [data?.game?.gameTeams],
   );
   const homeTeamId = homeTeamData?.id;
   const awayTeamId = awayTeamData?.id;
@@ -358,11 +359,11 @@ export const GamePage = () => {
   // Memoize scores to prevent recalculation on every render
   const homeScore = useMemo(
     () => computeScore(homeTeamData?.gameEvents),
-    [homeTeamData?.gameEvents]
+    [homeTeamData?.gameEvents],
   );
   const awayScore = useMemo(
     () => computeScore(awayTeamData?.gameEvents),
-    [awayTeamData?.gameEvents]
+    [awayTeamData?.gameEvents],
   );
 
   // Fetch lineup data for goal modal (only when needed)
@@ -436,7 +437,7 @@ export const GamePage = () => {
           gameEvents(existingEvents = [], { readField }) {
             // Check if event already exists to prevent duplicates
             const eventExists = existingEvents.some(
-              (ref: { __ref: string }) => readField('id', ref) === event.id
+              (ref: { __ref: string }) => readField('id', ref) === event.id,
             );
             if (eventExists) return existingEvents;
 
@@ -470,7 +471,7 @@ export const GamePage = () => {
       // homeScore/awayScore changes, ensuring animation is synchronized with
       // the displayed score update (not the subscription message timing).
     },
-    [apolloClient]
+    [apolloClient],
   );
 
   const handleEventDeleted = useCallback(
@@ -485,7 +486,7 @@ export const GamePage = () => {
       // Garbage collect any orphaned references
       apolloClient.cache.gc();
     },
-    [apolloClient]
+    [apolloClient],
   );
 
   const handleConflictDetected = useCallback(
@@ -505,7 +506,7 @@ export const GamePage = () => {
       // The conflicting events should already be in the cache from CREATED actions
       setConflictData(conflict);
     },
-    []
+    [],
   );
 
   // Handle game state changes from subscription (start, pause, half-time, end, reset)
@@ -543,7 +544,7 @@ export const GamePage = () => {
         timerHalfRef.current = null;
       }
     },
-    [apolloClient]
+    [apolloClient],
   );
 
   const handleResolveConflict = useCallback(
@@ -561,7 +562,7 @@ export const GamePage = () => {
         console.error('Failed to resolve conflict:', err);
       }
     },
-    [resolveConflict]
+    [resolveConflict],
   );
 
   const { isConnected, isEventHighlighted } = useGameEventSubscription({
@@ -902,7 +903,7 @@ export const GamePage = () => {
           ? new Date(game.secondHalfStart).getTime()
           : Date.now();
         const secondsIntoSecondHalf = Math.floor(
-          (Date.now() - halfStartTime) / 1000
+          (Date.now() - halfStartTime) / 1000,
         );
         timerBaseRef.current = {
           startTime: Date.now(),
@@ -1013,12 +1014,12 @@ export const GamePage = () => {
     game.status === GameStatus.InProgress
       ? '1H'
       : game.status === GameStatus.SecondHalf
-      ? '2H'
-      : game.status === GameStatus.Halftime
-      ? 'HT'
-      : game.status === GameStatus.Completed
-      ? 'FT'
-      : '';
+        ? '2H'
+        : game.status === GameStatus.Halftime
+          ? 'HT'
+          : game.status === GameStatus.Completed
+            ? 'FT'
+            : '';
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -1278,7 +1279,7 @@ export const GamePage = () => {
                 const processTeamEvents = (
                   gameTeam: typeof homeTeam,
                   teamType: 'home' | 'away',
-                  defaultColor: string
+                  defaultColor: string,
                 ) => {
                   if (!gameTeam?.gameEvents) return;
 
@@ -1294,7 +1295,7 @@ export const GamePage = () => {
                         (e) =>
                           e.eventType?.name === 'ASSIST' &&
                           e.gameMinute === event.gameMinute &&
-                          e.gameSecond === event.gameSecond
+                          e.gameSecond === event.gameSecond,
                       );
                       matchEvents.push({
                         id: event.id,
@@ -1329,7 +1330,7 @@ export const GamePage = () => {
                           e.eventType?.name === 'SUBSTITUTION_IN' &&
                           e.gameMinute === event.gameMinute &&
                           e.gameSecond === event.gameSecond &&
-                          !processedSubIns.has(e.id)
+                          !processedSubIns.has(e.id),
                       );
 
                       if (subInEvent) {
@@ -1376,7 +1377,7 @@ export const GamePage = () => {
                           e.id !== event.id &&
                           e.gameMinute === event.gameMinute &&
                           e.gameSecond === event.gameSecond &&
-                          !processedSwaps.has(e.id)
+                          !processedSwaps.has(e.id),
                       );
 
                       // Mark both as processed
@@ -1452,7 +1453,7 @@ export const GamePage = () => {
                 matchEvents.sort(
                   (a, b) =>
                     new Date(b.createdAt).getTime() -
-                    new Date(a.createdAt).getTime()
+                    new Date(a.createdAt).getTime(),
                 );
 
                 // Helper to get player name from event data or team roster
@@ -1461,7 +1462,7 @@ export const GamePage = () => {
                   externalName?: string | null,
                   externalNumber?: string | null,
                   player?: PlayerInfo | null,
-                  team?: typeof homeTeam
+                  team?: typeof homeTeam,
                 ) => {
                   // Priority 1: External player name (for unmanaged teams)
                   if (externalName) return externalName;
@@ -1477,7 +1478,7 @@ export const GamePage = () => {
                   // Priority 4: Fallback to team roster lookup
                   if (playerId && team?.team.teamPlayers) {
                     const rosterPlayer = team.team.teamPlayers.find(
-                      (tp) => tp.userId === playerId
+                      (tp) => tp.userId === playerId,
                     );
                     if (rosterPlayer?.user) {
                       const name = `${rosterPlayer.user.firstName || ''} ${
@@ -1500,7 +1501,7 @@ export const GamePage = () => {
                 // Helper to check if deleting based on event type
                 const isDeletingEvent = (
                   eventId: string,
-                  _eventType: EventCardType
+                  _eventType: EventCardType,
                 ) => {
                   // If this event is the target of cascade delete
                   if (deleteTarget?.id === eventId) {
@@ -1534,7 +1535,7 @@ export const GamePage = () => {
                               event.externalPlayerName,
                               event.externalPlayerNumber,
                               event.player,
-                              team
+                              team,
                             )
                           : undefined;
 
@@ -1545,7 +1546,7 @@ export const GamePage = () => {
                               event.assist.externalPlayerName,
                               null,
                               event.assist.player,
-                              team
+                              team,
                             )
                           : null;
 
@@ -1557,7 +1558,7 @@ export const GamePage = () => {
                               event.playerIn?.externalPlayerName,
                               event.playerIn?.externalPlayerNumber,
                               event.playerIn?.player,
-                              team
+                              team,
                             )
                           : undefined;
 
@@ -1568,7 +1569,7 @@ export const GamePage = () => {
                               event.playerOut?.externalPlayerName,
                               event.playerOut?.externalPlayerNumber,
                               event.playerOut?.player,
-                              team
+                              team,
                             )
                           : undefined;
 
@@ -1579,7 +1580,7 @@ export const GamePage = () => {
                               event.swapPlayer1?.externalPlayerName,
                               event.swapPlayer1?.externalPlayerNumber,
                               event.swapPlayer1?.player,
-                              team
+                              team,
                             )
                           : undefined;
 
@@ -1590,7 +1591,7 @@ export const GamePage = () => {
                               event.swapPlayer2?.externalPlayerName,
                               event.swapPlayer2?.externalPlayerNumber,
                               event.swapPlayer2?.player,
-                              team
+                              team,
                             )
                           : undefined;
 
@@ -1639,7 +1640,7 @@ export const GamePage = () => {
                           }
                           isDeleting={isDeletingEvent(
                             event.id,
-                            event.eventType
+                            event.eventType,
                           )}
                           isCheckingDependents={isCheckingEvent(event.id)}
                           isHighlighted={isEventHighlighted(event.id)}
@@ -1672,13 +1673,13 @@ export const GamePage = () => {
           }
           currentOnField={
             goalModalTeam === 'home'
-              ? homeLineupData?.gameLineup?.currentOnField ?? []
-              : awayLineupData?.gameLineup?.currentOnField ?? []
+              ? (homeLineupData?.gameLineup?.currentOnField ?? [])
+              : (awayLineupData?.gameLineup?.currentOnField ?? [])
           }
           bench={
             goalModalTeam === 'home'
-              ? homeLineupData?.gameLineup?.bench ?? []
-              : awayLineupData?.gameLineup?.bench ?? []
+              ? (homeLineupData?.gameLineup?.bench ?? [])
+              : (awayLineupData?.gameLineup?.bench ?? [])
           }
           gameMinute={gameMinute}
           gameSecond={gameSecond}
@@ -1709,13 +1710,13 @@ export const GamePage = () => {
           }
           currentOnField={
             editGoalData.team === 'home'
-              ? homeLineupData?.gameLineup?.currentOnField ?? []
-              : awayLineupData?.gameLineup?.currentOnField ?? []
+              ? (homeLineupData?.gameLineup?.currentOnField ?? [])
+              : (awayLineupData?.gameLineup?.currentOnField ?? [])
           }
           bench={
             editGoalData.team === 'home'
-              ? homeLineupData?.gameLineup?.bench ?? []
-              : awayLineupData?.gameLineup?.bench ?? []
+              ? (homeLineupData?.gameLineup?.bench ?? [])
+              : (awayLineupData?.gameLineup?.bench ?? [])
           }
           gameMinute={gameMinute}
           gameSecond={gameSecond}
@@ -1740,13 +1741,13 @@ export const GamePage = () => {
           }
           currentOnField={
             subModalTeam === 'home'
-              ? homeLineupData?.gameLineup?.currentOnField ?? []
-              : awayLineupData?.gameLineup?.currentOnField ?? []
+              ? (homeLineupData?.gameLineup?.currentOnField ?? [])
+              : (awayLineupData?.gameLineup?.currentOnField ?? [])
           }
           bench={
             subModalTeam === 'home'
-              ? homeLineupData?.gameLineup?.bench ?? []
-              : awayLineupData?.gameLineup?.bench ?? []
+              ? (homeLineupData?.gameLineup?.bench ?? [])
+              : (awayLineupData?.gameLineup?.bench ?? [])
           }
           gameMinute={gameMinute}
           gameSecond={gameSecond}

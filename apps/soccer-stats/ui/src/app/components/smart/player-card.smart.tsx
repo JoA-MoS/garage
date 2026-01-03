@@ -1,4 +1,5 @@
-import { PlayerCardPresentation } from '../presentation/player-card.presentation';
+import { PlayerCard } from '@garage/soccer-stats/ui-components';
+
 import { graphql } from '../../generated/gql';
 
 /**
@@ -154,7 +155,7 @@ export const PlayerCardSmart = ({
   };
 
   return (
-    <PlayerCardPresentation
+    <PlayerCard
       id={mockPlayer.id}
       name={name}
       jersey={jersey}

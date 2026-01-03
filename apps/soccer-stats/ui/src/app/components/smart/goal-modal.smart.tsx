@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useMutation } from '@apollo/client/react';
 
+import { ModalPortal } from '@garage/soccer-stats/ui-components';
+
 import { RECORD_GOAL, UPDATE_GOAL } from '../../services/games-graphql.service';
-import { ModalPortal } from '../presentation/modal-portal.presentation';
 import { LineupPlayer, StatsTrackingLevel } from '../../generated/graphql';
 
 // Data for an existing goal being edited
@@ -120,18 +121,18 @@ export const GoalModal = ({
 
   // Quick entry fields - extract number from externalPlayerNumber
   const [quickScorerNumber, setQuickScorerNumber] = useState(
-    editGoal?.externalPlayerNumber?.replace(/\D/g, '') || ''
+    editGoal?.externalPlayerNumber?.replace(/\D/g, '') || '',
   );
   const [quickAssisterNumber, setQuickAssisterNumber] = useState(
-    editGoal?.assist?.externalPlayerNumber?.replace(/\D/g, '') || ''
+    editGoal?.assist?.externalPlayerNumber?.replace(/\D/g, '') || '',
   );
 
   // Time fields (editable in edit mode)
   const [editMinute, setEditMinute] = useState(
-    editGoal?.gameMinute ?? defaultGameMinute
+    editGoal?.gameMinute ?? defaultGameMinute,
   );
   const [editSecond, setEditSecond] = useState(
-    editGoal?.gameSecond ?? defaultGameSecond
+    editGoal?.gameSecond ?? defaultGameSecond,
   );
 
   // Track if we should clear the assist
@@ -162,7 +163,7 @@ export const GoalModal = ({
     const scorer =
       entryMode === 'lineup' && scorerId
         ? availablePlayers.find(
-            (p) => (p.playerId || p.externalPlayerName) === scorerId
+            (p) => (p.playerId || p.externalPlayerName) === scorerId,
           )
         : null;
 
@@ -170,7 +171,7 @@ export const GoalModal = ({
     const assister =
       entryMode === 'lineup' && assisterId
         ? availablePlayers.find(
-            (p) => (p.playerId || p.externalPlayerName) === assisterId
+            (p) => (p.playerId || p.externalPlayerName) === assisterId,
           )
         : null;
 
@@ -295,12 +296,12 @@ export const GoalModal = ({
               {teamName} &bull;{' '}
               {String(isEditMode ? editMinute : defaultGameMinute).padStart(
                 2,
-                '0'
+                '0',
               )}
               :
               {String(isEditMode ? editSecond : defaultGameSecond).padStart(
                 2,
-                '0'
+                '0',
               )}
             </p>
           </div>
@@ -328,7 +329,7 @@ export const GoalModal = ({
               value={editSecond}
               onChange={(e) =>
                 setEditSecond(
-                  Math.min(59, Math.max(0, parseInt(e.target.value) || 0))
+                  Math.min(59, Math.max(0, parseInt(e.target.value) || 0)),
                 )
               }
               className="w-16 rounded-lg border border-gray-300 p-2 text-center focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
@@ -372,12 +373,12 @@ export const GoalModal = ({
               Recording goal at{' '}
               {String(isEditMode ? editMinute : defaultGameMinute).padStart(
                 2,
-                '0'
+                '0',
               )}
               :
               {String(isEditMode ? editSecond : defaultGameSecond).padStart(
                 2,
-                '0'
+                '0',
               )}
               <p className="mt-1 text-xs text-gray-500">
                 Player tracking is disabled for this game
@@ -546,8 +547,8 @@ export const GoalModal = ({
                 ? 'Saving...'
                 : 'Recording...'
               : isEditMode
-              ? 'Save Changes'
-              : 'Record Goal'}
+                ? 'Save Changes'
+                : 'Record Goal'}
           </button>
         </div>
       </div>

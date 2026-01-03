@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth, useUser } from '@clerk/clerk-react';
 
-import { ImpersonationBannerPresentation } from '../presentation/impersonation-banner.presentation';
+import { ImpersonationBanner } from '@garage/soccer-stats/ui-components';
 
 /**
  * Smart component that detects Clerk impersonation sessions and renders the banner.
@@ -46,7 +46,7 @@ export const ImpersonationBannerSmart = () => {
   };
 
   return (
-    <ImpersonationBannerPresentation
+    <ImpersonationBanner
       userName={userName}
       onExitImpersonation={handleExitImpersonation}
       error={error}

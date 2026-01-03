@@ -1,0 +1,241 @@
+import { ReactNode } from 'react';
+
+import { UITeam } from '../../types';
+
+export interface TeamsListProps {
+  teams: UITeam[];
+  loading?: boolean;
+  error?: string | null;
+  onCreateTeam: () => void;
+  onEditTeam: (teamId: string) => void;
+  /** Render function for team link - allows parent to provide router-specific Link component */
+  renderTeamLink?: (team: UITeam, children: ReactNode) => ReactNode;
+}
+
+const TeamCardSkeleton = () => (
+  <div className="animate-pulse rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="mb-4 flex items-center space-x-3">
+      <div className="h-12 w-12 rounded-full bg-gray-200" />
+      <div className="flex-1">
+        <div className="mb-2 h-5 w-3/4 rounded bg-gray-200" />
+        <div className="h-4 w-1/2 rounded bg-gray-200" />
+      </div>
+    </div>
+    <div className="flex items-center justify-between">
+      <div className="flex space-x-2">
+        <div className="h-4 w-4 rounded-full bg-gray-200" />
+        <div className="h-4 w-4 rounded-full bg-gray-200" />
+      </div>
+      <div className="h-3 w-20 rounded bg-gray-200" />
+    </div>
+  </div>
+);
+
+export const TeamsList = ({
+  teams,
+  loading = false,
+  error = null,
+  onCreateTeam,
+  onEditTeam,
+  renderTeamLink,
+}: TeamsListProps) => {
+  const defaultRenderLink = (_team: UITeam, children: ReactNode) => (
+    <span className="text-lg font-semibold text-gray-900 transition-colors hover:text-blue-600">
+      {children}
+    </span>
+  );
+
+  const renderLink = renderTeamLink || defaultRenderLink;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-gray-900">Teams</h1>
+        <button
+          onClick={onCreateTeam}
+          className="rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700"
+        >
+          Create Team
+        </button>
+      </div>
+
+      {error ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
+          <div className="mx-auto max-w-md">
+            <svg
+              className="mx-auto h-12 w-12 text-red-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+            <h2 className="mt-4 text-lg font-semibold text-red-800">
+              Unable to load teams
+            </h2>
+            <p className="mt-2 text-sm text-red-600">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      ) : loading ? (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <TeamCardSkeleton />
+          <TeamCardSkeleton />
+          <TeamCardSkeleton />
+        </div>
+      ) : teams.length === 0 ? (
+        <div className="rounded-lg border border-gray-200 bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto max-w-md">
+            <h2 className="mb-3 text-xl font-semibold text-gray-900">
+              Get started with your first team
+            </h2>
+            <p className="mb-6 text-gray-600">
+              Follow these simple steps to set up your team and start tracking
+              games:
+            </p>
+
+            <div className="mb-6 space-y-4 text-left">
+              <div className="flex items-start space-x-3">
+                <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-600">
+                  1
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Create your team</p>
+                  <p className="text-sm text-gray-600">
+                    Set up basic team information like name and colors
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-3">
+                <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-600">
+                  2
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">
+                    Configure formation
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Choose your preferred formation and position setup
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-3">
+                <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-600">
+                  3
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Add players</p>
+                  <p className="text-sm text-gray-600">
+                    Add your roster and assign positions
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={onCreateTeam}
+              className="rounded-md bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700"
+            >
+              Create Your First Team
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {teams.map((team) => (
+            <div
+              key={team.id}
+              className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+            >
+              <div className="mb-4 flex items-center space-x-3">
+                <div
+                  className="flex h-12 w-12 items-center justify-center rounded-full font-bold text-white"
+                  style={{
+                    backgroundColor:
+                      team.homePrimaryColor || team.primaryColor || '#6b7280',
+                  }}
+                >
+                  {team.name.charAt(0)}
+                </div>
+                <div className="flex-1">
+                  {renderLink(
+                    team,
+                    <span className="text-lg font-semibold text-gray-900 transition-colors hover:text-blue-600">
+                      {team.name}
+                    </span>,
+                  )}
+                  <p className="text-sm text-gray-600">
+                    {team.playerCount
+                      ? `${team.playerCount} players`
+                      : 'No players yet'}
+                  </p>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => onEditTeam(team.id)}
+                    className="rounded-md p-2 text-gray-400 transition-colors hover:bg-green-50 hover:text-green-600"
+                    title="Edit team"
+                  >
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex space-x-2">
+                  <div
+                    className="h-4 w-4 rounded-full border border-gray-300"
+                    style={{
+                      backgroundColor:
+                        team.homePrimaryColor || team.primaryColor || '#e5e7eb',
+                    }}
+                    title="Primary Color"
+                  />
+                  <div
+                    className="h-4 w-4 rounded-full border border-gray-300"
+                    style={{
+                      backgroundColor:
+                        team.homeSecondaryColor ||
+                        team.secondaryColor ||
+                        '#e5e7eb',
+                    }}
+                    title="Secondary Color"
+                  />
+                </div>
+                <span className="text-xs text-gray-500">
+                  {team.createdAt
+                    ? new Date(team.createdAt).toLocaleDateString()
+                    : ''}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
