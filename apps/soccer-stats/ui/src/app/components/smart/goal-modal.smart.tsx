@@ -266,7 +266,13 @@ export const GoalModal = ({
           assister?.externalPlayerNumber ||
           (entryMode === 'quick' ? quickAssisterNumber || null : null);
 
-        await recordGoal({
+        // Close modal immediately for optimistic UX - don't wait for server response
+        onSuccess?.();
+        onClose();
+
+        // Fire and forget - the optimistic update already updated the UI
+        // Any server errors will be logged but won't block the user
+        recordGoal({
           variables: {
             input: {
               gameTeamId,
@@ -362,9 +368,15 @@ export const GoalModal = ({
               },
             });
           },
+        }).catch((err) => {
+          // Log server errors but don't block the user - optimistic update already applied
+          console.error('Failed to record goal on server:', err);
         });
+
+        return; // Exit early since we already closed the modal
       }
 
+      // For edit mode, wait for server response to handle validation errors
       onSuccess?.();
       onClose();
     } catch (err) {
