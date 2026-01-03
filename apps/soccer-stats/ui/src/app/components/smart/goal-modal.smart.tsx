@@ -1,42 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useMutation } from '@apollo/client/react';
-import { gql } from '@apollo/client';
 
 import { RECORD_GOAL, UPDATE_GOAL } from '../../services/games-graphql.service';
 import { LineupPlayer, StatsTrackingLevel } from '../../generated/graphql';
-
-// Fragment for writing GameEvent to cache during optimistic updates
-// Must include all fields that GET_GAME_BY_ID query expects for proper cache merging
-const GameEventFragment = gql`
-  fragment GameEventFragment on GameEvent {
-    id
-    createdAt
-    gameMinute
-    gameSecond
-    position
-    playerId
-    externalPlayerName
-    externalPlayerNumber
-    player {
-      id
-      firstName
-      lastName
-      email
-    }
-    eventType {
-      id
-      name
-      category
-    }
-  }
-`;
-
-// Generate a temporary ID for optimistic updates
-// Uses a prefix to distinguish from real IDs and includes timestamp for uniqueness
-let optimisticIdCounter = 0;
-function generateOptimisticId(): string {
-  return `optimistic-goal-${Date.now()}-${++optimisticIdCounter}`;
-}
 
 // Data for an existing goal being edited
 export interface EditGoalData {
@@ -247,136 +213,44 @@ export const GoalModal = ({
           },
         });
       } else {
-        // Create new goal with optimistic update for instant feedback
-        const optimisticId = generateOptimisticId();
-        const externalScorerName =
-          scorer?.externalPlayerName ||
-          (entryMode === 'quick' && quickScorerNumber
-            ? `#${quickScorerNumber}`
-            : null);
-        const externalScorerNumber =
-          scorer?.externalPlayerNumber ||
-          (entryMode === 'quick' ? quickScorerNumber || null : null);
-        const externalAssisterName =
-          assister?.externalPlayerName ||
-          (entryMode === 'quick' && quickAssisterNumber
-            ? `#${quickAssisterNumber}`
-            : null);
-        const externalAssisterNumber =
-          assister?.externalPlayerNumber ||
-          (entryMode === 'quick' ? quickAssisterNumber || null : null);
-
-        // Close modal immediately for optimistic UX - don't wait for server response
-        onSuccess?.();
-        onClose();
-
-        // Fire and forget - the optimistic update already updated the UI
-        // Any server errors will be logged but won't block the user
-        recordGoal({
+        // Create new goal - wait for server to confirm before closing
+        // The subscription will update all connected clients with the new event
+        await recordGoal({
           variables: {
             input: {
               gameTeamId,
               gameMinute: defaultGameMinute,
               gameSecond: defaultGameSecond,
               scorerId: scorer?.playerId || undefined,
-              externalScorerName: externalScorerName || undefined,
-              externalScorerNumber: externalScorerNumber || undefined,
+              externalScorerName:
+                scorer?.externalPlayerName ||
+                (entryMode === 'quick' && quickScorerNumber
+                  ? `#${quickScorerNumber}`
+                  : undefined),
+              externalScorerNumber:
+                scorer?.externalPlayerNumber ||
+                (entryMode === 'quick'
+                  ? quickScorerNumber || undefined
+                  : undefined),
               assisterId: assister?.playerId || undefined,
-              externalAssisterName: externalAssisterName || undefined,
-              externalAssisterNumber: externalAssisterNumber || undefined,
+              externalAssisterName:
+                assister?.externalPlayerName ||
+                (entryMode === 'quick' && quickAssisterNumber
+                  ? `#${quickAssisterNumber}`
+                  : undefined),
+              externalAssisterNumber:
+                assister?.externalPlayerNumber ||
+                (entryMode === 'quick'
+                  ? quickAssisterNumber || undefined
+                  : undefined),
             },
           },
-          // Optimistic response provides instant feedback before server responds
-          optimisticResponse: {
-            __typename: 'Mutation',
-            recordGoal: {
-              __typename: 'GameEvent',
-              id: optimisticId,
-              gameMinute: defaultGameMinute,
-              gameSecond: defaultGameSecond,
-              playerId: scorer?.playerId || null,
-              externalPlayerName: externalScorerName,
-              externalPlayerNumber: externalScorerNumber,
-              eventType: {
-                __typename: 'EventType',
-                id: 'optimistic-goal-type',
-                name: 'GOAL',
-              },
-              childEvents: assister
-                ? [
-                    {
-                      __typename: 'GameEvent',
-                      id: `${optimisticId}-assist`,
-                      playerId: assister.playerId || null,
-                      externalPlayerName: externalAssisterName,
-                      externalPlayerNumber: externalAssisterNumber,
-                      eventType: {
-                        __typename: 'EventType',
-                        id: 'optimistic-assist-type',
-                        name: 'ASSIST',
-                      },
-                    },
-                  ]
-                : [],
-            },
-          },
-          // Update cache to add the goal event to the GameTeam's gameEvents
-          update: (cache, { data }) => {
-            if (!data?.recordGoal) return;
-
-            const newEvent = data.recordGoal;
-
-            // Add the event to the GameTeam's gameEvents array
-            cache.modify({
-              id: cache.identify({
-                __typename: 'GameTeam',
-                id: gameTeamId,
-              }),
-              fields: {
-                gameEvents(existingEvents = [], { readField }) {
-                  // Check if event already exists (prevents duplicates with subscription)
-                  const eventExists = existingEvents.some(
-                    (ref: { __ref: string }) =>
-                      readField('id', ref) === newEvent.id
-                  );
-                  if (eventExists) return existingEvents;
-
-                  // Create a cache reference for the new event
-                  const newEventRef = cache.writeFragment({
-                    data: {
-                      __typename: 'GameEvent',
-                      id: newEvent.id,
-                      createdAt: new Date().toISOString(),
-                      gameMinute: newEvent.gameMinute,
-                      gameSecond: newEvent.gameSecond,
-                      playerId: newEvent.playerId,
-                      externalPlayerName: newEvent.externalPlayerName,
-                      externalPlayerNumber: newEvent.externalPlayerNumber,
-                      position: null,
-                      player: null, // Will be populated by server response
-                      eventType: {
-                        __typename: 'EventType',
-                        ...newEvent.eventType,
-                        category: 'SCORING', // Add category for cache consistency
-                      },
-                    },
-                    fragment: GameEventFragment,
-                  });
-
-                  return [...existingEvents, newEventRef];
-                },
-              },
-            });
-          },
-        }).catch((err) => {
-          // Log server errors but don't block the user - optimistic update already applied
-          console.error('Failed to record goal on server:', err);
+          // No optimisticResponse - rely on subscription for cache updates
+          // This ensures all connected clients see the same data
         });
-
-        return; // Exit early since we already closed the modal
       }
 
-      // For edit mode, wait for server response to handle validation errors
+      // Close modal after server confirms (for both create and edit)
       onSuccess?.();
       onClose();
     } catch (err) {
