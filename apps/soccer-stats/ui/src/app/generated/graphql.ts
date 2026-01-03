@@ -1146,12 +1146,20 @@ export type GetUsersForListQuery = {
 export type GameEventFragmentFragment = {
   __typename?: 'GameEvent';
   id: string;
+  createdAt: any;
   gameMinute: number;
   gameSecond: number;
   position?: string | null;
   playerId?: string | null;
   externalPlayerName?: string | null;
   externalPlayerNumber?: string | null;
+  player?: {
+    __typename?: 'User';
+    id: string;
+    firstName: string;
+    lastName: string;
+    email?: string | null;
+  } | null;
   eventType: {
     __typename?: 'EventType';
     id: string;
@@ -2984,6 +2992,7 @@ export const GameEventFragmentFragmentDoc = {
         kind: 'SelectionSet',
         selections: [
           { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
           { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
           { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
           { kind: 'Field', name: { kind: 'Name', value: 'position' } },
@@ -2995,6 +3004,19 @@ export const GameEventFragmentFragmentDoc = {
           {
             kind: 'Field',
             name: { kind: 'Name', value: 'externalPlayerNumber' },
+          },
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'player' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'firstName' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'lastName' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'email' } },
+              ],
+            },
           },
           {
             kind: 'Field',

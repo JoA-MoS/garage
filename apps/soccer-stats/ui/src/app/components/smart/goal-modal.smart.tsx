@@ -6,15 +6,23 @@ import { RECORD_GOAL, UPDATE_GOAL } from '../../services/games-graphql.service';
 import { LineupPlayer, StatsTrackingLevel } from '../../generated/graphql';
 
 // Fragment for writing GameEvent to cache during optimistic updates
+// Must include all fields that GET_GAME_BY_ID query expects for proper cache merging
 const GameEventFragment = gql`
   fragment GameEventFragment on GameEvent {
     id
+    createdAt
     gameMinute
     gameSecond
     position
     playerId
     externalPlayerName
     externalPlayerNumber
+    player {
+      id
+      firstName
+      lastName
+      email
+    }
     eventType {
       id
       name
@@ -332,13 +340,16 @@ export const GoalModal = ({
                     data: {
                       __typename: 'GameEvent',
                       id: newEvent.id,
+                      createdAt: new Date().toISOString(),
                       gameMinute: newEvent.gameMinute,
                       gameSecond: newEvent.gameSecond,
                       playerId: newEvent.playerId,
                       externalPlayerName: newEvent.externalPlayerName,
                       externalPlayerNumber: newEvent.externalPlayerNumber,
                       position: null,
+                      player: null, // Will be populated by server response
                       eventType: {
+                        __typename: 'EventType',
                         ...newEvent.eventType,
                         category: 'SCORING', // Add category for cache consistency
                       },
