@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { CreatePlayerModal } from './create-player-modal';
 
 const meta: Meta<typeof CreatePlayerModal> = {
-  title: 'UI Components/CreatePlayerModal',
+  title: 'Components/CreatePlayerModal',
   component: CreatePlayerModal,
   parameters: {
     layout: 'fullscreen',

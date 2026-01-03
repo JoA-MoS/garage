@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { ImpersonationBanner } from './impersonation-banner';
 
 const meta: Meta<typeof ImpersonationBanner> = {
-  title: 'UI Components/ImpersonationBanner',
+  title: 'Components/ImpersonationBanner',
   component: ImpersonationBanner,
   parameters: {
     layout: 'fullscreen',
