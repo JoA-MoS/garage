@@ -1,4 +1,4 @@
-import { TeamStatsPresentation } from '../presentation/team-stats.presentation';
+import { TeamStats } from '@garage/soccer-stats/ui-components';
 
 interface TeamStatsSmartProps {
   team: {
@@ -19,7 +19,7 @@ export const TeamStatsSmart = ({
 }: TeamStatsSmartProps) => {
   if (!team) {
     return (
-      <TeamStatsPresentation
+      <TeamStats
         teamName="Unknown Team"
         playerCount={0}
         gamesPlayed={0}
@@ -58,7 +58,7 @@ export const TeamStatsSmart = ({
         losses: isLoss ? stats.losses + 1 : stats.losses,
       };
     },
-    { gamesPlayed: 0, wins: 0, draws: 0, losses: 0 }
+    { gamesPlayed: 0, wins: 0, draws: 0, losses: 0 },
   ) || { gamesPlayed: 0, wins: 0, draws: 0, losses: 0 };
 
   // Calculate win rate
@@ -82,7 +82,7 @@ export const TeamStatsSmart = ({
   const mostMinutesPlayerName = undefined;
 
   return (
-    <TeamStatsPresentation
+    <TeamStats
       teamName={team.name}
       playerCount={playerCount}
       gamesPlayed={gameStats.gamesPlayed}

@@ -1,34 +1,49 @@
-interface TeamStatsPresentationProps {
-  // Team basic info
+import { memo } from 'react';
+
+export interface TeamStatsProps {
+  /** Team display name */
   teamName: string;
+  /** Total number of players on the team */
   playerCount: number;
-
-  // Game statistics
+  /** Number of games played */
   gamesPlayed: number;
+  /** Number of wins */
   wins: number;
+  /** Number of draws */
   draws: number;
+  /** Number of losses */
   losses: number;
+  /** Win rate percentage (0-100) */
   winRate: number;
-
-  // Team performance statistics
+  /** Total goals scored */
   goalsScored: number;
+  /** Total assists */
   assists: number;
+  /** Total play time in hours */
   playTimeHours: number;
+  /** Total red cards received */
   redCards: number;
-
-  // Player statistics
+  /** Number of active players */
   activePlayerCount: number;
+  /** Name of the top scorer */
   topScorerName?: string;
+  /** Name of the top assister */
   topAssisterName?: string;
+  /** Name of player with most minutes */
   mostMinutesPlayerName?: string;
-
-  // UI state
+  /** Whether data is loading */
   isLoading?: boolean;
+  /** Error message if any */
   error?: string;
+  /** Callback to retry loading */
   onRetry?: () => void;
 }
 
-export const TeamStatsPresentation = ({
+/**
+ * TeamStats displays comprehensive statistics for a team including
+ * game performance, player statistics, and top performers.
+ */
+export const TeamStats = memo(function TeamStats({
   teamName,
   playerCount,
   gamesPlayed,
@@ -47,7 +62,7 @@ export const TeamStatsPresentation = ({
   isLoading = false,
   error,
   onRetry,
-}: TeamStatsPresentationProps) => {
+}: TeamStatsProps) {
   if (error) {
     return (
       <div className="p-4 text-center text-red-600 sm:p-6 md:p-8">
@@ -56,12 +71,7 @@ export const TeamStatsPresentation = ({
         {onRetry && (
           <button
             onClick={onRetry}
-            className="
-              mt-4 min-h-[44px] min-w-[44px] rounded bg-blue-600 px-4 py-3 text-white 
-              transition-colors active:scale-95
-              sm:py-2
-              lg:hover:bg-blue-700
-            "
+            className="mt-4 min-h-[44px] min-w-[44px] rounded bg-blue-600 px-4 py-3 text-white transition-colors active:scale-95 sm:py-2 lg:hover:bg-blue-700"
           >
             Try Again
           </button>
@@ -71,13 +81,7 @@ export const TeamStatsPresentation = ({
   }
 
   return (
-    <div
-      className="
-      rounded-lg bg-white p-4 shadow-lg
-      sm:p-6
-      md:p-8
-    "
-    >
+    <div className="rounded-lg bg-white p-4 shadow-lg sm:p-6 md:p-8">
       <div className="py-12 text-center">
         {/* Header */}
         <div className="mb-4 text-gray-500">
@@ -85,21 +89,10 @@ export const TeamStatsPresentation = ({
             📊
           </span>
         </div>
-        <h3
-          className="
-          mb-2 text-lg font-semibold text-gray-900
-          sm:text-xl
-          md:text-2xl
-        "
-        >
+        <h3 className="mb-2 text-lg font-semibold text-gray-900 sm:text-xl md:text-2xl">
           {teamName} Statistics
         </h3>
-        <p
-          className="
-          mb-6 text-gray-600
-          sm:text-lg
-        "
-        >
+        <p className="mb-6 text-gray-600 sm:text-lg">
           Detailed statistics and analytics for the team.
         </p>
 
@@ -113,138 +106,46 @@ export const TeamStatsPresentation = ({
         )}
 
         {/* Statistics Grid */}
-        <div
-          className="
-          mx-auto mb-8 grid max-w-4xl grid-cols-1 gap-4
-          sm:grid-cols-2 sm:gap-6
-          lg:grid-cols-4 lg:gap-8
-        "
-        >
-          <div
-            className="
-            rounded-lg bg-gray-50 p-4
-            sm:p-6
-          "
-          >
-            <div
-              className="
-              text-2xl font-bold text-blue-600
-              sm:text-3xl
-            "
-            >
+        <div className="mx-auto mb-8 grid max-w-4xl grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4 lg:gap-8">
+          <div className="rounded-lg bg-gray-50 p-4 sm:p-6">
+            <div className="text-2xl font-bold text-blue-600 sm:text-3xl">
               {goalsScored}
             </div>
-            <div
-              className="
-              text-sm text-gray-600
-              sm:text-base
-            "
-            >
+            <div className="text-sm text-gray-600 sm:text-base">
               Goals Scored
             </div>
           </div>
 
-          <div
-            className="
-            rounded-lg bg-gray-50 p-4
-            sm:p-6
-          "
-          >
-            <div
-              className="
-              text-2xl font-bold text-green-600
-              sm:text-3xl
-            "
-            >
+          <div className="rounded-lg bg-gray-50 p-4 sm:p-6">
+            <div className="text-2xl font-bold text-green-600 sm:text-3xl">
               {assists}
             </div>
-            <div
-              className="
-              text-sm text-gray-600
-              sm:text-base
-            "
-            >
-              Assists
-            </div>
+            <div className="text-sm text-gray-600 sm:text-base">Assists</div>
           </div>
 
-          <div
-            className="
-            rounded-lg bg-gray-50 p-4
-            sm:p-6
-          "
-          >
-            <div
-              className="
-              text-2xl font-bold text-purple-600
-              sm:text-3xl
-            "
-            >
+          <div className="rounded-lg bg-gray-50 p-4 sm:p-6">
+            <div className="text-2xl font-bold text-purple-600 sm:text-3xl">
               {playTimeHours}h
             </div>
-            <div
-              className="
-              text-sm text-gray-600
-              sm:text-base
-            "
-            >
-              Play Time
-            </div>
+            <div className="text-sm text-gray-600 sm:text-base">Play Time</div>
           </div>
 
-          <div
-            className="
-            rounded-lg bg-gray-50 p-4
-            sm:p-6
-          "
-          >
-            <div
-              className="
-              text-2xl font-bold text-red-600
-              sm:text-3xl
-            "
-            >
+          <div className="rounded-lg bg-gray-50 p-4 sm:p-6">
+            <div className="text-2xl font-bold text-red-600 sm:text-3xl">
               {redCards}
             </div>
-            <div
-              className="
-              text-sm text-gray-600
-              sm:text-base
-            "
-            >
-              Red Cards
-            </div>
+            <div className="text-sm text-gray-600 sm:text-base">Red Cards</div>
           </div>
         </div>
 
         {/* Additional Stats Sections */}
-        <div
-          className="
-          mx-auto grid max-w-4xl grid-cols-1 gap-6
-          md:grid-cols-2
-        "
-        >
+        <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2">
           {/* Game Performance Section */}
-          <div
-            className="
-            rounded-lg bg-gray-50 p-4
-            sm:p-6
-          "
-          >
-            <h4
-              className="
-              mb-3 text-lg font-semibold text-gray-900
-              sm:text-xl
-            "
-            >
+          <div className="rounded-lg bg-gray-50 p-4 sm:p-6">
+            <h4 className="mb-3 text-lg font-semibold text-gray-900 sm:text-xl">
               Game Performance
             </h4>
-            <div
-              className="
-              space-y-2 text-sm
-              sm:space-y-3 sm:text-base
-            "
-            >
+            <div className="space-y-2 text-sm sm:space-y-3 sm:text-base">
               <div className="flex justify-between">
                 <span className="text-gray-600">Games Played:</span>
                 <span className="font-medium">{gamesPlayed}</span>
@@ -269,26 +170,11 @@ export const TeamStatsPresentation = ({
           </div>
 
           {/* Player Statistics Section */}
-          <div
-            className="
-            rounded-lg bg-gray-50 p-4
-            sm:p-6
-          "
-          >
-            <h4
-              className="
-              mb-3 text-lg font-semibold text-gray-900
-              sm:text-xl
-            "
-            >
+          <div className="rounded-lg bg-gray-50 p-4 sm:p-6">
+            <h4 className="mb-3 text-lg font-semibold text-gray-900 sm:text-xl">
               Player Statistics
             </h4>
-            <div
-              className="
-              space-y-2 text-sm
-              sm:space-y-3 sm:text-base
-            "
-            >
+            <div className="space-y-2 text-sm sm:space-y-3 sm:text-base">
               <div className="flex justify-between">
                 <span className="text-gray-600">Total Players:</span>
                 <span className="font-medium">{playerCount}</span>
@@ -317,4 +203,4 @@ export const TeamStatsPresentation = ({
       </div>
     </div>
   );
-};
+});
