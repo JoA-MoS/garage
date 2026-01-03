@@ -62,13 +62,6 @@ const GameEventFragmentDoc = gql`
   }
 `;
 
-// Generate a temporary ID for optimistic updates
-// Uses a prefix to distinguish from real IDs and includes timestamp for uniqueness
-let optimisticIdCounter = 0;
-function generateOptimisticId(): string {
-  return `optimistic-goal-${Date.now()}-${++optimisticIdCounter}`;
-}
-
 /**
  * Game page - displays a single game with lineup, stats, and event tracking
  */
@@ -857,7 +850,7 @@ export const GamePage = () => {
       const second = elapsedSeconds % 60;
 
       try {
-        const optimisticId = generateOptimisticId();
+        // Call mutation - subscription will update cache for all connected clients
         await recordGoalDirect({
           variables: {
             input: {
@@ -865,73 +858,6 @@ export const GamePage = () => {
               gameMinute: minute,
               gameSecond: second,
             },
-          },
-          // Optimistic response provides instant feedback before server responds
-          optimisticResponse: {
-            __typename: 'Mutation',
-            recordGoal: {
-              __typename: 'GameEvent',
-              id: optimisticId,
-              gameMinute: minute,
-              gameSecond: second,
-              playerId: null,
-              externalPlayerName: null,
-              externalPlayerNumber: null,
-              eventType: {
-                __typename: 'EventType',
-                id: 'optimistic-goal-type',
-                name: 'GOAL',
-              },
-              childEvents: [],
-            },
-          },
-          // Update cache to add the goal event to the GameTeam's gameEvents
-          update: (cache, { data: mutationData }) => {
-            if (!mutationData?.recordGoal) return;
-
-            const newEvent = mutationData.recordGoal;
-
-            // Add the event to the GameTeam's gameEvents array
-            cache.modify({
-              id: cache.identify({
-                __typename: 'GameTeam',
-                id: gameTeam.id,
-              }),
-              fields: {
-                gameEvents(existingEvents = [], { readField }) {
-                  // Check if event already exists (prevents duplicates with subscription)
-                  const eventExists = existingEvents.some(
-                    (ref: { __ref: string }) =>
-                      readField('id', ref) === newEvent.id
-                  );
-                  if (eventExists) return existingEvents;
-
-                  // Create a cache reference for the new event
-                  const newEventRef = cache.writeFragment({
-                    data: {
-                      __typename: 'GameEvent',
-                      id: newEvent.id,
-                      createdAt: new Date().toISOString(),
-                      gameMinute: newEvent.gameMinute,
-                      gameSecond: newEvent.gameSecond,
-                      playerId: newEvent.playerId,
-                      externalPlayerName: newEvent.externalPlayerName,
-                      externalPlayerNumber: newEvent.externalPlayerNumber,
-                      position: null,
-                      player: null, // Will be populated by server response
-                      eventType: {
-                        __typename: 'EventType',
-                        ...newEvent.eventType,
-                        category: 'SCORING', // Add category for cache consistency
-                      },
-                    },
-                    fragment: GameEventFragmentDoc,
-                  });
-
-                  return [...existingEvents, newEventRef];
-                },
-              },
-            });
           },
         });
       } catch (err) {
