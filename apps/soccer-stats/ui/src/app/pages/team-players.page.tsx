@@ -2,7 +2,11 @@ import { useState } from 'react';
 import { useParams } from 'react-router';
 import { useQuery, useMutation } from '@apollo/client/react';
 
-import { RemovePlayerDialog } from '@garage/soccer-stats/ui-components';
+import {
+  CreatePlayerModal,
+  EditPlayerModal,
+  RemovePlayerDialog,
+} from '@garage/soccer-stats/ui-components';
 
 import { GET_TEAM_BY_ID } from '../services/teams-graphql.service';
 import {
@@ -11,8 +15,6 @@ import {
   UPDATE_USER,
   REMOVE_PLAYER_FROM_TEAM,
 } from '../services/users-graphql.service';
-import { CreatePlayerModal } from '../components/presentation/create-player-modal.presentation';
-import { EditPlayerModal } from '../components/presentation/edit-player-modal.presentation';
 
 interface TeamPlayer {
   id: string;
