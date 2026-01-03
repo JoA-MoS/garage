@@ -28,7 +28,8 @@
       "executor": "@nx/vitest:test",
       "outputs": ["{options.reportsDirectory}"],
       "options": {
-        "reportsDirectory": "../../../coverage/libs/soccer-stats/ui-components"
+        "reportsDirectory": "../../../coverage/libs/soccer-stats/ui-components",
+        "passWithNoTests": true
       }
     },
     "storybook": {
