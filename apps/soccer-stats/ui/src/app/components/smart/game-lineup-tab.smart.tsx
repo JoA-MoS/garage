@@ -1,6 +1,8 @@
 import { useState, useCallback, memo } from 'react';
 import { useMutation } from '@apollo/client/react';
 
+import { CreatePlayerModal } from '@garage/soccer-stats/ui-components';
+
 import { useLineup, RosterPlayer } from '../../hooks/use-lineup';
 import {
   Formation,
@@ -11,7 +13,6 @@ import {
 import { LineupPlayer } from '../../generated/graphql';
 import { FieldLineup } from '../presentation/field-lineup.presentation';
 import { LineupBench } from '../presentation/lineup-bench.presentation';
-import { CreatePlayerModal } from '../presentation/create-player-modal.presentation';
 import {
   CREATE_USER,
   ADD_PLAYER_TO_TEAM,
@@ -55,7 +56,7 @@ export const GameLineupTab = memo(function GameLineupTab({
 }: GameLineupTabProps) {
   const formations = getFormationsForTeamSize(playersPerTeam);
   const [selectedFormation, setSelectedFormation] = useState<Formation>(() =>
-    getDefaultFormation(playersPerTeam)
+    getDefaultFormation(playersPerTeam),
   );
   const [modalMode, setModalMode] = useState<ModalMode>({ type: 'closed' });
   const [externalName, setExternalName] = useState('');
@@ -70,7 +71,7 @@ export const GameLineupTab = memo(function GameLineupTab({
     {
       refetchQueries: [{ query: GET_TEAM_BY_ID, variables: { id: teamId } }],
       awaitRefetchQueries: true,
-    }
+    },
   );
 
   const {
@@ -102,7 +103,7 @@ export const GameLineupTab = memo(function GameLineupTab({
         setModalMode({ type: 'assign-position', position });
       }
     },
-    []
+    [],
   );
 
   // Assign roster player to a position
@@ -118,7 +119,7 @@ export const GameLineupTab = memo(function GameLineupTab({
         console.error('Failed to add player to lineup:', err);
       }
     },
-    [addToLineup]
+    [addToLineup],
   );
 
   // Add external player
@@ -146,7 +147,7 @@ export const GameLineupTab = memo(function GameLineupTab({
         console.error('Failed to add external player:', err);
       }
     },
-    [externalName, externalNumber, addToLineup, addToBench]
+    [externalName, externalNumber, addToLineup, addToBench],
   );
 
   // Add roster player to bench
@@ -158,7 +159,7 @@ export const GameLineupTab = memo(function GameLineupTab({
         console.error('Failed to add player to bench:', err);
       }
     },
-    [addToBench]
+    [addToBench],
   );
 
   // Remove player from lineup/bench
@@ -171,7 +172,7 @@ export const GameLineupTab = memo(function GameLineupTab({
         console.error('Failed to remove player:', err);
       }
     },
-    [removeFromLineup]
+    [removeFromLineup],
   );
 
   // Move bench player to position
@@ -197,7 +198,7 @@ export const GameLineupTab = memo(function GameLineupTab({
         console.error('Failed to substitute player:', err);
       }
     },
-    [substitutePlayer, gameMinute]
+    [substitutePlayer, gameMinute],
   );
 
   // Create new player, add to team roster, then add to lineup
@@ -212,7 +213,7 @@ export const GameLineupTab = memo(function GameLineupTab({
         jerseyNumber: string;
         primaryPosition: string;
       },
-      position: string
+      position: string,
     ) => {
       try {
         // Step 1: Create the user
@@ -259,7 +260,7 @@ export const GameLineupTab = memo(function GameLineupTab({
         throw err;
       }
     },
-    [createUser, addPlayerToTeam, teamId, addToLineup, refetchLineup]
+    [createUser, addPlayerToTeam, teamId, addToLineup, refetchLineup],
   );
 
   if (loading) {
@@ -292,7 +293,7 @@ export const GameLineupTab = memo(function GameLineupTab({
             value={selectedFormation.code}
             onChange={(e) => {
               const formation = formations.find(
-                (f) => f.code === e.target.value
+                (f) => f.code === e.target.value,
               );
               if (formation) setSelectedFormation(formation);
             }}
@@ -357,7 +358,7 @@ export const GameLineupTab = memo(function GameLineupTab({
                             onClick={() =>
                               handleAssignRosterPlayer(
                                 player,
-                                modalMode.position.position
+                                modalMode.position.position,
                               )
                             }
                             className="rounded-full bg-gray-100 px-3 py-1 text-sm hover:bg-gray-200"
@@ -427,7 +428,7 @@ export const GameLineupTab = memo(function GameLineupTab({
                     onClick={() =>
                       handleAddExternalPlayer(
                         'lineup',
-                        modalMode.position.position
+                        modalMode.position.position,
                       )
                     }
                     disabled={!externalName.trim() || mutating}
@@ -589,7 +590,7 @@ export const GameLineupTab = memo(function GameLineupTab({
                     onClick={() =>
                       handleAddExternalPlayer(
                         modalMode.target,
-                        modalMode.position
+                        modalMode.position,
                       )
                     }
                     disabled={!externalName.trim()}
@@ -619,7 +620,7 @@ export const GameLineupTab = memo(function GameLineupTab({
           onSubmit={(playerData) =>
             handleCreatePlayerAndAddToLineup(
               playerData,
-              modalMode.position.position
+              modalMode.position.position,
             )
           }
           loading={creatingUser || addingToTeam || mutating}

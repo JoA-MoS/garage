@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
 
-import { UICreateTeamInput, UITeam } from '../types/ui.types';
-
 import {
-  TeamFormFields,
-  DEFAULT_TEAM_FORM_VALUES,
   createTeamFormValues,
-} from './team-form-fields.presentation';
+  DEFAULT_TEAM_FORM_VALUES,
+  TeamFormFields,
+  type UICreateTeamInput,
+} from '@garage/soccer-stats/ui-components';
+
+import { UITeam } from '../types/ui.types';
 
 interface CreateTeamPresentationProps {
   onSubmit: (teamData: UICreateTeamInput) => void;
@@ -29,7 +30,7 @@ export const CreateTeamPresentation = ({
   onNext,
 }: CreateTeamPresentationProps) => {
   const [formData, setFormData] = useState<UICreateTeamInput>(
-    initialData ? createTeamFormValues(initialData) : DEFAULT_TEAM_FORM_VALUES
+    initialData ? createTeamFormValues(initialData) : DEFAULT_TEAM_FORM_VALUES,
   );
 
   // Update form data when initial data changes

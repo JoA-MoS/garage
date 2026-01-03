@@ -1,8 +1,9 @@
 import { useCallback } from 'react';
 
+import { UserCard } from '@garage/soccer-stats/ui-components';
+
 import { FragmentType, useFragment } from '../../generated/fragment-masking';
 import { graphql } from '../../generated/gql';
-import { UserCardPresentation } from '../presentation/user-card.presentation';
 
 // Layer 2: Fragment Wrapper (Smart Component)
 // Define the fragment for user card data
@@ -58,7 +59,7 @@ export const UserCardSmartComponent = ({
   const primaryTeam = user.teamPlayers?.[0]?.team;
 
   return (
-    <UserCardPresentation
+    <UserCard
       id={user.id}
       firstName={user.firstName}
       lastName={user.lastName}

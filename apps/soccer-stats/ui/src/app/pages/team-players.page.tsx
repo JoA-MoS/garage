@@ -2,6 +2,12 @@ import { useState } from 'react';
 import { useParams } from 'react-router';
 import { useQuery, useMutation } from '@apollo/client/react';
 
+import {
+  CreatePlayerModal,
+  EditPlayerModal,
+  RemovePlayerDialog,
+} from '@garage/soccer-stats/ui-components';
+
 import { GET_TEAM_BY_ID } from '../services/teams-graphql.service';
 import {
   CREATE_USER,
@@ -9,9 +15,6 @@ import {
   UPDATE_USER,
   REMOVE_PLAYER_FROM_TEAM,
 } from '../services/users-graphql.service';
-import { CreatePlayerModal } from '../components/presentation/create-player-modal.presentation';
-import { EditPlayerModal } from '../components/presentation/edit-player-modal.presentation';
-import { RemovePlayerDialog } from '../components/presentation/remove-player-dialog.presentation';
 
 interface TeamPlayer {
   id: string;
@@ -46,7 +49,7 @@ export const TeamPlayersPage = () => {
     {
       refetchQueries: [{ query: GET_TEAM_BY_ID, variables: { id: teamId } }],
       awaitRefetchQueries: true,
-    }
+    },
   );
   const [updateUser, { loading: updatingUser }] = useMutation(UPDATE_USER, {
     refetchQueries: [{ query: GET_TEAM_BY_ID, variables: { id: teamId } }],
@@ -117,7 +120,7 @@ export const TeamPlayersPage = () => {
       jerseyNumber?: string;
       primaryPosition?: string;
       isActive?: boolean;
-    }
+    },
   ) => {
     try {
       // Update user profile if any user fields changed
