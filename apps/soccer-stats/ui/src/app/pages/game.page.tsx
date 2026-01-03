@@ -37,15 +37,23 @@ import { StatsTrackingSelector } from '../components/presentation/stats-tracking
 import { useGameEventSubscription } from '../hooks/use-game-event-subscription';
 
 // Fragment for writing GameEvent to cache
+// Must include all fields that GET_GAME_BY_ID query expects for proper cache merging
 const GameEventFragmentDoc = gql`
   fragment GameEventFragment on GameEvent {
     id
+    createdAt
     gameMinute
     gameSecond
     position
     playerId
     externalPlayerName
     externalPlayerNumber
+    player {
+      id
+      firstName
+      lastName
+      email
+    }
     eventType {
       id
       name
@@ -456,12 +464,14 @@ export const GamePage = () => {
               data: {
                 __typename: 'GameEvent',
                 id: event.id,
+                createdAt: new Date().toISOString(),
                 gameMinute: event.gameMinute,
                 gameSecond: event.gameSecond,
                 position: event.position,
                 playerId: event.playerId,
                 externalPlayerName: event.externalPlayerName,
                 externalPlayerNumber: event.externalPlayerNumber,
+                player: null, // Will be populated by server response
                 eventType: {
                   __typename: 'EventType',
                   ...event.eventType,
@@ -901,13 +911,19 @@ export const GamePage = () => {
                     data: {
                       __typename: 'GameEvent',
                       id: newEvent.id,
+                      createdAt: new Date().toISOString(),
                       gameMinute: newEvent.gameMinute,
                       gameSecond: newEvent.gameSecond,
                       playerId: newEvent.playerId,
                       externalPlayerName: newEvent.externalPlayerName,
                       externalPlayerNumber: newEvent.externalPlayerNumber,
                       position: null,
-                      eventType: newEvent.eventType,
+                      player: null, // Will be populated by server response
+                      eventType: {
+                        __typename: 'EventType',
+                        ...newEvent.eventType,
+                        category: 'SCORING', // Add category for cache consistency
+                      },
                     },
                     fragment: GameEventFragmentDoc,
                   });
