@@ -174,7 +174,7 @@ export function StickyScoreBar({
           <button
             onClick={() => onGoalClick('home')}
             disabled={recordingGoal}
-            className="flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 active:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-touch flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors active:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50 lg:hover:bg-blue-100"
             type="button"
           >
             <svg
@@ -195,7 +195,7 @@ export function StickyScoreBar({
           <button
             onClick={() => onGoalClick('away')}
             disabled={recordingGoal}
-            className="flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 active:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-touch flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors active:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50 lg:hover:bg-red-100"
             type="button"
           >
             <svg
