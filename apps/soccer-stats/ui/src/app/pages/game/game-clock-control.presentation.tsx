@@ -1,4 +1,4 @@
-import { GameStatus } from '../../generated/graphql';
+import { GameStatus } from '@garage/soccer-stats/graphql-codegen';
 
 import { formatGameTime } from './game-utils';
 
@@ -122,7 +122,7 @@ export function GameClockControl({
         ? Math.floor(
             (new Date(firstHalfEnd).getTime() -
               new Date(actualStart).getTime()) /
-              1000
+              1000,
           )
         : (durationMinutes / 2) * 60;
 
@@ -245,7 +245,7 @@ export function GameClockControl({
       actualEnd && actualStart
         ? Math.floor(
             (new Date(actualEnd).getTime() - new Date(actualStart).getTime()) /
-              1000
+              1000,
           )
         : 0;
 

@@ -1,0 +1,41 @@
+{
+  "name": "soccer-stats-graphql-codegen",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/soccer-stats/graphql-codegen/src",
+  "projectType": "library",
+  "tags": ["domain:sports"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "codegen": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/src/generated"],
+      "dependsOn": [
+        {
+          "projects": ["soccer-stats-api"],
+          "target": "serve"
+        }
+      ],
+      "options": {
+        "command": "echo 'Waiting for API...' && until curl -sf http://localhost:3333/api > /dev/null 2>&1; do sleep 1; done && echo 'API ready!' && graphql-codegen --config codegen.ts",
+        "cwd": "libs/soccer-stats/graphql-codegen"
+      }
+    },
+    "codegen-watch": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "outputs": ["{projectRoot}/src/generated"],
+      "dependsOn": [
+        {
+          "projects": ["soccer-stats-api"],
+          "target": "serve"
+        }
+      ],
+      "options": {
+        "command": "echo 'Waiting for API...' && until curl -sf http://localhost:3333/api > /dev/null 2>&1; do sleep 1; done && echo 'API ready!' && graphql-codegen --config codegen.ts --watch",
+        "cwd": "libs/soccer-stats/graphql-codegen"
+      }
+    }
+  }
+}

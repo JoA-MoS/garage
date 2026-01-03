@@ -1,4 +1,4 @@
-import { graphql } from '../generated/gql';
+import { graphql } from '@garage/soccer-stats/graphql-codegen';
 
 // =================================
 // UNIFIED USER QUERIES (New API)

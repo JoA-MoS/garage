@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { useParams, useNavigate } from 'react-router';
 
+import { StatsTrackingLevel } from '@garage/soccer-stats/graphql-codegen';
+
 import {
   GET_TEAM_BY_ID,
   UPDATE_TEAM,
@@ -11,7 +13,6 @@ import {
   UpdateTeamConfigurationResponse,
   GET_TEAMS,
 } from '../../services/teams-graphql.service';
-import { StatsTrackingLevel } from '../../generated/graphql';
 import { TeamSettingsPresentation } from '../presentation/team-settings.presentation';
 import { UICreateTeamInput, UIPosition } from '../types/ui.types';
 
@@ -148,7 +149,7 @@ export const TeamSettingsSmart = () => {
         console.error('Error saving team settings:', err);
       }
     },
-    [teamId, updateTeam, updateTeamConfiguration]
+    [teamId, updateTeam, updateTeamConfiguration],
   );
 
   // Show loading state for fetching

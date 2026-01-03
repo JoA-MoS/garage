@@ -2,6 +2,7 @@ import { useState, useCallback, memo } from 'react';
 import { useMutation } from '@apollo/client/react';
 
 import { CreatePlayerModal } from '@garage/soccer-stats/ui-components';
+import { LineupPlayer } from '@garage/soccer-stats/graphql-codegen';
 
 import { useLineup, RosterPlayer } from '../../hooks/use-lineup';
 import {
@@ -10,7 +11,6 @@ import {
   getFormationsForTeamSize,
   getDefaultFormation,
 } from '../../constants/positions';
-import { LineupPlayer } from '../../generated/graphql';
 import { FieldLineup } from '../presentation/field-lineup.presentation';
 import { LineupBench } from '../presentation/lineup-bench.presentation';
 import {

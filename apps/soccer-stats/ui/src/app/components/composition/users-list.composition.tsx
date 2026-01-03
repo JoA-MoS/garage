@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useQuery } from '@apollo/client/react';
 
-import { graphql } from '../../generated/gql';
+import { graphql } from '@garage/soccer-stats/graphql-codegen';
+
 import { UserCardSmart, UserCardFragment } from '../smart/user-card.smart';
 
 // Layer 3: Composition Component (Query Orchestration)
@@ -35,7 +36,7 @@ export const UsersListComposition = ({
 
   const [searchTerm, setSearchTerm] = useState(searchQuery);
   const [filterActive, setFilterActive] = useState<boolean | null>(
-    showInactiveUsers ? null : true
+    showInactiveUsers ? null : true,
   );
 
   const handleEditUser = useCallback(
@@ -46,7 +47,7 @@ export const UsersListComposition = ({
         console.log('Edit user:', userId);
       }
     },
-    [onEditUser]
+    [onEditUser],
   );
 
   const handleViewUser = useCallback(
@@ -57,7 +58,7 @@ export const UsersListComposition = ({
         console.log('View user details:', userId);
       }
     },
-    [onViewUser]
+    [onViewUser],
   );
 
   const handleToggleUserActive = useCallback(
@@ -68,7 +69,7 @@ export const UsersListComposition = ({
         console.log('Toggle user active:', userId, isActive);
       }
     },
-    [onToggleUserActive]
+    [onToggleUserActive],
   );
 
   // Filter users based on search and active status

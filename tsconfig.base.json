@@ -26,6 +26,9 @@
       "nx-vercel": ["tools/nx-vercel/src/index.ts"],
       "@garage/soccer-stats/ui-components": [
         "libs/soccer-stats/ui-components/src/index.ts"
+      ],
+      "@garage/soccer-stats/graphql-codegen": [
+        "libs/soccer-stats/graphql-codegen/src/index.ts"
       ]
     }
   },

@@ -6,9 +6,9 @@ import {
   TeamFormFields,
   type UICreateTeamInput,
 } from '@garage/soccer-stats/ui-components';
+import { StatsTrackingLevel } from '@garage/soccer-stats/graphql-codegen';
 
 import { UITeam, UIGameFormat, UIFormation } from '../types/ui.types';
-import { StatsTrackingLevel } from '../../generated/graphql';
 
 import { StatsTrackingSelector } from './stats-tracking-selector.presentation';
 
