@@ -136,8 +136,7 @@ export const GoalModal = ({
   // Track if we should clear the assist
   const [clearAssist, setClearAssist] = useState(false);
 
-  // Optimistic update: immediately add goal to cache before server responds
-  // This provides instant feedback when recording a goal
+  // Record goal mutation - cache updates happen via subscription for multi-client consistency
   const [recordGoal, { loading: recordLoading }] = useMutation(RECORD_GOAL);
 
   const [updateGoal, { loading: updateLoading }] = useMutation(UPDATE_GOAL);
