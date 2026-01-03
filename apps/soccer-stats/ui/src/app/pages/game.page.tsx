@@ -147,8 +147,8 @@ export const GamePage = () => {
     baseElapsed: number;
   } | null>(null);
 
-  // Ref for main header to observe when it scrolls out of view
-  const mainHeaderRef = useRef<HTMLDivElement>(null);
+  // Ref for the clock/score section - when this hits the top of the screen, show sticky header
+  const clockTriggerRef = useRef<HTMLDivElement>(null);
 
   const apolloClient = useApolloClient();
 
@@ -438,26 +438,25 @@ export const GamePage = () => {
   }, [awayScore]);
 
   // Intersection Observer for sticky header visibility
-  // Shows sticky header when main header scrolls out of view
-  // Note: Depends on `loading` because mainHeaderRef.current is null during loading state
+  // Shows sticky header when the clock/score section reaches the top of the screen
+  // Note: Depends on `loading` because clockTriggerRef.current is null during loading state
   useEffect(() => {
-    const header = mainHeaderRef.current;
-    if (!header) return;
+    const trigger = clockTriggerRef.current;
+    if (!trigger) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        // Show sticky header when main header is NOT intersecting (scrolled out of view)
+        // Show sticky header when clock trigger is NOT intersecting (hit top of screen)
         setShowStickyHeader(!entry.isIntersecting);
       },
       {
-        // Trigger when header is completely out of view
+        // Trigger as soon as element's top edge hits viewport top
         threshold: 0,
-        // Start showing sticky header slightly before header is fully out
-        rootMargin: '-10px 0px 0px 0px',
+        rootMargin: '0px 0px 0px 0px',
       }
     );
 
-    observer.observe(header);
+    observer.observe(trigger);
     return () => observer.disconnect();
   }, [loading]);
 
@@ -1094,7 +1093,7 @@ export const GamePage = () => {
       />
 
       {/* Game Header */}
-      <div ref={mainHeaderRef} className="rounded-lg bg-white p-6 shadow">
+      <div className="rounded-lg bg-white p-6 shadow">
         <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-gray-900">
@@ -1296,6 +1295,9 @@ export const GamePage = () => {
             </div>
           </div>
         </div>
+
+        {/* Trigger element for sticky header - when this hits the top, show sticky header */}
+        <div ref={clockTriggerRef} className="h-0" aria-hidden="true" />
 
         {/* Game Clock and Controls - Centered */}
         {game.status === GameStatus.Scheduled && (
