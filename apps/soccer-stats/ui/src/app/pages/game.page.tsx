@@ -9,6 +9,8 @@ import {
 import { gql } from '@apollo/client';
 
 import {
+  CascadeDeleteModal,
+  ConflictResolutionModal,
   EventCard,
   type EventType as EventCardType,
 } from '@garage/soccer-stats/ui-components';
@@ -32,8 +34,6 @@ import { GameLineupTab } from '../components/smart/game-lineup-tab.smart';
 import { GoalModal, EditGoalData } from '../components/smart/goal-modal.smart';
 import { SubstitutionModal } from '../components/smart/substitution-modal.smart';
 import { GameStats } from '../components/smart/game-stats.smart';
-import { CascadeDeleteModal } from '../components/presentation/cascade-delete-modal.presentation';
-import { ConflictResolutionModal } from '../components/presentation/conflict-resolution-modal.presentation';
 import { useGameEventSubscription } from '../hooks/use-game-event-subscription';
 
 import { computeScore, GameHeader, StickyScoreBar } from './game';

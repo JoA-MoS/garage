@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { UserCardPresentation } from '../presentation/user-card.presentation';
+import { UserCard } from '@garage/soccer-stats/ui-components';
 
 // TODO: Fix GraphQL fragment masking - temporarily using any type
 interface UserCardSmartProps {
@@ -31,7 +31,7 @@ export const UserCardSmartComponent = ({
   }, [user.id, user.isActive, onToggleActive]);
 
   return (
-    <UserCardPresentation
+    <UserCard
       id={user.id}
       firstName={user.firstName}
       lastName={user.lastName}

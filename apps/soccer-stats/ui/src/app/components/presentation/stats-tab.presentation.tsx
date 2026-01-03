@@ -1,7 +1,9 @@
-import { Player, Team } from '../../types';
+import {
+  GameOverview,
+  TeamStatsCard,
+} from '@garage/soccer-stats/ui-components';
 
-import { GameOverviewPresentation } from './game-overview.presentation';
-import { TeamStatsCardPresentation } from './team-stats-card.presentation';
+import { Player, Team } from '../../types';
 
 interface StatsTabPresentationProps {
   homeTeam: Team;
@@ -49,7 +51,7 @@ export const StatsTabPresentation = ({
   return (
     <div className="space-y-6">
       {/* Game Overview */}
-      <GameOverviewPresentation
+      <GameOverview
         totalGoals={totalGoals}
         totalAssists={totalAssists}
         gameTime={gameTime}
@@ -58,14 +60,14 @@ export const StatsTabPresentation = ({
 
       {/* Team Statistics */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <TeamStatsCardPresentation
+        <TeamStatsCard
           team={homeTeam}
           teamType="home"
           goals={homeGoals}
           assists={homeAssists}
           playersOnField={homePlayersOnField}
         />
-        <TeamStatsCardPresentation
+        <TeamStatsCard
           team={awayTeam}
           teamType="away"
           goals={awayGoals}
