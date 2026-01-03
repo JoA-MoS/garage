@@ -23,7 +23,10 @@
       ],
       "@garage/ng/lib-example": ["libs/ng/lib-example/src/index.ts"],
       "@garage/wordle/core": ["libs/wordle/core/src/index.ts"],
-      "nx-vercel": ["tools/nx-vercel/src/index.ts"]
+      "nx-vercel": ["tools/nx-vercel/src/index.ts"],
+      "@garage/soccer-stats/ui-components": [
+        "libs/soccer-stats/ui-components/src/index.ts"
+      ]
     }
   },
   "exclude": ["node_modules", "tmp"]

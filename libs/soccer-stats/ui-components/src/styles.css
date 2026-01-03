@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global styles for soccer-stats UI components */
+
+/* Real-time sync highlight animations */
+@keyframes highlight-pulse {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgb(34 197 94 / 0.3); /* green-500/30 */
+  }
+}
+
+@keyframes score-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    color: inherit;
+  }
+  50% {
+    transform: scale(1.2);
+    color: rgb(34 197 94); /* green-500 */
+  }
+}
+
+.event-highlight {
+  animation: highlight-pulse 1s ease-in-out 3;
+}
+
+.score-highlight {
+  animation: score-pulse 0.5s ease-in-out 2;
+}
