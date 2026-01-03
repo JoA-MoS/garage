@@ -1,5 +1,7 @@
 import { useState, memo } from 'react';
 
+import { ModalPortal } from './modal-portal.presentation';
+
 interface ConflictingEvent {
   eventId: string;
   playerName: string;
@@ -37,8 +39,6 @@ export const ConflictResolutionModal = memo(function ConflictResolutionModal({
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [keepAll, setKeepAll] = useState(false);
 
-  if (!isOpen) return null;
-
   const formatTime = (minute: number, second: number) =>
     `${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
 
@@ -69,7 +69,7 @@ export const ConflictResolutionModal = memo(function ConflictResolutionModal({
   const canResolve = keepAll || selectedEventId !== null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <ModalPortal isOpen={isOpen}>
       <div className="mx-4 max-h-[90vh] w-full max-w-md overflow-hidden rounded-xl bg-white shadow-2xl">
         {/* Header */}
         <div className="border-b border-gray-200 bg-amber-50 px-6 py-4">
@@ -222,6 +222,6 @@ export const ConflictResolutionModal = memo(function ConflictResolutionModal({
           </button>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 });

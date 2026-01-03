@@ -1,5 +1,7 @@
 import { memo } from 'react';
 
+import { ModalPortal } from './modal-portal.presentation';
+
 interface DependentEvent {
   id: string;
   eventType: string;
@@ -28,8 +30,6 @@ export const CascadeDeleteModal = memo(function CascadeDeleteModal({
   onConfirm,
   onCancel,
 }: CascadeDeleteModalProps) {
-  if (!isOpen) return null;
-
   const formatTime = (minute: number, second: number) =>
     `${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
 
@@ -65,7 +65,7 @@ export const CascadeDeleteModal = memo(function CascadeDeleteModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <ModalPortal isOpen={isOpen}>
       <div className="mx-4 max-h-[90vh] w-full max-w-md overflow-hidden rounded-xl bg-white shadow-2xl">
         {/* Header */}
         <div className="border-b border-gray-200 bg-red-50 px-6 py-4">
@@ -177,6 +177,6 @@ export const CascadeDeleteModal = memo(function CascadeDeleteModal({
           </button>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 });
