@@ -34,7 +34,6 @@ import {
 import { CascadeDeleteModal } from '../components/presentation/cascade-delete-modal.presentation';
 import { ConflictResolutionModal } from '../components/presentation/conflict-resolution-modal.presentation';
 import { StatsTrackingSelector } from '../components/presentation/stats-tracking-selector.presentation';
-import { StickyScoreHeader } from '../components/presentation/sticky-score-header.presentation';
 import { useGameEventSubscription } from '../hooks/use-game-event-subscription';
 
 // Fragment for writing GameEvent to cache
@@ -1075,23 +1074,6 @@ export const GamePage = () => {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      {/* Sticky Score Header - appears when main header scrolls out of view */}
-      <StickyScoreHeader
-        isVisible={showStickyHeader}
-        homeTeamName={homeTeam?.team.name || 'Home'}
-        awayTeamName={awayTeam?.team.name || 'Away'}
-        homeScore={homeScore}
-        awayScore={awayScore}
-        gameTime={formatGameTime(elapsedSeconds)}
-        halfIndicator={halfIndicator}
-        isPaused={!!game.pausedAt}
-        isActivePlay={isActivePlay}
-        isRecordingGoal={recordingGoal}
-        onHomeGoal={() => handleGoalClick('home')}
-        onAwayGoal={() => handleGoalClick('away')}
-        onHeaderClick={scrollToTop}
-      />
-
       {/* Game Header */}
       <div className="rounded-lg bg-white p-6 shadow">
         <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1296,13 +1278,15 @@ export const GamePage = () => {
           </div>
         </div>
 
-        {/* Trigger element for sticky header - when this hits the top, show sticky header */}
+        {/* Trigger element for sticky header - when this hits the top, show compact mode */}
         <div ref={clockTriggerRef} className="h-0" aria-hidden="true" />
 
-        {/* Clock and Score Section - Hidden when sticky header is visible to avoid duplication */}
+        {/* Morphing Score Bar - transitions between expanded and compact states */}
         <div
-          className={`transition-opacity duration-300 ${
-            showStickyHeader ? 'pointer-events-none opacity-0' : 'opacity-100'
+          className={`transition-all duration-300 ease-in-out ${
+            showStickyHeader
+              ? 'sticky top-0 z-40 -mx-6 rounded-none border-b border-gray-200 bg-white/95 px-4 py-2 shadow-md backdrop-blur-sm'
+              : ''
           }`}
         >
           {/* Game Clock and Controls - Centered */}
@@ -1525,21 +1509,36 @@ export const GamePage = () => {
             </div>
           )}
 
-          {/* Score Display */}
-          <div className="grid grid-cols-3 items-center gap-4">
+          {/* Score Display - Morphs between expanded and compact layouts */}
+          <div
+            className={`grid items-center transition-all duration-300 ${
+              showStickyHeader ? 'grid-cols-3 gap-2' : 'grid-cols-3 gap-4'
+            }`}
+          >
             {/* Home Team */}
-            <div className="text-center">
-              <div className="text-xl font-semibold text-gray-900">
+            <div
+              className={`flex transition-all duration-300 ${
+                showStickyHeader
+                  ? 'flex-row items-center justify-start gap-2'
+                  : 'flex-col items-center text-center'
+              }`}
+            >
+              <div
+                className={`font-semibold text-gray-900 transition-all duration-300 ${
+                  showStickyHeader ? 'truncate text-sm' : 'text-xl'
+                }`}
+                style={showStickyHeader ? { maxWidth: '80px' } : undefined}
+              >
                 {homeTeam?.team.name || 'Home Team'}
               </div>
               <div
-                className={`mt-2 text-5xl font-bold text-blue-600 ${
+                className={`font-bold text-blue-600 transition-all duration-300 ${
                   highlightedScore === 'home' ? 'score-highlight' : ''
-                }`}
+                } ${showStickyHeader ? 'text-xl' : 'mt-2 text-5xl'}`}
               >
                 {homeScore}
               </div>
-              {isActivePlay && (
+              {isActivePlay && !showStickyHeader && (
                 <div className="mt-2 flex justify-center gap-2">
                   <button
                     onClick={() => handleGoalClick('home')}
@@ -1586,24 +1585,50 @@ export const GamePage = () => {
               )}
             </div>
 
-            {/* VS */}
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-400">VS</div>
+            {/* Center: VS or Clock (when sticky) */}
+            <div className="flex flex-col items-center justify-center text-center">
+              {showStickyHeader ? (
+                <>
+                  <div
+                    className={`font-mono font-bold tabular-nums ${
+                      game.pausedAt ? 'text-yellow-600' : 'text-gray-900'
+                    }`}
+                  >
+                    {formatGameTime(elapsedSeconds)}
+                  </div>
+                  <div className="text-xs font-medium text-gray-500">
+                    {halfIndicator}
+                  </div>
+                </>
+              ) : (
+                <div className="text-2xl font-bold text-gray-400">VS</div>
+              )}
             </div>
 
             {/* Away Team */}
-            <div className="text-center">
-              <div className="text-xl font-semibold text-gray-900">
+            <div
+              className={`flex transition-all duration-300 ${
+                showStickyHeader
+                  ? 'flex-row-reverse items-center justify-start gap-2'
+                  : 'flex-col items-center text-center'
+              }`}
+            >
+              <div
+                className={`font-semibold text-gray-900 transition-all duration-300 ${
+                  showStickyHeader ? 'truncate text-sm' : 'text-xl'
+                }`}
+                style={showStickyHeader ? { maxWidth: '80px' } : undefined}
+              >
                 {awayTeam?.team.name || 'Away Team'}
               </div>
               <div
-                className={`mt-2 text-5xl font-bold text-red-600 ${
+                className={`font-bold text-red-600 transition-all duration-300 ${
                   highlightedScore === 'away' ? 'score-highlight' : ''
-                }`}
+                } ${showStickyHeader ? 'text-xl' : 'mt-2 text-5xl'}`}
               >
                 {awayScore}
               </div>
-              {isActivePlay && (
+              {isActivePlay && !showStickyHeader && (
                 <div className="mt-2 flex justify-center gap-2">
                   <button
                     onClick={() => handleGoalClick('away')}
@@ -1650,6 +1675,54 @@ export const GamePage = () => {
               )}
             </div>
           </div>
+
+          {/* Compact Goal Buttons Row - Only shown in sticky mode during active play */}
+          {showStickyHeader && isActivePlay && (
+            <div className="mt-2 flex gap-3 border-t border-gray-100 pt-2">
+              <button
+                onClick={() => handleGoalClick('home')}
+                disabled={recordingGoal}
+                className="flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 active:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  />
+                </svg>
+                Goal
+              </button>
+              <button
+                onClick={() => handleGoalClick('away')}
+                disabled={recordingGoal}
+                className="flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 active:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  />
+                </svg>
+                Goal
+              </button>
+            </div>
+          )}
         </div>
         {/* End of Clock and Score Section wrapper */}
 
