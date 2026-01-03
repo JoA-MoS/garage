@@ -19,7 +19,7 @@ const mockPlayer: EditPlayerData = {
 };
 
 const meta: Meta<typeof EditPlayerModal> = {
-  title: 'UI Components/EditPlayerModal',
+  title: 'Components/EditPlayerModal',
   component: EditPlayerModal,
   parameters: {
     layout: 'fullscreen',
