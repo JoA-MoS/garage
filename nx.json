@@ -116,7 +116,8 @@
       },
       "library": {
         "style": "scss",
-        "linter": "eslint"
+        "linter": "eslint",
+        "unitTestRunner": "vitest"
       }
     },
     "@schematics/angular:component": {
@@ -172,7 +173,7 @@
     }
   },
   "nxCloudAccessToken": "Njk1YzdjMmUtN2MzMS00YzdlLTg0MzItY2Y4Yjc2MmM3YjhlfHJlYWQ=",
-  "useInferencePlugins": true,
+  "useInferencePlugins": false,
   "defaultBase": "main",
   "plugins": [
     {
