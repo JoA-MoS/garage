@@ -15,7 +15,7 @@ import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/
  */
 type Documents = {
   '\n  query GetUsersForList {\n    users {\n      ...UserCard\n    }\n  }\n': typeof types.GetUsersForListDocument;
-  '\n  fragment GameEventFragment on GameEvent {\n    id\n    gameMinute\n    gameSecond\n    position\n    playerId\n    externalPlayerName\n    externalPlayerNumber\n    eventType {\n      id\n      name\n      category\n    }\n  }\n': typeof types.GameEventFragmentFragmentDoc;
+  '\n  fragment GameEventFragment on GameEvent {\n    id\n    createdAt\n    gameMinute\n    gameSecond\n    position\n    playerId\n    externalPlayerName\n    externalPlayerNumber\n    player {\n      id\n      firstName\n      lastName\n      email\n    }\n    eventType {\n      id\n      name\n      category\n    }\n  }\n': typeof types.GameEventFragmentFragmentDoc;
   '\n  fragment PlayerCardData on User {\n    id\n    firstName\n    lastName\n    email\n    phone\n    dateOfBirth\n    isActive\n    teamPlayers {\n      id\n      jerseyNumber\n      primaryPosition\n      isActive\n      team {\n        id\n        name\n      }\n    }\n    # Note: Game stats would need to be computed from performedEvents\n    # This might require a custom resolver field for aggregated stats\n    # performedEvents {\n    #   id\n    #   eventType {\n    #     name\n    #   }\n    #   gameMinute\n    #   game {\n    #     id\n    #   }\n    # }\n  }\n': typeof types.PlayerCardDataFragmentDoc;
   '\n  query DebugGetTeams {\n    teams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.DebugGetTeamsDocument;
   '\n  query GetMyTeamsForList {\n    myTeams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdById\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.GetMyTeamsForListDocument;
@@ -92,7 +92,7 @@ type Documents = {
 const documents: Documents = {
   '\n  query GetUsersForList {\n    users {\n      ...UserCard\n    }\n  }\n':
     types.GetUsersForListDocument,
-  '\n  fragment GameEventFragment on GameEvent {\n    id\n    gameMinute\n    gameSecond\n    position\n    playerId\n    externalPlayerName\n    externalPlayerNumber\n    eventType {\n      id\n      name\n      category\n    }\n  }\n':
+  '\n  fragment GameEventFragment on GameEvent {\n    id\n    createdAt\n    gameMinute\n    gameSecond\n    position\n    playerId\n    externalPlayerName\n    externalPlayerNumber\n    player {\n      id\n      firstName\n      lastName\n      email\n    }\n    eventType {\n      id\n      name\n      category\n    }\n  }\n':
     types.GameEventFragmentFragmentDoc,
   '\n  fragment PlayerCardData on User {\n    id\n    firstName\n    lastName\n    email\n    phone\n    dateOfBirth\n    isActive\n    teamPlayers {\n      id\n      jerseyNumber\n      primaryPosition\n      isActive\n      team {\n        id\n        name\n      }\n    }\n    # Note: Game stats would need to be computed from performedEvents\n    # This might require a custom resolver field for aggregated stats\n    # performedEvents {\n    #   id\n    #   eventType {\n    #     name\n    #   }\n    #   gameMinute\n    #   game {\n    #     id\n    #   }\n    # }\n  }\n':
     types.PlayerCardDataFragmentDoc,
@@ -264,8 +264,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: '\n  fragment GameEventFragment on GameEvent {\n    id\n    gameMinute\n    gameSecond\n    position\n    playerId\n    externalPlayerName\n    externalPlayerNumber\n    eventType {\n      id\n      name\n      category\n    }\n  }\n'
-): (typeof documents)['\n  fragment GameEventFragment on GameEvent {\n    id\n    gameMinute\n    gameSecond\n    position\n    playerId\n    externalPlayerName\n    externalPlayerNumber\n    eventType {\n      id\n      name\n      category\n    }\n  }\n'];
+  source: '\n  fragment GameEventFragment on GameEvent {\n    id\n    createdAt\n    gameMinute\n    gameSecond\n    position\n    playerId\n    externalPlayerName\n    externalPlayerNumber\n    player {\n      id\n      firstName\n      lastName\n      email\n    }\n    eventType {\n      id\n      name\n      category\n    }\n  }\n'
+): (typeof documents)['\n  fragment GameEventFragment on GameEvent {\n    id\n    createdAt\n    gameMinute\n    gameSecond\n    position\n    playerId\n    externalPlayerName\n    externalPlayerNumber\n    player {\n      id\n      firstName\n      lastName\n      email\n    }\n    eventType {\n      id\n      name\n      category\n    }\n  }\n'];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
