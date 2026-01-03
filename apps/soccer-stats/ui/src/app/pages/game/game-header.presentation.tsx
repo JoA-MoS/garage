@@ -1,4 +1,8 @@
-import { GameStatus, StatsTrackingLevel } from '../../generated/graphql';
+import {
+  GameStatus,
+  StatsTrackingLevel,
+} from '@garage/soccer-stats/graphql-codegen';
+
 import { StatsTrackingSelector } from '../../components/presentation/stats-tracking-selector.presentation';
 
 export interface GameHeaderProps {

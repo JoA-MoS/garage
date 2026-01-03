@@ -1,4 +1,4 @@
-import { StatsTrackingLevel } from '../../generated/graphql';
+import { StatsTrackingLevel } from '@garage/soccer-stats/graphql-codegen';
 
 /**
  * Stats tracking option configuration.

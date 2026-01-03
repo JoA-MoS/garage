@@ -1,4 +1,5 @@
-import { LineupPlayer } from '../../generated/graphql';
+import { LineupPlayer } from '@garage/soccer-stats/graphql-codegen';
+
 import { getPlayerDisplayName, RosterPlayer } from '../../hooks/use-lineup';
 
 interface LineupBenchProps {

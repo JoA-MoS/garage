@@ -1,8 +1,9 @@
 import { useParams } from 'react-router';
 import { useQuery } from '@apollo/client/react';
 
+import { GetTeamByIdQuery } from '@garage/soccer-stats/graphql-codegen';
+
 import { GET_TEAM_BY_ID } from '../services/teams-graphql.service';
-import { GetTeamByIdQuery } from '../generated/graphql';
 
 /**
  * Page component for team overview information
@@ -17,7 +18,7 @@ export const TeamOverviewPage = () => {
       errorPolicy: 'all',
       fetchPolicy: 'cache-and-network',
       skip: !teamId,
-    }
+    },
   );
 
   if (!teamId) {

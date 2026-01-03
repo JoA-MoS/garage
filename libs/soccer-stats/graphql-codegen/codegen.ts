@@ -2,13 +2,16 @@ import { CodegenConfig } from '@graphql-codegen/cli';
 
 const config: CodegenConfig = {
   schema: 'http://localhost:3333/api/graphql',
-  documents: ['src/**/*.tsx', 'src/**/*.ts'],
+  documents: [
+    '../../../apps/soccer-stats/ui/src/**/*.tsx',
+    '../../../apps/soccer-stats/ui/src/**/*.ts',
+  ],
   ignoreNoDocuments: true,
   generates: {
-    './src/app/generated/': {
+    './src/generated/': {
       preset: 'client',
       config: {
-        // Remove documentMode: 'string' to use the default DocumentNode mode for Apollo Client
+        // Use the default DocumentNode mode for Apollo Client compatibility
         // This generates proper TypedDocumentNode objects that work with Apollo Client
       },
     },

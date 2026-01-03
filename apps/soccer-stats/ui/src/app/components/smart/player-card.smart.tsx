@@ -1,6 +1,5 @@
 import { PlayerCard } from '@garage/soccer-stats/ui-components';
-
-import { graphql } from '../../generated/gql';
+import { graphql } from '@garage/soccer-stats/graphql-codegen';
 
 /**
  * Layer 2: Fragment Smart Wrapper

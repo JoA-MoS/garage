@@ -1,4 +1,4 @@
-import { graphql } from '../generated/gql';
+import { graphql } from '@garage/soccer-stats/graphql-codegen';
 
 export const GET_GAME_FORMATS = graphql(/* GraphQL */ `
   query GetGameFormats {

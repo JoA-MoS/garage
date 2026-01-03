@@ -7,30 +7,30 @@ import {
   GameEventAction,
   GameUpdatedDocument,
   GameUpdatedSubscription,
-} from '../generated/graphql';
+} from '@garage/soccer-stats/graphql-codegen';
 
 export interface UseGameEventSubscriptionOptions {
   gameId: string;
   onEventCreated?: (
     event: NonNullable<
       GameEventChangedSubscription['gameEventChanged']['event']
-    >
+    >,
   ) => void;
   onEventUpdated?: (
     event: NonNullable<
       GameEventChangedSubscription['gameEventChanged']['event']
-    >
+    >,
   ) => void;
   onEventDeleted?: (deletedEventId: string) => void;
   onDuplicateDetected?: (
     event: NonNullable<
       GameEventChangedSubscription['gameEventChanged']['event']
-    >
+    >,
   ) => void;
   onConflictDetected?: (
     conflict: NonNullable<
       GameEventChangedSubscription['gameEventChanged']['conflict']
-    >
+    >,
   ) => void;
   onGameStateChanged?: (game: GameUpdatedSubscription['gameUpdated']) => void;
 }
@@ -50,7 +50,7 @@ export function useGameEventSubscription({
 
   // Track recently highlighted event IDs for animation
   const [highlightedEventIds, setHighlightedEventIds] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
 
   // Use refs to avoid stale closure issues with callbacks
@@ -97,7 +97,7 @@ export function useGameEventSubscription({
           if (payload.event) {
             // Add to highlighted set for animation
             setHighlightedEventIds((prev) =>
-              new Set(prev).add(payload.event!.id)
+              new Set(prev).add(payload.event!.id),
             );
 
             // Remove highlight after animation completes (3 seconds)
@@ -175,7 +175,7 @@ export function useGameEventSubscription({
   // Check if an event should be highlighted
   const isEventHighlighted = useCallback(
     (eventId: string) => highlightedEventIds.has(eventId),
-    [highlightedEventIds]
+    [highlightedEventIds],
   );
 
   // Combined connection status - connected if at least one subscription is active

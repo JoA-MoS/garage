@@ -1,5 +1,7 @@
-import { graphql } from '../generated/gql';
-import { StatsTrackingLevel } from '../generated/graphql';
+import {
+  graphql,
+  StatsTrackingLevel,
+} from '@garage/soccer-stats/graphql-codegen';
 
 export const GET_TEAMS = graphql(/* GraphQL */ `
   query GetTeams {
