@@ -1299,351 +1299,359 @@ export const GamePage = () => {
         {/* Trigger element for sticky header - when this hits the top, show sticky header */}
         <div ref={clockTriggerRef} className="h-0" aria-hidden="true" />
 
-        {/* Game Clock and Controls - Centered */}
-        {game.status === GameStatus.Scheduled && (
-          <div className="mb-6 flex justify-center">
-            <button
-              onClick={handleStartFirstHalf}
-              disabled={updatingGame}
-              className="inline-flex items-center rounded-xl bg-green-600 px-8 py-4 text-lg font-bold text-white shadow-lg transition-all hover:bg-green-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
-              type="button"
-            >
-              {updatingGame ? (
-                <>
-                  <span className="border-3 mr-3 h-6 w-6 animate-spin rounded-full border-white border-t-transparent" />
-                  Starting...
-                </>
-              ) : (
-                <>
+        {/* Clock and Score Section - Hidden when sticky header is visible to avoid duplication */}
+        <div
+          className={`transition-opacity duration-300 ${
+            showStickyHeader ? 'pointer-events-none opacity-0' : 'opacity-100'
+          }`}
+        >
+          {/* Game Clock and Controls - Centered */}
+          {game.status === GameStatus.Scheduled && (
+            <div className="mb-6 flex justify-center">
+              <button
+                onClick={handleStartFirstHalf}
+                disabled={updatingGame}
+                className="inline-flex items-center rounded-xl bg-green-600 px-8 py-4 text-lg font-bold text-white shadow-lg transition-all hover:bg-green-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+              >
+                {updatingGame ? (
+                  <>
+                    <span className="border-3 mr-3 h-6 w-6 animate-spin rounded-full border-white border-t-transparent" />
+                    Starting...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="mr-3 h-6 w-6"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Start 1st Half
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* First Half - Clock + Half Time button (also handles legacy IN_PROGRESS) */}
+          {(game.status === GameStatus.FirstHalf ||
+            game.status === GameStatus.InProgress) && (
+            <div className="mb-6 flex flex-col items-center gap-4">
+              <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                1st Half
+              </div>
+              <div
+                className={`font-mono text-6xl font-bold tabular-nums ${
+                  game.pausedAt ? 'text-yellow-600' : 'text-gray-900'
+                }`}
+              >
+                {formatGameTime(elapsedSeconds)}
+              </div>
+              {game.pausedAt && (
+                <div className="flex animate-pulse items-center gap-2 text-sm font-medium text-yellow-600">
                   <svg
-                    className="mr-3 h-6 w-6"
+                    className="h-4 w-4"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
                     <path
                       fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
                       clipRule="evenodd"
                     />
                   </svg>
-                  Start 1st Half
-                </>
+                  PAUSED
+                </div>
               )}
-            </button>
-          </div>
-        )}
+              <button
+                onClick={handleEndFirstHalf}
+                disabled={updatingGame}
+                className="inline-flex items-center rounded-lg bg-yellow-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-yellow-700 disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+              >
+                {updatingGame ? 'Ending half...' : 'Half Time'}
+              </button>
+            </div>
+          )}
 
-        {/* First Half - Clock + Half Time button (also handles legacy IN_PROGRESS) */}
-        {(game.status === GameStatus.FirstHalf ||
-          game.status === GameStatus.InProgress) && (
-          <div className="mb-6 flex flex-col items-center gap-4">
-            <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              1st Half
-            </div>
-            <div
-              className={`font-mono text-6xl font-bold tabular-nums ${
-                game.pausedAt ? 'text-yellow-600' : 'text-gray-900'
-              }`}
-            >
-              {formatGameTime(elapsedSeconds)}
-            </div>
-            {game.pausedAt && (
-              <div className="flex animate-pulse items-center gap-2 text-sm font-medium text-yellow-600">
-                <svg
-                  className="h-4 w-4"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                PAUSED
+          {/* Halftime - Start 2nd Half button */}
+          {game.status === GameStatus.Halftime && (
+            <div className="mb-6 flex flex-col items-center gap-4">
+              <div className="font-mono text-4xl font-bold text-yellow-600">
+                HALF TIME
               </div>
-            )}
-            <button
-              onClick={handleEndFirstHalf}
-              disabled={updatingGame}
-              className="inline-flex items-center rounded-lg bg-yellow-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-yellow-700 disabled:cursor-not-allowed disabled:opacity-50"
-              type="button"
-            >
-              {updatingGame ? 'Ending half...' : 'Half Time'}
-            </button>
-          </div>
-        )}
-
-        {/* Halftime - Start 2nd Half button */}
-        {game.status === GameStatus.Halftime && (
-          <div className="mb-6 flex flex-col items-center gap-4">
-            <div className="font-mono text-4xl font-bold text-yellow-600">
-              HALF TIME
+              <div className="text-sm text-gray-500">
+                1st half ended at{' '}
+                {formatGameTime(
+                  game.firstHalfEnd && game.actualStart
+                    ? Math.floor(
+                        (new Date(game.firstHalfEnd).getTime() -
+                          new Date(game.actualStart).getTime()) /
+                          1000
+                      )
+                    : (game.gameFormat.durationMinutes / 2) * 60
+                )}
+              </div>
+              <button
+                onClick={handleStartSecondHalf}
+                disabled={updatingGame}
+                className="inline-flex items-center rounded-xl bg-green-600 px-8 py-4 text-lg font-bold text-white shadow-lg transition-all hover:bg-green-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+              >
+                {updatingGame ? (
+                  <>
+                    <span className="border-3 mr-3 h-6 w-6 animate-spin rounded-full border-white border-t-transparent" />
+                    Starting...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="mr-3 h-6 w-6"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Start 2nd Half
+                  </>
+                )}
+              </button>
             </div>
-            <div className="text-sm text-gray-500">
-              1st half ended at{' '}
-              {formatGameTime(
-                game.firstHalfEnd && game.actualStart
-                  ? Math.floor(
-                      (new Date(game.firstHalfEnd).getTime() -
+          )}
+
+          {/* Second Half - Clock + End Game button */}
+          {game.status === GameStatus.SecondHalf && (
+            <div className="mb-6 flex flex-col items-center gap-4">
+              <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                2nd Half
+              </div>
+              <div
+                className={`font-mono text-6xl font-bold tabular-nums ${
+                  game.pausedAt ? 'text-yellow-600' : 'text-gray-900'
+                }`}
+              >
+                {formatGameTime(elapsedSeconds)}
+              </div>
+              {game.pausedAt && (
+                <div className="flex animate-pulse items-center gap-2 text-sm font-medium text-yellow-600">
+                  <svg
+                    className="h-4 w-4"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  PAUSED
+                </div>
+              )}
+              <div className="flex items-center gap-3">
+                {!showEndGameConfirm ? (
+                  <button
+                    onClick={() => setShowEndGameConfirm(true)}
+                    className="inline-flex items-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
+                    type="button"
+                  >
+                    <svg
+                      className="mr-1.5 h-4 w-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    End Game
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2">
+                    <span className="text-sm font-medium text-red-700">
+                      End game?
+                    </span>
+                    <button
+                      onClick={handleEndGame}
+                      disabled={updatingGame}
+                      className="rounded bg-red-600 px-3 py-1 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                      type="button"
+                    >
+                      {updatingGame ? 'Ending...' : 'Yes'}
+                    </button>
+                    <button
+                      onClick={() => setShowEndGameConfirm(false)}
+                      className="rounded bg-gray-200 px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-300"
+                      type="button"
+                    >
+                      No
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Completed - Final score display */}
+          {game.status === GameStatus.Completed && (
+            <div className="mb-6 flex flex-col items-center gap-2">
+              <div className="font-mono text-4xl font-bold text-gray-400">
+                FINAL
+              </div>
+              {game.actualEnd && game.secondHalfStart && (
+                <div className="text-sm text-gray-500">
+                  Duration:{' '}
+                  {formatGameTime(
+                    Math.floor(
+                      (new Date(game.actualEnd).getTime() -
                         new Date(game.actualStart).getTime()) /
                         1000
                     )
-                  : (game.gameFormat.durationMinutes / 2) * 60
+                  )}
+                </div>
               )}
             </div>
-            <button
-              onClick={handleStartSecondHalf}
-              disabled={updatingGame}
-              className="inline-flex items-center rounded-xl bg-green-600 px-8 py-4 text-lg font-bold text-white shadow-lg transition-all hover:bg-green-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
-              type="button"
-            >
-              {updatingGame ? (
-                <>
-                  <span className="border-3 mr-3 h-6 w-6 animate-spin rounded-full border-white border-t-transparent" />
-                  Starting...
-                </>
-              ) : (
-                <>
-                  <svg
-                    className="mr-3 h-6 w-6"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  Start 2nd Half
-                </>
-              )}
-            </button>
-          </div>
-        )}
+          )}
 
-        {/* Second Half - Clock + End Game button */}
-        {game.status === GameStatus.SecondHalf && (
-          <div className="mb-6 flex flex-col items-center gap-4">
-            <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              2nd Half
-            </div>
-            <div
-              className={`font-mono text-6xl font-bold tabular-nums ${
-                game.pausedAt ? 'text-yellow-600' : 'text-gray-900'
-              }`}
-            >
-              {formatGameTime(elapsedSeconds)}
-            </div>
-            {game.pausedAt && (
-              <div className="flex animate-pulse items-center gap-2 text-sm font-medium text-yellow-600">
-                <svg
-                  className="h-4 w-4"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                PAUSED
+          {/* Score Display */}
+          <div className="grid grid-cols-3 items-center gap-4">
+            {/* Home Team */}
+            <div className="text-center">
+              <div className="text-xl font-semibold text-gray-900">
+                {homeTeam?.team.name || 'Home Team'}
               </div>
-            )}
-            <div className="flex items-center gap-3">
-              {!showEndGameConfirm ? (
-                <button
-                  onClick={() => setShowEndGameConfirm(true)}
-                  className="inline-flex items-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
-                  type="button"
-                >
-                  <svg
-                    className="mr-1.5 h-4 w-4"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  End Game
-                </button>
-              ) : (
-                <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2">
-                  <span className="text-sm font-medium text-red-700">
-                    End game?
-                  </span>
+              <div
+                className={`mt-2 text-5xl font-bold text-blue-600 ${
+                  highlightedScore === 'home' ? 'score-highlight' : ''
+                }`}
+              >
+                {homeScore}
+              </div>
+              {isActivePlay && (
+                <div className="mt-2 flex justify-center gap-2">
                   <button
-                    onClick={handleEndGame}
-                    disabled={updatingGame}
-                    className="rounded bg-red-600 px-3 py-1 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                    onClick={() => handleGoalClick('home')}
+                    disabled={recordingGoal}
+                    className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
                     type="button"
                   >
-                    {updatingGame ? 'Ending...' : 'Yes'}
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                      />
+                    </svg>
+                    Goal
                   </button>
                   <button
-                    onClick={() => setShowEndGameConfirm(false)}
-                    className="rounded bg-gray-200 px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-300"
+                    onClick={() => setSubModalTeam('home')}
+                    className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
                     type="button"
                   >
-                    No
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                      />
+                    </svg>
+                    Sub
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* VS */}
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-400">VS</div>
+            </div>
+
+            {/* Away Team */}
+            <div className="text-center">
+              <div className="text-xl font-semibold text-gray-900">
+                {awayTeam?.team.name || 'Away Team'}
+              </div>
+              <div
+                className={`mt-2 text-5xl font-bold text-red-600 ${
+                  highlightedScore === 'away' ? 'score-highlight' : ''
+                }`}
+              >
+                {awayScore}
+              </div>
+              {isActivePlay && (
+                <div className="mt-2 flex justify-center gap-2">
+                  <button
+                    onClick={() => handleGoalClick('away')}
+                    disabled={recordingGoal}
+                    className="inline-flex items-center gap-1 rounded-lg bg-red-100 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+                    type="button"
+                  >
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                      />
+                    </svg>
+                    Goal
+                  </button>
+                  <button
+                    onClick={() => setSubModalTeam('away')}
+                    className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
+                    type="button"
+                  >
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                      />
+                    </svg>
+                    Sub
                   </button>
                 </div>
               )}
             </div>
           </div>
-        )}
-
-        {/* Completed - Final score display */}
-        {game.status === GameStatus.Completed && (
-          <div className="mb-6 flex flex-col items-center gap-2">
-            <div className="font-mono text-4xl font-bold text-gray-400">
-              FINAL
-            </div>
-            {game.actualEnd && game.secondHalfStart && (
-              <div className="text-sm text-gray-500">
-                Duration:{' '}
-                {formatGameTime(
-                  Math.floor(
-                    (new Date(game.actualEnd).getTime() -
-                      new Date(game.actualStart).getTime()) /
-                      1000
-                  )
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Score Display */}
-        <div className="grid grid-cols-3 items-center gap-4">
-          {/* Home Team */}
-          <div className="text-center">
-            <div className="text-xl font-semibold text-gray-900">
-              {homeTeam?.team.name || 'Home Team'}
-            </div>
-            <div
-              className={`mt-2 text-5xl font-bold text-blue-600 ${
-                highlightedScore === 'home' ? 'score-highlight' : ''
-              }`}
-            >
-              {homeScore}
-            </div>
-            {isActivePlay && (
-              <div className="mt-2 flex justify-center gap-2">
-                <button
-                  onClick={() => handleGoalClick('home')}
-                  disabled={recordingGoal}
-                  className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
-                  type="button"
-                >
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                    />
-                  </svg>
-                  Goal
-                </button>
-                <button
-                  onClick={() => setSubModalTeam('home')}
-                  className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
-                  type="button"
-                >
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                    />
-                  </svg>
-                  Sub
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* VS */}
-          <div className="text-center">
-            <div className="text-2xl font-bold text-gray-400">VS</div>
-          </div>
-
-          {/* Away Team */}
-          <div className="text-center">
-            <div className="text-xl font-semibold text-gray-900">
-              {awayTeam?.team.name || 'Away Team'}
-            </div>
-            <div
-              className={`mt-2 text-5xl font-bold text-red-600 ${
-                highlightedScore === 'away' ? 'score-highlight' : ''
-              }`}
-            >
-              {awayScore}
-            </div>
-            {isActivePlay && (
-              <div className="mt-2 flex justify-center gap-2">
-                <button
-                  onClick={() => handleGoalClick('away')}
-                  disabled={recordingGoal}
-                  className="inline-flex items-center gap-1 rounded-lg bg-red-100 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50"
-                  type="button"
-                >
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                    />
-                  </svg>
-                  Goal
-                </button>
-                <button
-                  onClick={() => setSubModalTeam('away')}
-                  className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
-                  type="button"
-                >
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                    />
-                  </svg>
-                  Sub
-                </button>
-              </div>
-            )}
-          </div>
         </div>
+        {/* End of Clock and Score Section wrapper */}
 
         {/* Game Info */}
         {(game.venue || game.scheduledStart) && (
