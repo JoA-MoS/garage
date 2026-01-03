@@ -1,6 +1,7 @@
+import { GameHeader } from '@garage/soccer-stats/ui-components';
+
 import { GameStatsService } from '../../services/game-stats.service';
 import { Team } from '../../types';
-import { GameHeaderPresentation } from '../presentation/game-header.presentation';
 
 interface GameHeaderSmartProps {
   homeTeam: Team;
@@ -47,7 +48,7 @@ export const GameHeaderSmart = ({
   };
 
   return (
-    <GameHeaderPresentation
+    <GameHeader
       homeTeamName={homeTeamName}
       awayTeamName={awayTeamName}
       homeScore={homeScore}
