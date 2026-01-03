@@ -34,6 +34,7 @@ import {
 import { CascadeDeleteModal } from '../components/presentation/cascade-delete-modal.presentation';
 import { ConflictResolutionModal } from '../components/presentation/conflict-resolution-modal.presentation';
 import { StatsTrackingSelector } from '../components/presentation/stats-tracking-selector.presentation';
+import { StickyScoreHeader } from '../components/presentation/sticky-score-header.presentation';
 import { useGameEventSubscription } from '../hooks/use-game-event-subscription';
 
 // Fragment for writing GameEvent to cache
@@ -107,6 +108,7 @@ export const GamePage = () => {
   const [showGameMenu, setShowGameMenu] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [clearEventsOnReset, setClearEventsOnReset] = useState(false);
+  const [showStickyHeader, setShowStickyHeader] = useState(false);
 
   // Cascade delete state
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -144,6 +146,9 @@ export const GamePage = () => {
     startTime: number;
     baseElapsed: number;
   } | null>(null);
+
+  // Ref for main header to observe when it scrolls out of view
+  const mainHeaderRef = useRef<HTMLDivElement>(null);
 
   const apolloClient = useApolloClient();
 
@@ -431,6 +436,35 @@ export const GamePage = () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [awayScore]);
+
+  // Intersection Observer for sticky header visibility
+  // Shows sticky header when main header scrolls out of view
+  // Note: Depends on `loading` because mainHeaderRef.current is null during loading state
+  useEffect(() => {
+    const header = mainHeaderRef.current;
+    if (!header) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // Show sticky header when main header is NOT intersecting (scrolled out of view)
+        setShowStickyHeader(!entry.isIntersecting);
+      },
+      {
+        // Trigger when header is completely out of view
+        threshold: 0,
+        // Start showing sticky header slightly before header is fully out
+        rootMargin: '-10px 0px 0px 0px',
+      }
+    );
+
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, [loading]);
+
+  // Scroll to top handler for sticky header tap
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   // Subscribe to real-time game events
   // Update Apollo cache directly instead of refetching to prevent flickering
@@ -1027,10 +1061,40 @@ export const GamePage = () => {
   const gameMinute = Math.floor(elapsedSeconds / 60);
   const gameSecond = elapsedSeconds % 60;
 
+  // Compute compact half indicator for sticky header
+  const halfIndicator =
+    game.status === GameStatus.FirstHalf ||
+    game.status === GameStatus.InProgress
+      ? '1H'
+      : game.status === GameStatus.SecondHalf
+      ? '2H'
+      : game.status === GameStatus.Halftime
+      ? 'HT'
+      : game.status === GameStatus.Completed
+      ? 'FT'
+      : '';
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      {/* Sticky Score Header - appears when main header scrolls out of view */}
+      <StickyScoreHeader
+        isVisible={showStickyHeader}
+        homeTeamName={homeTeam?.team.name || 'Home'}
+        awayTeamName={awayTeam?.team.name || 'Away'}
+        homeScore={homeScore}
+        awayScore={awayScore}
+        gameTime={formatGameTime(elapsedSeconds)}
+        halfIndicator={halfIndicator}
+        isPaused={!!game.pausedAt}
+        isActivePlay={isActivePlay}
+        isRecordingGoal={recordingGoal}
+        onHomeGoal={() => handleGoalClick('home')}
+        onAwayGoal={() => handleGoalClick('away')}
+        onHeaderClick={scrollToTop}
+      />
+
       {/* Game Header */}
-      <div className="rounded-lg bg-white p-6 shadow">
+      <div ref={mainHeaderRef} className="rounded-lg bg-white p-6 shadow">
         <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-gray-900">
