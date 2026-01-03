@@ -1,23 +1,39 @@
-import { UIPlayer } from '../types/ui.types';
+import { memo } from 'react';
 
-interface QuickAddPlayersPresentationProps {
+import type { UIPlayer } from '../../types';
+
+export interface QuickAddPlayersProps {
+  /** List of available players to select from */
   players: UIPlayer[];
+  /** Currently selected players with their jersey numbers */
   selectedPlayersWithJerseys: { playerId: string; jersey: number }[];
+  /** Whether players list is loading */
   playersLoading: boolean;
+  /** Whether add operation is in progress */
   addPlayerLoading: boolean;
+  /** Error message for players loading */
   playersError?: string;
+  /** Error message for add operation */
   addPlayerError?: string;
+  /** Callback when a player is selected/deselected */
   onPlayerSelection: (
     playerId: string,
     isSelected: boolean,
-    jersey?: number
+    jersey?: number,
   ) => void;
+  /** Callback when jersey number changes */
   onJerseyChange: (playerId: string, jersey: number) => void;
+  /** Callback to add selected players */
   onAddPlayers: () => void;
+  /** Callback to close the modal */
   onClose: () => void;
 }
 
-export const QuickAddPlayersPresentation = ({
+/**
+ * QuickAddPlayers is a modal component for quickly selecting and adding
+ * multiple players to a team with jersey number assignment.
+ */
+export const QuickAddPlayers = memo(function QuickAddPlayers({
   players,
   selectedPlayersWithJerseys,
   playersLoading,
@@ -28,14 +44,14 @@ export const QuickAddPlayersPresentation = ({
   onJerseyChange,
   onAddPlayers,
   onClose,
-}: QuickAddPlayersPresentationProps) => {
+}: QuickAddPlayersProps) {
   const isLoading = playersLoading || addPlayerLoading;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-md shadow-lg rounded-md bg-white">
+    <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-gray-600 bg-opacity-50">
+      <div className="relative top-20 mx-auto w-11/12 max-w-md rounded-md border bg-white p-5 shadow-lg">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-medium text-gray-900">
             Add Players to Team
           </h3>
@@ -45,7 +61,7 @@ export const QuickAddPlayersPresentation = ({
             disabled={isLoading}
           >
             <svg
-              className="w-6 h-6"
+              className="h-6 w-6"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -62,15 +78,15 @@ export const QuickAddPlayersPresentation = ({
 
         {/* Error Messages */}
         {(playersError || addPlayerError) && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          <div className="mb-4 rounded border border-red-400 bg-red-100 p-3 text-red-700">
             {playersError || addPlayerError}
           </div>
         )}
 
         {/* Loading State */}
         {playersLoading && (
-          <div className="flex justify-center items-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="flex items-center justify-center py-8">
+            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
             <span className="ml-2 text-gray-600">Loading players...</span>
           </div>
         )}
@@ -79,7 +95,7 @@ export const QuickAddPlayersPresentation = ({
         {!playersLoading && (
           <div className="mb-4">
             {players.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">
+              <p className="py-4 text-center text-gray-500">
                 No players available. Create some players first.
               </p>
             ) : (
@@ -87,18 +103,18 @@ export const QuickAddPlayersPresentation = ({
                 <div className="space-y-2">
                   {players.map((player) => {
                     const isSelected = selectedPlayersWithJerseys.some(
-                      (selected) => selected.playerId === player.id
+                      (selected) => selected.playerId === player.id,
                     );
                     const selectedPlayer = selectedPlayersWithJerseys.find(
-                      (selected) => selected.playerId === player.id
+                      (selected) => selected.playerId === player.id,
                     );
                     const jerseyNumber = selectedPlayer?.jersey || '';
 
                     return (
                       <div
                         key={player.id}
-                        className={`flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 ${
-                          isSelected ? 'bg-blue-50 border-blue-300' : ''
+                        className={`flex items-center justify-between rounded-lg border border-gray-200 p-3 hover:bg-gray-50 ${
+                          isSelected ? 'border-blue-300 bg-blue-50' : ''
                         }`}
                       >
                         <div className="flex items-center">
@@ -109,10 +125,10 @@ export const QuickAddPlayersPresentation = ({
                               onPlayerSelection(
                                 player.id,
                                 e.target.checked,
-                                jerseyNumber as number
+                                jerseyNumber as number,
                               )
                             }
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             disabled={isLoading}
                           />
                           <div className="ml-3">
@@ -130,7 +146,7 @@ export const QuickAddPlayersPresentation = ({
                           <div className="flex items-center">
                             <label
                               htmlFor={`jersey-${player.id}`}
-                              className="text-xs text-gray-600 mr-2"
+                              className="mr-2 text-xs text-gray-600"
                             >
                               Jersey #:
                             </label>
@@ -144,7 +160,7 @@ export const QuickAddPlayersPresentation = ({
                                 const newJersey = parseInt(e.target.value) || 0;
                                 onJerseyChange(player.id, newJersey);
                               }}
-                              className="w-16 px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                              className="w-16 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:ring-blue-500"
                               placeholder="##"
                             />
                           </div>
@@ -160,7 +176,7 @@ export const QuickAddPlayersPresentation = ({
 
         {/* Selected Count */}
         {selectedPlayersWithJerseys.length > 0 && (
-          <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded">
+          <div className="mb-4 rounded border border-blue-200 bg-blue-50 p-2">
             <p className="text-sm text-blue-700">
               {selectedPlayersWithJerseys.length} player
               {selectedPlayersWithJerseys.length !== 1 ? 's' : ''} selected
@@ -173,18 +189,18 @@ export const QuickAddPlayersPresentation = ({
           <button
             onClick={onClose}
             disabled={isLoading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+            className="rounded-md border border-gray-300 bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={onAddPlayers}
             disabled={isLoading || selectedPlayersWithJerseys.length === 0}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {addPlayerLoading ? (
               <div className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
                 Adding...
               </div>
             ) : (
@@ -199,4 +215,4 @@ export const QuickAddPlayersPresentation = ({
       </div>
     </div>
   );
-};
+});

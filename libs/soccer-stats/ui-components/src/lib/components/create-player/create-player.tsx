@@ -1,19 +1,44 @@
-import { UICreatePlayerInput } from '../types/ui.types';
+import { memo } from 'react';
 
-interface CreatePlayerPresentationProps {
+import type { UICreatePlayerInput } from '../../types';
+
+/** Standard soccer positions for selection */
+export const PLAYER_POSITIONS = [
+  'Goalkeeper',
+  'Right Back',
+  'Center Back',
+  'Left Back',
+  'Defensive Midfielder',
+  'Center Midfielder',
+  'Attacking Midfielder',
+  'Right Winger',
+  'Left Winger',
+  'Center Forward',
+  'Striker',
+] as const;
+
+export interface CreatePlayerProps {
+  /** Current form data */
   formData: UICreatePlayerInput;
+  /** Whether form submission is in progress */
   loading: boolean;
+  /** Error message to display */
   error?: string;
+  /** Whether the form is valid for submission */
   isFormValid: boolean;
+  /** Callback when a form field changes */
   onInputChange: (field: keyof UICreatePlayerInput, value: string) => void;
+  /** Callback when form is submitted */
   onSubmit: (e: React.FormEvent) => void;
+  /** Callback when cancel is clicked */
   onCancel: () => void;
 }
 
 /**
- * Presentation component for creating a new player
+ * CreatePlayer is a form component for creating new players with
+ * name, email, and optional position fields.
  */
-export const CreatePlayerPresentation = ({
+export const CreatePlayer = memo(function CreatePlayer({
   formData,
   loading,
   error,
@@ -21,47 +46,21 @@ export const CreatePlayerPresentation = ({
   onInputChange,
   onSubmit,
   onCancel,
-}: CreatePlayerPresentationProps) => {
-  const positions = [
-    'Goalkeeper',
-    'Right Back',
-    'Center Back',
-    'Left Back',
-    'Defensive Midfielder',
-    'Center Midfielder',
-    'Attacking Midfielder',
-    'Right Winger',
-    'Left Winger',
-    'Center Forward',
-    'Striker',
-  ];
-
+}: CreatePlayerProps) {
   return (
-    <div
-      className="
-      max-w-md mx-auto bg-white rounded-lg shadow-md p-6
-      mobile-first: p-4
-      sm:p-6
-      md:max-w-lg
-    "
-    >
-      <h2
-        className="
-        text-xl font-bold text-gray-900 mb-6 text-center
-        sm:text-2xl
-      "
-      >
+    <div className="mx-auto max-w-md rounded-lg bg-white p-4 shadow-md sm:p-6 md:max-w-lg">
+      <h2 className="mb-6 text-center text-xl font-bold text-gray-900 sm:text-2xl">
         Create New Player
       </h2>
 
       <form onSubmit={onSubmit} className="space-y-4">
         {/* Name Input */}
         <div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label
                 htmlFor="player-firstName"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="mb-2 block text-sm font-medium text-gray-700"
               >
                 First Name *
               </label>
@@ -72,12 +71,7 @@ export const CreatePlayerPresentation = ({
                 onChange={(e) => onInputChange('firstName', e.target.value)}
                 placeholder="First name"
                 disabled={loading}
-                className="
-                  w-full px-3 py-2 border border-gray-300 rounded-md 
-                  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                  disabled:bg-gray-100 disabled:cursor-not-allowed
-                  min-h-[44px]
-                "
+                className="min-h-[44px] w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
                 required
               />
             </div>
@@ -85,7 +79,7 @@ export const CreatePlayerPresentation = ({
             <div>
               <label
                 htmlFor="player-lastName"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="mb-2 block text-sm font-medium text-gray-700"
               >
                 Last Name *
               </label>
@@ -96,21 +90,16 @@ export const CreatePlayerPresentation = ({
                 onChange={(e) => onInputChange('lastName', e.target.value)}
                 placeholder="Last name"
                 disabled={loading}
-                className="
-                  w-full px-3 py-2 border border-gray-300 rounded-md 
-                  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                  disabled:bg-gray-100 disabled:cursor-not-allowed
-                  min-h-[44px]
-                "
+                className="min-h-[44px] w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
                 required
               />
             </div>
           </div>
 
-          <div>
+          <div className="mt-4">
             <label
               htmlFor="player-email"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="mb-2 block text-sm font-medium text-gray-700"
             >
               Email *
             </label>
@@ -121,12 +110,7 @@ export const CreatePlayerPresentation = ({
               onChange={(e) => onInputChange('email', e.target.value)}
               placeholder="Email address"
               disabled={loading}
-              className="
-                w-full px-3 py-2 border border-gray-300 rounded-md 
-                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                disabled:bg-gray-100 disabled:cursor-not-allowed
-                min-h-[44px]
-              "
+              className="min-h-[44px] w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
               required
             />
           </div>
@@ -136,7 +120,7 @@ export const CreatePlayerPresentation = ({
         <div>
           <label
             htmlFor="player-position"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="mb-2 block text-sm font-medium text-gray-700"
           >
             Preferred Position (Optional)
           </label>
@@ -145,15 +129,10 @@ export const CreatePlayerPresentation = ({
             value={formData.position || ''}
             onChange={(e) => onInputChange('position', e.target.value)}
             disabled={loading}
-            className="
-              w-full px-3 py-2 border border-gray-300 rounded-md 
-              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-              disabled:bg-gray-100 disabled:cursor-not-allowed
-              min-h-[44px]
-            "
+            className="min-h-[44px] w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
           >
             <option value="">Select a position</option>
-            {positions.map((position) => (
+            {PLAYER_POSITIONS.map((position) => (
               <option key={position} value={position}>
                 {position}
               </option>
@@ -163,35 +142,18 @@ export const CreatePlayerPresentation = ({
 
         {/* Error Display */}
         {error && (
-          <div
-            className="
-            bg-red-50 border border-red-200 rounded-md p-3
-            text-red-800 text-sm
-          "
-          >
+          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
             {error}
           </div>
         )}
 
         {/* Action Buttons */}
-        <div
-          className="
-          flex flex-col gap-3 pt-4
-          sm:flex-row sm:justify-end sm:gap-4
-        "
-        >
+        <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:justify-end sm:gap-4">
           <button
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="
-              min-h-[44px] px-4 py-2 border border-gray-300 rounded-md
-              text-gray-700 bg-white hover:bg-gray-50
-              focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2
-              disabled:opacity-50 disabled:cursor-not-allowed
-              transition-colors duration-200
-              sm:order-1
-            "
+            className="min-h-[44px] rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 transition-colors duration-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:order-1"
           >
             Cancel
           </button>
@@ -199,19 +161,12 @@ export const CreatePlayerPresentation = ({
           <button
             type="submit"
             disabled={!isFormValid || loading}
-            className="
-              min-h-[44px] px-6 py-2 bg-blue-600 text-white rounded-md
-              hover:bg-blue-700 
-              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-              disabled:opacity-50 disabled:cursor-not-allowed
-              transition-colors duration-200
-              sm:order-2
-            "
+            className="min-h-[44px] rounded-md bg-blue-600 px-6 py-2 text-white transition-colors duration-200 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:order-2"
           >
             {loading ? (
               <span className="flex items-center justify-center">
                 <svg
-                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                  className="-ml-1 mr-2 h-4 w-4 animate-spin text-white"
                   fill="none"
                   viewBox="0 0 24 24"
                 >
@@ -239,4 +194,4 @@ export const CreatePlayerPresentation = ({
       </form>
     </div>
   );
-};
+});

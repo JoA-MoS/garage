@@ -13,12 +13,15 @@ export * from './game-overview';
 export * from './game-format-selection';
 export * from './formation-selection';
 export * from './position-configuration';
+export * from './game-details-step';
 
 // Player Components
 export * from './player-card';
 export * from './remove-player-dialog';
 export * from './create-player-modal';
 export * from './edit-player-modal';
+export * from './create-player';
+export * from './quick-add-players';
 
 // User Components
 export * from './user-card';
@@ -27,6 +30,8 @@ export * from './user-card';
 export * from './teams-list';
 export * from './team-stats-card';
 export * from './team-form-fields';
+export * from './team-stats';
+export * from './team-detail';
 
 // Navigation Components
 export * from './tab-navigation';

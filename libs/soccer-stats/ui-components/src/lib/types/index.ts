@@ -39,6 +39,18 @@ export interface UIPlayer {
   jerseyNumber?: string;
 }
 
+export interface UICreatePlayerInput {
+  firstName: string;
+  lastName: string;
+  email: string;
+  passwordHash?: string;
+  dateOfBirth?: string;
+  phone?: string;
+  /** Legacy support for forms */
+  name?: string;
+  position?: string;
+}
+
 export interface UITeamPlayer {
   id: string;
   jerseyNumber?: string;
