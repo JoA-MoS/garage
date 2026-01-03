@@ -409,19 +409,27 @@ export const GamePage = () => {
   // Trigger score animation when score actually changes (not on subscription message)
   // This ensures animation is synchronized with the displayed score update
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     if (homeScore > prevHomeScoreRef.current) {
       setHighlightedScore('home');
-      setTimeout(() => setHighlightedScore(null), 1000);
+      timeoutId = setTimeout(() => setHighlightedScore(null), 1000);
     }
     prevHomeScoreRef.current = homeScore;
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [homeScore]);
 
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     if (awayScore > prevAwayScoreRef.current) {
       setHighlightedScore('away');
-      setTimeout(() => setHighlightedScore(null), 1000);
+      timeoutId = setTimeout(() => setHighlightedScore(null), 1000);
     }
     prevAwayScoreRef.current = awayScore;
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [awayScore]);
 
   // Subscribe to real-time game events
