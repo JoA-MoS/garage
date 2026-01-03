@@ -1143,6 +1143,23 @@ export type GetUsersForListQuery = {
   >;
 };
 
+export type GameEventFragmentFragment = {
+  __typename?: 'GameEvent';
+  id: string;
+  gameMinute: number;
+  gameSecond: number;
+  position?: string | null;
+  playerId?: string | null;
+  externalPlayerName?: string | null;
+  externalPlayerNumber?: string | null;
+  eventType: {
+    __typename?: 'EventType';
+    id: string;
+    name: string;
+    category: string;
+  };
+} & { ' $fragmentName'?: 'GameEventFragmentFragment' };
+
 export type PlayerCardDataFragment = {
   __typename?: 'User';
   id: string;
@@ -1248,23 +1265,6 @@ export type QuickCreateTeamMutation = {
     logoUrl?: string | null;
   };
 };
-
-export type GameEventFragmentFragment = {
-  __typename?: 'GameEvent';
-  id: string;
-  gameMinute: number;
-  gameSecond: number;
-  position?: string | null;
-  playerId?: string | null;
-  externalPlayerName?: string | null;
-  externalPlayerNumber?: string | null;
-  eventType: {
-    __typename?: 'EventType';
-    id: string;
-    name: string;
-    category: string;
-  };
-} & { ' $fragmentName'?: 'GameEventFragmentFragment' };
 
 export type GetGameFormatsQueryVariables = Exact<{ [key: string]: never }>;
 
@@ -2970,6 +2970,49 @@ export type UserCreatedSubscription = {
   };
 };
 
+export const GameEventFragmentFragmentDoc = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'FragmentDefinition',
+      name: { kind: 'Name', value: 'GameEventFragment' },
+      typeCondition: {
+        kind: 'NamedType',
+        name: { kind: 'Name', value: 'GameEvent' },
+      },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'position' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'playerId' } },
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'externalPlayerName' },
+          },
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'externalPlayerNumber' },
+          },
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'eventType' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'category' } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<GameEventFragmentFragment, unknown>;
 export const PlayerCardDataFragmentDoc = {
   kind: 'Document',
   definitions: [
@@ -3082,49 +3125,6 @@ export const UserCardFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<UserCardFragment, unknown>;
-export const GameEventFragmentFragmentDoc = {
-  kind: 'Document',
-  definitions: [
-    {
-      kind: 'FragmentDefinition',
-      name: { kind: 'Name', value: 'GameEventFragment' },
-      typeCondition: {
-        kind: 'NamedType',
-        name: { kind: 'Name', value: 'GameEvent' },
-      },
-      selectionSet: {
-        kind: 'SelectionSet',
-        selections: [
-          { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-          { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
-          { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
-          { kind: 'Field', name: { kind: 'Name', value: 'position' } },
-          { kind: 'Field', name: { kind: 'Name', value: 'playerId' } },
-          {
-            kind: 'Field',
-            name: { kind: 'Name', value: 'externalPlayerName' },
-          },
-          {
-            kind: 'Field',
-            name: { kind: 'Name', value: 'externalPlayerNumber' },
-          },
-          {
-            kind: 'Field',
-            name: { kind: 'Name', value: 'eventType' },
-            selectionSet: {
-              kind: 'SelectionSet',
-              selections: [
-                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'category' } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<GameEventFragmentFragment, unknown>;
 export const GetUsersForListDocument = {
   kind: 'Document',
   definitions: [

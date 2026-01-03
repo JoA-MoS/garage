@@ -54,6 +54,13 @@ const GameEventFragmentDoc = gql`
   }
 `;
 
+// Generate a temporary ID for optimistic updates
+// Uses a prefix to distinguish from real IDs and includes timestamp for uniqueness
+let optimisticIdCounter = 0;
+function generateOptimisticId(): string {
+  return `optimistic-goal-${Date.now()}-${++optimisticIdCounter}`;
+}
+
 /**
  * Game page - displays a single game with lineup, stats, and event tracking
  */
@@ -367,15 +374,6 @@ export const GamePage = () => {
   const homeTeamId = homeTeamData?.id;
   const awayTeamId = awayTeamData?.id;
 
-  // Store team IDs in refs for stable access in subscription callbacks
-  // This prevents stale closure issues when cache updates cause re-renders
-  const homeTeamIdRef = useRef<string | undefined>(homeTeamId);
-  const awayTeamIdRef = useRef<string | undefined>(awayTeamId);
-  useEffect(() => {
-    homeTeamIdRef.current = homeTeamId;
-    awayTeamIdRef.current = awayTeamId;
-  }, [homeTeamId, awayTeamId]);
-
   // Memoize scores to prevent recalculation on every render
   const homeScore = useMemo(
     () => computeScore(homeTeamData?.gameEvents),
@@ -401,6 +399,29 @@ export const GamePage = () => {
   const [highlightedScore, setHighlightedScore] = useState<
     'home' | 'away' | null
   >(null);
+
+  // Track previous scores to detect changes and trigger animations
+  // Using refs to avoid triggering useEffect on initialization
+  const prevHomeScoreRef = useRef(homeScore);
+  const prevAwayScoreRef = useRef(awayScore);
+
+  // Trigger score animation when score actually changes (not on subscription message)
+  // This ensures animation is synchronized with the displayed score update
+  useEffect(() => {
+    if (homeScore > prevHomeScoreRef.current) {
+      setHighlightedScore('home');
+      setTimeout(() => setHighlightedScore(null), 1000);
+    }
+    prevHomeScoreRef.current = homeScore;
+  }, [homeScore]);
+
+  useEffect(() => {
+    if (awayScore > prevAwayScoreRef.current) {
+      setHighlightedScore('away');
+      setTimeout(() => setHighlightedScore(null), 1000);
+    }
+    prevAwayScoreRef.current = awayScore;
+  }, [awayScore]);
 
   // Subscribe to real-time game events
   // Update Apollo cache directly instead of refetching to prevent flickering
@@ -454,16 +475,9 @@ export const GamePage = () => {
         },
       });
 
-      // If a goal was scored, highlight the score for the correct team
-      // Use refs to get current team IDs to avoid stale closure issues
-      if (event.eventType?.name === 'GOAL') {
-        if (event.gameTeamId === homeTeamIdRef.current) {
-          setHighlightedScore('home');
-        } else if (event.gameTeamId === awayTeamIdRef.current) {
-          setHighlightedScore('away');
-        }
-        setTimeout(() => setHighlightedScore(null), 1000);
-      }
+      // Note: Score highlight animations are now triggered by useEffect watching
+      // homeScore/awayScore changes, ensuring animation is synchronized with
+      // the displayed score update (not the subscription message timing).
     },
     [apolloClient]
   );
@@ -833,6 +847,7 @@ export const GamePage = () => {
       const second = elapsedSeconds % 60;
 
       try {
+        const optimisticId = generateOptimisticId();
         await recordGoalDirect({
           variables: {
             input: {
@@ -840,6 +855,67 @@ export const GamePage = () => {
               gameMinute: minute,
               gameSecond: second,
             },
+          },
+          // Optimistic response provides instant feedback before server responds
+          optimisticResponse: {
+            __typename: 'Mutation',
+            recordGoal: {
+              __typename: 'GameEvent',
+              id: optimisticId,
+              gameMinute: minute,
+              gameSecond: second,
+              playerId: null,
+              externalPlayerName: null,
+              externalPlayerNumber: null,
+              eventType: {
+                __typename: 'EventType',
+                id: 'optimistic-goal-type',
+                name: 'GOAL',
+              },
+              childEvents: [],
+            },
+          },
+          // Update cache to add the goal event to the GameTeam's gameEvents
+          update: (cache, { data: mutationData }) => {
+            if (!mutationData?.recordGoal) return;
+
+            const newEvent = mutationData.recordGoal;
+
+            // Add the event to the GameTeam's gameEvents array
+            cache.modify({
+              id: cache.identify({
+                __typename: 'GameTeam',
+                id: gameTeam.id,
+              }),
+              fields: {
+                gameEvents(existingEvents = [], { readField }) {
+                  // Check if event already exists (prevents duplicates with subscription)
+                  const eventExists = existingEvents.some(
+                    (ref: { __ref: string }) =>
+                      readField('id', ref) === newEvent.id
+                  );
+                  if (eventExists) return existingEvents;
+
+                  // Create a cache reference for the new event
+                  const newEventRef = cache.writeFragment({
+                    data: {
+                      __typename: 'GameEvent',
+                      id: newEvent.id,
+                      gameMinute: newEvent.gameMinute,
+                      gameSecond: newEvent.gameSecond,
+                      playerId: newEvent.playerId,
+                      externalPlayerName: newEvent.externalPlayerName,
+                      externalPlayerNumber: newEvent.externalPlayerNumber,
+                      position: null,
+                      eventType: newEvent.eventType,
+                    },
+                    fragment: GameEventFragmentDoc,
+                  });
+
+                  return [...existingEvents, newEventRef];
+                },
+              },
+            });
           },
         });
       } catch (err) {
