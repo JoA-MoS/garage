@@ -379,6 +379,10 @@ Projects use Nx tags for organization:
 
 GitHub Actions workflow (`.github/workflows/main.yml`) handles linting, testing, building, and Docker builds for affected projects.
 
+## GitHub Workflow
+
+- **Pull Requests:** Always create PRs in **draft status first**. This allows for review and validation before marking as ready for review.
+
 ## Additional Resources
 
 For detailed development standards, see:
