@@ -1,4 +1,4 @@
-import { graphql } from '../generated/gql';
+import { graphql } from '@garage/soccer-stats/graphql-codegen';
 
 /**
  * GraphQL queries for the `my` viewer pattern.

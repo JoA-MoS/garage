@@ -7,9 +7,10 @@ import {
   TeamFormFields,
   type UICreateTeamInput,
 } from '@garage/soccer-stats/ui-components';
-
-import { graphql } from '../generated/gql';
-import { QuickCreateTeamMutation } from '../generated/graphql';
+import {
+  graphql,
+  QuickCreateTeamMutation,
+} from '@garage/soccer-stats/graphql-codegen';
 
 const CREATE_TEAM_MUTATION = graphql(`
   mutation QuickCreateTeam($input: CreateTeamInput!) {

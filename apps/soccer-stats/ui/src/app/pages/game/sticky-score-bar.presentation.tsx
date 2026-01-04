@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
-import { GameStatus } from '../../generated/graphql';
+import { GameStatus } from '@garage/soccer-stats/graphql-codegen';
 
 import { GameClockControl } from './game-clock-control.presentation';
 import { ScoreDisplay } from './score-display.presentation';
@@ -115,7 +115,7 @@ export function StickyScoreBar({
         // Trigger when sentinel fully exits viewport
         threshold: 0,
         rootMargin: '0px',
-      }
+      },
     );
 
     observer.observe(sentinel);

@@ -11,7 +11,7 @@ import {
   UpdatePlayerPositionDocument,
   SubstitutePlayerDocument,
   LineupPlayer,
-} from '../generated/graphql';
+} from '@garage/soccer-stats/graphql-codegen';
 
 // Extract TeamPlayer type from query result
 type GameTeamFromQuery = NonNullable<
@@ -54,7 +54,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     {
       variables: { id: gameId! },
       skip: !gameId,
-    }
+    },
   );
 
   // Mutations
@@ -64,7 +64,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       refetchQueries: [
         { query: GetGameLineupDocument, variables: { gameTeamId } },
       ],
-    }
+    },
   );
 
   const [addToBenchMutation, { loading: addingToBench }] = useMutation(
@@ -73,7 +73,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       refetchQueries: [
         { query: GetGameLineupDocument, variables: { gameTeamId } },
       ],
-    }
+    },
   );
 
   const [removeFromLineupMutation, { loading: removing }] = useMutation(
@@ -82,7 +82,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       refetchQueries: [
         { query: GetGameLineupDocument, variables: { gameTeamId } },
       ],
-    }
+    },
   );
 
   const [updatePositionMutation, { loading: updatingPosition }] = useMutation(
@@ -91,7 +91,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       refetchQueries: [
         { query: GetGameLineupDocument, variables: { gameTeamId } },
       ],
-    }
+    },
   );
 
   const [substitutePlayerMutation, { loading: substituting }] = useMutation(
@@ -100,7 +100,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       refetchQueries: [
         { query: GetGameLineupDocument, variables: { gameTeamId } },
       ],
-    }
+    },
   );
 
   // Get the team roster from game data
@@ -108,7 +108,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     if (!gameData?.game?.gameTeams) return [];
 
     const gameTeam = gameData.game.gameTeams.find(
-      (gt: GameTeamFromQuery) => gt.id === gameTeamId
+      (gt: GameTeamFromQuery) => gt.id === gameTeamId,
     );
 
     if (!gameTeam?.team?.teamPlayers) return [];
@@ -141,7 +141,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     });
 
     return teamRoster.filter(
-      (player) => !assignedPlayerIds.has(player.oduserId)
+      (player) => !assignedPlayerIds.has(player.oduserId),
     );
   }, [teamRoster, lineupData]);
 
@@ -165,7 +165,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
         },
       });
     },
-    [gameTeamId, addToLineupMutation]
+    [gameTeamId, addToLineupMutation],
   );
 
   const addToBench = useCallback(
@@ -185,7 +185,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
         },
       });
     },
-    [gameTeamId, addToBenchMutation]
+    [gameTeamId, addToBenchMutation],
   );
 
   const removeFromLineup = useCallback(
@@ -194,7 +194,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
         variables: { gameEventId },
       });
     },
-    [removeFromLineupMutation]
+    [removeFromLineupMutation],
   );
 
   const updatePosition = useCallback(
@@ -203,7 +203,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
         variables: { gameEventId, position },
       });
     },
-    [updatePositionMutation]
+    [updatePositionMutation],
   );
 
   const substitutePlayer = useCallback(
@@ -229,7 +229,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
         },
       });
     },
-    [gameTeamId, substitutePlayerMutation]
+    [gameTeamId, substitutePlayerMutation],
   );
 
   return {
