@@ -1,9 +1,11 @@
 import { useCallback } from 'react';
 
 import { UserCard } from '@garage/soccer-stats/ui-components';
-
-import { FragmentType, useFragment } from '../../generated/fragment-masking';
-import { graphql } from '../../generated/gql';
+import {
+  FragmentType,
+  useFragment,
+  graphql,
+} from '@garage/soccer-stats/graphql-codegen';
 
 // Layer 2: Fragment Wrapper (Smart Component)
 // Define the fragment for user card data

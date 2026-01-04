@@ -2,9 +2,12 @@ import { useState, useEffect } from 'react';
 import { useMutation } from '@apollo/client/react';
 
 import { ModalPortal } from '@garage/soccer-stats/ui-components';
+import {
+  LineupPlayer,
+  StatsTrackingLevel,
+} from '@garage/soccer-stats/graphql-codegen';
 
 import { RECORD_GOAL, UPDATE_GOAL } from '../../services/games-graphql.service';
-import { LineupPlayer, StatsTrackingLevel } from '../../generated/graphql';
 
 // Data for an existing goal being edited
 export interface EditGoalData {

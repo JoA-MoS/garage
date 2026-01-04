@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useMutation } from '@apollo/client/react';
 
+import { LineupPlayer } from '@garage/soccer-stats/graphql-codegen';
+
 import {
   SWAP_POSITIONS,
   GET_GAME_BY_ID,
   GET_GAME_LINEUP,
 } from '../../services/games-graphql.service';
-import { LineupPlayer } from '../../generated/graphql';
 
 interface PositionSwapModalProps {
   gameTeamId: string;
@@ -226,8 +227,8 @@ export const PositionSwapModal = ({
                       isPlayer1
                         ? 'border-blue-500 bg-blue-50'
                         : isPlayer2
-                        ? 'border-purple-500 bg-purple-50'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          ? 'border-purple-500 bg-purple-50'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                     }`}
                   >
                     {jersey && (
@@ -236,8 +237,8 @@ export const PositionSwapModal = ({
                           isPlayer1
                             ? 'bg-blue-200 text-blue-700'
                             : isPlayer2
-                            ? 'bg-purple-200 text-purple-700'
-                            : 'bg-gray-200 text-gray-700'
+                              ? 'bg-purple-200 text-purple-700'
+                              : 'bg-gray-200 text-gray-700'
                         }`}
                       >
                         {jersey}
@@ -249,8 +250,8 @@ export const PositionSwapModal = ({
                           isPlayer1
                             ? 'text-blue-700'
                             : isPlayer2
-                            ? 'text-purple-700'
-                            : 'text-gray-900'
+                              ? 'text-purple-700'
+                              : 'text-gray-900'
                         }`}
                       >
                         {name}

@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router';
 import { useCallback } from 'react';
 
 import { TeamsList, type UITeam } from '@garage/soccer-stats/ui-components';
+import { graphql } from '@garage/soccer-stats/graphql-codegen';
 
-import { graphql } from '../../generated/gql';
 import { useUserProfile } from '../../hooks/use-user-profile';
 
 interface TeamsListSmartProps {

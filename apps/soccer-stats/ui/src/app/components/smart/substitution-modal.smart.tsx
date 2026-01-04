@@ -2,17 +2,17 @@ import { useState } from 'react';
 import { useApolloClient, useMutation } from '@apollo/client/react';
 
 import { ModalPortal } from '@garage/soccer-stats/ui-components';
+import {
+  LineupPlayer,
+  BatchSubstitutionInput,
+  BatchSwapInput,
+} from '@garage/soccer-stats/graphql-codegen';
 
 import {
   BATCH_LINEUP_CHANGES,
   GET_GAME_BY_ID,
   GET_GAME_LINEUP,
 } from '../../services/games-graphql.service';
-import {
-  LineupPlayer,
-  BatchSubstitutionInput,
-  BatchSwapInput,
-} from '../../generated/graphql';
 
 interface SubstitutionModalProps {
   gameTeamId: string;

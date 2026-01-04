@@ -14,6 +14,10 @@ import {
   EventCard,
   type EventType as EventCardType,
 } from '@garage/soccer-stats/ui-components';
+import {
+  GameStatus,
+  StatsTrackingLevel,
+} from '@garage/soccer-stats/graphql-codegen';
 
 import {
   GET_GAME_BY_ID,
@@ -29,7 +33,6 @@ import {
   RESOLVE_EVENT_CONFLICT,
   RECORD_GOAL,
 } from '../services/games-graphql.service';
-import { GameStatus, StatsTrackingLevel } from '../generated/graphql';
 import { GameLineupTab } from '../components/smart/game-lineup-tab.smart';
 import { GoalModal, EditGoalData } from '../components/smart/goal-modal.smart';
 import { SubstitutionModal } from '../components/smart/substitution-modal.smart';

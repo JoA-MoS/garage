@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 
+import { LineupPlayer } from '@garage/soccer-stats/graphql-codegen';
+
 import {
   Formation,
   FormationPosition,
   POSITIONS,
 } from '../../constants/positions';
-import { LineupPlayer } from '../../generated/graphql';
 import { getPlayerDisplayName } from '../../hooks/use-lineup';
 
 // Get initials from a player (e.g., firstName="John", lastName="Doe" -> "JD")
@@ -37,7 +38,7 @@ interface FieldLineupProps {
   lineup: LineupPlayer[];
   onPositionClick?: (
     position: FormationPosition,
-    assignedPlayer?: LineupPlayer
+    assignedPlayer?: LineupPlayer,
   ) => void;
   teamColor?: string;
   isHome?: boolean;

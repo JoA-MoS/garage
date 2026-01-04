@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 
-import type { PlayerFullStats } from '../../generated/graphql';
+import type { PlayerFullStats } from '@garage/soccer-stats/graphql-codegen';
 
 // Column keys that can be shown/hidden
 export type ColumnKey =
@@ -58,7 +58,7 @@ const getJerseyNumber = (stat: PlayerFullStats): string | null => {
 const calculateDisplayTime = (
   stat: PlayerFullStats,
   elapsedSeconds?: number,
-  queryTimeElapsedSeconds?: number
+  queryTimeElapsedSeconds?: number,
 ): { totalSeconds: number; isLive: boolean } => {
   const baseSeconds = stat.totalMinutes * 60 + stat.totalSeconds;
 
@@ -275,7 +275,7 @@ export const PlayerStatsTablePresentation = ({
                   ? Math.floor(
                       (stat.totalMinutes * 60 + stat.totalSeconds) /
                         stat.gamesPlayed /
-                        60
+                        60,
                     )
                   : 0;
               const avgSeconds =
@@ -283,7 +283,7 @@ export const PlayerStatsTablePresentation = ({
                   ? Math.floor(
                       ((stat.totalMinutes * 60 + stat.totalSeconds) /
                         stat.gamesPlayed) %
-                        60
+                        60,
                     )
                   : 0;
 
@@ -314,7 +314,7 @@ export const PlayerStatsTablePresentation = ({
                         const { totalSeconds, isLive } = calculateDisplayTime(
                           stat,
                           elapsedSeconds,
-                          queryTimeElapsedSeconds
+                          queryTimeElapsedSeconds,
                         );
                         const mins = Math.floor(totalSeconds / 60);
                         const secs = totalSeconds % 60;

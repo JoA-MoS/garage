@@ -40,7 +40,10 @@
           "hmr": false
         }
       },
-      "dependsOn": ["soccer-stats-api:serve", "graphql-codegen-watch"]
+      "dependsOn": [
+        "soccer-stats-api:serve",
+        "soccer-stats-graphql-codegen:codegen-watch"
+      ]
     },
     "preview": {
       "dependsOn": ["build"],
@@ -56,23 +59,6 @@
         "production": {
           "buildTarget": "soccer-stats-ui:build:production"
         }
-      }
-    },
-    "graphql-codegen": {
-      "executor": "nx:run-commands",
-      "outputs": ["{projectRoot}/src/app/generated"],
-      "options": {
-        "command": "graphql-codegen --config codegen.ts",
-        "cwd": "apps/soccer-stats/ui"
-      }
-    },
-    "graphql-codegen-watch": {
-      "executor": "nx:run-commands",
-      "continuous": true,
-      "outputs": ["{projectRoot}/src/app/generated"],
-      "options": {
-        "command": "graphql-codegen --config codegen.ts --watch",
-        "cwd": "apps/soccer-stats/ui"
       }
     },
     "test": {
