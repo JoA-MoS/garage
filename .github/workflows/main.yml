@@ -7,9 +7,11 @@ on:
       - beta
       - next
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 env:
-  NX_CLOUD_DISTRIBUTED_EXECUTION: true
+  # Disable DTE for draft PRs to save Nx Cloud credits
+  NX_CLOUD_DISTRIBUTED_EXECUTION: ${{ github.event.pull_request.draft == false }}
   NX_CLOUD_ACCESS_TOKEN: ${{secrets.NX_CLOUD_ACCESS_TOKEN}}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   DOCKER_USERNAME: ${{secrets.DOCKER_USERNAME}}
@@ -39,7 +41,9 @@ jobs:
           node-version-file: '.nvmrc'
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm nx-cloud start-ci-run
+      - name: Start Nx Cloud CI Run
+        if: env.NX_CLOUD_DISTRIBUTED_EXECUTION == 'true'
+        run: pnpm nx-cloud start-ci-run
       - run: pnpm nx affected --target=lint --parallel --max-parallel=3
       - run: pnpm nx affected --target=test --parallel --max-parallel=2
       - run: pnpm nx affected --target=build --parallel --max-parallel=3
@@ -57,9 +61,13 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       - run: NX_CLOUD_DISTRIBUTED_EXECUTION=false pnpm nx affected --target=docker-build
       - run: NX_CLOUD_DISTRIBUTED_EXECUTION=false pnpm nx affected --target=release
-      - run: pnpm nx-cloud stop-all-agents
+      - name: Stop Nx Cloud Agents
+        if: env.NX_CLOUD_DISTRIBUTED_EXECUTION == 'true'
+        run: pnpm nx-cloud stop-all-agents
 
   agents:
+    # Skip agents for draft PRs to save Nx Cloud credits
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     name: Agent 1
     timeout-minutes: 60
