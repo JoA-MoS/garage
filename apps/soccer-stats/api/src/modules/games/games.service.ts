@@ -97,9 +97,13 @@ export class GamesService {
       );
     }
 
-    // Fetch home team's configuration for defaults
+    // Fetch both teams' configurations for defaults
     const homeTeamConfig = await this.teamConfigurationRepository.findOne({
       where: { teamId: createGameInput.homeTeamId },
+    });
+
+    const awayTeamConfig = await this.teamConfigurationRepository.findOne({
+      where: { teamId: createGameInput.awayTeamId },
     });
 
     // Verify that the game format exists
@@ -121,18 +125,20 @@ export class GamesService {
 
     const savedGame = await this.gameRepository.save(game);
 
-    // Create GameTeam relationships with inherited formation for home team
+    // Create GameTeam relationships with inherited settings from team configurations
     const homeGameTeam = this.gameTeamRepository.create({
       gameId: savedGame.id,
       teamId: createGameInput.homeTeamId,
       teamType: 'home',
       formation: homeTeamConfig?.defaultFormation,
+      statsTrackingLevel: homeTeamConfig?.statsTrackingLevel,
     });
 
     const awayGameTeam = this.gameTeamRepository.create({
       gameId: savedGame.id,
       teamId: createGameInput.awayTeamId,
       teamType: 'away',
+      statsTrackingLevel: awayTeamConfig?.statsTrackingLevel,
     });
 
     await this.gameTeamRepository.save([homeGameTeam, awayGameTeam]);
