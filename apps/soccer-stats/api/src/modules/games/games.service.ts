@@ -12,6 +12,7 @@ import { TeamConfiguration } from '../../entities/team-configuration.entity';
 
 import { CreateGameInput } from './dto/create-game.input';
 import { UpdateGameInput } from './dto/update-game.input';
+import { UpdateGameTeamInput } from './dto/update-game-team.input';
 
 @Injectable()
 export class GamesService {
@@ -29,7 +30,7 @@ export class GamesService {
     @InjectRepository(EventType)
     private readonly eventTypeRepository: Repository<EventType>,
     @InjectRepository(TeamConfiguration)
-    private readonly teamConfigurationRepository: Repository<TeamConfiguration>
+    private readonly teamConfigurationRepository: Repository<TeamConfiguration>,
   ) {}
 
   async findAll(): Promise<Game[]> {
@@ -88,12 +89,12 @@ export class GamesService {
 
     if (!homeTeam) {
       throw new NotFoundException(
-        `Home team with ID ${createGameInput.homeTeamId} not found`
+        `Home team with ID ${createGameInput.homeTeamId} not found`,
       );
     }
     if (!awayTeam) {
       throw new NotFoundException(
-        `Away team with ID ${createGameInput.awayTeamId} not found`
+        `Away team with ID ${createGameInput.awayTeamId} not found`,
       );
     }
 
@@ -113,7 +114,7 @@ export class GamesService {
 
     if (!gameFormat) {
       throw new NotFoundException(
-        `Game format with ID ${createGameInput.gameFormatId} not found`
+        `Game format with ID ${createGameInput.gameFormatId} not found`,
       );
     }
 
@@ -204,6 +205,49 @@ export class GamesService {
   }
 
   /**
+   * Update a GameTeam's settings (formation, stats tracking level, etc.)
+   */
+  async updateGameTeam(
+    gameTeamId: string,
+    updateGameTeamInput: UpdateGameTeamInput,
+  ): Promise<GameTeam> {
+    const gameTeam = await this.gameTeamRepository.findOne({
+      where: { id: gameTeamId },
+      relations: ['team', 'game'],
+    });
+
+    if (!gameTeam) {
+      throw new NotFoundException(`GameTeam with ID ${gameTeamId} not found`);
+    }
+
+    // Update only provided fields
+    if (updateGameTeamInput.formation !== undefined) {
+      gameTeam.formation = updateGameTeamInput.formation;
+    }
+    if (updateGameTeamInput.statsTrackingLevel !== undefined) {
+      gameTeam.statsTrackingLevel = updateGameTeamInput.statsTrackingLevel;
+    }
+    if (updateGameTeamInput.tacticalNotes !== undefined) {
+      gameTeam.tacticalNotes = updateGameTeamInput.tacticalNotes;
+    }
+
+    await this.gameTeamRepository.save(gameTeam);
+
+    // Return with full relations for GraphQL
+    return this.gameTeamRepository.findOne({
+      where: { id: gameTeamId },
+      relations: [
+        'team',
+        'team.teamPlayers',
+        'team.teamPlayers.user',
+        'game',
+        'gameEvents',
+        'gameEvents.eventType',
+      ],
+    }) as Promise<GameTeam>;
+  }
+
+  /**
    * Find games involving any of the given teams, filtered by status.
    * Used for user-scoped game queries (upcoming, recent, live).
    *
@@ -218,7 +262,7 @@ export class GamesService {
       limit?: number;
       orderBy?: 'scheduledStart' | 'actualEnd' | 'actualStart' | 'createdAt';
       orderDirection?: 'ASC' | 'DESC';
-    }
+    },
   ): Promise<Game[]> {
     if (teamIds.length === 0) {
       return [];
@@ -264,7 +308,7 @@ export class GamesService {
    * Called when a game transitions to FIRST_HALF status.
    */
   private async convertStartingLineupToSubstitutionIn(
-    gameId: string
+    gameId: string,
   ): Promise<void> {
     // Find STARTING_LINEUP event type
     const startingLineupType = await this.eventTypeRepository.findOne({
@@ -298,7 +342,7 @@ export class GamesService {
     }
 
     console.log(
-      `Converted ${startingLineupEvents.length} STARTING_LINEUP events to SUBSTITUTION_IN for game ${gameId}`
+      `Converted ${startingLineupEvents.length} STARTING_LINEUP events to SUBSTITUTION_IN for game ${gameId}`,
     );
   }
 }

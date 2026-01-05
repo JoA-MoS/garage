@@ -22,6 +22,7 @@ import {
 import {
   GET_GAME_BY_ID,
   UPDATE_GAME,
+  UPDATE_GAME_TEAM,
   GET_GAME_LINEUP,
   DELETE_GOAL,
   DELETE_SUBSTITUTION,
@@ -342,6 +343,14 @@ export const GamePage = () => {
 
   const [resolveConflict, { loading: resolvingConflict }] = useMutation(
     RESOLVE_EVENT_CONFLICT,
+    {
+      refetchQueries: [{ query: GET_GAME_BY_ID, variables: { id: gameId } }],
+    },
+  );
+
+  // Update per-team settings (formation, stats tracking level)
+  const [updateGameTeam, { loading: updatingGameTeam }] = useMutation(
+    UPDATE_GAME_TEAM,
     {
       refetchQueries: [{ query: GET_GAME_BY_ID, variables: { id: gameId } }],
     },
@@ -830,10 +839,51 @@ export const GamePage = () => {
     }
   };
 
+  // Change stats tracking level for a specific team in this game
+  const handleTeamStatsTrackingChange = async (
+    team: 'home' | 'away',
+    level: StatsTrackingLevel | null,
+  ) => {
+    const gameTeamId = team === 'home' ? homeTeamData?.id : awayTeamData?.id;
+    if (!gameTeamId) return;
+
+    try {
+      await updateGameTeam({
+        variables: {
+          gameTeamId,
+          updateGameTeamInput: {
+            statsTrackingLevel: level,
+          },
+        },
+      });
+    } catch (err) {
+      console.error('Failed to update team stats tracking level:', err);
+    }
+  };
+
+  // Get effective stats tracking level for a team
+  // Cascade: GameTeam.statsTrackingLevel → Game.statsTrackingLevel → default (FULL)
+  const getEffectiveTrackingLevel = useCallback(
+    (team: 'home' | 'away'): StatsTrackingLevel => {
+      const game = data?.game;
+      const gameTeam = team === 'home' ? homeTeamData : awayTeamData;
+
+      // Priority: Per-team level > Game level > Default
+      return (
+        gameTeam?.statsTrackingLevel ||
+        game?.statsTrackingLevel ||
+        StatsTrackingLevel.Full
+      );
+    },
+    [data?.game, homeTeamData, awayTeamData],
+  );
+
   // Handle goal button click - skip modal for GOALS_ONLY mode
   const handleGoalClick = async (team: 'home' | 'away') => {
     const game = data?.game;
-    if (game?.statsTrackingLevel === StatsTrackingLevel.GoalsOnly) {
+    const effectiveLevel = getEffectiveTrackingLevel(team);
+
+    if (effectiveLevel === StatsTrackingLevel.GoalsOnly) {
       // Skip modal - record goal directly without player attribution
       const gameTeam = game?.gameTeams?.find((gt) => gt.teamType === team);
       if (!gameTeam) return;
@@ -1046,6 +1096,13 @@ export const GamePage = () => {
         onShowResetConfirm={setShowResetConfirm}
         onClearEventsChange={setClearEventsOnReset}
         onResetGame={handleResetGame}
+        // Per-team stats tracking
+        homeTeamName={homeTeam?.team.name}
+        awayTeamName={awayTeam?.team.name}
+        homeTeamStatsTrackingLevel={homeTeamData?.statsTrackingLevel}
+        awayTeamStatsTrackingLevel={awayTeamData?.statsTrackingLevel}
+        onTeamStatsTrackingChange={handleTeamStatsTrackingChange}
+        updatingTeamStats={updatingGameTeam}
       />
 
       <StickyScoreBar
@@ -1687,7 +1744,7 @@ export const GamePage = () => {
           gameMinute={gameMinute}
           gameSecond={gameSecond}
           onClose={() => setGoalModalTeam(null)}
-          statsTrackingLevel={game?.statsTrackingLevel}
+          statsTrackingLevel={getEffectiveTrackingLevel(goalModalTeam)}
         />
       )}
 
@@ -1725,7 +1782,7 @@ export const GamePage = () => {
           gameSecond={gameSecond}
           onClose={() => setEditGoalData(null)}
           editGoal={editGoalData.goal}
-          statsTrackingLevel={game?.statsTrackingLevel}
+          statsTrackingLevel={getEffectiveTrackingLevel(editGoalData.team)}
         />
       )}
 
