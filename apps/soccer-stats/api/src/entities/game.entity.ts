@@ -91,6 +91,19 @@ export class Game extends BaseEntity {
   })
   statsTrackingLevel?: StatsTrackingLevel;
 
+  // Note: statsFeatureOverrides field is excluded from GraphQL schema to avoid type complexity
+  // Feature toggles can be overridden per-game (trackSubstitutions, trackPossession, etc.)
+  @Column({ type: 'json', nullable: true })
+  statsFeatureOverrides?: {
+    trackSubstitutions?: boolean;
+    trackPossession?: boolean;
+    trackShots?: boolean;
+    trackCorners?: boolean;
+    trackFouls?: boolean;
+    trackOffsides?: boolean;
+    trackSaves?: boolean;
+  };
+
   @Field(() => GameFormat)
   @ManyToOne(() => GameFormat, (gameFormat) => gameFormat.games, {
     nullable: false,
