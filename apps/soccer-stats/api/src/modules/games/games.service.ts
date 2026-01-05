@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 
@@ -16,6 +16,8 @@ import { UpdateGameTeamInput } from './dto/update-game-team.input';
 
 @Injectable()
 export class GamesService {
+  private readonly logger = new Logger(GamesService.name);
+
   constructor(
     @InjectRepository(Game)
     private readonly gameRepository: Repository<Game>,
@@ -324,7 +326,7 @@ export class GamesService {
     });
 
     if (!startingLineupType) {
-      console.warn('STARTING_LINEUP event type not found');
+      this.logger.warn('STARTING_LINEUP event type not found');
       return;
     }
 
@@ -334,7 +336,7 @@ export class GamesService {
     });
 
     if (!substitutionInType) {
-      console.warn('SUBSTITUTION_IN event type not found');
+      this.logger.warn('SUBSTITUTION_IN event type not found');
       return;
     }
 
@@ -349,7 +351,7 @@ export class GamesService {
       await this.gameEventRepository.save(event);
     }
 
-    console.log(
+    this.logger.log(
       `Converted ${startingLineupEvents.length} STARTING_LINEUP events to SUBSTITUTION_IN for game ${gameId}`,
     );
   }
