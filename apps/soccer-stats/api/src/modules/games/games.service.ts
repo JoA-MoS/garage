@@ -234,7 +234,7 @@ export class GamesService {
     await this.gameTeamRepository.save(gameTeam);
 
     // Return with full relations for GraphQL
-    return this.gameTeamRepository.findOne({
+    const updatedGameTeam = await this.gameTeamRepository.findOne({
       where: { id: gameTeamId },
       relations: [
         'team',
@@ -244,7 +244,15 @@ export class GamesService {
         'gameEvents',
         'gameEvents.eventType',
       ],
-    }) as Promise<GameTeam>;
+    });
+
+    if (!updatedGameTeam) {
+      throw new NotFoundException(
+        `GameTeam with ID ${gameTeamId} not found after update`,
+      );
+    }
+
+    return updatedGameTeam;
   }
 
   /**

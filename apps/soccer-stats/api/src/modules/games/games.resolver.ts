@@ -6,7 +6,7 @@ import {
   ID,
   Subscription,
 } from '@nestjs/graphql';
-import { Inject, UseGuards } from '@nestjs/common';
+import { Inject, Logger, UseGuards } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
 
 import { Game } from '../../entities/game.entity';
@@ -24,6 +24,8 @@ import { UpdateGameTeamInput } from './dto/update-game-team.input';
 @Resolver(() => Game)
 @UseGuards(ClerkAuthGuard)
 export class GamesResolver {
+  private readonly logger = new Logger(GamesResolver.name);
+
   constructor(
     private readonly gamesService: GamesService,
     @Inject('PUB_SUB') private pubSub: PubSub,
@@ -42,11 +44,20 @@ export class GamesResolver {
   }
 
   @Mutation(() => Game)
-  @Public() // Temporarily public for MVP
+  @Public() // TODO(#186): Restore auth guard after MVP
   async createGame(@Args('createGameInput') createGameInput: CreateGameInput) {
-    console.log('Creating game with input:', createGameInput);
+    this.logger.log(
+      `Creating game with input: ${JSON.stringify(createGameInput)}`,
+    );
     const game = await this.gamesService.create(createGameInput);
-    this.pubSub.publish('gameCreated', { gameCreated: game });
+    try {
+      await this.pubSub.publish('gameCreated', { gameCreated: game });
+    } catch (error) {
+      this.logger.error('Failed to publish gameCreated event', {
+        error,
+        gameId: game.id,
+      });
+    }
     return game;
   }
 
@@ -56,9 +67,16 @@ export class GamesResolver {
     @Args('updateGameInput') updateGameInput: UpdateGameInput,
     @CurrentUser() user: ClerkUser,
   ) {
-    console.log('Updating game for user:', user.id);
+    this.logger.log(`Updating game ${id} for user: ${user.id}`);
     const game = await this.gamesService.update(id, updateGameInput);
-    this.pubSub.publish('gameUpdated', { gameUpdated: game });
+    try {
+      await this.pubSub.publish('gameUpdated', { gameUpdated: game });
+    } catch (error) {
+      this.logger.error('Failed to publish gameUpdated event', {
+        error,
+        gameId: game.id,
+      });
+    }
     return game;
   }
 
@@ -70,7 +88,7 @@ export class GamesResolver {
   @Mutation(() => GameTeam, {
     description: 'Update game team settings (formation, stats tracking level)',
   })
-  @Public() // Temporarily public for MVP
+  @Public() // TODO(#186): Restore auth guard after MVP
   async updateGameTeam(
     @Args('gameTeamId', { type: () => ID }) gameTeamId: string,
     @Args('updateGameTeamInput') updateGameTeamInput: UpdateGameTeamInput,
