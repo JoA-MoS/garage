@@ -29,6 +29,7 @@ export * from './user-card';
 // Team Components
 export * from './teams-list';
 export * from './team-stats-card';
+export * from './team-stats-tracking-radio-group';
 export * from './team-form-fields';
 export * from './team-stats';
 export * from './team-detail';

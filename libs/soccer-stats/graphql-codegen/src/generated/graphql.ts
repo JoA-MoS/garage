@@ -297,6 +297,8 @@ export type GameTeam = {
   gameEvents?: Maybe<Array<GameEvent>>;
   gameId: Scalars['ID']['output'];
   id: Scalars['ID']['output'];
+  /** Override stats tracking level for this team in this game (null = use game or team default) */
+  statsTrackingLevel?: Maybe<StatsTrackingLevel>;
   tacticalNotes?: Maybe<Scalars['String']['output']>;
   team: Team;
   teamId: Scalars['ID']['output'];
@@ -365,6 +367,8 @@ export type Mutation = {
   transferTeamOwnership: TeamMember;
   updateCoach: User;
   updateGame: Game;
+  /** Update game team settings (formation, stats tracking level) */
+  updateGameTeam: GameTeam;
   updateGoal: GameEvent;
   updatePlayer: User;
   updatePlayerPosition: GameEvent;
@@ -537,6 +541,11 @@ export type MutationUpdateCoachArgs = {
 export type MutationUpdateGameArgs = {
   id: Scalars['ID']['input'];
   updateGameInput: UpdateGameInput;
+};
+
+export type MutationUpdateGameTeamArgs = {
+  gameTeamId: Scalars['ID']['input'];
+  updateGameTeamInput: UpdateGameTeamInput;
 };
 
 export type MutationUpdateGoalArgs = {
@@ -1031,6 +1040,13 @@ export type UpdateGameInput = {
   status?: InputMaybe<GameStatus>;
 };
 
+export type UpdateGameTeamInput = {
+  formation?: InputMaybe<Scalars['String']['input']>;
+  /** Override stats tracking level for this team in this game (null = use team default) */
+  statsTrackingLevel?: InputMaybe<StatsTrackingLevel>;
+  tacticalNotes?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type UpdateGoalInput = {
   /** Player ID for managed team assister */
   assisterId?: InputMaybe<Scalars['ID']['input']>;
@@ -1367,6 +1383,7 @@ export type GetGameByIdQuery = {
       teamType: string;
       finalScore?: number | null;
       formation?: string | null;
+      statsTrackingLevel?: StatsTrackingLevel | null;
       team: {
         __typename?: 'Team';
         id: string;
@@ -1470,6 +1487,24 @@ export type RemoveGameMutationVariables = Exact<{
 export type RemoveGameMutation = {
   __typename?: 'Mutation';
   removeGame: boolean;
+};
+
+export type UpdateGameTeamMutationVariables = Exact<{
+  gameTeamId: Scalars['ID']['input'];
+  updateGameTeamInput: UpdateGameTeamInput;
+}>;
+
+export type UpdateGameTeamMutation = {
+  __typename?: 'Mutation';
+  updateGameTeam: {
+    __typename?: 'GameTeam';
+    id: string;
+    teamType: string;
+    formation?: string | null;
+    statsTrackingLevel?: StatsTrackingLevel | null;
+    tacticalNotes?: string | null;
+    team: { __typename?: 'Team'; id: string; name: string };
+  };
 };
 
 export type GetGameLineupQueryVariables = Exact<{
@@ -3666,6 +3701,10 @@ export const GetGameByIdDocument = {
                       },
                       {
                         kind: 'Field',
+                        name: { kind: 'Name', value: 'statsTrackingLevel' },
+                      },
+                      {
+                        kind: 'Field',
                         name: { kind: 'Name', value: 'team' },
                         selectionSet: {
                           kind: 'SelectionSet',
@@ -4069,6 +4108,100 @@ export const RemoveGameDocument = {
     },
   ],
 } as unknown as DocumentNode<RemoveGameMutation, RemoveGameMutationVariables>;
+export const UpdateGameTeamDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'mutation',
+      name: { kind: 'Name', value: 'UpdateGameTeam' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'gameTeamId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'updateGameTeamInput' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: {
+              kind: 'NamedType',
+              name: { kind: 'Name', value: 'UpdateGameTeamInput' },
+            },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'updateGameTeam' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'gameTeamId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'gameTeamId' },
+                },
+              },
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'updateGameTeamInput' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'updateGameTeamInput' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'teamType' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'formation' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'statsTrackingLevel' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'tacticalNotes' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'team' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  UpdateGameTeamMutation,
+  UpdateGameTeamMutationVariables
+>;
 export const GetGameLineupDocument = {
   kind: 'Document',
   definitions: [

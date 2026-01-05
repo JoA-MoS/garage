@@ -3,6 +3,16 @@
  * These types are decoupled from service/API types
  */
 
+/**
+ * Stats tracking level for game/team configuration.
+ * Matches the GraphQL StatsTrackingLevel enum values.
+ */
+export enum UIStatsTrackingLevel {
+  Full = 'FULL',
+  ScorerOnly = 'SCORER_ONLY',
+  GoalsOnly = 'GOALS_ONLY',
+}
+
 export interface UITeam {
   id: string;
   name: string;
