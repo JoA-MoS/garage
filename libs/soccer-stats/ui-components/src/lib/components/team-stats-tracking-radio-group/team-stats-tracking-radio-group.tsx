@@ -44,25 +44,27 @@ export function TeamStatsTrackingRadioGroup({
   const isUsingDefault = !currentLevel;
 
   return (
-    <div className={teamType === 'home' ? 'mb-3 px-3' : 'px-3'}>
-      <div className={`mb-1 text-sm font-medium ${titleClass}`}>{teamName}</div>
-      <div className="space-y-1">
+    <div className={teamType === 'home' ? 'mb-3 px-3 sm:px-4' : 'px-3 sm:px-4'}>
+      <div className={`mb-1 text-sm font-medium sm:text-base ${titleClass}`}>
+        {teamName}
+      </div>
+      <div className="space-y-1 sm:space-y-1.5">
         {/* Use game default option */}
         <button
           type="button"
           onClick={() => onSelect(null)}
           disabled={disabled}
-          className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+          className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors sm:gap-2.5 sm:px-3 sm:py-2 sm:text-sm ${
             disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
           } ${isUsingDefault ? selectedBgClass : 'text-gray-600 hover:bg-gray-100'}`}
         >
           <div
-            className={`flex h-3 w-3 flex-shrink-0 items-center justify-center rounded-full border ${
+            className={`flex h-3 w-3 flex-shrink-0 items-center justify-center rounded-full border sm:h-4 sm:w-4 ${
               isUsingDefault ? selectedBorderClass : 'border-gray-300 bg-white'
             }`}
           >
             {isUsingDefault && (
-              <div className="h-1 w-1 rounded-full bg-white" />
+              <div className="h-1 w-1 rounded-full bg-white sm:h-1.5 sm:w-1.5" />
             )}
           </div>
           <span>Use game default</span>
@@ -77,17 +79,17 @@ export function TeamStatsTrackingRadioGroup({
               type="button"
               onClick={() => onSelect(value)}
               disabled={disabled}
-              className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+              className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors sm:gap-2.5 sm:px-3 sm:py-2 sm:text-sm ${
                 disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
               } ${isSelected ? selectedBgClass : 'text-gray-600 hover:bg-gray-100'}`}
             >
               <div
-                className={`flex h-3 w-3 flex-shrink-0 items-center justify-center rounded-full border ${
+                className={`flex h-3 w-3 flex-shrink-0 items-center justify-center rounded-full border sm:h-4 sm:w-4 ${
                   isSelected ? selectedBorderClass : 'border-gray-300 bg-white'
                 }`}
               >
                 {isSelected && (
-                  <div className="h-1 w-1 rounded-full bg-white" />
+                  <div className="h-1 w-1 rounded-full bg-white sm:h-1.5 sm:w-1.5" />
                 )}
               </div>
               <span>{label}</span>

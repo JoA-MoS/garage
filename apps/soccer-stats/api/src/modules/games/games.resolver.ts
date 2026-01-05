@@ -97,8 +97,16 @@ export class GamesResolver {
       gameTeamId,
       updateGameTeamInput,
     );
-    // Optionally publish an event for real-time updates
-    // this.pubSub.publish('gameTeamUpdated', { gameTeamUpdated: gameTeam });
+    try {
+      await this.pubSub.publish('gameTeamUpdated', {
+        gameTeamUpdated: gameTeam,
+      });
+    } catch (error) {
+      this.logger.error('Failed to publish gameTeamUpdated event', {
+        error,
+        gameTeamId: gameTeam.id,
+      });
+    }
     return gameTeam;
   }
 
@@ -117,5 +125,19 @@ export class GamesResolver {
   })
   gameCreated() {
     return this.pubSub.asyncIterableIterator('gameCreated');
+  }
+
+  @Subscription(() => GameTeam, {
+    name: 'gameTeamUpdated',
+    description:
+      'Subscribe to game team updates (stats tracking level changes)',
+    filter: (
+      payload: { gameTeamUpdated: GameTeam },
+      variables: { gameId: string },
+    ) => payload.gameTeamUpdated.gameId === variables.gameId,
+  })
+  @Public()
+  gameTeamUpdated(@Args('gameId', { type: () => ID }) _gameId: string) {
+    return this.pubSub.asyncIterableIterator('gameTeamUpdated');
   }
 }

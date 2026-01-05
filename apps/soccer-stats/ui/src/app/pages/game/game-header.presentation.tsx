@@ -140,7 +140,7 @@ export function GameHeader({
               <>
                 {/* Backdrop to close menu */}
                 <div className="fixed inset-0 z-10" onClick={onCloseMenu} />
-                <div className="absolute right-0 z-20 mt-2 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                <div className="absolute left-0 z-20 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-1 shadow-lg sm:left-auto sm:right-0 sm:w-48">
                   {/* Pause/Resume - only during active play */}
                   {isActivePlay && (
                     <button
