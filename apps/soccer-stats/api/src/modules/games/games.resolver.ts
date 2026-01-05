@@ -10,6 +10,7 @@ import { Inject, UseGuards } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
 
 import { Game } from '../../entities/game.entity';
+import { GameTeam } from '../../entities/game-team.entity';
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
 import { CurrentUser } from '../auth/user.decorator';
 import { Public } from '../auth/public.decorator';
@@ -18,13 +19,14 @@ import { ClerkUser } from '../auth/clerk.service';
 import { GamesService } from './games.service';
 import { CreateGameInput } from './dto/create-game.input';
 import { UpdateGameInput } from './dto/update-game.input';
+import { UpdateGameTeamInput } from './dto/update-game-team.input';
 
 @Resolver(() => Game)
 @UseGuards(ClerkAuthGuard)
 export class GamesResolver {
   constructor(
     private readonly gamesService: GamesService,
-    @Inject('PUB_SUB') private pubSub: PubSub
+    @Inject('PUB_SUB') private pubSub: PubSub,
   ) {}
 
   @Query(() => [Game], { name: 'games' })
@@ -52,7 +54,7 @@ export class GamesResolver {
   async updateGame(
     @Args('id', { type: () => ID }) id: string,
     @Args('updateGameInput') updateGameInput: UpdateGameInput,
-    @CurrentUser() user: ClerkUser
+    @CurrentUser() user: ClerkUser,
   ) {
     console.log('Updating game for user:', user.id);
     const game = await this.gamesService.update(id, updateGameInput);
@@ -63,6 +65,23 @@ export class GamesResolver {
   @Mutation(() => Boolean)
   removeGame(@Args('id', { type: () => ID }) id: string) {
     return this.gamesService.remove(id);
+  }
+
+  @Mutation(() => GameTeam, {
+    description: 'Update game team settings (formation, stats tracking level)',
+  })
+  @Public() // Temporarily public for MVP
+  async updateGameTeam(
+    @Args('gameTeamId', { type: () => ID }) gameTeamId: string,
+    @Args('updateGameTeamInput') updateGameTeamInput: UpdateGameTeamInput,
+  ) {
+    const gameTeam = await this.gamesService.updateGameTeam(
+      gameTeamId,
+      updateGameTeamInput,
+    );
+    // Optionally publish an event for real-time updates
+    // this.pubSub.publish('gameTeamUpdated', { gameTeamUpdated: gameTeam });
+    return gameTeam;
   }
 
   @Subscription(() => Game, {
