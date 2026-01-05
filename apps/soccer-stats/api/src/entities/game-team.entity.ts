@@ -5,6 +5,7 @@ import { BaseEntity } from './base.entity';
 import { Game } from './game.entity';
 import { Team } from './team.entity';
 import { GameEvent } from './game-event.entity';
+import { StatsTrackingLevel } from './team-configuration.entity';
 
 @ObjectType()
 @Entity('game_teams')
@@ -32,6 +33,18 @@ export class GameTeam extends BaseEntity {
   @Field({ nullable: true })
   @Column({ type: 'text', nullable: true })
   tacticalNotes?: string;
+
+  @Field(() => StatsTrackingLevel, {
+    nullable: true,
+    description:
+      'Override stats tracking level for this team in this game (null = use game or team default)',
+  })
+  @Column({
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  statsTrackingLevel?: StatsTrackingLevel;
 
   @Field(() => Game)
   @ManyToOne(() => Game, (game) => game.gameTeams, { onDelete: 'CASCADE' })

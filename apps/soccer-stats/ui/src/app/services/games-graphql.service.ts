@@ -77,6 +77,7 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
         teamType
         finalScore
         formation
+        statsTrackingLevel
         team {
           id
           name
@@ -164,6 +165,28 @@ export const UPDATE_GAME = graphql(/* GraphQL */ `
 export const REMOVE_GAME = graphql(/* GraphQL */ `
   mutation RemoveGame($id: ID!) {
     removeGame(id: $id)
+  }
+`);
+
+export const UPDATE_GAME_TEAM = graphql(/* GraphQL */ `
+  mutation UpdateGameTeam(
+    $gameTeamId: ID!
+    $updateGameTeamInput: UpdateGameTeamInput!
+  ) {
+    updateGameTeam(
+      gameTeamId: $gameTeamId
+      updateGameTeamInput: $updateGameTeamInput
+    ) {
+      id
+      teamType
+      formation
+      statsTrackingLevel
+      tacticalNotes
+      team {
+        id
+        name
+      }
+    }
   }
 `);
 
