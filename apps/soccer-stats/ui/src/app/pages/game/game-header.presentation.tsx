@@ -2,6 +2,10 @@ import {
   GameStatus,
   StatsTrackingLevel,
 } from '@garage/soccer-stats/graphql-codegen';
+import {
+  TeamStatsTrackingRadioGroup,
+  UIStatsTrackingLevel,
+} from '@garage/soccer-stats/ui-components';
 
 import { StatsTrackingSelector } from '../../components/presentation/stats-tracking-selector.presentation';
 
@@ -197,169 +201,41 @@ export function GameHeader({
                         Per-Team Overrides
                       </div>
 
-                      {/* Home Team */}
-                      <div className="mb-3 px-3">
-                        <div className="mb-1 text-sm font-medium text-blue-700">
-                          {homeTeamName || 'Home'}
-                        </div>
-                        <div className="space-y-1">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onTeamStatsTrackingChange('home', null)
-                            }
-                            disabled={updatingTeamStats || updatingGame}
-                            className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
-                              updatingTeamStats || updatingGame
-                                ? 'cursor-not-allowed opacity-50'
-                                : 'cursor-pointer'
-                            } ${
-                              !homeTeamStatsTrackingLevel
-                                ? 'bg-blue-100 text-blue-900'
-                                : 'text-gray-600 hover:bg-gray-100'
-                            }`}
-                          >
-                            <div
-                              className={`flex h-3 w-3 flex-shrink-0 items-center justify-center rounded-full border ${
-                                !homeTeamStatsTrackingLevel
-                                  ? 'border-blue-500 bg-blue-500'
-                                  : 'border-gray-300 bg-white'
-                              }`}
-                            >
-                              {!homeTeamStatsTrackingLevel && (
-                                <div className="h-1 w-1 rounded-full bg-white" />
-                              )}
-                            </div>
-                            <span>Use game default</span>
-                          </button>
-                          {(
-                            [
-                              StatsTrackingLevel.Full,
-                              StatsTrackingLevel.ScorerOnly,
-                              StatsTrackingLevel.GoalsOnly,
-                            ] as const
-                          ).map((level) => (
-                            <button
-                              key={level}
-                              type="button"
-                              onClick={() =>
-                                onTeamStatsTrackingChange('home', level)
-                              }
-                              disabled={updatingTeamStats || updatingGame}
-                              className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
-                                updatingTeamStats || updatingGame
-                                  ? 'cursor-not-allowed opacity-50'
-                                  : 'cursor-pointer'
-                              } ${
-                                homeTeamStatsTrackingLevel === level
-                                  ? 'bg-blue-100 text-blue-900'
-                                  : 'text-gray-600 hover:bg-gray-100'
-                              }`}
-                            >
-                              <div
-                                className={`flex h-3 w-3 flex-shrink-0 items-center justify-center rounded-full border ${
-                                  homeTeamStatsTrackingLevel === level
-                                    ? 'border-blue-500 bg-blue-500'
-                                    : 'border-gray-300 bg-white'
-                                }`}
-                              >
-                                {homeTeamStatsTrackingLevel === level && (
-                                  <div className="h-1 w-1 rounded-full bg-white" />
-                                )}
-                              </div>
-                              <span>
-                                {level === StatsTrackingLevel.Full
-                                  ? 'Full Stats'
-                                  : level === StatsTrackingLevel.ScorerOnly
-                                    ? 'Scorer Only'
-                                    : 'Goals Only'}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                      <TeamStatsTrackingRadioGroup
+                        teamType="home"
+                        teamName={homeTeamName || 'Home'}
+                        currentLevel={
+                          homeTeamStatsTrackingLevel as
+                            | UIStatsTrackingLevel
+                            | null
+                            | undefined
+                        }
+                        onSelect={(level) =>
+                          onTeamStatsTrackingChange(
+                            'home',
+                            level as StatsTrackingLevel | null,
+                          )
+                        }
+                        disabled={updatingTeamStats || updatingGame || false}
+                      />
 
-                      {/* Away Team */}
-                      <div className="px-3">
-                        <div className="mb-1 text-sm font-medium text-red-700">
-                          {awayTeamName || 'Away'}
-                        </div>
-                        <div className="space-y-1">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onTeamStatsTrackingChange('away', null)
-                            }
-                            disabled={updatingTeamStats || updatingGame}
-                            className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
-                              updatingTeamStats || updatingGame
-                                ? 'cursor-not-allowed opacity-50'
-                                : 'cursor-pointer'
-                            } ${
-                              !awayTeamStatsTrackingLevel
-                                ? 'bg-red-100 text-red-900'
-                                : 'text-gray-600 hover:bg-gray-100'
-                            }`}
-                          >
-                            <div
-                              className={`flex h-3 w-3 flex-shrink-0 items-center justify-center rounded-full border ${
-                                !awayTeamStatsTrackingLevel
-                                  ? 'border-red-500 bg-red-500'
-                                  : 'border-gray-300 bg-white'
-                              }`}
-                            >
-                              {!awayTeamStatsTrackingLevel && (
-                                <div className="h-1 w-1 rounded-full bg-white" />
-                              )}
-                            </div>
-                            <span>Use game default</span>
-                          </button>
-                          {(
-                            [
-                              StatsTrackingLevel.Full,
-                              StatsTrackingLevel.ScorerOnly,
-                              StatsTrackingLevel.GoalsOnly,
-                            ] as const
-                          ).map((level) => (
-                            <button
-                              key={level}
-                              type="button"
-                              onClick={() =>
-                                onTeamStatsTrackingChange('away', level)
-                              }
-                              disabled={updatingTeamStats || updatingGame}
-                              className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
-                                updatingTeamStats || updatingGame
-                                  ? 'cursor-not-allowed opacity-50'
-                                  : 'cursor-pointer'
-                              } ${
-                                awayTeamStatsTrackingLevel === level
-                                  ? 'bg-red-100 text-red-900'
-                                  : 'text-gray-600 hover:bg-gray-100'
-                              }`}
-                            >
-                              <div
-                                className={`flex h-3 w-3 flex-shrink-0 items-center justify-center rounded-full border ${
-                                  awayTeamStatsTrackingLevel === level
-                                    ? 'border-red-500 bg-red-500'
-                                    : 'border-gray-300 bg-white'
-                                }`}
-                              >
-                                {awayTeamStatsTrackingLevel === level && (
-                                  <div className="h-1 w-1 rounded-full bg-white" />
-                                )}
-                              </div>
-                              <span>
-                                {level === StatsTrackingLevel.Full
-                                  ? 'Full Stats'
-                                  : level === StatsTrackingLevel.ScorerOnly
-                                    ? 'Scorer Only'
-                                    : 'Goals Only'}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                      <TeamStatsTrackingRadioGroup
+                        teamType="away"
+                        teamName={awayTeamName || 'Away'}
+                        currentLevel={
+                          awayTeamStatsTrackingLevel as
+                            | UIStatsTrackingLevel
+                            | null
+                            | undefined
+                        }
+                        onSelect={(level) =>
+                          onTeamStatsTrackingChange(
+                            'away',
+                            level as StatsTrackingLevel | null,
+                          )
+                        }
+                        disabled={updatingTeamStats || updatingGame || false}
+                      />
                     </div>
                   )}
 
