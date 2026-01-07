@@ -79,3 +79,7 @@ node_modules/
 /playwright/.cache/
 .clerk/
 .vercel
+
+# Pulumi
+Pulumi.*.yaml
+!Pulumi.yaml
