@@ -29,7 +29,8 @@
       ],
       "@garage/soccer-stats/graphql-codegen": [
         "libs/soccer-stats/graphql-codegen/src/index.ts"
-      ]
+      ],
+      "@garage/soccer-stats/infra": ["libs/soccer-stats/infra/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

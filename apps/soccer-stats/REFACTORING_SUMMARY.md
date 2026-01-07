@@ -18,7 +18,6 @@ Successfully refactored the soccer-stats app to implement a clean separation bet
 #### **After (Refactored)**
 
 - **Smart Components** (Handle data and logic)
-
   - `GameManager.tsx` - Central state management hook
   - `SoccerStatsTrackerSmart.tsx` - Main orchestrator
   - `GameHeaderSmart.tsx` - Score calculation and game header logic
