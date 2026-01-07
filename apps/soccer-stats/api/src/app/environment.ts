@@ -43,11 +43,11 @@ export const getPort = (): number => parsePort(getEnv('PORT', '3333')!);
 export const API_PREFIX = getEnv('API_PREFIX', 'api')!;
 
 /**
- * Frontend URLs for CORS configuration
+ * Frontend URLs for CORS configuration (optional)
  * Comma-separated list of allowed origins
+ * If not set, CORS allows all origins (safe when behind CloudFront/proxy)
  */
-export const getFrontendUrl = (): string =>
-  getEnv('FRONTEND_URL', 'http://localhost:4200,http://localhost:3333')!;
+export const getFrontendUrl = (): string | undefined => getEnv('FRONTEND_URL');
 
 /**
  * Database configuration
