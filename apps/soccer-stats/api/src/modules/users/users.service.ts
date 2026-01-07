@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { User } from '../../entities/user.entity';
 import { TeamPlayer } from '../../entities/team-player.entity';
 import { TeamCoach } from '../../entities/team-coach.entity';
+import { ClerkUser } from '../auth/clerk.service';
 
 import { CreateUserInput } from './dto/create-user.input';
 import { UpdateUserInput } from './dto/update-user.input';
@@ -17,13 +18,15 @@ export enum UserType {
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(TeamPlayer)
     private readonly teamPlayerRepository: Repository<TeamPlayer>,
     @InjectRepository(TeamCoach)
-    private readonly teamCoachRepository: Repository<TeamCoach>
+    private readonly teamCoachRepository: Repository<TeamCoach>,
   ) {}
 
   async findAll(userType: UserType = UserType.ALL): Promise<User[]> {
@@ -93,7 +96,7 @@ export class UsersService {
    */
   async findByClerkIdOrEmail(
     clerkId: string,
-    email?: string
+    email?: string,
   ): Promise<User | null> {
     // First, try to find by clerkId (preferred)
     const user = await this.userRepository.findOne({
@@ -114,16 +117,88 @@ export class UsersService {
     return null;
   }
 
+  /**
+   * Find an existing user or create a new one from Clerk user data.
+   * This implements Just-In-Time (JIT) user provisioning.
+   *
+   * Lookup strategy:
+   * 1. Try to find by clerkId (preferred, stable identifier)
+   * 2. Fallback to email (for users created before clerkId was stored)
+   *    - If found by email, backfill the clerkId for future lookups
+   * 3. If no match, create a new user with data from Clerk
+   *
+   * ## Future Enhancement: Clerk Webhooks
+   *
+   * For more robust user sync (e.g., handling user updates/deletions from Clerk),
+   * consider implementing Clerk webhooks:
+   *
+   * - Webhook events guide: https://clerk.com/docs/webhooks/sync-data
+   * - Available events: https://clerk.com/docs/webhooks/events
+   * - Key events: `user.created`, `user.updated`, `user.deleted`
+   *
+   * Webhooks would allow:
+   * - Pre-creating users before they access the app
+   * - Syncing profile updates (name, email changes)
+   * - Handling user deletion/deactivation
+   *
+   * @param clerkUser - The authenticated Clerk user
+   * @returns The existing or newly created internal user
+   */
+  async findOrCreateByClerkUser(clerkUser: ClerkUser): Promise<User> {
+    const email = clerkUser.emailAddresses?.[0]?.emailAddress;
+
+    // 1. Try to find by clerkId
+    let user = await this.userRepository.findOne({
+      where: { clerkId: clerkUser.id },
+    });
+
+    if (user) {
+      return user;
+    }
+
+    // 2. Try to find by email and backfill clerkId
+    if (email) {
+      user = await this.userRepository.findOne({
+        where: { email },
+      });
+
+      if (user) {
+        // Backfill clerkId for future lookups
+        user.clerkId = clerkUser.id;
+        await this.userRepository.save(user);
+        this.logger.log(
+          `Backfilled clerkId for user ${user.id} (email: ${email})`,
+        );
+        return user;
+      }
+    }
+
+    // 3. Create new user from Clerk data
+    const newUser = this.userRepository.create({
+      clerkId: clerkUser.id,
+      email,
+      firstName: clerkUser.firstName || 'New',
+      lastName: clerkUser.lastName || 'User',
+    });
+
+    const savedUser = await this.userRepository.save(newUser);
+    this.logger.log(
+      `Created new user ${savedUser.id} from Clerk user ${clerkUser.id}`,
+    );
+
+    return savedUser;
+  }
+
   async findByName(
     name: string,
-    userType: UserType = UserType.ALL
+    userType: UserType = UserType.ALL,
   ): Promise<User[]> {
     const queryBuilder = this.userRepository
       .createQueryBuilder('user')
       .where('user.isActive = :isActive', { isActive: true })
       .andWhere(
         "(LOWER(user.firstName) LIKE LOWER(:name) OR LOWER(user.lastName) LIKE LOWER(:name) OR LOWER(CONCAT(user.firstName, ' ', user.lastName)) LIKE LOWER(:name))",
-        { name: `%${name}%` }
+        { name: `%${name}%` },
       );
 
     switch (userType) {
@@ -183,7 +258,7 @@ export class UsersService {
 
   async findByTeam(
     teamId: string,
-    userType: UserType = UserType.ALL
+    userType: UserType = UserType.ALL,
   ): Promise<User[]> {
     const queryBuilder = this.userRepository
       .createQueryBuilder('user')
@@ -214,7 +289,7 @@ export class UsersService {
           .leftJoinAndSelect('user.teamCoaches', 'teamCoach')
           .andWhere(
             '(teamPlayer.teamId = :teamId AND teamPlayer.isActive = :teamPlayerActive) OR (teamCoach.teamId = :teamId AND teamCoach.isActive = :teamCoachActive)',
-            { teamId, teamPlayerActive: true, teamCoachActive: true }
+            { teamId, teamPlayerActive: true, teamCoachActive: true },
           );
         break;
     }
@@ -268,7 +343,7 @@ export class UsersService {
     teamId: string,
     jerseyNumber?: string,
     primaryPosition?: string,
-    joinedDate?: Date
+    joinedDate?: Date,
   ): Promise<TeamPlayer> {
     const teamPlayer = this.teamPlayerRepository.create({
       userId,
@@ -291,14 +366,14 @@ export class UsersService {
   async removePlayerFromTeam(
     userId: string,
     teamId: string,
-    leftDate?: Date
+    leftDate?: Date,
   ): Promise<boolean> {
     const result = await this.teamPlayerRepository.update(
       { userId, teamId, isActive: true },
       {
         isActive: false,
         leftDate: leftDate || new Date(),
-      }
+      },
     );
 
     return (result.affected ?? 0) > 0;
@@ -309,7 +384,7 @@ export class UsersService {
     userId: string,
     teamId: string,
     role: string,
-    startDate: Date
+    startDate: Date,
   ): Promise<TeamCoach> {
     const teamCoach = this.teamCoachRepository.create({
       userId,
@@ -331,14 +406,14 @@ export class UsersService {
   async removeCoachFromTeam(
     userId: string,
     teamId: string,
-    endDate?: Date
+    endDate?: Date,
   ): Promise<boolean> {
     const result = await this.teamCoachRepository.update(
       { userId, teamId, isActive: true },
       {
         isActive: false,
         endDate: endDate || new Date(),
-      }
+      },
     );
 
     return (result.affected ?? 0) > 0;

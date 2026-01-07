@@ -8,7 +8,7 @@ import {
   ResolveField,
   Parent,
 } from '@nestjs/graphql';
-import { BadRequestException, Inject, UseGuards } from '@nestjs/common';
+import { Inject, UseGuards } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
 
 import { Team } from '../../entities/team.entity';
@@ -41,27 +41,15 @@ export class TeamsResolver {
     private readonly playersService: PlayersService,
     private readonly teamMembersService: TeamMembersService,
     private readonly usersService: UsersService,
-    @Inject('PUB_SUB') private pubSub: PubSub
+    @Inject('PUB_SUB') private pubSub: PubSub,
   ) {}
 
   /**
    * Converts a Clerk user to internal user ID.
-   * Uses clerkId (preferred) with email fallback for migration.
+   * Uses JIT provisioning - creates user if not found.
    */
   private async getInternalUserId(clerkUser: ClerkUser): Promise<string> {
-    const email = clerkUser.emailAddresses?.[0]?.emailAddress;
-
-    const user = await this.usersService.findByClerkIdOrEmail(
-      clerkUser.id,
-      email
-    );
-
-    if (!user) {
-      throw new BadRequestException(
-        `No internal user found for Clerk user ${clerkUser.id}`
-      );
-    }
-
+    const user = await this.usersService.findOrCreateByClerkUser(clerkUser);
     return user.id;
   }
 
@@ -145,13 +133,13 @@ export class TeamsResolver {
   @UseGuards(ClerkAuthGuard)
   async createTeam(
     @Args('createTeamInput') createTeamInput: CreateTeamInput,
-    @CurrentUser() clerkUser: ClerkUser
+    @CurrentUser() clerkUser: ClerkUser,
   ) {
     const internalUserId = await this.getInternalUserId(clerkUser);
     const team = await this.teamsService.create(
       createTeamInput,
       clerkUser.id,
-      internalUserId
+      internalUserId,
     );
     this.pubSub.publish('teamCreated', { teamCreated: team });
     return team;
@@ -162,7 +150,7 @@ export class TeamsResolver {
   @RequireTeamRole([TeamRole.OWNER, TeamRole.MANAGER], { teamIdArg: 'id' })
   async updateTeam(
     @Args('id', { type: () => ID }) id: string,
-    @Args('updateTeamInput') updateTeamInput: UpdateTeamInput
+    @Args('updateTeamInput') updateTeamInput: UpdateTeamInput,
   ) {
     const team = await this.teamsService.update(id, updateTeamInput);
     this.pubSub.publish('teamUpdated', { teamUpdated: team });
@@ -179,7 +167,7 @@ export class TeamsResolver {
   @Mutation(() => Team)
   async createUnmanagedTeam(
     @Args('name') name: string,
-    @Args('shortName', { nullable: true }) shortName?: string
+    @Args('shortName', { nullable: true }) shortName?: string,
   ) {
     return this.teamsService.createUnmanagedTeam(name, shortName);
   }
@@ -187,7 +175,7 @@ export class TeamsResolver {
   @Mutation(() => Team)
   async findOrCreateUnmanagedTeam(
     @Args('name') name: string,
-    @Args('shortName', { nullable: true }) shortName?: string
+    @Args('shortName', { nullable: true }) shortName?: string,
   ) {
     return this.teamsService.findOrCreateUnmanagedTeam(name, shortName);
   }
@@ -197,7 +185,7 @@ export class TeamsResolver {
   @RequireTeamRole([TeamRole.OWNER, TeamRole.MANAGER], { teamIdArg: 'id' })
   async upgradeToManagedTeam(
     @Args('id', { type: () => ID }) id: string,
-    @Args('upgradeTeamInput') upgradeTeamInput: UpgradeTeamInput
+    @Args('upgradeTeamInput') upgradeTeamInput: UpgradeTeamInput,
   ) {
     return this.teamsService.upgradeToManagedTeam(id, upgradeTeamInput);
   }
@@ -208,7 +196,7 @@ export class TeamsResolver {
     teamIdPath: 'addPlayerToTeamInput.teamId',
   })
   async addPlayerToTeam(
-    @Args('addPlayerToTeamInput') addPlayerToTeamInput: AddPlayerToTeamInput
+    @Args('addPlayerToTeamInput') addPlayerToTeamInput: AddPlayerToTeamInput,
   ) {
     return this.teamsService.addPlayerToTeam(addPlayerToTeamInput);
   }
@@ -218,7 +206,7 @@ export class TeamsResolver {
   @RequireTeamRole([TeamRole.OWNER, TeamRole.MANAGER, TeamRole.COACH])
   async removePlayerFromTeam(
     @Args('teamId', { type: () => ID }) teamId: string,
-    @Args('playerId', { type: () => ID }) playerId: string
+    @Args('playerId', { type: () => ID }) playerId: string,
   ) {
     return this.teamsService.removePlayerFromTeam(teamId, playerId);
   }
@@ -233,7 +221,7 @@ export class TeamsResolver {
     const internalUserId = await this.getInternalUserId(clerkUser);
     return this.teamsService.backfillOwnersForUser(
       clerkUser.id,
-      internalUserId
+      internalUserId,
     );
   }
 
@@ -245,7 +233,7 @@ export class TeamsResolver {
   @RequireTeamRole([TeamRole.OWNER, TeamRole.MANAGER], { teamIdArg: 'teamId' })
   async updateTeamConfiguration(
     @Args('teamId', { type: () => ID }) teamId: string,
-    @Args('input') input: UpdateTeamConfigurationInput
+    @Args('input') input: UpdateTeamConfigurationInput,
   ): Promise<TeamConfiguration> {
     return this.teamsService.updateTeamConfiguration(teamId, input);
   }

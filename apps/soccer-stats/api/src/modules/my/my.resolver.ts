@@ -46,19 +46,17 @@ export class MyResolver {
   constructor(
     private readonly usersService: UsersService,
     private readonly teamMembersService: TeamMembersService,
-    private readonly gamesService: GamesService
+    private readonly gamesService: GamesService,
   ) {}
 
   /**
    * Root query for user-scoped data.
    *
-   * Returns null if:
-   * - Not authenticated (no Clerk user in context)
-   * - No internal user found (no clerkId match AND no email match)
+   * Returns null if not authenticated (no Clerk user in context).
    *
-   * User lookup strategy:
-   * 1. Try to find by clerkId (stable, never changes)
-   * 2. Fallback to email (for users who haven't been migrated yet)
+   * Implements Just-In-Time (JIT) user provisioning:
+   * - If an internal user exists (by clerkId or email), returns it
+   * - If no internal user exists, creates one from Clerk data
    *
    * The returned MyData contains only the userId - all other fields
    * are resolved via @ResolveField() to enable lazy loading and
@@ -76,22 +74,8 @@ export class MyResolver {
       return null;
     }
 
-    // Get email for fallback lookup (may be undefined)
-    const email = clerkUser.emailAddresses?.[0]?.emailAddress;
-
-    // Look up internal user by clerkId (preferred) or email (fallback)
-    const user = await this.usersService.findByClerkIdOrEmail(
-      clerkUser.id,
-      email
-    );
-
-    if (!user) {
-      this.logger.warn(
-        `No internal user found for Clerk user ${clerkUser.id}` +
-          (email ? ` with email ${email}` : ' (no email configured)')
-      );
-      return null;
-    }
+    // Find or create internal user (JIT provisioning)
+    const user = await this.usersService.findOrCreateByClerkUser(clerkUser);
 
     // Return minimal data - field resolvers will fetch the rest
     return { userId: user.id } as MyData;
@@ -138,10 +122,10 @@ export class MyResolver {
   })
   async upcomingGames(
     @Parent() myData: MyData,
-    @Args('limit', { type: () => Int, nullable: true }) limit?: number
+    @Args('limit', { type: () => Int, nullable: true }) limit?: number,
   ): Promise<Game[]> {
     const teamIds = await this.teamMembersService.findTeamIdsForUser(
-      myData.userId
+      myData.userId,
     );
     return this.gamesService.findByTeamIds(teamIds, [GameStatus.SCHEDULED], {
       limit,
@@ -155,10 +139,10 @@ export class MyResolver {
   })
   async recentGames(
     @Parent() myData: MyData,
-    @Args('limit', { type: () => Int, nullable: true }) limit?: number
+    @Args('limit', { type: () => Int, nullable: true }) limit?: number,
   ): Promise<Game[]> {
     const teamIds = await this.teamMembersService.findTeamIdsForUser(
-      myData.userId
+      myData.userId,
     );
     return this.gamesService.findByTeamIds(teamIds, [GameStatus.COMPLETED], {
       limit,
@@ -172,7 +156,7 @@ export class MyResolver {
   })
   async liveGames(@Parent() myData: MyData): Promise<Game[]> {
     const teamIds = await this.teamMembersService.findTeamIdsForUser(
-      myData.userId
+      myData.userId,
     );
     return this.gamesService.findByTeamIds(
       teamIds,
@@ -185,7 +169,7 @@ export class MyResolver {
       {
         orderBy: 'actualStart',
         orderDirection: 'DESC',
-      }
+      },
     );
   }
 }
