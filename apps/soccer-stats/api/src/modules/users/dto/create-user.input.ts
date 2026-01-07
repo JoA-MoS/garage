@@ -11,6 +11,12 @@ import {
 export class CreateUserInput {
   @Field({ nullable: true })
   @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  clerkId?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
   @IsEmail()
   email?: string;
 

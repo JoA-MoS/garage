@@ -51,13 +51,13 @@ export class TeamAccessGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly teamMembersService: TeamMembersService,
-    private readonly usersService: UsersService
+    private readonly usersService: UsersService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const metadata = this.reflector.get<TeamRoleMetadata>(
       TEAM_ROLES_KEY,
-      context.getHandler()
+      context.getHandler(),
     );
 
     // If no role metadata, allow access (method doesn't require team roles)
@@ -80,35 +80,25 @@ export class TeamAccessGuard implements CanActivate {
     if (!teamId) {
       this.logger.warn(
         `TeamAccessGuard: Could not extract teamId from args. Metadata: ${JSON.stringify(
-          metadata
-        )}`
+          metadata,
+        )}`,
       );
       throw new ForbiddenException('Team ID not found in request');
     }
 
-    // Look up internal user by clerkId (preferred) with email fallback
-    const email = clerkUser.emailAddresses?.[0]?.emailAddress;
-
-    const internalUser = await this.usersService.findByClerkIdOrEmail(
-      clerkUser.id,
-      email
-    );
-    if (!internalUser) {
-      this.logger.debug(
-        `No internal user found for Clerk user ${clerkUser.id}`
-      );
-      throw new ForbiddenException('User not registered in the system');
-    }
+    // Find or create internal user (JIT provisioning)
+    const internalUser =
+      await this.usersService.findOrCreateByClerkUser(clerkUser);
 
     // Get user's role in the team using internal user ID
     const membership = await this.teamMembersService.findUserRoleInTeam(
       internalUser.id,
-      teamId
+      teamId,
     );
 
     if (!membership) {
       this.logger.debug(
-        `User ${internalUser.id} is not a member of team ${teamId}`
+        `User ${internalUser.id} is not a member of team ${teamId}`,
       );
       throw new ForbiddenException('You are not a member of this team');
     }
@@ -124,17 +114,17 @@ export class TeamAccessGuard implements CanActivate {
       this.logger.debug(
         `User ${internalUser.id} with role ${
           membership.role
-        } does not have required roles: ${metadata.roles.join(', ')}`
+        } does not have required roles: ${metadata.roles.join(', ')}`,
       );
       throw new ForbiddenException(
         `Insufficient permissions. Required role: ${this.getLowestRequiredRole(
-          metadata.roles
-        )} or higher`
+          metadata.roles,
+        )} or higher`,
       );
     }
 
     this.logger.debug(
-      `User ${internalUser.id} with role ${membership.role} granted access to team ${teamId}`
+      `User ${internalUser.id} with role ${membership.role} granted access to team ${teamId}`,
     );
 
     return true;
@@ -145,7 +135,7 @@ export class TeamAccessGuard implements CanActivate {
    */
   private extractTeamId(
     args: Record<string, unknown>,
-    metadata: TeamRoleMetadata
+    metadata: TeamRoleMetadata,
   ): string | undefined {
     // If teamIdPath is specified, navigate the nested path
     if (metadata.teamIdPath) {
