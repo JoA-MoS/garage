@@ -12,11 +12,11 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
 
-import { API_PREFIX, getApiUrl, RAILWAY_URL } from './environment';
+import { API_PREFIX, getApiUrl } from './environment';
 
 /**
  * Get the HTTP URL for GraphQL queries/mutations.
- * Uses getApiUrl() which handles Vercel detection and returns Railway URL when needed.
+ * Returns relative URL for same-origin requests (CloudFront, dev proxy).
  */
 function getHttpUrl(): string {
   const baseUrl = getApiUrl();
@@ -27,25 +27,26 @@ function getHttpUrl(): string {
 
 /**
  * Get the WebSocket URL for GraphQL subscriptions.
- * - Production (Vercel/VITE_API_URL): Converts HTTP URL to WebSocket URL
- * - Development: Uses Vite proxy (ws: true in proxy config)
+ * - Same-origin: Uses current host with appropriate protocol (ws/wss)
+ * - VITE_API_URL override: Converts HTTP URL to WebSocket URL
  */
 function getWsUrl(): string {
   const baseUrl = getApiUrl();
 
-  // If we have a base URL (Vercel or VITE_API_URL), convert to WebSocket
+  // If explicit base URL provided, convert to WebSocket URL
   if (baseUrl) {
     return baseUrl.replace(/^http/, 'ws') + `/${API_PREFIX}/graphql`;
   }
 
-  // Development: Use Vite proxy (ws: true enables WebSocket proxying)
+  // Same-origin: Use current window location
+  // Works for CloudFront (wss://), local dev with Vite proxy (ws://)
   if (typeof window !== 'undefined') {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     return `${protocol}//${window.location.host}/${API_PREFIX}/graphql`;
   }
 
-  // Fallback for SSR - should not normally reach here
-  return RAILWAY_URL.replace(/^http/, 'ws') + `/${API_PREFIX}/graphql`;
+  // SSR fallback - use relative path (won't actually work for WS but handles build)
+  return `/${API_PREFIX}/graphql`;
 }
 
 const httpUrl = getHttpUrl();
@@ -84,7 +85,7 @@ const errorLink = new ErrorLink(({ error, operation }) => {
           message: err.message,
           code: errorCode,
           path: err.path,
-        }
+        },
       );
 
       // Trigger auth error handler for authentication failures
@@ -113,7 +114,7 @@ const wsLink = new GraphQLWsLink(
       } catch (error) {
         console.error(
           '[WebSocket] Failed to retrieve authentication token:',
-          error
+          error,
         );
         // Return empty params - connection will proceed without auth
         // The server should reject unauthenticated requests appropriately
@@ -135,7 +136,7 @@ const wsLink = new GraphQLWsLink(
         console.error('[WebSocket] Connection error:', error);
       },
     },
-  })
+  }),
 );
 
 // Auth link that adds the token to HTTP requests
@@ -165,7 +166,7 @@ const splitLink = split(
     );
   },
   wsLink,
-  ApolloLink.from([errorLink, authLink, httpLink])
+  ApolloLink.from([errorLink, authLink, httpLink]),
 );
 
 // Create Apollo Client instance
