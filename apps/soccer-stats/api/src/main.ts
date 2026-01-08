@@ -32,7 +32,10 @@ async function bootstrap() {
     // - Same-origin requests are always allowed (origin header is undefined)
     // - Cross-origin requests are allowed only if origin is in FRONTEND_URL
     app.enableCors({
-      origin: (origin, callback) => {
+      origin: (
+        origin: string | undefined,
+        callback: (err: Error | null, allow?: boolean) => void,
+      ) => {
         // Same-origin requests don't send Origin header - always allow
         if (!origin) {
           return callback(null, true);
