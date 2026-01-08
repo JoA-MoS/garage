@@ -80,11 +80,9 @@ describe('Environment Configuration', () => {
       expect(getFrontendUrl()).toBe('https://example.com');
     });
 
-    it('should return default localhost URLs when not set', () => {
+    it('should return undefined when not set (allows all origins behind proxy)', () => {
       delete process.env['FRONTEND_URL'];
-      expect(getFrontendUrl()).toBe(
-        'http://localhost:4200,http://localhost:3333',
-      );
+      expect(getFrontendUrl()).toBeUndefined();
     });
   });
 
