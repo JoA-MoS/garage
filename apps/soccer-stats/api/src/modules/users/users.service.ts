@@ -1,6 +1,11 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 
 import { User } from '../../entities/user.entity';
 import { TeamPlayer } from '../../entities/team-player.entity';
@@ -147,46 +152,112 @@ export class UsersService {
   async findOrCreateByClerkUser(clerkUser: ClerkUser): Promise<User> {
     const email = clerkUser.emailAddresses?.[0]?.emailAddress;
 
-    // 1. Try to find by clerkId
-    let user = await this.userRepository.findOne({
-      where: { clerkId: clerkUser.id },
-    });
-
-    if (user) {
-      return user;
-    }
-
-    // 2. Try to find by email and backfill clerkId
-    if (email) {
-      user = await this.userRepository.findOne({
-        where: { email },
+    try {
+      // 1. Try to find by clerkId (preferred, stable identifier)
+      let user = await this.userRepository.findOne({
+        where: { clerkId: clerkUser.id },
       });
 
       if (user) {
-        // Backfill clerkId for future lookups
-        user.clerkId = clerkUser.id;
-        await this.userRepository.save(user);
-        this.logger.log(
-          `Backfilled clerkId for user ${user.id} (email: ${email})`,
-        );
         return user;
       }
+
+      // 2. Try to find by email and backfill clerkId
+      if (email) {
+        user = await this.userRepository.findOne({
+          where: { email },
+        });
+
+        if (user) {
+          // Backfill clerkId for future lookups
+          const originalClerkId = user.clerkId;
+          user.clerkId = clerkUser.id;
+
+          try {
+            await this.userRepository.save(user);
+            this.logger.log(
+              `Backfilled clerkId for user ${user.id} (email: ${email})`,
+            );
+          } catch (backfillError) {
+            // If backfill fails, log but continue - user can still be identified by email
+            this.logger.error(
+              `Failed to backfill clerkId for user ${user.id} (email: ${email}): ${
+                backfillError instanceof Error
+                  ? backfillError.message
+                  : String(backfillError)
+              }`,
+            );
+            // Restore original state on the object we're returning
+            user.clerkId = originalClerkId;
+          }
+          return user;
+        }
+      }
+
+      // Log warning if creating user without email (no recovery path without clerkId)
+      if (!email) {
+        this.logger.warn(
+          `Creating user for Clerk user ${clerkUser.id} without email address. ` +
+            `User recovery without clerkId will not be possible.`,
+        );
+      }
+
+      // 3. Create new user from Clerk data
+      const newUser = this.userRepository.create({
+        clerkId: clerkUser.id,
+        email,
+        firstName: clerkUser.firstName || 'New',
+        lastName: clerkUser.lastName || 'User',
+      });
+
+      const savedUser = await this.userRepository.save(newUser);
+      this.logger.log(
+        `Created new user ${savedUser.id} from Clerk user ${clerkUser.id}`,
+      );
+
+      return savedUser;
+    } catch (error) {
+      // Handle race condition: another request may have created the user
+      if (
+        error instanceof QueryFailedError &&
+        (error.message.includes('duplicate key') ||
+          error.message.includes('unique constraint') ||
+          error.driverError?.code === '23505') // PostgreSQL unique violation code
+      ) {
+        this.logger.warn(
+          `Race condition detected for Clerk user ${clerkUser.id}, retrying lookup`,
+        );
+
+        // Retry the lookup - the other request likely succeeded
+        const existingUser = await this.userRepository.findOne({
+          where: { clerkId: clerkUser.id },
+        });
+
+        if (existingUser) {
+          return existingUser;
+        }
+
+        // Also check by email if available
+        if (email) {
+          const userByEmail = await this.userRepository.findOne({
+            where: { email },
+          });
+          if (userByEmail) {
+            return userByEmail;
+          }
+        }
+      }
+
+      // Log and rethrow for any other database errors
+      this.logger.error(
+        `Failed to find or create user for Clerk user ${clerkUser.id} (email: ${email ?? 'none'})`,
+        error instanceof Error ? error.stack : String(error),
+      );
+
+      throw new InternalServerErrorException(
+        'Unable to verify user account. Please try again.',
+      );
     }
-
-    // 3. Create new user from Clerk data
-    const newUser = this.userRepository.create({
-      clerkId: clerkUser.id,
-      email,
-      firstName: clerkUser.firstName || 'New',
-      lastName: clerkUser.lastName || 'User',
-    });
-
-    const savedUser = await this.userRepository.save(newUser);
-    this.logger.log(
-      `Created new user ${savedUser.id} from Clerk user ${clerkUser.id}`,
-    );
-
-    return savedUser;
   }
 
   async findByName(

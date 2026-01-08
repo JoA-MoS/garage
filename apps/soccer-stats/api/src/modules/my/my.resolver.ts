@@ -6,7 +6,7 @@ import {
   Args,
   Int,
 } from '@nestjs/graphql';
-import { Logger, UseGuards } from '@nestjs/common';
+import { Logger, NotFoundException, UseGuards } from '@nestjs/common';
 
 import { User } from '../../entities/user.entity';
 import { Team } from '../../entities/team.entity';
@@ -85,9 +85,20 @@ export class MyResolver {
   async user(@Parent() myData: MyData): Promise<User | null> {
     try {
       return await this.usersService.findOne(myData.userId);
-    } catch {
-      // findOne throws NotFoundException if not found
-      return null;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        // User was deleted/deactivated between getMy and user resolution
+        this.logger.warn(
+          `User ${myData.userId} not found during my.user resolution`,
+        );
+        return null;
+      }
+      // Rethrow unexpected errors - don't hide database failures
+      this.logger.error(
+        `Failed to resolve my.user for userId ${myData.userId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw error;
     }
   }
 
