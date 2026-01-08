@@ -106,8 +106,13 @@ const wsLink = new GraphQLWsLink(
   createClient({
     url: wsUrl,
     connectionParams: async () => {
+      // No token getter configured - allow anonymous connection
+      if (!getToken) {
+        return {};
+      }
+
       try {
-        const token = getToken ? await getToken() : null;
+        const token = await getToken();
         return {
           ...(token ? { authorization: `Bearer ${token}` } : {}),
         };
@@ -116,8 +121,12 @@ const wsLink = new GraphQLWsLink(
           '[WebSocket] Failed to retrieve authentication token:',
           error,
         );
-        // Return empty params - connection will proceed without auth
-        // The server should reject unauthenticated requests appropriately
+        // Notify UI about auth failure so user can take action
+        if (onAuthError) {
+          onAuthError();
+        }
+        // Return empty params - server will reject if auth required
+        // The onAuthError handler should prompt user to re-authenticate
         return {};
       }
     },
@@ -141,12 +150,22 @@ const wsLink = new GraphQLWsLink(
 
 // Auth link that adds the token to HTTP requests
 const authLink = setContext(async (_, { headers }) => {
+  // No token getter configured - proceed without auth
+  if (!getToken) {
+    return { headers };
+  }
+
   let token: string | null = null;
   try {
-    token = getToken ? await getToken() : null;
+    token = await getToken();
   } catch (error) {
     console.error('[Apollo] Failed to retrieve authentication token:', error);
-    // Proceed without token - let the server reject if auth is required
+    // Notify UI about auth failure so user can take action
+    if (onAuthError) {
+      onAuthError();
+    }
+    // Proceed without token - server will reject if auth required
+    // The onAuthError handler should prompt user to re-authenticate
   }
   return {
     headers: {
