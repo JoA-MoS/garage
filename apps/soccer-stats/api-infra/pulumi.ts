@@ -16,6 +16,11 @@ const cpu = config.getNumber('cpu') || 256; // 0.25 vCPU
 const memory = config.getNumber('memory') || 512; // 512 MB
 const desiredCount = config.getNumber('desiredCount') || 1;
 
+// Auto-scaling configuration
+const minCapacity = config.getNumber('minCapacity') || 1;
+const maxCapacity = config.getNumber('maxCapacity') || 4;
+const cpuTargetUtilization = config.getNumber('cpuTargetUtilization') || 70;
+
 // Clerk authentication (required)
 const clerkSecretKey = config.requireSecret('clerkSecretKey');
 const clerkPublishableKey = config.require('clerkPublishableKey');
@@ -273,11 +278,12 @@ const service = new aws.ecs.Service(`${namePrefix}-service`, {
   desiredCount: desiredCount,
   // Use capacity provider strategy instead of launchType
   // (they are mutually exclusive in ECS)
-  // Spot for dev (cost savings), standard Fargate for prod (reliability)
-  capacityProviderStrategies:
-    stack === 'prod'
-      ? [{ capacityProvider: 'FARGATE', weight: 1, base: 1 }]
-      : [{ capacityProvider: 'FARGATE_SPOT', weight: 1, base: 1 }],
+  // Beta phase: Use FARGATE_SPOT for all environments (60-70% cost savings)
+  // Usage pattern: Weekend spikes with minimal weekday traffic makes Spot ideal
+  // TODO: Re-evaluate for prod when usage stabilizes post-beta
+  capacityProviderStrategies: [
+    { capacityProvider: 'FARGATE_SPOT', weight: 1, base: 1 },
+  ],
   networkConfiguration: {
     subnets: usePrivateSubnets ? privateSubnetIds : publicSubnetIds,
     securityGroups: [ecsSecurityGroupId],
@@ -308,11 +314,49 @@ const service = new aws.ecs.Service(`${namePrefix}-service`, {
 });
 
 // =============================================================================
-// Auto Scaling (optional, for prod)
+// Auto Scaling
 // =============================================================================
-// TODO: Add auto-scaling configuration for production
-// const scalingTarget = new aws.appautoscaling.Target(...)
-// const scalingPolicy = new aws.appautoscaling.Policy(...)
+// Scale based on CPU utilization to handle weekend usage spikes
+// Min: 1 task (cost savings during quiet periods)
+// Max: 4 tasks (handle spikes without breaking the bank on Spot)
+
+const scalingTarget = new aws.appautoscaling.Target(
+  `${namePrefix}-scaling-target`,
+  {
+    maxCapacity: maxCapacity,
+    minCapacity: minCapacity,
+    resourceId: pulumi.interpolate`service/${clusterArn.apply((arn) => arn.split('/').pop())}/${service.name}`,
+    scalableDimension: 'ecs:service:DesiredCount',
+    serviceNamespace: 'ecs',
+    tags: {
+      Name: `${namePrefix}-scaling-target`,
+      Environment: stack,
+    },
+  },
+);
+
+// Target tracking policy: Scale to maintain target CPU utilization
+const cpuScalingPolicy = new aws.appautoscaling.Policy(
+  `${namePrefix}-cpu-scaling`,
+  {
+    name: `${namePrefix}-cpu-scaling`,
+    policyType: 'TargetTrackingScaling',
+    resourceId: scalingTarget.resourceId,
+    scalableDimension: scalingTarget.scalableDimension,
+    serviceNamespace: scalingTarget.serviceNamespace,
+    targetTrackingScalingPolicyConfiguration: {
+      predefinedMetricSpecification: {
+        predefinedMetricType: 'ECSServiceAverageCPUUtilization',
+      },
+      targetValue: cpuTargetUtilization,
+      scaleInCooldown: 300, // 5 min cooldown before scaling in (avoid flapping)
+      scaleOutCooldown: 60, // 1 min cooldown before scaling out (respond quickly to spikes)
+    },
+  },
+);
+
+// Future enhancement: Add ALBRequestCountPerTarget scaling policy
+// for faster response to sudden traffic spikes (requires ALB ARN export from shared infra)
 
 // =============================================================================
 // Exports
@@ -323,3 +367,12 @@ export const taskDefinitionArn = taskDefinition.arn;
 export const imageUri = image.ref;
 export const apiUrl = pulumi.interpolate`http://${albDnsName}`;
 export const environment = stack;
+
+// Auto-scaling exports
+export const scalingTargetId = scalingTarget.id;
+export const cpuScalingPolicyArn = cpuScalingPolicy.arn;
+export const autoScalingConfig = {
+  minCapacity,
+  maxCapacity,
+  cpuTargetUtilization,
+};

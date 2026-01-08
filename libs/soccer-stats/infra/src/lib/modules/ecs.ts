@@ -32,7 +32,9 @@ export function createEcsCluster(config: EcsConfig): EcsOutputs {
     { provider: awsProvider },
   );
 
-  // Configure capacity providers - use FARGATE_SPOT for dev to save costs
+  // Configure capacity providers - use FARGATE_SPOT for all environments
+  // Beta phase: Minimal usage with weekend spikes makes Spot ideal for cost savings
+  // TODO: Re-evaluate for prod when usage stabilizes post-beta
   new aws.ecs.ClusterCapacityProviders(
     `${namePrefix}-cluster-capacity`,
     {
@@ -40,7 +42,7 @@ export function createEcsCluster(config: EcsConfig): EcsOutputs {
       capacityProviders: ['FARGATE', 'FARGATE_SPOT'],
       defaultCapacityProviderStrategies: [
         {
-          capacityProvider: stack === 'prod' ? 'FARGATE' : 'FARGATE_SPOT',
+          capacityProvider: 'FARGATE_SPOT',
           weight: 1,
           base: 1,
         },
