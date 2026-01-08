@@ -17,7 +17,7 @@ flowchart TB
             CF[CloudFront Distribution]
         end
 
-        subgraph Region["Region (us-east-1)"]
+        subgraph Region["Region (us-west-2)"]
             subgraph VPC["VPC (10.0.0.0/16)"]
                 subgraph PublicSubnets["Public Subnets"]
                     ALB[Application Load Balancer]
