@@ -1,6 +1,7 @@
 import * as pulumi from '@pulumi/pulumi';
 import * as aws from '@pulumi/aws';
 import * as docker from '@pulumi/docker-build';
+import { workspaceRoot } from '@nx/devkit';
 
 import { getSharedInfraStackReference } from './stack-reference';
 
@@ -122,12 +123,12 @@ const imageTags =
       ];
 
 const image = new docker.Image(`${namePrefix}-image`, {
-  // Build context is the monorepo root
+  // Build context is the monorepo root (using Nx workspaceRoot for robustness)
   context: {
-    location: '../../../../', // From api-infra to repo root
+    location: workspaceRoot,
   },
   dockerfile: {
-    location: '../../../../apps/soccer-stats/api/Dockerfile',
+    location: `${workspaceRoot}/apps/soccer-stats/api/Dockerfile`,
   },
   platforms: ['linux/amd64'],
   tags: imageTags,
