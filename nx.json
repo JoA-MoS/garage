@@ -87,6 +87,21 @@
       "cache": true,
       "dependsOn": ["^build"],
       "inputs": ["production", "^production"]
+    },
+    "@nx-extend/pulumi:up": {
+      "options": {
+        "tti": false
+      }
+    },
+    "@nx-extend/pulumi:preview": {
+      "options": {
+        "tui": false
+      }
+    },
+    "@nx-extend/pulumi:refresh": {
+      "options": {
+        "tti": false
+      }
     }
   },
   "generators": {

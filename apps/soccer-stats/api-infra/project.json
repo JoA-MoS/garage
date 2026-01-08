@@ -1,0 +1,55 @@
+{
+  "name": "soccer-stats-api-infra",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/soccer-stats/api-infra",
+  "implicitDependencies": ["soccer-stats-api"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/soccer-stats/api-infra"],
+      "options": {
+        "command": "nx run soccer-stats-api-infra:build:tsc --batch"
+      },
+      "dependsOn": ["soccer-stats-infra:build"]
+    },
+    "build:tsc": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/soccer-stats/api-infra",
+        "main": "apps/soccer-stats/api-infra/pulumi.ts",
+        "tsConfig": "apps/soccer-stats/api-infra/tsconfig.build.json",
+        "assets": []
+      }
+    },
+    "up": {
+      "executor": "@nx-extend/pulumi:up",
+      "options": {
+        "yes": true
+      },
+      "dependsOn": [
+        "build",
+        "soccer-stats-api:docker-build",
+        "soccer-stats-infra:up"
+      ]
+    },
+    "preview": {
+      "executor": "@nx-extend/pulumi:preview",
+      "options": {},
+      "dependsOn": ["build", "soccer-stats-api:docker-build"]
+    },
+    "refresh": {
+      "executor": "@nx-extend/pulumi:refresh",
+      "options": {}
+    },
+    "import": {
+      "executor": "@nx-extend/pulumi:import",
+      "options": {}
+    }
+  },
+  "tags": ["type:infra", "domain:sports", "scope:soccer-stats"]
+}

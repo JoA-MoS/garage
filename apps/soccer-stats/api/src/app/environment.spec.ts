@@ -80,11 +80,9 @@ describe('Environment Configuration', () => {
       expect(getFrontendUrl()).toBe('https://example.com');
     });
 
-    it('should return default localhost URLs when not set', () => {
+    it('should return undefined when not set (allows all origins behind proxy)', () => {
       delete process.env['FRONTEND_URL'];
-      expect(getFrontendUrl()).toBe(
-        'http://localhost:4200,http://localhost:3333',
-      );
+      expect(getFrontendUrl()).toBeUndefined();
     });
   });
 
@@ -94,9 +92,23 @@ describe('Environment Configuration', () => {
       expect(getDbHost()).toBe('db.example.com');
     });
 
-    it('should return "localhost" as default for DB_HOST', () => {
+    it('should warn and return empty string when DB_HOST missing in development', () => {
+      process.env['NODE_ENV'] = 'development';
       delete process.env['DB_HOST'];
-      expect(getDbHost()).toBe('localhost');
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      expect(getDbHost()).toBe('');
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Environment] Missing DB_HOST - ensure .env file is loaded by Nx',
+      );
+      warnSpy.mockRestore();
+    });
+
+    it('should throw when DB_HOST missing in production', () => {
+      process.env['NODE_ENV'] = 'production';
+      delete process.env['DB_HOST'];
+      expect(() => getDbHost()).toThrow(
+        'Missing required environment variable: DB_HOST',
+      );
     });
 
     it('should return DB_PORT when set to valid number', () => {
@@ -104,9 +116,9 @@ describe('Environment Configuration', () => {
       expect(getDbPort()).toBe(5433);
     });
 
-    it('should return 3333 when DB_PORT is invalid', () => {
+    it('should return 5432 when DB_PORT is invalid', () => {
       process.env['DB_PORT'] = 'invalid';
-      expect(getDbPort()).toBe(3333);
+      expect(getDbPort()).toBe(5432);
     });
 
     it('should return DB_USERNAME when set', () => {
@@ -114,9 +126,15 @@ describe('Environment Configuration', () => {
       expect(getDbUsername()).toBe('admin');
     });
 
-    it('should return "postgres" as default for DB_USERNAME', () => {
+    it('should warn and return empty string when DB_USERNAME missing in development', () => {
+      process.env['NODE_ENV'] = 'development';
       delete process.env['DB_USERNAME'];
-      expect(getDbUsername()).toBe('postgres');
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      expect(getDbUsername()).toBe('');
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Environment] Missing DB_USERNAME - ensure .env file is loaded by Nx',
+      );
+      warnSpy.mockRestore();
     });
 
     it('should return DB_PASSWORD when set', () => {
@@ -124,9 +142,15 @@ describe('Environment Configuration', () => {
       expect(getDbPassword()).toBe('secret');
     });
 
-    it('should return "postgres" as default for DB_PASSWORD', () => {
+    it('should warn and return empty string when DB_PASSWORD missing in development', () => {
+      process.env['NODE_ENV'] = 'development';
       delete process.env['DB_PASSWORD'];
-      expect(getDbPassword()).toBe('postgres');
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      expect(getDbPassword()).toBe('');
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Environment] Missing DB_PASSWORD - ensure .env file is loaded by Nx',
+      );
+      warnSpy.mockRestore();
     });
 
     it('should return DB_NAME when set', () => {
@@ -134,9 +158,15 @@ describe('Environment Configuration', () => {
       expect(getDbName()).toBe('my_database');
     });
 
-    it('should return "soccer_stats" as default for DB_NAME', () => {
+    it('should warn and return empty string when DB_NAME missing in development', () => {
+      process.env['NODE_ENV'] = 'development';
       delete process.env['DB_NAME'];
-      expect(getDbName()).toBe('soccer_stats');
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      expect(getDbName()).toBe('');
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Environment] Missing DB_NAME - ensure .env file is loaded by Nx',
+      );
+      warnSpy.mockRestore();
     });
   });
 

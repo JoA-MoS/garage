@@ -1,0 +1,11 @@
+name: soccer-stats-ui-infra
+description: S3 and CloudFront infrastructure for soccer-stats UI
+main: ../../../dist/apps/soccer-stats/ui-infra/pulumi.js
+runtime:
+  name: nodejs
+  options:
+    packagemanager: pnpm
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: aws-typescript
