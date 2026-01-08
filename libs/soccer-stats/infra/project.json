@@ -1,0 +1,42 @@
+{
+  "name": "soccer-stats-infra",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/soccer-stats/infra/src",
+  "projectType": "library",
+  "tags": ["type:lib", "domain:sports", "scope:soccer-stats"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/soccer-stats/infra",
+        "main": "libs/soccer-stats/infra/pulumi.ts",
+        "tsConfig": "libs/soccer-stats/infra/tsconfig.build.json",
+        "assets": []
+      }
+    },
+    "up": {
+      "executor": "@nx-extend/pulumi:up",
+      "options": {
+        "yes": true
+      },
+      "dependsOn": ["build"]
+    },
+    "preview": {
+      "executor": "@nx-extend/pulumi:preview",
+      "options": {},
+      "dependsOn": ["build"]
+    },
+    "refresh": {
+      "executor": "@nx-extend/pulumi:refresh",
+      "options": {}
+    },
+    "import": {
+      "executor": "@nx-extend/pulumi:import",
+      "options": {}
+    }
+  }
+}
