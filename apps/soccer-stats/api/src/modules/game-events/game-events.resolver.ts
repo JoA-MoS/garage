@@ -6,7 +6,7 @@ import {
   ID,
   Subscription,
 } from '@nestjs/graphql';
-import { UseGuards, BadRequestException, Inject } from '@nestjs/common';
+import { UseGuards, Inject, BadRequestException } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
 
 import { GameEvent } from '../../entities/game-event.entity';
@@ -37,34 +37,22 @@ export class GameEventsResolver {
   constructor(
     private readonly gameEventsService: GameEventsService,
     private readonly usersService: UsersService,
-    @Inject('PUB_SUB') private pubSub: PubSub
+    @Inject('PUB_SUB') private pubSub: PubSub,
   ) {}
 
   /**
    * Converts a Clerk user to internal user ID.
-   * Uses clerkId (preferred) with email fallback for migration.
+   * Uses JIT provisioning - creates user if not found.
    */
   private async getInternalUserId(clerkUser: ClerkUser): Promise<string> {
-    const email = clerkUser.emailAddresses?.[0]?.emailAddress;
-
-    const user = await this.usersService.findByClerkIdOrEmail(
-      clerkUser.id,
-      email
-    );
-
-    if (!user) {
-      throw new BadRequestException(
-        `No internal user found for Clerk user ${clerkUser.id}`
-      );
-    }
-
+    const user = await this.usersService.findOrCreateByClerkUser(clerkUser);
     return user.id;
   }
 
   @Query(() => GameLineup, { name: 'gameLineup' })
   @Public()
   getGameLineup(
-    @Args('gameTeamId', { type: () => ID }) gameTeamId: string
+    @Args('gameTeamId', { type: () => ID }) gameTeamId: string,
   ): Promise<GameLineup> {
     return this.gameEventsService.getGameLineup(gameTeamId);
   }
@@ -72,7 +60,7 @@ export class GameEventsResolver {
   @Query(() => [GameEvent], { name: 'gameEvents' })
   @Public()
   getGameEvents(
-    @Args('gameTeamId', { type: () => ID }) gameTeamId: string
+    @Args('gameTeamId', { type: () => ID }) gameTeamId: string,
   ): Promise<GameEvent[]> {
     return this.gameEventsService.findEventsByGameTeam(gameTeamId);
   }
@@ -80,7 +68,7 @@ export class GameEventsResolver {
   @Query(() => GameEvent, { name: 'gameEvent', nullable: true })
   @Public()
   getGameEvent(
-    @Args('id', { type: () => ID }) id: string
+    @Args('id', { type: () => ID }) id: string,
   ): Promise<GameEvent | null> {
     return this.gameEventsService.findOne(id);
   }
@@ -88,7 +76,7 @@ export class GameEventsResolver {
   @Mutation(() => GameEvent, { name: 'addPlayerToLineup' })
   async addPlayerToLineup(
     @Args('input') input: AddToLineupInput,
-    @CurrentUser() clerkUser: ClerkUser
+    @CurrentUser() clerkUser: ClerkUser,
   ): Promise<GameEvent> {
     const userId = await this.getInternalUserId(clerkUser);
     return this.gameEventsService.addPlayerToLineup(input, userId);
@@ -97,7 +85,7 @@ export class GameEventsResolver {
   @Mutation(() => GameEvent, { name: 'addPlayerToBench' })
   async addPlayerToBench(
     @Args('input') input: AddToBenchInput,
-    @CurrentUser() clerkUser: ClerkUser
+    @CurrentUser() clerkUser: ClerkUser,
   ): Promise<GameEvent> {
     const userId = await this.getInternalUserId(clerkUser);
     return this.gameEventsService.addPlayerToBench(input, userId);
@@ -106,7 +94,7 @@ export class GameEventsResolver {
   @Mutation(() => Boolean, { name: 'removeFromLineup' })
   @Public() // TODO: Add proper auth
   removeFromLineup(
-    @Args('gameEventId', { type: () => ID }) gameEventId: string
+    @Args('gameEventId', { type: () => ID }) gameEventId: string,
   ): Promise<boolean> {
     return this.gameEventsService.removeFromLineup(gameEventId);
   }
@@ -115,7 +103,7 @@ export class GameEventsResolver {
   @Public() // TODO: Add proper auth
   updatePlayerPosition(
     @Args('gameEventId', { type: () => ID }) gameEventId: string,
-    @Args('position') position: string
+    @Args('position') position: string,
   ): Promise<GameEvent> {
     return this.gameEventsService.updatePlayerPosition(gameEventId, position);
   }
@@ -123,7 +111,7 @@ export class GameEventsResolver {
   @Mutation(() => [GameEvent], { name: 'substitutePlayer' })
   async substitutePlayer(
     @Args('input') input: SubstitutePlayerInput,
-    @CurrentUser() clerkUser: ClerkUser
+    @CurrentUser() clerkUser: ClerkUser,
   ): Promise<GameEvent[]> {
     const userId = await this.getInternalUserId(clerkUser);
     return this.gameEventsService.substitutePlayer(input, userId);
@@ -132,7 +120,7 @@ export class GameEventsResolver {
   @Mutation(() => GameEvent, { name: 'recordGoal' })
   async recordGoal(
     @Args('input') input: RecordGoalInput,
-    @CurrentUser() clerkUser: ClerkUser
+    @CurrentUser() clerkUser: ClerkUser,
   ): Promise<GameEvent> {
     const userId = await this.getInternalUserId(clerkUser);
     return this.gameEventsService.recordGoal(input, userId);
@@ -141,7 +129,7 @@ export class GameEventsResolver {
   @Mutation(() => Boolean, { name: 'deleteGoal' })
   @Public() // TODO: Add proper auth
   deleteGoal(
-    @Args('gameEventId', { type: () => ID }) gameEventId: string
+    @Args('gameEventId', { type: () => ID }) gameEventId: string,
   ): Promise<boolean> {
     return this.gameEventsService.deleteGoal(gameEventId);
   }
@@ -149,7 +137,7 @@ export class GameEventsResolver {
   @Mutation(() => Boolean, { name: 'deleteSubstitution' })
   @Public() // TODO: Add proper auth
   deleteSubstitution(
-    @Args('gameEventId', { type: () => ID }) gameEventId: string
+    @Args('gameEventId', { type: () => ID }) gameEventId: string,
   ): Promise<boolean> {
     return this.gameEventsService.deleteSubstitution(gameEventId);
   }
@@ -157,7 +145,7 @@ export class GameEventsResolver {
   @Mutation(() => Boolean, { name: 'deletePositionSwap' })
   @Public() // TODO: Add proper auth
   deletePositionSwap(
-    @Args('gameEventId', { type: () => ID }) gameEventId: string
+    @Args('gameEventId', { type: () => ID }) gameEventId: string,
   ): Promise<boolean> {
     return this.gameEventsService.deletePositionSwap(gameEventId);
   }
@@ -165,7 +153,7 @@ export class GameEventsResolver {
   @Mutation(() => Boolean, { name: 'deleteStarterEntry' })
   @Public() // TODO: Add proper auth
   deleteStarterEntry(
-    @Args('gameEventId', { type: () => ID }) gameEventId: string
+    @Args('gameEventId', { type: () => ID }) gameEventId: string,
   ): Promise<boolean> {
     return this.gameEventsService.deleteStarterEntry(gameEventId);
   }
@@ -179,7 +167,7 @@ export class GameEventsResolver {
   @Mutation(() => [GameEvent], { name: 'swapPositions' })
   async swapPositions(
     @Args('input') input: SwapPositionsInput,
-    @CurrentUser() clerkUser: ClerkUser
+    @CurrentUser() clerkUser: ClerkUser,
   ): Promise<GameEvent[]> {
     const userId = await this.getInternalUserId(clerkUser);
     return this.gameEventsService.swapPositions(input, userId);
@@ -192,12 +180,12 @@ export class GameEventsResolver {
   })
   async batchLineupChanges(
     @Args('input') input: BatchLineupChangesInput,
-    @CurrentUser() clerkUser: ClerkUser
+    @CurrentUser() clerkUser: ClerkUser,
   ): Promise<GameEvent[]> {
     const userId = await this.getInternalUserId(clerkUser);
     const result = await this.gameEventsService.batchLineupChanges(
       input,
-      userId
+      userId,
     );
     return result.events;
   }
@@ -205,7 +193,7 @@ export class GameEventsResolver {
   @Query(() => [PlayerPositionStats], { name: 'playerPositionStats' })
   @Public()
   getPlayerPositionStats(
-    @Args('gameTeamId', { type: () => ID }) gameTeamId: string
+    @Args('gameTeamId', { type: () => ID }) gameTeamId: string,
   ): Promise<PlayerPositionStats[]> {
     return this.gameEventsService.getPlayerPositionStats(gameTeamId);
   }
@@ -213,7 +201,7 @@ export class GameEventsResolver {
   @Query(() => [PlayerFullStats], { name: 'playerStats' })
   @Public()
   getPlayerStats(
-    @Args('input') input: PlayerStatsInput
+    @Args('input') input: PlayerStatsInput,
   ): Promise<PlayerFullStats[]> {
     return this.gameEventsService.getPlayerStats(input);
   }
@@ -221,7 +209,7 @@ export class GameEventsResolver {
   @Query(() => DependentEventsResult, { name: 'dependentEvents' })
   @Public()
   getDependentEvents(
-    @Args('gameEventId', { type: () => ID }) gameEventId: string
+    @Args('gameEventId', { type: () => ID }) gameEventId: string,
   ): Promise<DependentEventsResult> {
     return this.gameEventsService.findDependentEvents(gameEventId);
   }
@@ -230,7 +218,7 @@ export class GameEventsResolver {
   @Public() // TODO: Add proper auth
   deleteEventWithCascade(
     @Args('gameEventId', { type: () => ID }) gameEventId: string,
-    @Args('eventType') eventType: string
+    @Args('eventType') eventType: string,
   ): Promise<boolean> {
     const validTypes = [
       'goal',
@@ -241,13 +229,13 @@ export class GameEventsResolver {
     if (!validTypes.includes(eventType)) {
       throw new BadRequestException(
         `Invalid event type: ${eventType}. Must be one of: ${validTypes.join(
-          ', '
-        )}`
+          ', ',
+        )}`,
       );
     }
     return this.gameEventsService.deleteEventWithCascade(
       gameEventId,
-      eventType as 'goal' | 'substitution' | 'position_swap' | 'starter_entry'
+      eventType as 'goal' | 'substitution' | 'position_swap' | 'starter_entry',
     );
   }
 
@@ -256,12 +244,12 @@ export class GameEventsResolver {
   resolveEventConflict(
     @Args('conflictId', { type: () => ID }) conflictId: string,
     @Args('selectedEventId', { type: () => ID }) selectedEventId: string,
-    @Args('keepAll', { nullable: true }) keepAll?: boolean
+    @Args('keepAll', { nullable: true }) keepAll?: boolean,
   ): Promise<GameEvent> {
     return this.gameEventsService.resolveEventConflict(
       conflictId,
       selectedEventId,
-      keepAll
+      keepAll,
     );
   }
 
@@ -269,7 +257,7 @@ export class GameEventsResolver {
     name: 'gameEventChanged',
     filter: (
       payload: { gameEventChanged: GameEventSubscriptionPayload },
-      variables: { gameId: string }
+      variables: { gameId: string },
     ) => payload.gameEventChanged.gameId === variables.gameId,
   })
   @Public()
