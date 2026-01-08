@@ -26,13 +26,29 @@ async function bootstrap() {
   // conflicts with GraphQL input types.
 
   // CORS configuration
-  // If FRONTEND_URL is set, restrict to those origins; otherwise allow all.
-  // Same-origin requests (via Vite proxy or CloudFront) bypass CORS entirely.
-  const frontendUrl = getFrontendUrl();
-  const corsOrigin = frontendUrl
-    ? frontendUrl.split(',').map((url) => url.trim())
-    : true;
-  app.enableCors({ origin: corsOrigin, credentials: true });
+  // - Same-origin requests are always allowed (origin header is undefined)
+  // - Cross-origin requests are allowed only if origin is in FRONTEND_URL
+  app.enableCors({
+    origin: (origin, callback) => {
+      // Same-origin requests don't send Origin header - always allow
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      // Check if origin is in the allowed list from FRONTEND_URL
+      const frontendUrl = getFrontendUrl();
+      if (frontendUrl) {
+        const allowedOrigins = frontendUrl.split(',').map((url) => url.trim());
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+      }
+
+      // Reject cross-origin requests not in allowed list
+      callback(new Error(`Origin ${origin} not allowed by CORS`), false);
+    },
+    credentials: true,
+  });
 
   const port = getPort();
   await app.listen(port);
