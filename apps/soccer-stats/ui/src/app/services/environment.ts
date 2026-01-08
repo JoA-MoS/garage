@@ -10,23 +10,6 @@
 export const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'api';
 
 /**
- * Legacy Railway backend URL.
- * @deprecated - Migrating to AWS CloudFront with same-origin API
- */
-export const RAILWAY_URL = 'https://soccer-stats.up.railway.app';
-
-/**
- * Detect if running on Vercel deployment (legacy).
- * @deprecated - Migrating to AWS CloudFront
- */
-export function isVercelDeployment(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    window.location.host.includes('.vercel.app')
-  );
-}
-
-/**
  * Gets the API base URL.
  *
  * Priority:
