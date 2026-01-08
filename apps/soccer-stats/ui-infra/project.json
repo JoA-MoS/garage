@@ -9,6 +9,14 @@
       "executor": "@nx/eslint:lint"
     },
     "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/soccer-stats/ui-infra"],
+      "options": {
+        "command": "nx run soccer-stats-ui-infra:build:tsc --batch"
+      },
+      "dependsOn": ["soccer-stats-infra:build"]
+    },
+    "build:tsc": {
       "executor": "@nx/js:tsc",
       "outputs": ["{options.outputPath}"],
       "options": {
@@ -16,14 +24,6 @@
         "main": "apps/soccer-stats/ui-infra/pulumi.ts",
         "tsConfig": "apps/soccer-stats/ui-infra/tsconfig.build.json",
         "assets": []
-      },
-      "dependsOn": ["soccer-stats-infra:build"]
-    },
-    "build:batch": {
-      "executor": "nx:run-commands",
-      "outputs": ["{workspaceRoot}/dist/apps/soccer-stats/ui-infra"],
-      "options": {
-        "command": "nx build soccer-stats-ui-infra --batch"
       }
     },
     "up": {
@@ -31,16 +31,12 @@
       "options": {
         "yes": true
       },
-      "dependsOn": [
-        "build:batch",
-        "soccer-stats-ui:build",
-        "soccer-stats-infra:up"
-      ]
+      "dependsOn": ["build", "soccer-stats-ui:build", "soccer-stats-infra:up"]
     },
     "preview": {
       "executor": "@nx-extend/pulumi:preview",
       "options": {},
-      "dependsOn": ["build:batch", "soccer-stats-ui:build"]
+      "dependsOn": ["build", "soccer-stats-ui:build"]
     },
     "refresh": {
       "executor": "@nx-extend/pulumi:refresh",
