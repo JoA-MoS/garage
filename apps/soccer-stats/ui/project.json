@@ -101,6 +101,20 @@
         }
       }
     },
+    "pwa-assets": {
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{projectRoot}/public/pwa-*.png",
+        "{projectRoot}/public/maskable-*.png",
+        "{projectRoot}/public/apple-touch-icon-*.png",
+        "{projectRoot}/public/favicon.ico"
+      ],
+      "inputs": ["{projectRoot}/public/icon.svg"],
+      "options": {
+        "cwd": "{projectRoot}/public",
+        "command": "pnpm pwa-assets-generator --preset minimal $PWD/icon.svg"
+      }
+    },
     "deploy": {
       "executor": "nx-vercel:deploy",
       "dependsOn": ["build"],
