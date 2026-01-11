@@ -55,8 +55,25 @@ pnpm nx preview soccer-stats-ui-infra
 
 ## Outputs
 
-- `cloudfrontUrl` - CloudFront distribution URL (https://xxx.cloudfront.net)
+- `websiteUrl` - CloudFront distribution URL (https://xxx.cloudfront.net)
+- `distributionId` - CloudFront distribution ID
 - `bucketName` - S3 bucket name for static assets
+
+## Cache Invalidation
+
+After deploying new content, CloudFront may serve stale cached files. To force CloudFront to fetch fresh content from S3, run a cache invalidation:
+
+```bash
+# Get the distribution ID from Pulumi outputs
+pnpm nx up soccer-stats-ui-infra --stack dev 2>/dev/null | grep distributionId
+
+# Invalidate all cached files
+aws cloudfront create-invalidation \
+  --distribution-id <DISTRIBUTION_ID> \
+  --paths "/*"
+```
+
+**Note:** Cache invalidation is optional. CloudFront will eventually serve fresh content when the cache TTL expires. Use invalidation when you need immediate updates.
 
 ## Related
 

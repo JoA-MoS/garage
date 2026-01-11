@@ -224,13 +224,6 @@ const syncedFolder = new synced.S3BucketFolder(`${namePrefix}-sync`, {
 });
 
 // =============================================================================
-// CloudFront Invalidation (on deployment)
-// =============================================================================
-// Create an invalidation after syncing new files
-// Note: This is a simple approach. For production, consider using Lambda@Edge
-// or a more sophisticated cache invalidation strategy.
-
-// =============================================================================
 // Exports
 // =============================================================================
 export const bucketName = bucket.bucket;
