@@ -107,9 +107,9 @@ const distribution = new aws.cloudfront.Distribution(`${namePrefix}-cdn`, {
       },
     },
   ],
-  // API cache behavior (must come before default)
-  // Routes /api/* to ALB origin
+  // Ordered cache behaviors (evaluated before default)
   orderedCacheBehaviors: [
+    // API routing - forwards to ALB origin
     {
       pathPattern: '/api/*',
       targetOriginId: 'albOrigin',
@@ -129,6 +129,19 @@ const distribution = new aws.cloudfront.Distribution(`${namePrefix}-cdn`, {
       cachePolicyId: '4135ea2d-6df8-44a3-9df3-4b5a84be39ad', // CachingDisabled
       // Forward all headers, cookies, and query strings to origin
       originRequestPolicyId: '216adef6-5c7f-47e4-b989-5492eafa07d3', // AllViewer
+    },
+    // SPA entry point - minimal caching to ensure users get latest version after deployments
+    // Note: defaultRootObject rewrites "/" to "/index.html" before cache behavior matching
+    {
+      pathPattern: '/index.html',
+      targetOriginId: 's3Origin',
+      viewerProtocolPolicy: 'redirect-to-https',
+      allowedMethods: ['GET', 'HEAD', 'OPTIONS'],
+      cachedMethods: ['GET', 'HEAD'],
+      compress: true,
+      // Disable caching - index.html should always be fresh
+      cachePolicyId: '4135ea2d-6df8-44a3-9df3-4b5a84be39ad', // CachingDisabled
+      originRequestPolicyId: '88a5eaf4-2fd4-4709-b370-b4c650ea3fcf', // CORS-S3Origin
     },
   ],
   // Default cache behavior (S3 for UI assets)
