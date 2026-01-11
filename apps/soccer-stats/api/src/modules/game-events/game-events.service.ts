@@ -80,9 +80,24 @@ export class GameEventsService implements OnModuleInit {
    * Event types are static reference data that rarely changes.
    */
   async onModuleInit(): Promise<void> {
-    const eventTypes = await this.eventTypesRepository.find();
-    eventTypes.forEach((et) => this.eventTypeCache.set(et.name, et));
-    this.logger.log(`Cached ${eventTypes.length} event types`);
+    try {
+      const eventTypes = await this.eventTypesRepository.find();
+
+      if (eventTypes.length === 0) {
+        this.logger.warn(
+          'No event types found in database - cache is empty. Game events will fail.',
+        );
+        return;
+      }
+
+      eventTypes.forEach((et) => this.eventTypeCache.set(et.name, et));
+      this.logger.log(`Cached ${eventTypes.length} event types`);
+    } catch (error) {
+      this.logger.error(
+        'Failed to load event types into cache. Game events will fail.',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   /**
@@ -232,7 +247,9 @@ export class GameEventsService implements OnModuleInit {
   private getEventTypeByName(name: string): EventType {
     const eventType = this.eventTypeCache.get(name);
     if (!eventType) {
-      throw new NotFoundException(`Event type ${name} not found in cache`);
+      throw new NotFoundException(
+        `Event type '${name}' not found. Cache has ${this.eventTypeCache.size} types: [${Array.from(this.eventTypeCache.keys()).join(', ')}]`,
+      );
     }
     return eventType;
   }
@@ -646,13 +663,12 @@ export class GameEventsService implements OnModuleInit {
     playerId?: string,
     externalPlayerName?: string,
   ): Promise<void> {
-    const lineupEventTypes = await this.eventTypesRepository.find({
-      where: [
-        { name: 'STARTING_LINEUP' },
-        { name: 'BENCH' },
-        { name: 'SUBSTITUTION_IN' },
-      ],
-    });
+    // Use cached event types instead of querying the database
+    const lineupEventTypes = [
+      this.getEventTypeByName('STARTING_LINEUP'),
+      this.getEventTypeByName('BENCH'),
+      this.getEventTypeByName('SUBSTITUTION_IN'),
+    ];
 
     const eventTypeIds = lineupEventTypes.map((et) => et.id);
 
