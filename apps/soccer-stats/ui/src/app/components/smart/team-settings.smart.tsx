@@ -2,7 +2,10 @@ import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { useParams, useNavigate } from 'react-router';
 
-import { StatsTrackingLevel } from '@garage/soccer-stats/graphql-codegen';
+import {
+  GameFormat,
+  StatsTrackingLevel,
+} from '@garage/soccer-stats/graphql-codegen';
 
 import {
   GET_TEAM_BY_ID,
@@ -13,6 +16,7 @@ import {
   UpdateTeamConfigurationResponse,
   GET_TEAMS,
 } from '../../services/teams-graphql.service';
+import { GET_GAME_FORMATS } from '../../services/games-graphql.service';
 import { TeamSettingsPresentation } from '../presentation/team-settings.presentation';
 import { UICreateTeamInput, UIPosition } from '../types/ui.types';
 
@@ -50,6 +54,11 @@ export const TeamSettingsSmart = () => {
     variables: { id: teamId },
   });
 
+  // Fetch real game formats from backend (with actual UUIDs)
+  const { data: gameFormatsData } = useQuery<{ gameFormats: GameFormat[] }>(
+    GET_GAME_FORMATS,
+  );
+
   // Update team mutation
   const [updateTeam, { loading: updateLoading, error: updateError }] =
     useMutation<UpdateTeamResponse>(UPDATE_TEAM, {
@@ -76,8 +85,9 @@ export const TeamSettingsSmart = () => {
       }
 
       // Initialize game format from configuration
-      if (config?.defaultGameFormat?.id) {
-        selectGameFormat(config.defaultGameFormat.id);
+      // Use format name (e.g., '9v9') as the local ID for formation filtering
+      if (config?.defaultGameFormat?.name) {
+        selectGameFormat(config.defaultGameFormat.name);
       }
 
       // Initialize formation from configuration
@@ -128,14 +138,22 @@ export const TeamSettingsSmart = () => {
         });
 
         // Update team configuration (stats tracking, formation, etc.)
-        // Convert empty strings to undefined to avoid UUID parse errors
+        // Map UI format ID (e.g., '9v9') to real backend UUID
+        let backendGameFormatId: string | undefined;
+        if (settingsData.gameFormat && gameFormatsData?.gameFormats) {
+          const backendFormat = gameFormatsData.gameFormats.find(
+            (f) => f.name === settingsData.gameFormat,
+          );
+          backendGameFormatId = backendFormat?.id;
+        }
+
         await updateTeamConfiguration({
           variables: {
             teamId,
             input: {
               statsTrackingLevel: settingsData.statsTrackingLevel,
               defaultFormation: settingsData.formation || undefined,
-              defaultGameFormatId: settingsData.gameFormat || undefined,
+              defaultGameFormatId: backendGameFormatId,
             },
           },
         });
@@ -149,7 +167,7 @@ export const TeamSettingsSmart = () => {
         console.error('Error saving team settings:', err);
       }
     },
-    [teamId, updateTeam, updateTeamConfiguration],
+    [teamId, updateTeam, updateTeamConfiguration, gameFormatsData],
   );
 
   // Show loading state for fetching
