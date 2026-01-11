@@ -3,6 +3,7 @@ import path from 'path';
 import * as pulumi from '@pulumi/pulumi';
 import * as aws from '@pulumi/aws';
 import * as synced from '@pulumi/synced-folder';
+import * as command from '@pulumi/command';
 import { workspaceRoot } from '@nx/devkit';
 
 import { getSharedInfraStackReference } from './stack-reference';
@@ -226,9 +227,20 @@ const syncedFolder = new synced.S3BucketFolder(`${namePrefix}-sync`, {
 // =============================================================================
 // CloudFront Invalidation (on deployment)
 // =============================================================================
-// Create an invalidation after syncing new files
-// Note: This is a simple approach. For production, consider using Lambda@Edge
-// or a more sophisticated cache invalidation strategy.
+// Create an invalidation after syncing new files to bust the CDN cache
+// Uses AWS CLI to create invalidation - runs after S3 sync completes
+const cacheInvalidation = new command.local.Command(
+  `${namePrefix}-cache-invalidation`,
+  {
+    create: pulumi.interpolate`aws cloudfront create-invalidation --distribution-id ${distribution.id} --paths "/*"`,
+    // Re-run invalidation on every deployment by using a timestamp trigger
+    triggers: [Date.now().toString()],
+  },
+  {
+    // Only run after files are synced to S3
+    dependsOn: [syncedFolder],
+  },
+);
 
 // =============================================================================
 // Exports
@@ -254,3 +266,6 @@ export const apiEndpoint = customDomain
 export const albDirectUrl = pulumi.interpolate`http://${albDnsName}`;
 
 export const environment = stack;
+
+// Cache invalidation output (shows the AWS CLI response)
+export const cacheInvalidationOutput = cacheInvalidation.stdout;

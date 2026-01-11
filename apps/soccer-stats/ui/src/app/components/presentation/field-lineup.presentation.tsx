@@ -80,55 +80,78 @@ export function FieldLineup({
     return assignments;
   }, [formation.positions, lineup]);
 
-  // For away team, flip the y coordinates
-  const getAdjustedY = (y: number) => (isHome ? y : 100 - y);
+  // Field dimensions for 3/4 view (our half + quarter of opponent's half)
+  // Full field would be 150, so 3/4 = 112.5, but we use 125 to show more attacking space
+  const FIELD_HEIGHT = 125;
+
+  // Transform formation y (0-100) to SVG y coordinate
+  // Formation: y=0 is own goal, y=100 is opponent goal
+  // We want: GK (y=5) at BOTTOM, ST (y=75-80) at TOP
+  // SVG coordinate: y=FIELD_HEIGHT is bottom (our goal), y=0 is top (toward opponent)
+  const getAdjustedY = (y: number) => {
+    // Invert y so low values (GK) go to bottom, high values (ST) go to top
+    // Map formation y (0-100) to SVG y (FIELD_HEIGHT down to ~0)
+    const inverted = isHome ? 100 - y : y;
+    // Scale to fit in the viewBox (formation 0-100 maps to SVG 0-FIELD_HEIGHT range)
+    return (inverted / 100) * FIELD_HEIGHT;
+  };
+
+  // Transform formation x (0-100) to screen position
+  // From keeper's perspective looking up field:
+  // - LB (x=15) should be on keeper's LEFT = screen LEFT
+  // - RB (x=85) should be on keeper's RIGHT = screen RIGHT
+  // No flip needed for home team; away team needs flip since they view from opposite goal
+  const getAdjustedX = (x: number) => (isHome ? x : 100 - x);
 
   return (
-    <div className="relative w-full" style={{ paddingBottom: '150%' }}>
+    <div
+      className="relative w-full"
+      style={{ paddingBottom: `${FIELD_HEIGHT}%` }}
+    >
       {/* Soccer field background */}
       <div className="absolute inset-0 overflow-hidden rounded-lg bg-green-600">
-        {/* Field markings */}
+        {/* Field markings - 3/4 field view from keeper's perspective */}
         <svg
-          viewBox="0 0 100 150"
+          viewBox={`0 0 100 ${FIELD_HEIGHT}`}
           className="absolute inset-0 h-full w-full"
           preserveAspectRatio="xMidYMid meet"
         >
-          {/* Outer boundary */}
+          {/* Outer boundary - 3/4 field */}
           <rect
             x="2"
             y="2"
             width="96"
-            height="146"
+            height={FIELD_HEIGHT - 4}
             fill="none"
             stroke="white"
             strokeWidth="0.5"
           />
 
-          {/* Center line */}
+          {/* Center line - positioned at 1/3 from top (midfield in 3/4 view) */}
           <line
             x1="2"
-            y1="75"
+            y1={FIELD_HEIGHT * 0.33}
             x2="98"
-            y2="75"
+            y2={FIELD_HEIGHT * 0.33}
             stroke="white"
             strokeWidth="0.5"
           />
 
-          {/* Center circle */}
+          {/* Center circle at midfield */}
           <circle
             cx="50"
-            cy="75"
+            cy={FIELD_HEIGHT * 0.33}
             r="12"
             fill="none"
             stroke="white"
             strokeWidth="0.5"
           />
-          <circle cx="50" cy="75" r="0.5" fill="white" />
+          <circle cx="50" cy={FIELD_HEIGHT * 0.33} r="0.5" fill="white" />
 
-          {/* Goal areas - bottom */}
+          {/* Goal area - at bottom (our goal, keeper's position) */}
           <rect
             x="30"
-            y="2"
+            y={FIELD_HEIGHT - 10}
             width="40"
             height="8"
             fill="none"
@@ -137,7 +160,7 @@ export function FieldLineup({
           />
           <rect
             x="38"
-            y="2"
+            y={FIELD_HEIGHT - 6}
             width="24"
             height="4"
             fill="none"
@@ -145,61 +168,23 @@ export function FieldLineup({
             strokeWidth="0.5"
           />
 
-          {/* Goal areas - top */}
-          <rect
-            x="30"
-            y="140"
-            width="40"
-            height="8"
-            fill="none"
-            stroke="white"
-            strokeWidth="0.5"
-          />
-          <rect
-            x="38"
-            y="144"
-            width="24"
-            height="4"
+          {/* Penalty arc - at bottom */}
+          <path
+            d={`M 38 ${FIELD_HEIGHT - 10} Q 50 ${FIELD_HEIGHT - 18} 62 ${FIELD_HEIGHT - 10}`}
             fill="none"
             stroke="white"
             strokeWidth="0.5"
           />
 
-          {/* Penalty arcs */}
+          {/* Corner arcs - bottom only for 3/4 view */}
           <path
-            d="M 38 10 Q 50 18 62 10"
+            d={`M 2 ${FIELD_HEIGHT - 5} Q 5 ${FIELD_HEIGHT - 5} 5 ${FIELD_HEIGHT - 2}`}
             fill="none"
             stroke="white"
             strokeWidth="0.5"
           />
           <path
-            d="M 38 140 Q 50 132 62 140"
-            fill="none"
-            stroke="white"
-            strokeWidth="0.5"
-          />
-
-          {/* Corner arcs */}
-          <path
-            d="M 2 5 Q 5 5 5 2"
-            fill="none"
-            stroke="white"
-            strokeWidth="0.5"
-          />
-          <path
-            d="M 95 2 Q 95 5 98 5"
-            fill="none"
-            stroke="white"
-            strokeWidth="0.5"
-          />
-          <path
-            d="M 2 145 Q 5 145 5 148"
-            fill="none"
-            stroke="white"
-            strokeWidth="0.5"
-          />
-          <path
-            d="M 95 148 Q 95 145 98 145"
+            d={`M 95 ${FIELD_HEIGHT - 2} Q 95 ${FIELD_HEIGHT - 5} 98 ${FIELD_HEIGHT - 5}`}
             fill="none"
             stroke="white"
             strokeWidth="0.5"
@@ -209,6 +194,7 @@ export function FieldLineup({
         {/* Player positions */}
         {formation.positions.map((pos, index) => {
           const assignedPlayer = positionAssignments.get(index);
+          const adjustedX = getAdjustedX(pos.x);
           const adjustedY = getAdjustedY(pos.y);
           const positionInfo = POSITIONS[pos.position];
 
@@ -219,8 +205,8 @@ export function FieldLineup({
                 disabled ? 'cursor-default' : 'cursor-pointer'
               }`}
               style={{
-                left: `${pos.x}%`,
-                top: `${(adjustedY / 150) * 100}%`,
+                left: `${adjustedX}%`,
+                top: `${(adjustedY / FIELD_HEIGHT) * 100}%`,
               }}
               onClick={() =>
                 !disabled && onPositionClick?.(pos, assignedPlayer)
