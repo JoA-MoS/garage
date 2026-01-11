@@ -206,7 +206,7 @@ export const TeamSettingsSmart = () => {
         selectedFormation={selectedFormation}
         statsTrackingLevel={statsTrackingLevel}
         gameFormats={gameFormats}
-        formations={formations}
+        formations={availableFormations}
         positions={positions}
         onSaveSettings={handleSaveSettings}
         onGameFormatSelect={selectGameFormat}
