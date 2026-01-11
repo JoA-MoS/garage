@@ -5,6 +5,8 @@ import {
   NotFoundException,
   BadRequestException,
   Inject,
+  OnModuleInit,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -53,7 +55,12 @@ interface DuplicateConflictResult {
 const DUPLICATE_CONFLICT_WINDOW_SECONDS = 60;
 
 @Injectable()
-export class GameEventsService {
+export class GameEventsService implements OnModuleInit {
+  private readonly logger = new Logger(GameEventsService.name);
+
+  // Cache for event types - loaded once at startup since they're static reference data
+  private eventTypeCache = new Map<string, EventType>();
+
   constructor(
     @InjectRepository(GameEvent)
     private gameEventsRepository: Repository<GameEvent>,
@@ -65,8 +72,33 @@ export class GameEventsService {
     private gamesRepository: Repository<Game>,
     @InjectRepository(Team)
     private teamsRepository: Repository<Team>,
-    @Inject('PUB_SUB') private pubSub: PubSub
+    @Inject('PUB_SUB') private pubSub: PubSub,
   ) {}
+
+  /**
+   * Load all event types into cache at service startup.
+   * Event types are static reference data that rarely changes.
+   */
+  async onModuleInit(): Promise<void> {
+    try {
+      const eventTypes = await this.eventTypesRepository.find();
+
+      if (eventTypes.length === 0) {
+        this.logger.warn(
+          'No event types found in database - cache is empty. Game events will fail.',
+        );
+        return;
+      }
+
+      eventTypes.forEach((et) => this.eventTypeCache.set(et.name, et));
+      this.logger.log(`Cached ${eventTypes.length} event types`);
+    } catch (error) {
+      this.logger.error(
+        'Failed to load event types into cache. Game events will fail.',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
 
   /**
    * Validates that at least one player reference is provided.
@@ -75,11 +107,11 @@ export class GameEventsService {
   private ensurePlayerInfoProvided(
     playerId?: string,
     externalPlayerName?: string,
-    context = 'event'
+    context = 'event',
   ): void {
     if (!playerId && !externalPlayerName) {
       throw new BadRequestException(
-        `Either playerId or externalPlayerName must be provided for this ${context}`
+        `Either playerId or externalPlayerName must be provided for this ${context}`,
       );
     }
   }
@@ -92,7 +124,7 @@ export class GameEventsService {
     action: GameEventAction,
     event?: GameEvent,
     deletedEventId?: string,
-    conflict?: ConflictInfo
+    conflict?: ConflictInfo,
   ): Promise<void> {
     const payload: GameEventSubscriptionPayload = {
       action,
@@ -118,9 +150,9 @@ export class GameEventsService {
     playerId: string | undefined,
     externalPlayerName: string | undefined,
     gameMinute: number,
-    gameSecond: number
+    gameSecond: number,
   ): Promise<DuplicateConflictResult> {
-    const eventType = await this.getEventTypeByName(eventTypeName);
+    const eventType = this.getEventTypeByName(eventTypeName);
     const targetTimeInSeconds = gameMinute * 60 + gameSecond;
 
     // Find events of the same type within the time window
@@ -208,12 +240,16 @@ export class GameEventsService {
     return 'Unknown';
   }
 
-  private async getEventTypeByName(name: string): Promise<EventType> {
-    const eventType = await this.eventTypesRepository.findOne({
-      where: { name },
-    });
+  /**
+   * Get event type from cache by name.
+   * Throws NotFoundException if not found (should never happen with valid event type names).
+   */
+  private getEventTypeByName(name: string): EventType {
+    const eventType = this.eventTypeCache.get(name);
     if (!eventType) {
-      throw new NotFoundException(`Event type ${name} not found`);
+      throw new NotFoundException(
+        `Event type '${name}' not found. Cache has ${this.eventTypeCache.size} types: [${Array.from(this.eventTypeCache.keys()).join(', ')}]`,
+      );
     }
     return eventType;
   }
@@ -230,23 +266,23 @@ export class GameEventsService {
 
   async addPlayerToLineup(
     input: AddToLineupInput,
-    recordedByUserId: string
+    recordedByUserId: string,
   ): Promise<GameEvent> {
     // Lineup entries require player info
     this.ensurePlayerInfoProvided(
       input.playerId,
       input.externalPlayerName,
-      'lineup entry'
+      'lineup entry',
     );
 
     const gameTeam = await this.getGameTeam(input.gameTeamId);
-    const eventType = await this.getEventTypeByName('STARTING_LINEUP');
+    const eventType = this.getEventTypeByName('STARTING_LINEUP');
 
     // Check if player is already in lineup or bench
     await this.ensurePlayerNotInRoster(
       gameTeam.id,
       input.playerId,
-      input.externalPlayerName
+      input.externalPlayerName,
     );
 
     const gameEvent = this.gameEventsRepository.create({
@@ -281,23 +317,23 @@ export class GameEventsService {
 
   async addPlayerToBench(
     input: AddToBenchInput,
-    recordedByUserId: string
+    recordedByUserId: string,
   ): Promise<GameEvent> {
     // Bench entries require player info
     this.ensurePlayerInfoProvided(
       input.playerId,
       input.externalPlayerName,
-      'bench entry'
+      'bench entry',
     );
 
     const gameTeam = await this.getGameTeam(input.gameTeamId);
-    const eventType = await this.getEventTypeByName('BENCH');
+    const eventType = this.getEventTypeByName('BENCH');
 
     // Check if player is already in lineup or bench
     await this.ensurePlayerNotInRoster(
       gameTeam.id,
       input.playerId,
-      input.externalPlayerName
+      input.externalPlayerName,
     );
 
     const gameEvent = this.gameEventsRepository.create({
@@ -342,7 +378,7 @@ export class GameEventsService {
     const lineupEventTypes = ['STARTING_LINEUP', 'BENCH', 'SUBSTITUTION_IN'];
     if (!lineupEventTypes.includes(gameEvent.eventType.name)) {
       throw new BadRequestException(
-        'Can only remove lineup/bench/substitution events'
+        'Can only remove lineup/bench/substitution events',
       );
     }
 
@@ -352,7 +388,7 @@ export class GameEventsService {
 
   async updatePlayerPosition(
     gameEventId: string,
-    position: string
+    position: string,
   ): Promise<GameEvent> {
     const gameEvent = await this.gameEventsRepository.findOne({
       where: { id: gameEventId },
@@ -369,13 +405,13 @@ export class GameEventsService {
 
   async substitutePlayer(
     input: SubstitutePlayerInput,
-    recordedByUserId: string
+    recordedByUserId: string,
   ): Promise<GameEvent[]> {
     // Player coming in must be identified
     this.ensurePlayerInfoProvided(
       input.playerInId,
       input.externalPlayerInName,
-      'substitution (player in)'
+      'substitution (player in)',
     );
 
     const gameTeam = await this.getGameTeam(input.gameTeamId);
@@ -388,12 +424,12 @@ export class GameEventsService {
 
     if (!playerOutEvent) {
       throw new NotFoundException(
-        `GameEvent ${input.playerOutEventId} not found`
+        `GameEvent ${input.playerOutEventId} not found`,
       );
     }
 
-    const subOutType = await this.getEventTypeByName('SUBSTITUTION_OUT');
-    const subInType = await this.getEventTypeByName('SUBSTITUTION_IN');
+    const subOutType = this.getEventTypeByName('SUBSTITUTION_OUT');
+    const subInType = this.getEventTypeByName('SUBSTITUTION_IN');
 
     // Create SUBSTITUTION_OUT event
     const subOutEvent = this.gameEventsRepository.create({
@@ -460,7 +496,7 @@ export class GameEventsService {
     await this.publishGameEvent(
       gameTeam.gameId,
       GameEventAction.CREATED,
-      subOutWithRelations
+      subOutWithRelations,
     );
 
     return [subOutWithRelations, subInWithRelations];
@@ -625,15 +661,14 @@ export class GameEventsService {
   private async ensurePlayerNotInRoster(
     gameTeamId: string,
     playerId?: string,
-    externalPlayerName?: string
+    externalPlayerName?: string,
   ): Promise<void> {
-    const lineupEventTypes = await this.eventTypesRepository.find({
-      where: [
-        { name: 'STARTING_LINEUP' },
-        { name: 'BENCH' },
-        { name: 'SUBSTITUTION_IN' },
-      ],
-    });
+    // Use cached event types instead of querying the database
+    const lineupEventTypes = [
+      this.getEventTypeByName('STARTING_LINEUP'),
+      this.getEventTypeByName('BENCH'),
+      this.getEventTypeByName('SUBSTITUTION_IN'),
+    ];
 
     const eventTypeIds = lineupEventTypes.map((et) => et.id);
 
@@ -659,7 +694,7 @@ export class GameEventsService {
 
     if (existingEvent) {
       throw new BadRequestException(
-        'Player is already in the lineup or on the bench'
+        'Player is already in the lineup or on the bench',
       );
     }
   }
@@ -694,10 +729,10 @@ export class GameEventsService {
 
   async recordGoal(
     input: RecordGoalInput,
-    recordedByUserId: string
+    recordedByUserId: string,
   ): Promise<GameEvent> {
     const gameTeam = await this.getGameTeam(input.gameTeamId);
-    const goalEventType = await this.getEventTypeByName('GOAL');
+    const goalEventType = this.getEventTypeByName('GOAL');
 
     // Check for duplicate or conflict
     const detectionResult = await this.checkForDuplicateOrConflict(
@@ -706,7 +741,7 @@ export class GameEventsService {
       input.scorerId,
       input.externalScorerName,
       input.gameMinute,
-      input.gameSecond
+      input.gameSecond,
     );
 
     // If duplicate: return existing event, notify subscriber with DUPLICATE_DETECTED
@@ -728,7 +763,7 @@ export class GameEventsService {
       await this.publishGameEvent(
         gameTeam.gameId,
         GameEventAction.DUPLICATE_DETECTED,
-        existingEvent
+        existingEvent,
       );
 
       return existingEvent;
@@ -744,7 +779,7 @@ export class GameEventsService {
         if (!event.conflictId) {
           await this.gameEventsRepository.update(
             { id: event.id },
-            { conflictId }
+            { conflictId },
           );
         } else {
           // Use existing conflictId if one exists
@@ -771,7 +806,7 @@ export class GameEventsService {
 
     // If assister provided, create ASSIST event linked to the goal
     if (input.assisterId || input.externalAssisterName) {
-      const assistEventType = await this.getEventTypeByName('ASSIST');
+      const assistEventType = this.getEventTypeByName('ASSIST');
 
       const assistEvent = this.gameEventsRepository.create({
         gameId: gameTeam.gameId,
@@ -796,7 +831,7 @@ export class GameEventsService {
     if (currentGameTeam) {
       await this.gameTeamsRepository.update(
         { id: input.gameTeamId },
-        { finalScore: (currentGameTeam.finalScore ?? 0) + 1 }
+        { finalScore: (currentGameTeam.finalScore ?? 0) + 1 },
       );
     }
 
@@ -844,13 +879,13 @@ export class GameEventsService {
         GameEventAction.CONFLICT_DETECTED,
         goalEventWithRelations,
         undefined,
-        conflictInfo
+        conflictInfo,
       );
     } else {
       await this.publishGameEvent(
         gameTeam.gameId,
         GameEventAction.CREATED,
-        goalEventWithRelations
+        goalEventWithRelations,
       );
     }
 
@@ -869,7 +904,7 @@ export class GameEventsService {
 
     if (gameEvent.eventType.name !== 'GOAL') {
       throw new BadRequestException(
-        'Can only delete GOAL events with this method'
+        'Can only delete GOAL events with this method',
       );
     }
 
@@ -885,7 +920,7 @@ export class GameEventsService {
     if (gameTeam && (gameTeam.finalScore ?? 0) > 0) {
       await this.gameTeamsRepository.update(
         { id: gameEvent.gameTeamId },
-        { finalScore: (gameTeam.finalScore ?? 0) - 1 }
+        { finalScore: (gameTeam.finalScore ?? 0) - 1 },
       );
     }
 
@@ -900,7 +935,7 @@ export class GameEventsService {
       gameId,
       GameEventAction.DELETED,
       undefined,
-      gameEventId
+      gameEventId,
     );
 
     return true;
@@ -927,7 +962,7 @@ export class GameEventsService {
       eventTypeName !== 'SUBSTITUTION_IN'
     ) {
       throw new BadRequestException(
-        'Can only delete SUBSTITUTION_OUT or SUBSTITUTION_IN events with this method'
+        'Can only delete SUBSTITUTION_OUT or SUBSTITUTION_IN events with this method',
       );
     }
 
@@ -973,7 +1008,7 @@ export class GameEventsService {
       gameId,
       GameEventAction.DELETED,
       undefined,
-      subOutEventId
+      subOutEventId,
     );
 
     return true;
@@ -995,7 +1030,7 @@ export class GameEventsService {
 
     if (gameEvent.eventType.name !== 'POSITION_SWAP') {
       throw new BadRequestException(
-        'Can only delete POSITION_SWAP events with this method'
+        'Can only delete POSITION_SWAP events with this method',
       );
     }
 
@@ -1038,7 +1073,7 @@ export class GameEventsService {
       gameId,
       GameEventAction.DELETED,
       undefined,
-      swap1EventId
+      swap1EventId,
     );
 
     return true;
@@ -1060,7 +1095,7 @@ export class GameEventsService {
 
     if (gameEvent.eventType.name !== 'SUBSTITUTION_IN') {
       throw new BadRequestException(
-        'Can only delete SUBSTITUTION_IN events with this method'
+        'Can only delete SUBSTITUTION_IN events with this method',
       );
     }
 
@@ -1075,7 +1110,7 @@ export class GameEventsService {
       gameId,
       GameEventAction.DELETED,
       undefined,
-      gameEventId
+      gameEventId,
     );
 
     return true;
@@ -1093,7 +1128,7 @@ export class GameEventsService {
 
     if (gameEvent.eventType.name !== 'GOAL') {
       throw new BadRequestException(
-        'Can only update GOAL events with this method'
+        'Can only update GOAL events with this method',
       );
     }
 
@@ -1118,7 +1153,7 @@ export class GameEventsService {
 
     // Handle assist event
     const existingAssist = gameEvent.childEvents?.find(
-      (e) => e.eventType?.name === 'ASSIST'
+      (e) => e.eventType?.name === 'ASSIST',
     );
 
     const hasNewAssist = input.assisterId || input.externalAssisterName;
@@ -1151,7 +1186,7 @@ export class GameEventsService {
         await this.gameEventsRepository.save(existingAssist);
       } else {
         // Create new assist
-        const assistEventType = await this.getEventTypeByName('ASSIST');
+        const assistEventType = this.getEventTypeByName('ASSIST');
         const assistEvent = this.gameEventsRepository.create({
           gameId: gameEvent.gameId,
           gameTeamId: gameEvent.gameTeamId,
@@ -1186,7 +1221,7 @@ export class GameEventsService {
     await this.publishGameEvent(
       gameEvent.gameId,
       GameEventAction.UPDATED,
-      updatedGoal
+      updatedGoal,
     );
 
     return updatedGoal;
@@ -1194,7 +1229,7 @@ export class GameEventsService {
 
   async swapPositions(
     input: SwapPositionsInput,
-    recordedByUserId: string
+    recordedByUserId: string,
   ): Promise<GameEvent[]> {
     const gameTeam = await this.getGameTeam(input.gameTeamId);
 
@@ -1212,12 +1247,12 @@ export class GameEventsService {
 
     if (!player1Event) {
       throw new NotFoundException(
-        `GameEvent ${input.player1EventId} not found`
+        `GameEvent ${input.player1EventId} not found`,
       );
     }
     if (!player2Event) {
       throw new NotFoundException(
-        `GameEvent ${input.player2EventId} not found`
+        `GameEvent ${input.player2EventId} not found`,
       );
     }
 
@@ -1226,7 +1261,7 @@ export class GameEventsService {
       throw new BadRequestException('Both players must have positions to swap');
     }
 
-    const swapEventType = await this.getEventTypeByName('POSITION_SWAP');
+    const swapEventType = this.getEventTypeByName('POSITION_SWAP');
 
     // Create first POSITION_SWAP event (player 1 gets player 2's position)
     const swap1Event = this.gameEventsRepository.create({
@@ -1293,7 +1328,7 @@ export class GameEventsService {
     await this.publishGameEvent(
       gameTeam.gameId,
       GameEventAction.CREATED,
-      swap1WithRelations
+      swap1WithRelations,
     );
 
     return [swap1WithRelations, swap2WithRelations];
@@ -1308,7 +1343,7 @@ export class GameEventsService {
    */
   async batchLineupChanges(
     input: BatchLineupChangesInput,
-    recordedByUserId: string
+    recordedByUserId: string,
   ): Promise<{
     events: GameEvent[];
     substitutionEventIds: Map<number, string>;
@@ -1334,7 +1369,7 @@ export class GameEventsService {
 
       // Find the SUBSTITUTION_IN event and store its ID for swap references
       const subInEvent = events.find(
-        (e) => e.eventType?.name === 'SUBSTITUTION_IN'
+        (e) => e.eventType?.name === 'SUBSTITUTION_IN',
       );
       if (subInEvent) {
         substitutionEventIds.set(i, subInEvent.id);
@@ -1349,17 +1384,17 @@ export class GameEventsService {
         player1EventId = swap.player1.eventId;
       } else if (swap.player1.substitutionIndex !== undefined) {
         const resolvedId = substitutionEventIds.get(
-          swap.player1.substitutionIndex
+          swap.player1.substitutionIndex,
         );
         if (!resolvedId) {
           throw new BadRequestException(
-            `Could not resolve substitution index ${swap.player1.substitutionIndex} for player1`
+            `Could not resolve substitution index ${swap.player1.substitutionIndex} for player1`,
           );
         }
         player1EventId = resolvedId;
       } else {
         throw new BadRequestException(
-          'Swap player1 must have either eventId or substitutionIndex'
+          'Swap player1 must have either eventId or substitutionIndex',
         );
       }
 
@@ -1369,17 +1404,17 @@ export class GameEventsService {
         player2EventId = swap.player2.eventId;
       } else if (swap.player2.substitutionIndex !== undefined) {
         const resolvedId = substitutionEventIds.get(
-          swap.player2.substitutionIndex
+          swap.player2.substitutionIndex,
         );
         if (!resolvedId) {
           throw new BadRequestException(
-            `Could not resolve substitution index ${swap.player2.substitutionIndex} for player2`
+            `Could not resolve substitution index ${swap.player2.substitutionIndex} for player2`,
           );
         }
         player2EventId = resolvedId;
       } else {
         throw new BadRequestException(
-          'Swap player2 must have either eventId or substitutionIndex'
+          'Swap player2 must have either eventId or substitutionIndex',
         );
       }
 
@@ -1399,7 +1434,7 @@ export class GameEventsService {
   }
 
   async getPlayerPositionStats(
-    gameTeamId: string
+    gameTeamId: string,
   ): Promise<PlayerPositionStats[]> {
     const gameTeam = await this.gameTeamsRepository.findOne({
       where: { id: gameTeamId },
@@ -1432,7 +1467,7 @@ export class GameEventsService {
         return Math.floor(
           (new Date(game.actualEnd).getTime() -
             new Date(game.actualStart).getTime()) /
-            1000
+            1000,
         );
       }
       // If game is in progress, calculate from actual start
@@ -1443,7 +1478,7 @@ export class GameEventsService {
         if (game.secondHalfStart) {
           // In second half
           const secondsIntoSecondHalf = Math.floor(
-            (Date.now() - new Date(game.secondHalfStart).getTime()) / 1000
+            (Date.now() - new Date(game.secondHalfStart).getTime()) / 1000,
           );
           return halfDuration + secondsIntoSecondHalf;
         } else if (game.firstHalfEnd) {
@@ -1451,12 +1486,12 @@ export class GameEventsService {
           return Math.floor(
             (new Date(game.firstHalfEnd).getTime() -
               new Date(game.actualStart).getTime()) /
-              1000
+              1000,
           );
         } else {
           // In first half
           return Math.floor(
-            (Date.now() - new Date(game.actualStart).getTime()) / 1000
+            (Date.now() - new Date(game.actualStart).getTime()) / 1000,
           );
         }
       }
@@ -1527,7 +1562,7 @@ export class GameEventsService {
         case 'SUBSTITUTION_OUT': {
           // Close any open span for this player
           const openSpan = playerData.spans.find(
-            (s) => s.endSeconds === undefined
+            (s) => s.endSeconds === undefined,
           );
           if (openSpan) {
             openSpan.endSeconds = eventSeconds;
@@ -1538,7 +1573,7 @@ export class GameEventsService {
         case 'POSITION_SWAP': {
           // Close current span and start new one with new position
           const currentSpan = playerData.spans.find(
-            (s) => s.endSeconds === undefined
+            (s) => s.endSeconds === undefined,
           );
           if (currentSpan) {
             currentSpan.endSeconds = eventSeconds;
@@ -1584,7 +1619,7 @@ export class GameEventsService {
 
         // Sort by time played (descending)
         positionTimes.sort(
-          (a, b) => b.minutes * 60 + b.seconds - (a.minutes * 60 + a.seconds)
+          (a, b) => b.minutes * 60 + b.seconds - (a.minutes * 60 + a.seconds),
         );
 
         stats.push({
@@ -1604,7 +1639,7 @@ export class GameEventsService {
       (a, b) =>
         b.totalMinutes * 60 +
         b.totalSeconds -
-        (a.totalMinutes * 60 + a.totalSeconds)
+        (a.totalMinutes * 60 + a.totalSeconds),
     );
 
     return stats;
@@ -1639,7 +1674,7 @@ export class GameEventsService {
         {
           startDate: input.startDate,
           endDate: input.endDate,
-        }
+        },
       );
     }
     // If neither gameId nor dates: no additional filter (all-time stats)
@@ -1716,7 +1751,7 @@ export class GameEventsService {
         return Math.floor(
           (new Date(game.actualEnd).getTime() -
             new Date(game.actualStart).getTime()) /
-            1000
+            1000,
         );
       }
       if (game.actualStart) {
@@ -1724,18 +1759,18 @@ export class GameEventsService {
           ((game.gameFormat?.durationMinutes || 60) / 2) * 60;
         if (game.secondHalfStart) {
           const secondsIntoSecondHalf = Math.floor(
-            (Date.now() - new Date(game.secondHalfStart).getTime()) / 1000
+            (Date.now() - new Date(game.secondHalfStart).getTime()) / 1000,
           );
           return halfDuration + secondsIntoSecondHalf;
         } else if (game.firstHalfEnd) {
           return Math.floor(
             (new Date(game.firstHalfEnd).getTime() -
               new Date(game.actualStart).getTime()) /
-              1000
+              1000,
           );
         } else {
           return Math.floor(
-            (Date.now() - new Date(game.actualStart).getTime()) / 1000
+            (Date.now() - new Date(game.actualStart).getTime()) / 1000,
           );
         }
       }
@@ -1796,14 +1831,14 @@ export class GameEventsService {
             if (openSpan) {
               const duration = Math.max(
                 0,
-                eventSeconds - openSpan.startSeconds
+                eventSeconds - openSpan.startSeconds,
               );
               playerStats.totalSeconds += duration;
               const currentPositionTime =
                 playerStats.positionSecondsMap.get(openSpan.position) || 0;
               playerStats.positionSecondsMap.set(
                 openSpan.position,
-                currentPositionTime + duration
+                currentPositionTime + duration,
               );
               playerOpenSpans.set(playerKey, null);
             }
@@ -1816,14 +1851,14 @@ export class GameEventsService {
               // Close current span
               const duration = Math.max(
                 0,
-                eventSeconds - openSpan.startSeconds
+                eventSeconds - openSpan.startSeconds,
               );
               playerStats.totalSeconds += duration;
               const currentPositionTime =
                 playerStats.positionSecondsMap.get(openSpan.position) || 0;
               playerStats.positionSecondsMap.set(
                 openSpan.position,
-                currentPositionTime + duration
+                currentPositionTime + duration,
               );
             }
             // Start new span with new position
@@ -1860,14 +1895,14 @@ export class GameEventsService {
           if (playerStats) {
             const duration = Math.max(
               0,
-              currentGameSeconds - openSpan.startSeconds
+              currentGameSeconds - openSpan.startSeconds,
             );
             playerStats.totalSeconds += duration;
             const currentPositionTime =
               playerStats.positionSecondsMap.get(openSpan.position) || 0;
             playerStats.positionSecondsMap.set(
               openSpan.position,
-              currentPositionTime + duration
+              currentPositionTime + duration,
             );
             // Track that this player is still on field (for single-game stats)
             // Only meaningful when filtering by a single gameId
@@ -1898,7 +1933,7 @@ export class GameEventsService {
 
       // Sort by time played (descending)
       positionTimes.sort(
-        (a, b) => b.minutes * 60 + b.seconds - (a.minutes * 60 + a.seconds)
+        (a, b) => b.minutes * 60 + b.seconds - (a.minutes * 60 + a.seconds),
       );
 
       results.push({
@@ -1922,7 +1957,7 @@ export class GameEventsService {
       (a, b) =>
         b.totalMinutes * 60 +
         b.totalSeconds -
-        (a.totalMinutes * 60 + a.totalSeconds)
+        (a.totalMinutes * 60 + a.totalSeconds),
     );
 
     return results;
@@ -1940,7 +1975,7 @@ export class GameEventsService {
    * - For assists found as player-based dependents: includes the parent goal
    */
   async findDependentEvents(
-    gameEventId: string
+    gameEventId: string,
   ): Promise<DependentEventsResult> {
     const sourceEvent = await this.gameEventsRepository.findOne({
       where: { id: gameEventId },
@@ -1963,7 +1998,7 @@ export class GameEventsService {
     // Helper to get player name
     const getPlayerName = async (
       playerId?: string,
-      externalPlayerName?: string
+      externalPlayerName?: string,
     ): Promise<string> => {
       if (externalPlayerName) return externalPlayerName;
       if (!playerId) return 'Unknown';
@@ -1975,7 +2010,7 @@ export class GameEventsService {
           relations: ['teamPlayers', 'teamPlayers.user'],
         });
         const teamPlayer = fullTeam?.teamPlayers?.find(
-          (tp) => tp.userId === playerId
+          (tp) => tp.userId === playerId,
         );
         if (teamPlayer?.user) {
           const fullName = `${teamPlayer.user.firstName || ''} ${
@@ -2012,7 +2047,7 @@ export class GameEventsService {
 
       const playerName = await getPlayerName(
         event.playerId,
-        event.externalPlayerName
+        event.externalPlayerName,
       );
 
       dependentEventsMap.set(event.id, {
@@ -2125,7 +2160,7 @@ export class GameEventsService {
         const timeA = a.gameMinute * 60 + a.gameSecond;
         const timeB = b.gameMinute * 60 + b.gameSecond;
         return timeA - timeB;
-      }
+      },
     );
 
     const count = dependentEvents.length;
@@ -2136,7 +2171,7 @@ export class GameEventsService {
 
       if (hasAssists) {
         const assistCount = dependentEvents.filter(
-          (e) => e.eventType === 'ASSIST'
+          (e) => e.eventType === 'ASSIST',
         ).length;
         warningMessage = `This action will also delete ${count} dependent event${
           count > 1 ? 's' : ''
@@ -2165,7 +2200,7 @@ export class GameEventsService {
    */
   async deleteEventWithCascade(
     gameEventId: string,
-    eventType: 'goal' | 'substitution' | 'position_swap' | 'starter_entry'
+    eventType: 'goal' | 'substitution' | 'position_swap' | 'starter_entry',
   ): Promise<boolean> {
     // First, find all dependent events
     const { dependentEvents } = await this.findDependentEvents(gameEventId);
@@ -2244,7 +2279,7 @@ export class GameEventsService {
   async resolveEventConflict(
     conflictId: string,
     selectedEventId: string,
-    keepAll?: boolean
+    keepAll?: boolean,
   ): Promise<GameEvent> {
     // Find all events with this conflictId
     const conflictingEvents = await this.gameEventsRepository.find({
@@ -2254,16 +2289,16 @@ export class GameEventsService {
 
     if (conflictingEvents.length === 0) {
       throw new NotFoundException(
-        `No events found with conflict ID: ${conflictId}`
+        `No events found with conflict ID: ${conflictId}`,
       );
     }
 
     const selectedEvent = conflictingEvents.find(
-      (e) => e.id === selectedEventId
+      (e) => e.id === selectedEventId,
     );
     if (!selectedEvent) {
       throw new BadRequestException(
-        `Selected event ${selectedEventId} not found in conflict ${conflictId}`
+        `Selected event ${selectedEventId} not found in conflict ${conflictId}`,
       );
     }
 
@@ -2274,7 +2309,7 @@ export class GameEventsService {
       for (const event of conflictingEvents) {
         await this.gameEventsRepository.update(
           { id: event.id },
-          { conflictId: undefined }
+          { conflictId: undefined },
         );
       }
 
@@ -2283,7 +2318,7 @@ export class GameEventsService {
     } else {
       // Keep only the selected event, delete others
       const eventsToDelete = conflictingEvents.filter(
-        (e) => e.id !== selectedEventId
+        (e) => e.id !== selectedEventId,
       );
 
       for (const event of eventsToDelete) {
@@ -2302,7 +2337,7 @@ export class GameEventsService {
       // Clear conflictId from the selected event
       await this.gameEventsRepository.update(
         { id: selectedEventId },
-        { conflictId: undefined }
+        { conflictId: undefined },
       );
     }
 
