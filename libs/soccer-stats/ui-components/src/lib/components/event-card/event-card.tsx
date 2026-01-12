@@ -4,7 +4,8 @@ export type EventType =
   | 'goal'
   | 'substitution'
   | 'position_swap'
-  | 'starter_entry';
+  | 'starter_entry'
+  | 'formation_change';
 
 export interface EventCardProps {
   id: string;
@@ -24,6 +25,8 @@ export interface EventCardProps {
   player1Position?: string | null;
   player2Name?: string | null;
   player2Position?: string | null;
+  // Formation change-specific
+  newFormation?: string | null;
   // Actions
   onDeleteClick?: (id: string, eventType: EventType) => void;
   onEdit?: () => void;
@@ -48,6 +51,7 @@ export const EventCard = memo(function EventCard({
   player1Position,
   player2Name,
   player2Position,
+  newFormation,
   onDeleteClick,
   onEdit,
   isDeleting = false,
@@ -121,6 +125,24 @@ export const EventCard = memo(function EventCard({
                 strokeLinejoin="round"
                 strokeWidth={2}
                 d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
+              />
+            </svg>
+          </div>
+        );
+      case 'formation_change':
+        return (
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+            <svg
+              className="h-5 w-5 text-amber-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"
               />
             </svg>
           </div>
@@ -224,6 +246,30 @@ export const EventCard = memo(function EventCard({
                   />
                 </svg>
                 {playerInName}
+              </span>
+            </div>
+          </>
+        );
+      case 'formation_change':
+        return (
+          <>
+            <div className="font-semibold text-gray-900">
+              Formation Change - {teamName}
+            </div>
+            <div className="text-sm text-gray-600">
+              <span className="inline-flex items-center gap-1 text-amber-600">
+                <svg
+                  className="h-3 w-3"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                {newFormation || 'Formation updated'}
               </span>
             </div>
           </>

@@ -23,6 +23,11 @@ import { AddToBenchInput } from './dto/add-to-bench.input';
 import { SubstitutePlayerInput } from './dto/substitute-player.input';
 import { RecordGoalInput } from './dto/record-goal.input';
 import { UpdateGoalInput } from './dto/update-goal.input';
+import { RecordFormationChangeInput } from './dto/record-formation-change.input';
+import {
+  RecordPositionChangeInput,
+  PositionChangeReason,
+} from './dto/record-position-change.input';
 import { SwapPositionsInput } from './dto/swap-positions.input';
 import { BatchLineupChangesInput } from './dto/batch-lineup-changes.input';
 import { GameLineup, LineupPlayer } from './dto/game-lineup.output';
@@ -608,9 +613,10 @@ export class GameEventsService implements OnModuleInit {
           break;
         }
 
-        case 'POSITION_SWAP': {
+        case 'POSITION_SWAP':
+        case 'POSITION_CHANGE': {
           // Update the player's position in currentOnField
-          // The POSITION_SWAP event's position field contains the NEW position
+          // The event's position field contains the NEW position
           const existingOnField = currentOnField.get(playerKey);
           if (existingOnField) {
             existingOnField.position = event.position;
@@ -890,6 +896,152 @@ export class GameEventsService implements OnModuleInit {
     }
 
     return goalEventWithRelations;
+  }
+
+  /**
+   * Record a formation change event.
+   * Creates a FORMATION_CHANGE event and updates the GameTeam's formation.
+   */
+  async recordFormationChange(
+    input: RecordFormationChangeInput,
+    recordedByUserId: string,
+  ): Promise<GameEvent> {
+    const gameTeam = await this.getGameTeam(input.gameTeamId);
+    const formationEventType = this.getEventTypeByName('FORMATION_CHANGE');
+
+    // Get the current formation before updating
+    const previousFormation = gameTeam.formation;
+
+    // Create FORMATION_CHANGE event
+    const formationEvent = this.gameEventsRepository.create({
+      gameId: gameTeam.gameId,
+      gameTeamId: input.gameTeamId,
+      eventTypeId: formationEventType.id,
+      recordedByUserId,
+      gameMinute: input.gameMinute,
+      gameSecond: input.gameSecond,
+      formation: input.formation,
+      metadata: {
+        previousFormation: previousFormation || null,
+        newFormation: input.formation,
+      },
+    });
+
+    const savedEvent = await this.gameEventsRepository.save(formationEvent);
+
+    // Update the GameTeam's current formation
+    await this.gameTeamsRepository.update(
+      { id: input.gameTeamId },
+      { formation: input.formation },
+    );
+
+    // Return event with relations loaded
+    const eventWithRelations = await this.gameEventsRepository.findOneOrFail({
+      where: { id: savedEvent.id },
+      relations: ['eventType', 'recordedByUser', 'gameTeam', 'game'],
+    });
+
+    // Publish the event to subscribers
+    await this.publishGameEvent(
+      gameTeam.gameId,
+      GameEventAction.CREATED,
+      eventWithRelations,
+    );
+
+    return eventWithRelations;
+  }
+
+  /**
+   * Record a position change event for a player.
+   * Creates a POSITION_CHANGE event to track when a player changes position mid-game.
+   * This enables accurate position-time tracking for statistics.
+   */
+  async recordPositionChange(
+    input: RecordPositionChangeInput,
+    recordedByUserId: string,
+  ): Promise<GameEvent> {
+    const gameTeam = await this.getGameTeam(input.gameTeamId);
+    const positionChangeType = this.getEventTypeByName('POSITION_CHANGE');
+
+    // Get the player's current entry event to find their current position
+    const playerEntryEvent = await this.gameEventsRepository.findOne({
+      where: { id: input.playerEventId },
+      relations: ['eventType', 'player'],
+    });
+
+    if (!playerEntryEvent) {
+      throw new NotFoundException(
+        `Player event ${input.playerEventId} not found`,
+      );
+    }
+
+    // Get the player's current position (from latest position-affecting event)
+    const events = await this.gameEventsRepository.find({
+      where: { gameTeamId: input.gameTeamId },
+      relations: ['eventType'],
+      order: { gameMinute: 'ASC', gameSecond: 'ASC', createdAt: 'ASC' },
+    });
+
+    // Find the player's current position by replaying their position history
+    const playerKey =
+      playerEntryEvent.playerId || playerEntryEvent.externalPlayerName;
+    let previousPosition: string | undefined;
+
+    for (const event of events) {
+      const eventPlayerKey = event.playerId || event.externalPlayerName;
+      if (eventPlayerKey !== playerKey) continue;
+
+      // Track position from relevant events
+      if (
+        [
+          'STARTING_LINEUP',
+          'SUBSTITUTION_IN',
+          'POSITION_SWAP',
+          'POSITION_CHANGE',
+        ].includes(event.eventType.name)
+      ) {
+        if (event.position) {
+          previousPosition = event.position;
+        }
+      }
+    }
+
+    // Create POSITION_CHANGE event
+    const positionChangeEvent = this.gameEventsRepository.create({
+      gameId: gameTeam.gameId,
+      gameTeamId: input.gameTeamId,
+      eventTypeId: positionChangeType.id,
+      playerId: playerEntryEvent.playerId,
+      externalPlayerName: playerEntryEvent.externalPlayerName,
+      externalPlayerNumber: playerEntryEvent.externalPlayerNumber,
+      recordedByUserId,
+      gameMinute: input.gameMinute,
+      gameSecond: input.gameSecond,
+      position: input.newPosition,
+      metadata: {
+        previousPosition: previousPosition || null,
+        newPosition: input.newPosition,
+        reason: input.reason || PositionChangeReason.TACTICAL,
+      },
+    });
+
+    const savedEvent =
+      await this.gameEventsRepository.save(positionChangeEvent);
+
+    // Return event with relations loaded
+    const eventWithRelations = await this.gameEventsRepository.findOneOrFail({
+      where: { id: savedEvent.id },
+      relations: ['eventType', 'player', 'recordedByUser', 'gameTeam', 'game'],
+    });
+
+    // Publish the event to subscribers
+    await this.publishGameEvent(
+      gameTeam.gameId,
+      GameEventAction.CREATED,
+      eventWithRelations,
+    );
+
+    return eventWithRelations;
   }
 
   async deleteGoal(gameEventId: string): Promise<boolean> {
@@ -1570,7 +1722,8 @@ export class GameEventsService implements OnModuleInit {
           break;
         }
 
-        case 'POSITION_SWAP': {
+        case 'POSITION_SWAP':
+        case 'POSITION_CHANGE': {
           // Close current span and start new one with new position
           const currentSpan = playerData.spans.find(
             (s) => s.endSeconds === undefined,
@@ -1845,7 +1998,8 @@ export class GameEventsService implements OnModuleInit {
             break;
           }
 
-          case 'POSITION_SWAP': {
+          case 'POSITION_SWAP':
+          case 'POSITION_CHANGE': {
             const openSpan = playerOpenSpans.get(playerKey);
             if (openSpan) {
               // Close current span
@@ -2035,6 +2189,8 @@ export class GameEventsService implements OnModuleInit {
           return 'Substituted in';
         case 'POSITION_SWAP':
           return 'Position swap';
+        case 'POSITION_CHANGE':
+          return 'Position change';
         default:
           return eventTypeName;
       }
