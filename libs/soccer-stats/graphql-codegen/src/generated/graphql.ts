@@ -1476,6 +1476,20 @@ export type GetGameByIdQuery = {
           name: string;
           category: string;
         };
+        childEvents: Array<{
+          __typename?: 'GameEvent';
+          id: string;
+          playerId?: string | null;
+          externalPlayerName?: string | null;
+          externalPlayerNumber?: string | null;
+          player?: {
+            __typename?: 'User';
+            id: string;
+            firstName: string;
+            lastName: string;
+          } | null;
+          eventType: { __typename?: 'EventType'; id: string; name: string };
+        }>;
       }> | null;
     }> | null;
   };
@@ -3974,6 +3988,81 @@ export const GetGameByIdDocument = {
                                   {
                                     kind: 'Field',
                                     name: { kind: 'Name', value: 'category' },
+                                  },
+                                ],
+                              },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'childEvents' },
+                              selectionSet: {
+                                kind: 'SelectionSet',
+                                selections: [
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'id' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'playerId' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: {
+                                      kind: 'Name',
+                                      value: 'externalPlayerName',
+                                    },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: {
+                                      kind: 'Name',
+                                      value: 'externalPlayerNumber',
+                                    },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'player' },
+                                    selectionSet: {
+                                      kind: 'SelectionSet',
+                                      selections: [
+                                        {
+                                          kind: 'Field',
+                                          name: { kind: 'Name', value: 'id' },
+                                        },
+                                        {
+                                          kind: 'Field',
+                                          name: {
+                                            kind: 'Name',
+                                            value: 'firstName',
+                                          },
+                                        },
+                                        {
+                                          kind: 'Field',
+                                          name: {
+                                            kind: 'Name',
+                                            value: 'lastName',
+                                          },
+                                        },
+                                      ],
+                                    },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'eventType' },
+                                    selectionSet: {
+                                      kind: 'SelectionSet',
+                                      selections: [
+                                        {
+                                          kind: 'Field',
+                                          name: { kind: 'Name', value: 'id' },
+                                        },
+                                        {
+                                          kind: 'Field',
+                                          name: { kind: 'Name', value: 'name' },
+                                        },
+                                      ],
+                                    },
                                   },
                                 ],
                               },

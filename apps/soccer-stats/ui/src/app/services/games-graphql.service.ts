@@ -120,6 +120,21 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
             name
             category
           }
+          childEvents {
+            id
+            playerId
+            externalPlayerName
+            externalPlayerNumber
+            player {
+              id
+              firstName
+              lastName
+            }
+            eventType {
+              id
+              name
+            }
+          }
         }
       }
       createdAt
