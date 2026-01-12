@@ -13,6 +13,8 @@ import {
   LineupPlayer,
 } from '@garage/soccer-stats/graphql-codegen';
 
+import { RECORD_POSITION_CHANGE } from '../services/games-graphql.service';
+
 // Extract TeamPlayer type from query result
 type GameTeamFromQuery = NonNullable<
   NonNullable<GetGameByIdQuery['game']['gameTeams']>[number]
@@ -102,6 +104,13 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       ],
     },
   );
+
+  const [recordPositionChangeMutation, { loading: recordingPositionChange }] =
+    useMutation(RECORD_POSITION_CHANGE, {
+      refetchQueries: [
+        { query: GetGameLineupDocument, variables: { gameTeamId } },
+      ],
+    });
 
   // Get the team roster from game data
   const teamRoster = useMemo((): RosterPlayer[] => {
@@ -232,6 +241,30 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     [gameTeamId, substitutePlayerMutation],
   );
 
+  const recordPositionChange = useCallback(
+    async (params: {
+      playerEventId: string;
+      newPosition: string;
+      gameMinute: number;
+      gameSecond?: number;
+      reason?: 'FORMATION_CHANGE' | 'TACTICAL' | 'OTHER';
+    }) => {
+      return recordPositionChangeMutation({
+        variables: {
+          input: {
+            gameTeamId,
+            playerEventId: params.playerEventId,
+            newPosition: params.newPosition,
+            gameMinute: params.gameMinute,
+            gameSecond: params.gameSecond ?? 0,
+            reason: params.reason,
+          },
+        },
+      });
+    },
+    [gameTeamId, recordPositionChangeMutation],
+  );
+
   return {
     // Data
     lineup: lineupData?.gameLineup,
@@ -249,7 +282,8 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       addingToBench ||
       removing ||
       updatingPosition ||
-      substituting,
+      substituting ||
+      recordingPositionChange,
 
     // Error
     error: lineupError,
@@ -260,6 +294,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     removeFromLineup,
     updatePosition,
     substitutePlayer,
+    recordPositionChange,
     refetchLineup,
   };
 }

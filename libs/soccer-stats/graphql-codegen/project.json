@@ -18,7 +18,7 @@
         }
       ],
       "options": {
-        "command": "echo 'Waiting for GraphQL API...' && until curl -sf http://localhost:3333/api/graphql > /dev/null 2>&1; do sleep 1; done && echo 'GraphQL API ready!' && graphql-codegen --config codegen.ts",
+        "command": "echo 'Waiting for GraphQL API...' && until curl -sf http://localhost:3333/api > /dev/null 2>&1; do sleep 1; done && echo 'GraphQL API ready!' && graphql-codegen --config codegen.ts",
         "cwd": "libs/soccer-stats/graphql-codegen"
       }
     },
@@ -33,7 +33,7 @@
         }
       ],
       "options": {
-        "command": "echo 'Waiting for GraphQL API...' && until curl -sf http://localhost:3333/api/graphql > /dev/null 2>&1; do sleep 1; done && echo 'GraphQL API ready!' && graphql-codegen --config codegen.ts --watch",
+        "command": "echo 'Waiting for GraphQL API...' && until curl -sf http://localhost:3333/api > /dev/null 2>&1; do sleep 1; done && echo 'GraphQL API ready!' && graphql-codegen --config codegen.ts --watch",
         "cwd": "libs/soccer-stats/graphql-codegen"
       }
     }

@@ -22,6 +22,8 @@ import { AddToBenchInput } from './dto/add-to-bench.input';
 import { SubstitutePlayerInput } from './dto/substitute-player.input';
 import { RecordGoalInput } from './dto/record-goal.input';
 import { UpdateGoalInput } from './dto/update-goal.input';
+import { RecordFormationChangeInput } from './dto/record-formation-change.input';
+import { RecordPositionChangeInput } from './dto/record-position-change.input';
 import { SwapPositionsInput } from './dto/swap-positions.input';
 import { BatchLineupChangesInput } from './dto/batch-lineup-changes.input';
 import { GameLineup } from './dto/game-lineup.output';
@@ -124,6 +126,31 @@ export class GameEventsResolver {
   ): Promise<GameEvent> {
     const userId = await this.getInternalUserId(clerkUser);
     return this.gameEventsService.recordGoal(input, userId);
+  }
+
+  @Mutation(() => GameEvent, {
+    name: 'recordFormationChange',
+    description: 'Record a formation change event during a game',
+  })
+  async recordFormationChange(
+    @Args('input') input: RecordFormationChangeInput,
+    @CurrentUser() clerkUser: ClerkUser,
+  ): Promise<GameEvent> {
+    const userId = await this.getInternalUserId(clerkUser);
+    return this.gameEventsService.recordFormationChange(input, userId);
+  }
+
+  @Mutation(() => GameEvent, {
+    name: 'recordPositionChange',
+    description:
+      'Record a position change event during a game for accurate position-time tracking',
+  })
+  async recordPositionChange(
+    @Args('input') input: RecordPositionChangeInput,
+    @CurrentUser() clerkUser: ClerkUser,
+  ): Promise<GameEvent> {
+    const userId = await this.getInternalUserId(clerkUser);
+    return this.gameEventsService.recordPositionChange(input, userId);
   }
 
   @Mutation(() => Boolean, { name: 'deleteGoal' })

@@ -271,6 +271,35 @@ VALUES -- SCORING EVENTS
         true,
         NOW(),
         NOW()
+    ),
+    -- TACTICAL EVENTS
+    (
+        '550e8400-e29b-41d4-a716-446655440020',
+        'FORMATION_CHANGE',
+        'Formation Change',
+        'Team formation change during match',
+        'TACTICAL',
+        false,
+        true,
+        false,
+        '{"type": "object", "properties": {"previousFormation": {"type": "string"}, "newFormation": {"type": "string"}, "reason": {"enum": ["tactical", "injury", "substitution", "other"]}}}',
+        true,
+        NOW(),
+        NOW()
+    ),
+    (
+        '550e8400-e29b-41d4-a716-446655440021',
+        'POSITION_CHANGE',
+        'Position Change',
+        'Player position change during match',
+        'TACTICAL',
+        false,
+        false,
+        false,
+        '{"type": "object", "properties": {"previousPosition": {"type": "string"}, "newPosition": {"type": "string"}, "reason": {"enum": ["tactical", "formation_change", "other"]}}}',
+        true,
+        NOW(),
+        NOW()
     );
 -- Add indexes for performance
 CREATE INDEX idx_event_types_code ON event_types(code);
