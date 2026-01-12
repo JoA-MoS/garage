@@ -33,6 +33,7 @@ import {
   DELETE_EVENT_WITH_CASCADE,
   RESOLVE_EVENT_CONFLICT,
   RECORD_GOAL,
+  RECORD_FORMATION_CHANGE,
 } from '../services/games-graphql.service';
 import { GameLineupTab } from '../components/smart/game-lineup-tab.smart';
 import { GoalModal, EditGoalData } from '../components/smart/goal-modal.smart';
@@ -355,6 +356,11 @@ export const GamePage = () => {
       refetchQueries: [{ query: GET_GAME_BY_ID, variables: { id: gameId } }],
     },
   );
+
+  // Record formation change event
+  const [recordFormationChange] = useMutation(RECORD_FORMATION_CHANGE, {
+    refetchQueries: [{ query: GET_GAME_BY_ID, variables: { id: gameId } }],
+  });
 
   // Memoize team lookups to prevent unnecessary recalculations
   const homeTeamData = useMemo(
@@ -839,6 +845,41 @@ export const GamePage = () => {
     }
   };
 
+  // Handle formation change for a team
+  const handleFormationChange = useCallback(
+    async (gameTeamId: string, formation: string, gameMinute?: number) => {
+      try {
+        if (gameMinute !== undefined) {
+          // Mid-game: record formation change event
+          await recordFormationChange({
+            variables: {
+              input: {
+                gameTeamId,
+                formation,
+                gameMinute,
+                gameSecond: 0,
+              },
+            },
+          });
+        } else {
+          // Pre-game: just update formation without event
+          await updateGameTeam({
+            variables: {
+              gameTeamId,
+              updateGameTeamInput: {
+                formation,
+              },
+            },
+          });
+        }
+      } catch (err) {
+        console.error('Failed to update formation:', err);
+        throw err; // Re-throw so calling code knows it failed
+      }
+    },
+    [recordFormationChange, updateGameTeam],
+  );
+
   // Change stats tracking level for a specific team in this game
   const handleTeamStatsTrackingChange = async (
     team: 'home' | 'away',
@@ -1198,6 +1239,11 @@ export const GamePage = () => {
                   teamColor={homeTeam.team.homePrimaryColor || '#3B82F6'}
                   isManaged={homeTeam.team.isManaged}
                   playersPerTeam={game.gameFormat.playersPerTeam}
+                  gameStatus={game.status}
+                  currentGameMinute={gameMinute}
+                  onFormationChange={(formation, minute) =>
+                    handleFormationChange(homeTeam.id, formation, minute)
+                  }
                 />
               )}
               {activeTeam === 'away' && awayTeam && (
@@ -1209,6 +1255,11 @@ export const GamePage = () => {
                   teamColor={awayTeam.team.homePrimaryColor || '#EF4444'}
                   isManaged={awayTeam.team.isManaged}
                   playersPerTeam={game.gameFormat.playersPerTeam}
+                  gameStatus={game.status}
+                  currentGameMinute={gameMinute}
+                  onFormationChange={(formation, minute) =>
+                    handleFormationChange(awayTeam.id, formation, minute)
+                  }
                 />
               )}
             </div>
@@ -1287,7 +1338,8 @@ export const GamePage = () => {
                     | 'goal'
                     | 'substitution'
                     | 'position_swap'
-                    | 'starter_entry';
+                    | 'starter_entry'
+                    | 'formation_change';
                   gameMinute: number;
                   gameSecond: number;
                   teamType: string;
@@ -1331,6 +1383,8 @@ export const GamePage = () => {
                     position?: string | null;
                     player?: PlayerInfo | null;
                   };
+                  // Formation change-specific
+                  newFormation?: string | null;
                 };
 
                 const matchEvents: MatchEvent[] = [];
@@ -1500,6 +1554,22 @@ export const GamePage = () => {
                           externalPlayerNumber: event.externalPlayerNumber,
                           player: event.player,
                         },
+                      });
+                    }
+
+                    // Process FORMATION_CHANGE events
+                    if (event.eventType?.name === 'FORMATION_CHANGE') {
+                      matchEvents.push({
+                        id: event.id,
+                        createdAt: event.createdAt,
+                        eventType: 'formation_change',
+                        gameMinute: event.gameMinute,
+                        gameSecond: event.gameSecond,
+                        teamType,
+                        teamName: gameTeam.team.name,
+                        teamColor:
+                          gameTeam.team.homePrimaryColor || defaultColor,
+                        newFormation: event.formation,
                       });
                     }
                   });
@@ -1672,6 +1742,7 @@ export const GamePage = () => {
                           player1Position={event.swapPlayer1?.position}
                           player2Name={player2Name}
                           player2Position={event.swapPlayer2?.position}
+                          newFormation={event.newFormation}
                           onDeleteClick={handleDeleteClick}
                           onEdit={
                             event.eventType === 'goal'

@@ -105,6 +105,7 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
           gameMinute
           gameSecond
           position
+          formation
           playerId
           externalPlayerName
           externalPlayerNumber
@@ -387,6 +388,35 @@ export const SUBSTITUTE_PLAYER = graphql(/* GraphQL */ `
       playerId
       externalPlayerName
       externalPlayerNumber
+      eventType {
+        id
+        name
+      }
+    }
+  }
+`);
+
+export const RECORD_FORMATION_CHANGE = graphql(/* GraphQL */ `
+  mutation RecordFormationChange($input: RecordFormationChangeInput!) {
+    recordFormationChange(input: $input) {
+      id
+      gameMinute
+      gameSecond
+      eventType {
+        id
+        name
+      }
+    }
+  }
+`);
+
+export const RECORD_POSITION_CHANGE = graphql(/* GraphQL */ `
+  mutation RecordPositionChange($input: RecordPositionChangeInput!) {
+    recordPositionChange(input: $input) {
+      id
+      gameMinute
+      gameSecond
+      position
       eventType {
         id
         name

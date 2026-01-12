@@ -62,6 +62,14 @@ export class GameEvent extends BaseEntity {
   @Column({ length: 50, nullable: true })
   position?: string;
 
+  @Field({
+    nullable: true,
+    description:
+      'Team formation code for FORMATION_CHANGE events (e.g., "4-3-3")',
+  })
+  @Column({ length: 20, nullable: true })
+  formation?: string;
+
   @Field({ nullable: true })
   @Column({ type: 'text', nullable: true })
   description?: string;
