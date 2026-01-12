@@ -144,6 +144,7 @@ export type CreateTeamInput = {
 };
 
 export type CreateUserInput = {
+  clerkId?: InputMaybe<Scalars['String']['input']>;
   dateOfBirth?: InputMaybe<Scalars['DateTime']['input']>;
   email?: InputMaybe<Scalars['String']['input']>;
   firstName: Scalars['String']['input'];
@@ -218,6 +219,8 @@ export type GameEvent = {
   eventTypeId: Scalars['ID']['output'];
   externalPlayerName?: Maybe<Scalars['String']['output']>;
   externalPlayerNumber?: Maybe<Scalars['String']['output']>;
+  /** Team formation code for FORMATION_CHANGE events (e.g., "4-3-3") */
+  formation?: Maybe<Scalars['String']['output']>;
   game: Game;
   gameId: Scalars['ID']['output'];
   gameMinute: Scalars['Int']['output'];
@@ -350,7 +353,11 @@ export type Mutation = {
   deleteSubstitution: Scalars['Boolean']['output'];
   findOrCreateUnmanagedTeam: Team;
   promoteGuestCoach: TeamMember;
+  /** Record a formation change event during a game */
+  recordFormationChange: GameEvent;
   recordGoal: GameEvent;
+  /** Record a position change event during a game for accurate position-time tracking */
+  recordPositionChange: GameEvent;
   removeCoachFromTeam: Scalars['Boolean']['output'];
   removeFromLineup: Scalars['Boolean']['output'];
   removeGame: Scalars['Boolean']['output'];
@@ -474,8 +481,16 @@ export type MutationPromoteGuestCoachArgs = {
   membershipId: Scalars['ID']['input'];
 };
 
+export type MutationRecordFormationChangeArgs = {
+  input: RecordFormationChangeInput;
+};
+
 export type MutationRecordGoalArgs = {
   input: RecordGoalInput;
+};
+
+export type MutationRecordPositionChangeArgs = {
+  input: RecordPositionChangeInput;
 };
 
 export type MutationRemoveCoachFromTeamArgs = {
@@ -822,6 +837,14 @@ export type QueryUsersByTeamArgs = {
   teamId: Scalars['ID']['input'];
 };
 
+export type RecordFormationChangeInput = {
+  /** Formation code (e.g., "4-3-3", "3-5-2") */
+  formation: Scalars['String']['input'];
+  gameMinute: Scalars['Int']['input'];
+  gameSecond?: Scalars['Int']['input'];
+  gameTeamId: Scalars['ID']['input'];
+};
+
 export type RecordGoalInput = {
   /** Player ID for managed team assister */
   assisterId?: InputMaybe<Scalars['ID']['input']>;
@@ -838,6 +861,20 @@ export type RecordGoalInput = {
   gameTeamId: Scalars['ID']['input'];
   /** Player ID for managed team scorer */
   scorerId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+export type RecordPositionChangeInput = {
+  /** Game minute when position change occurs */
+  gameMinute: Scalars['Int']['input'];
+  gameSecond?: Scalars['Int']['input'];
+  /** The game team ID */
+  gameTeamId: Scalars['ID']['input'];
+  /** The new position code (e.g., "CM", "ST", "GK") */
+  newPosition: Scalars['String']['input'];
+  /** The GameEvent ID of the player entry (STARTING_LINEUP or SUBSTITUTION_IN) */
+  playerEventId: Scalars['ID']['input'];
+  /** Reason for position change */
+  reason?: InputMaybe<Scalars['String']['input']>;
 };
 
 /** The source of team data - internal (user created) or external (imported) */
@@ -857,6 +894,8 @@ export type Subscription = {
   __typename?: 'Subscription';
   gameCreated: Game;
   gameEventChanged: GameEventSubscriptionPayload;
+  /** Subscribe to game team updates (stats tracking level changes) */
+  gameTeamUpdated: GameTeam;
   gameUpdated: Game;
   playerCreated: User;
   playerUpdated: User;
@@ -867,6 +906,10 @@ export type Subscription = {
 };
 
 export type SubscriptionGameEventChangedArgs = {
+  gameId: Scalars['ID']['input'];
+};
+
+export type SubscriptionGameTeamUpdatedArgs = {
   gameId: Scalars['ID']['input'];
 };
 
@@ -1102,6 +1145,7 @@ export type UpdateTeamInput = {
 };
 
 export type UpdateUserInput = {
+  clerkId?: InputMaybe<Scalars['String']['input']>;
   dateOfBirth?: InputMaybe<Scalars['DateTime']['input']>;
   email?: InputMaybe<Scalars['String']['input']>;
   firstName?: InputMaybe<Scalars['String']['input']>;
@@ -1415,6 +1459,7 @@ export type GetGameByIdQuery = {
         gameMinute: number;
         gameSecond: number;
         position?: string | null;
+        formation?: string | null;
         playerId?: string | null;
         externalPlayerName?: string | null;
         externalPlayerNumber?: string | null;
@@ -1649,6 +1694,37 @@ export type SubstitutePlayerMutation = {
     externalPlayerNumber?: string | null;
     eventType: { __typename?: 'EventType'; id: string; name: string };
   }>;
+};
+
+export type RecordFormationChangeMutationVariables = Exact<{
+  input: RecordFormationChangeInput;
+}>;
+
+export type RecordFormationChangeMutation = {
+  __typename?: 'Mutation';
+  recordFormationChange: {
+    __typename?: 'GameEvent';
+    id: string;
+    gameMinute: number;
+    gameSecond: number;
+    eventType: { __typename?: 'EventType'; id: string; name: string };
+  };
+};
+
+export type RecordPositionChangeMutationVariables = Exact<{
+  input: RecordPositionChangeInput;
+}>;
+
+export type RecordPositionChangeMutation = {
+  __typename?: 'Mutation';
+  recordPositionChange: {
+    __typename?: 'GameEvent';
+    id: string;
+    gameMinute: number;
+    gameSecond: number;
+    position?: string | null;
+    eventType: { __typename?: 'EventType'; id: string; name: string };
+  };
 };
 
 export type RecordGoalMutationVariables = Exact<{
@@ -3836,6 +3912,10 @@ export const GetGameByIdDocument = {
                             },
                             {
                               kind: 'Field',
+                              name: { kind: 'Name', value: 'formation' },
+                            },
+                            {
+                              kind: 'Field',
                               name: { kind: 'Name', value: 'playerId' },
                             },
                             {
@@ -4771,6 +4851,141 @@ export const SubstitutePlayerDocument = {
 } as unknown as DocumentNode<
   SubstitutePlayerMutation,
   SubstitutePlayerMutationVariables
+>;
+export const RecordFormationChangeDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'mutation',
+      name: { kind: 'Name', value: 'RecordFormationChange' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'input' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: {
+              kind: 'NamedType',
+              name: { kind: 'Name', value: 'RecordFormationChangeInput' },
+            },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'recordFormationChange' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'input' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'input' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'eventType' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  RecordFormationChangeMutation,
+  RecordFormationChangeMutationVariables
+>;
+export const RecordPositionChangeDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'mutation',
+      name: { kind: 'Name', value: 'RecordPositionChange' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'input' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: {
+              kind: 'NamedType',
+              name: { kind: 'Name', value: 'RecordPositionChangeInput' },
+            },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'recordPositionChange' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'input' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'input' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'position' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'eventType' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  RecordPositionChangeMutation,
+  RecordPositionChangeMutationVariables
 >;
 export const RecordGoalDocument = {
   kind: 'Document',

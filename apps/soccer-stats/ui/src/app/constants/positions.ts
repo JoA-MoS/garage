@@ -246,8 +246,8 @@ export const FORMATIONS_7V7: Formation[] = [
     playersPerTeam: 7,
     positions: [
       { position: 'GK', x: 50, y: 5 },
-      { position: 'CB', x: 35, y: 20 },
-      { position: 'CB', x: 65, y: 20 },
+      { position: 'LB', x: 35, y: 20 },
+      { position: 'RB', x: 65, y: 20 },
       { position: 'LM', x: 20, y: 50 },
       { position: 'CM', x: 50, y: 45 },
       { position: 'RM', x: 80, y: 50 },

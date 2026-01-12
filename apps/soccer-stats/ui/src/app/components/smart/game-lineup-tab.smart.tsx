@@ -1,8 +1,8 @@
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback, memo, useEffect } from 'react';
 import { useMutation } from '@apollo/client/react';
 
 import { CreatePlayerModal } from '@garage/soccer-stats/ui-components';
-import { LineupPlayer } from '@garage/soccer-stats/graphql-codegen';
+import { LineupPlayer, GameStatus } from '@garage/soccer-stats/graphql-codegen';
 
 import { useLineup, RosterPlayer } from '../../hooks/use-lineup';
 import {
@@ -10,6 +10,7 @@ import {
   FormationPosition,
   getFormationsForTeamSize,
   getDefaultFormation,
+  ALL_FORMATIONS,
 } from '../../constants/positions';
 import { FieldLineup } from '../presentation/field-lineup.presentation';
 import { LineupBench } from '../presentation/lineup-bench.presentation';
@@ -27,6 +28,9 @@ interface GameLineupTabProps {
   teamColor?: string;
   isManaged: boolean;
   playersPerTeam: number;
+  gameStatus?: GameStatus;
+  currentGameMinute?: number;
+  onFormationChange?: (formation: string, gameMinute?: number) => Promise<void>;
 }
 
 type ModalMode =
@@ -43,7 +47,62 @@ type ModalMode =
       playerOut: LineupPlayer;
       position?: FormationPosition;
     }
-  | { type: 'create-player'; position: FormationPosition };
+  | { type: 'create-player'; position: FormationPosition }
+  | {
+      type: 'reassign-positions';
+      newFormation: Formation;
+      playersToReassign: Array<{
+        player: LineupPlayer;
+        oldPosition: string;
+      }>;
+    };
+
+// Helper to count position occurrences in a formation
+function getPositionCounts(formation: Formation): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const pos of formation.positions) {
+    counts.set(pos.position, (counts.get(pos.position) || 0) + 1);
+  }
+  return counts;
+}
+
+// Find players who need reassignment when changing formations
+function findPlayersNeedingReassignment(
+  currentPlayers: LineupPlayer[],
+  oldFormation: Formation,
+  newFormation: Formation,
+): Array<{ player: LineupPlayer; oldPosition: string }> {
+  const newPositionCounts = getPositionCounts(newFormation);
+  const playersToReassign: Array<{
+    player: LineupPlayer;
+    oldPosition: string;
+  }> = [];
+
+  // Group current players by their position
+  const playersByPosition = new Map<string, LineupPlayer[]>();
+  for (const player of currentPlayers) {
+    if (player.position) {
+      const existing = playersByPosition.get(player.position) || [];
+      existing.push(player);
+      playersByPosition.set(player.position, existing);
+    }
+  }
+
+  // Check each position group
+  for (const [position, players] of playersByPosition) {
+    const availableSlots = newPositionCounts.get(position) || 0;
+    // If we have more players than slots, some need reassignment
+    if (players.length > availableSlots) {
+      // Keep the first N players (they fit), reassign the rest
+      const playersToMove = players.slice(availableSlots);
+      for (const player of playersToMove) {
+        playersToReassign.push({ player, oldPosition: position });
+      }
+    }
+  }
+
+  return playersToReassign;
+}
 
 export const GameLineupTab = memo(function GameLineupTab({
   gameTeamId,
@@ -53,6 +112,9 @@ export const GameLineupTab = memo(function GameLineupTab({
   teamColor = '#3B82F6',
   isManaged,
   playersPerTeam,
+  gameStatus,
+  currentGameMinute = 0,
+  onFormationChange,
 }: GameLineupTabProps) {
   const formations = getFormationsForTeamSize(playersPerTeam);
   const [selectedFormation, setSelectedFormation] = useState<Formation>(() =>
@@ -63,6 +125,7 @@ export const GameLineupTab = memo(function GameLineupTab({
   const [externalNumber, setExternalNumber] = useState('');
 
   const [gameMinute, setGameMinute] = useState('0');
+  const [savingFormation, setSavingFormation] = useState(false);
 
   // Mutations for creating new players
   const [createUser, { loading: creatingUser }] = useMutation(CREATE_USER);
@@ -87,8 +150,148 @@ export const GameLineupTab = memo(function GameLineupTab({
     removeFromLineup,
     updatePosition,
     substitutePlayer,
+    recordPositionChange,
     refetchLineup,
+    formation: savedFormation,
   } = useLineup({ gameTeamId, gameId });
+
+  // Sync local formation state with backend formation
+  useEffect(() => {
+    if (savedFormation) {
+      const found = ALL_FORMATIONS.find(
+        (f: Formation) => f.code === savedFormation,
+      );
+      if (found) {
+        setSelectedFormation(found);
+      }
+    }
+  }, [savedFormation]);
+
+  // State for tracking position reassignments
+  const [reassignments, setReassignments] = useState<Map<string, string>>(
+    new Map(),
+  );
+
+  // Execute the actual formation change (called directly or after reassignment)
+  const executeFormationChange = useCallback(
+    async (formation: Formation) => {
+      const isGameActive =
+        gameStatus === GameStatus.InProgress ||
+        gameStatus === GameStatus.FirstHalf ||
+        gameStatus === GameStatus.Halftime ||
+        gameStatus === GameStatus.SecondHalf;
+
+      if (onFormationChange) {
+        setSavingFormation(true);
+        try {
+          if (isGameActive) {
+            // Mid-game: record formation change event with current game minute
+            await onFormationChange(formation.code, currentGameMinute);
+          } else {
+            // Pre-game: just update formation without event
+            await onFormationChange(formation.code);
+          }
+          setSelectedFormation(formation);
+        } catch (err) {
+          console.error('Failed to update formation:', err);
+        } finally {
+          setSavingFormation(false);
+        }
+      } else {
+        // No handler - just update local state
+        setSelectedFormation(formation);
+      }
+    },
+    [gameStatus, currentGameMinute, onFormationChange],
+  );
+
+  // Handle formation selection change
+  const handleFormationSelect = useCallback(
+    async (formation: Formation) => {
+      // Check if any players need reassignment
+      const playersToReassign = findPlayersNeedingReassignment(
+        currentOnField,
+        selectedFormation,
+        formation,
+      );
+
+      if (playersToReassign.length > 0) {
+        // Show reassignment modal
+        setReassignments(new Map());
+        setModalMode({
+          type: 'reassign-positions',
+          newFormation: formation,
+          playersToReassign,
+        });
+        return;
+      }
+
+      // No reassignment needed - proceed with formation change
+      await executeFormationChange(formation);
+    },
+    [currentOnField, selectedFormation, executeFormationChange],
+  );
+
+  // Handle confirming position reassignments
+  const handleConfirmReassignments = useCallback(async () => {
+    if (modalMode.type !== 'reassign-positions') return;
+
+    const { newFormation, playersToReassign } = modalMode;
+
+    // Verify all players have been assigned - check each player has an entry
+    const allAssigned = playersToReassign.every(({ player }) =>
+      reassignments.has(player.gameEventId),
+    );
+    if (!allAssigned) {
+      return; // Not all players assigned yet
+    }
+
+    setSavingFormation(true);
+    try {
+      // Update each player's position
+      const isGameActive =
+        gameStatus === GameStatus.InProgress ||
+        gameStatus === GameStatus.FirstHalf ||
+        gameStatus === GameStatus.Halftime ||
+        gameStatus === GameStatus.SecondHalf;
+
+      for (const { player } of playersToReassign) {
+        const newPosition = reassignments.get(player.gameEventId);
+        if (newPosition) {
+          if (isGameActive) {
+            // Use recordPositionChange for proper position-time tracking
+            await recordPositionChange({
+              playerEventId: player.gameEventId,
+              newPosition,
+              gameMinute: currentGameMinute,
+              gameSecond: 0,
+              reason: 'FORMATION_CHANGE',
+            });
+          } else {
+            // Game not started - just update position without time tracking
+            await updatePosition(player.gameEventId, newPosition);
+          }
+        }
+      }
+
+      // Now change the formation
+      await executeFormationChange(newFormation);
+      setModalMode({ type: 'closed' });
+      setReassignments(new Map());
+    } catch (err) {
+      console.error('Failed to reassign positions:', err);
+    } finally {
+      setSavingFormation(false);
+    }
+  }, [
+    modalMode,
+    reassignments,
+    updatePosition,
+    recordPositionChange,
+    executeFormationChange,
+    gameStatus,
+    currentGameMinute,
+  ]);
 
   // Handle position click on field
   const handlePositionClick = useCallback(
@@ -295,9 +498,10 @@ export const GameLineupTab = memo(function GameLineupTab({
               const formation = formations.find(
                 (f) => f.code === e.target.value,
               );
-              if (formation) setSelectedFormation(formation);
+              if (formation) handleFormationSelect(formation);
             }}
-            className="rounded border border-gray-300 px-2 py-1 text-sm"
+            disabled={savingFormation || mutating}
+            className="rounded border border-gray-300 px-2 py-1 text-sm disabled:opacity-50"
           >
             {formations.map((f) => (
               <option key={f.code} value={f.code}>
@@ -561,6 +765,182 @@ export const GameLineupTab = memo(function GameLineupTab({
                 >
                   Cancel
                 </button>
+              </>
+            )}
+
+            {/* Reassign positions modal */}
+            {modalMode.type === 'reassign-positions' && (
+              <>
+                <h4 className="mb-4 text-lg font-semibold">
+                  Reassign Players for {modalMode.newFormation.name}
+                </h4>
+
+                <p className="mb-4 text-sm text-gray-600">
+                  The following players need new positions in the{' '}
+                  {modalMode.newFormation.name} formation:
+                </p>
+
+                <div className="mb-4 space-y-3">
+                  {modalMode.playersToReassign.map(
+                    ({ player, oldPosition }) => {
+                      const playerName =
+                        player.externalPlayerName ||
+                        player.playerName ||
+                        `#${player.externalPlayerNumber}` ||
+                        'Unknown';
+                      const selectedPosition = reassignments.get(
+                        player.gameEventId,
+                      );
+
+                      // Get IDs of players being reassigned (to exclude from "staying" players)
+                      const reassigningPlayerIds = new Set(
+                        modalMode.playersToReassign.map(
+                          (p) => p.player.gameEventId,
+                        ),
+                      );
+
+                      // Count positions occupied by players staying in place (not being reassigned)
+                      const occupiedByStaying = new Map<string, number>();
+                      for (const p of currentOnField) {
+                        if (
+                          p.position &&
+                          !reassigningPlayerIds.has(p.gameEventId)
+                        ) {
+                          occupiedByStaying.set(
+                            p.position,
+                            (occupiedByStaying.get(p.position) || 0) + 1,
+                          );
+                        }
+                      }
+
+                      // Count positions selected by OTHER reassigning players (not this one)
+                      const selectedByOthers = new Map<string, number>();
+                      for (const [eventId, pos] of reassignments) {
+                        if (eventId !== player.gameEventId) {
+                          selectedByOthers.set(
+                            pos,
+                            (selectedByOthers.get(pos) || 0) + 1,
+                          );
+                        }
+                      }
+
+                      // Count total slots per position in new formation
+                      const totalSlots = getPositionCounts(
+                        modalMode.newFormation,
+                      );
+
+                      // Filter to positions with available slots
+                      const availablePositions =
+                        modalMode.newFormation.positions.filter((pos) => {
+                          const total = totalSlots.get(pos.position) || 0;
+                          const occupied =
+                            occupiedByStaying.get(pos.position) || 0;
+                          const selected =
+                            selectedByOthers.get(pos.position) || 0;
+                          const available = total - occupied - selected;
+                          // Show if this is the player's current selection OR there are available slots
+                          return (
+                            selectedPosition === pos.position || available > 0
+                          );
+                        });
+
+                      // Deduplicate positions (same position may appear multiple times in formation)
+                      const uniquePositions = availablePositions.filter(
+                        (pos, index, self) =>
+                          self.findIndex((p) => p.position === pos.position) ===
+                          index,
+                      );
+
+                      // Group positions by category for better UX
+                      const positionsByCategory = uniquePositions.reduce(
+                        (acc, pos) => {
+                          const category = pos.position.includes('B')
+                            ? 'Defense'
+                            : pos.position.includes('M')
+                              ? 'Midfield'
+                              : pos.position.includes('W') ||
+                                  pos.position.includes('ST') ||
+                                  pos.position.includes('CF')
+                                ? 'Attack'
+                                : 'Other';
+                          if (!acc[category]) acc[category] = [];
+                          acc[category].push(pos);
+                          return acc;
+                        },
+                        {} as Record<string, FormationPosition[]>,
+                      );
+
+                      return (
+                        <div
+                          key={player.gameEventId}
+                          className="rounded-lg border bg-gray-50 p-3"
+                        >
+                          <div className="mb-2 flex items-center justify-between">
+                            <span className="font-medium">{playerName}</span>
+                            <span className="text-sm text-gray-500">
+                              was: {oldPosition}
+                            </span>
+                          </div>
+                          <select
+                            value={selectedPosition || ''}
+                            onChange={(e) => {
+                              const newMap = new Map(reassignments);
+                              if (e.target.value) {
+                                newMap.set(player.gameEventId, e.target.value);
+                              } else {
+                                newMap.delete(player.gameEventId);
+                              }
+                              setReassignments(newMap);
+                            }}
+                            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                          >
+                            <option value="">Select new position...</option>
+                            {Object.entries(positionsByCategory).map(
+                              ([category, positions]) => (
+                                <optgroup key={category} label={category}>
+                                  {positions.map((pos, idx) => (
+                                    <option
+                                      key={`${pos.position}-${idx}`}
+                                      value={pos.position}
+                                    >
+                                      {pos.position}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              ),
+                            )}
+                          </select>
+                        </div>
+                      );
+                    },
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <button
+                    onClick={handleConfirmReassignments}
+                    disabled={
+                      savingFormation ||
+                      reassignments.size !== modalMode.playersToReassign.length
+                    }
+                    className="w-full rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:opacity-50"
+                    type="button"
+                  >
+                    {savingFormation
+                      ? 'Saving...'
+                      : `Confirm (${reassignments.size}/${modalMode.playersToReassign.length} assigned)`}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setModalMode({ type: 'closed' });
+                      setReassignments(new Map());
+                    }}
+                    className="w-full rounded border px-4 py-2 text-gray-600 hover:bg-gray-50"
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </>
             )}
 
