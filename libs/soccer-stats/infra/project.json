@@ -19,24 +19,36 @@
       }
     },
     "up": {
-      "executor": "@nx-extend/pulumi:up",
+      "executor": "nx:run-commands",
+      "parallelism": false,
       "options": {
-        "yes": true
+        "command": "pulumi up --yes",
+        "cwd": "libs/soccer-stats/infra"
       },
-      "dependsOn": ["build"]
+      "dependsOn": ["^build", "build"]
     },
     "preview": {
-      "executor": "@nx-extend/pulumi:preview",
-      "options": {},
-      "dependsOn": ["build"]
+      "executor": "nx:run-commands",
+      "parallelism": false,
+      "options": {
+        "command": "pulumi preview",
+        "cwd": "libs/soccer-stats/infra"
+      },
+      "dependsOn": ["^build", "build"]
     },
     "refresh": {
-      "executor": "@nx-extend/pulumi:refresh",
-      "options": {}
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pulumi refresh --yes",
+        "cwd": "libs/soccer-stats/infra"
+      }
     },
     "import": {
-      "executor": "@nx-extend/pulumi:import",
-      "options": {}
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pulumi import",
+        "cwd": "libs/soccer-stats/infra"
+      }
     }
   }
 }

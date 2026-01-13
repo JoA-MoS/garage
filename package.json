@@ -37,7 +37,6 @@
     "@nestjs/schematics": "11.0.5",
     "@nestjs/testing": "^11.0.0",
     "@ns3/nx-serverless": "5.6.0",
-    "@nx-extend/pulumi": "^11.0.1",
     "@nx/angular": "22.3.3",
     "@nx/devkit": "22.3.3",
     "@nx/docker": "22.3.3",
