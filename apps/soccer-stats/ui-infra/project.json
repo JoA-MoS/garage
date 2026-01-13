@@ -14,7 +14,7 @@
       "options": {
         "command": "nx run soccer-stats-ui-infra:build:tsc --batch"
       },
-      "dependsOn": ["soccer-stats-infra:build"]
+      "dependsOn": ["^build"]
     },
     "build:tsc": {
       "executor": "@nx/js:tsc",
