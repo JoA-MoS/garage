@@ -260,9 +260,6 @@ importers:
       '@ns3/nx-serverless':
         specifier: 5.6.0
         version: 5.6.0(@babel/traverse@7.28.5)(@rspack/core@1.6.7(@swc/helpers@0.5.17))(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.17))(@swc/types@0.1.7)(typescript@5.9.3))(@swc/core@1.5.7(@swc/helpers@0.5.17))(@types/node@20.19.9)(@zkochan/js-yaml@0.0.7)(babel-plugin-macros@3.1.0)(bufferutil@4.0.9)(esbuild@0.26.0)(eslint@9.31.0(jiti@2.4.2))(html-webpack-plugin@5.6.3(@rspack/core@1.6.7(@swc/helpers@0.5.17))(webpack@5.101.3(@swc/core@1.5.7(@swc/helpers@0.5.17))(esbuild@0.26.0)))(nx@22.3.3(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.17))(@swc/types@0.1.7)(typescript@5.9.3))(@swc/core@1.5.7(@swc/helpers@0.5.17)))(ts-node@10.9.1(@swc/core@1.5.7(@swc/helpers@0.5.17))(@types/node@20.19.9)(typescript@5.9.3))(typescript@5.9.3)(utf-8-validate@5.0.10)
-      '@nx-extend/pulumi':
-        specifier: ^11.0.1
-        version: 11.0.1(@nx/devkit@22.3.3(nx@22.3.3(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.17))(@swc/types@0.1.7)(typescript@5.9.3))(@swc/core@1.5.7(@swc/helpers@0.5.17))))(@pulumi/pulumi@3.214.1(ts-node@10.9.1(@swc/core@1.5.7(@swc/helpers@0.5.17))(@types/node@20.19.9)(typescript@5.9.3))(typescript@5.9.3))(ts-node@10.9.1(@swc/core@1.5.7(@swc/helpers@0.5.17))(@types/node@20.19.9)(typescript@5.9.3))(typescript@5.9.3)
       '@nx/angular':
         specifier: 22.3.3
         version: 22.3.3(43ebdb4b067e3960bbfde49af5a4753f)
@@ -6388,13 +6385,6 @@ packages:
       }
     engines: { node: ^16.14.0 || >=18.0.0 }
 
-  '@npmcli/git@6.0.3':
-    resolution:
-      {
-        integrity: sha512-GUYESQlxZRAdhs3UhbB6pVRNUELQOHXwK9ruDkwmCv2aZ5y0SApQzUJCg02p3A7Ue2J5hxvlk1YI53c00NmRyQ==,
-      }
-    engines: { node: ^18.17.0 || >=20.5.0 }
-
   '@npmcli/git@7.0.1':
     resolution:
       {
@@ -6459,13 +6449,6 @@ packages:
         integrity: sha512-f7zYC6kQautXHvNbLEWgD/uGu1+xCn9izgqBfgItWSx22U0ZDekxN08A1vM8cTxj/cRVe0Q94Ode+tdoYmIOOQ==,
       }
     engines: { node: ^16.14.0 || >=18.0.0 }
-
-  '@npmcli/package-json@6.2.0':
-    resolution:
-      {
-        integrity: sha512-rCNLSB/JzNvot0SEyXqWZ7tX2B5dD2a1br2Dp0vSYVo5jh8Z0EZ7lS9TsZ1UtziddB1UfNUaMCc538/HztnJGA==,
-      }
-    engines: { node: ^18.17.0 || >=20.5.0 }
 
   '@npmcli/package-json@7.0.4':
     resolution:
@@ -6551,23 +6534,6 @@ packages:
       }
     engines: { node: ^14.18.0 || >=16.10.0, npm: '>=5.10.0' }
     hasBin: true
-
-  '@nx-extend/core@10.0.0':
-    resolution:
-      {
-        integrity: sha512-V9+cUqhCmLoPQo9qyhkDGvCmispdKaL2IyyASPs5vncXeRCSZzL+S9EX2A/SjVI6oV079VZ66mdjEJciws+Mvg==,
-      }
-    peerDependencies:
-      '@nx/devkit': ^22.0.0
-
-  '@nx-extend/pulumi@11.0.1':
-    resolution:
-      {
-        integrity: sha512-5FVHh/VU0Q6uAyX2GNnzxqeNT4agp5ZGRX7rI9PF9kh9w/psPW2ubh7LmbiN/2cu3a3Ppys6LAODTMVzm9sUzw==,
-      }
-    peerDependencies:
-      '@nx/devkit': ^22.0.0
-      '@pulumi/pulumi': ^3.129.0
 
   '@nx/angular@22.3.3':
     resolution:
@@ -7599,12 +7565,6 @@ packages:
     resolution:
       {
         integrity: sha512-NUXMCWL3VBtlclC4u7G9LcToCQGiR/wOuRdKHzAqbn0nzaVuPV3NlDZIz7CpcHL/mGGIQ00/HnLGCA8lC1kSFA==,
-      }
-
-  '@pulumi/gcp@9.7.0':
-    resolution:
-      {
-        integrity: sha512-3aOcgg/6LSoyp49Sc5oDMcA/4QW7aOlK3oODKpG4/gHzHNSY/DPUk6X/8fY4YzdXz0XuSiKGK9jgsekAhLSgdA==,
       }
 
   '@pulumi/pulumi@3.214.1':
@@ -19992,13 +19952,6 @@ packages:
       }
     engines: { node: ^14.17.0 || ^16.13.0 || >=18.0.0 }
 
-  json-parse-even-better-errors@4.0.0:
-    resolution:
-      {
-        integrity: sha512-lR4MXjGNgkJc7tkQ97kb2nuEMnNCyU//XYVH0MKTGcXEiSudQ5MKGKen3C5QubYy0vmq+JGitUg92uuywGEwIA==,
-      }
-    engines: { node: ^18.17.0 || >=20.5.0 }
-
   json-parse-even-better-errors@5.0.0:
     resolution:
       {
@@ -22055,13 +22008,6 @@ packages:
       }
     engines: { node: ^14.17.0 || ^16.13.0 || >=18.0.0 }
 
-  npm-install-checks@7.1.2:
-    resolution:
-      {
-        integrity: sha512-z9HJBCYw9Zr8BqXcllKIs5nI+QggAImbBdHphOzVYrz2CB4iQ6FzWyKmlqDZua+51nAu7FcemlbTc9VgQN5XDQ==,
-      }
-    engines: { node: ^18.17.0 || >=20.5.0 }
-
   npm-install-checks@8.0.0:
     resolution:
       {
@@ -22104,13 +22050,6 @@ packages:
       }
     engines: { node: ^16.14.0 || >=18.0.0 }
 
-  npm-package-arg@12.0.2:
-    resolution:
-      {
-        integrity: sha512-f1NpFjNI9O4VbKMOlA5QoBq/vSQPORHcTZ2feJpFkTHJ9eQkdlmZEKSjcAhxTGInC7RlEyScT9ui67NaOsjFWA==,
-      }
-    engines: { node: ^18.17.0 || >=20.5.0 }
-
   npm-package-arg@13.0.1:
     resolution:
       {
@@ -22131,13 +22070,6 @@ packages:
         integrity: sha512-shYrPFIS/JLP4oQmAwDyk5HcyysKW8/JLTEA32S0Z5TzvpaeeX2yMFfoK1fjEBnCBvVyIB/Jj/GBFdm0wsgzbA==,
       }
     engines: { node: ^14.17.0 || ^16.13.0 || >=18.0.0 }
-
-  npm-pick-manifest@10.0.0:
-    resolution:
-      {
-        integrity: sha512-r4fFa4FqYY8xaM7fHecQ9Z2nE9hgNfJR+EmoKv0+chvzWkBcORX3r0FpTByP+CbOVJDladMXnPQGVN8PBLGuTQ==,
-      }
-    engines: { node: ^18.17.0 || >=20.5.0 }
 
   npm-pick-manifest@11.0.3:
     resolution:
@@ -26141,13 +26073,6 @@ packages:
         integrity: sha512-ObmnIF4hXNg1BqhnHmgbDETF8dLPCggZWBjkQfhZpbszZnYur5DUljTcCHii5LC3J5E0yeO/1LIMyH+UvHQgyw==,
       }
     engines: { node: '>= 0.4' }
-
-  shelljs@0.10.0:
-    resolution:
-      {
-        integrity: sha512-Jex+xw5Mg2qMZL3qnzXIfaxEtBaC4n7xifqaqtrZDdlheR70OGkydrPJWT0V1cA1k3nanC86x9FwAmQl6w3Klw==,
-      }
-    engines: { node: '>=18' }
 
   shimmer@1.2.1:
     resolution:
@@ -35952,18 +35877,6 @@ snapshots:
     transitivePeerDependencies:
       - bluebird
 
-  '@npmcli/git@6.0.3':
-    dependencies:
-      '@npmcli/promise-spawn': 8.0.2
-      ini: 5.0.0
-      lru-cache: 10.4.3
-      npm-pick-manifest: 10.0.0
-      proc-log: 5.0.0
-      promise-retry: 2.0.1
-      semver: 7.7.3
-      which: 5.0.0
-    optional: true
-
   '@npmcli/git@7.0.1':
     dependencies:
       '@npmcli/promise-spawn': 9.0.1
@@ -36020,17 +35933,6 @@ snapshots:
       semver: 7.7.3
     transitivePeerDependencies:
       - bluebird
-
-  '@npmcli/package-json@6.2.0':
-    dependencies:
-      '@npmcli/git': 6.0.3
-      glob: 10.4.5
-      hosted-git-info: 8.1.0
-      json-parse-even-better-errors: 4.0.0
-      proc-log: 5.0.0
-      semver: 7.7.3
-      validate-npm-package-license: 3.0.4
-    optional: true
 
   '@npmcli/package-json@7.0.4':
     dependencies:
@@ -36144,28 +36046,6 @@ snapshots:
   '@nuxt/opencollective@0.4.1':
     dependencies:
       consola: 3.4.2
-
-  '@nx-extend/core@10.0.0(@nx/devkit@22.3.3(nx@22.3.3(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.17))(@swc/types@0.1.7)(typescript@5.9.3))(@swc/core@1.5.7(@swc/helpers@0.5.17))))':
-    dependencies:
-      '@nx/devkit': 22.3.3(nx@22.3.3(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.17))(@swc/types@0.1.7)(typescript@5.9.3))(@swc/core@1.5.7(@swc/helpers@0.5.17)))
-      shelljs: 0.10.0
-      tslib: 2.8.1
-
-  '@nx-extend/pulumi@11.0.1(@nx/devkit@22.3.3(nx@22.3.3(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.17))(@swc/types@0.1.7)(typescript@5.9.3))(@swc/core@1.5.7(@swc/helpers@0.5.17))))(@pulumi/pulumi@3.214.1(ts-node@10.9.1(@swc/core@1.5.7(@swc/helpers@0.5.17))(@types/node@20.19.9)(typescript@5.9.3))(typescript@5.9.3))(ts-node@10.9.1(@swc/core@1.5.7(@swc/helpers@0.5.17))(@types/node@20.19.9)(typescript@5.9.3))(typescript@5.9.3)':
-    dependencies:
-      '@nx-extend/core': 10.0.0(@nx/devkit@22.3.3(nx@22.3.3(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.17))(@swc/types@0.1.7)(typescript@5.9.3))(@swc/core@1.5.7(@swc/helpers@0.5.17))))
-      '@nx/devkit': 22.3.3(nx@22.3.3(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.17))(@swc/types@0.1.7)(typescript@5.9.3))(@swc/core@1.5.7(@swc/helpers@0.5.17)))
-      '@pulumi/pulumi': 3.214.1(ts-node@10.9.1(@swc/core@1.5.7(@swc/helpers@0.5.17))(@types/node@20.19.9)(typescript@5.9.3))(typescript@5.9.3)
-      shelljs: 0.10.0
-      tsconfig-paths: 4.2.0
-      tslib: 2.8.1
-    optionalDependencies:
-      '@pulumi/gcp': 9.7.0(ts-node@10.9.1(@swc/core@1.5.7(@swc/helpers@0.5.17))(@types/node@20.19.9)(typescript@5.9.3))(typescript@5.9.3)
-    transitivePeerDependencies:
-      - bluebird
-      - supports-color
-      - ts-node
-      - typescript
 
   '@nx/angular@22.3.3(43ebdb4b067e3960bbfde49af5a4753f)':
     dependencies:
@@ -37505,18 +37385,6 @@ snapshots:
       - supports-color
       - ts-node
       - typescript
-
-  '@pulumi/gcp@9.7.0(ts-node@10.9.1(@swc/core@1.5.7(@swc/helpers@0.5.17))(@types/node@20.19.9)(typescript@5.9.3))(typescript@5.9.3)':
-    dependencies:
-      '@npmcli/package-json': 6.2.0
-      '@pulumi/pulumi': 3.214.1(ts-node@10.9.1(@swc/core@1.5.7(@swc/helpers@0.5.17))(@types/node@20.19.9)(typescript@5.9.3))(typescript@5.9.3)
-      '@types/express': 4.17.23
-    transitivePeerDependencies:
-      - bluebird
-      - supports-color
-      - ts-node
-      - typescript
-    optional: true
 
   '@pulumi/pulumi@3.214.1(ts-node@10.9.1(@swc/core@1.5.7(@swc/helpers@0.5.17))(@types/node@20.19.9)(typescript@5.9.3))(typescript@5.9.3)':
     dependencies:
@@ -47079,9 +46947,6 @@ snapshots:
 
   json-parse-even-better-errors@3.0.2: {}
 
-  json-parse-even-better-errors@4.0.0:
-    optional: true
-
   json-parse-even-better-errors@5.0.0: {}
 
   json-refs@3.0.15(supports-color@8.1.1):
@@ -48396,11 +48261,6 @@ snapshots:
     dependencies:
       semver: 7.7.3
 
-  npm-install-checks@7.1.2:
-    dependencies:
-      semver: 7.7.3
-    optional: true
-
   npm-install-checks@8.0.0:
     dependencies:
       semver: 7.7.3
@@ -48425,14 +48285,6 @@ snapshots:
       semver: 7.7.3
       validate-npm-package-name: 5.0.1
 
-  npm-package-arg@12.0.2:
-    dependencies:
-      hosted-git-info: 8.1.0
-      proc-log: 5.0.0
-      semver: 7.7.3
-      validate-npm-package-name: 6.0.1
-    optional: true
-
   npm-package-arg@13.0.1:
     dependencies:
       hosted-git-info: 9.0.2
@@ -48448,14 +48300,6 @@ snapshots:
   npm-packlist@8.0.2:
     dependencies:
       ignore-walk: 6.0.5
-
-  npm-pick-manifest@10.0.0:
-    dependencies:
-      npm-install-checks: 7.1.2
-      npm-normalize-package-bin: 4.0.0
-      npm-package-arg: 12.0.2
-      semver: 7.7.3
-    optional: true
 
   npm-pick-manifest@11.0.3:
     dependencies:
@@ -51189,11 +51033,6 @@ snapshots:
   shell-exec@1.0.2: {}
 
   shell-quote@1.8.3: {}
-
-  shelljs@0.10.0:
-    dependencies:
-      execa: 5.1.1
-      fast-glob: 3.3.3
 
   shimmer@1.2.1: {}
 
