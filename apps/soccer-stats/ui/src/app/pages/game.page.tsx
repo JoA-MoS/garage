@@ -39,6 +39,7 @@ import { GameLineupTab } from '../components/smart/game-lineup-tab.smart';
 import { GoalModal, EditGoalData } from '../components/smart/goal-modal.smart';
 import { SubstitutionModal } from '../components/smart/substitution-modal.smart';
 import { GameStats } from '../components/smart/game-stats.smart';
+import { GameSummaryPresentation } from '../components/presentation/game-summary.presentation';
 import { useGameEventSubscription } from '../hooks/use-game-event-subscription';
 
 import { computeScore, GameHeader, StickyScoreBar } from './game';
@@ -131,6 +132,11 @@ export const GamePage = () => {
     baseElapsed: number;
   } | null>(null);
 
+  // Track if we've set the initial tab based on game status (for completed games)
+  const initialTabSetRef = useRef(false);
+  // Track previous game status to detect completion
+  const prevGameStatusRef = useRef<GameStatus | null>(null);
+
   const apolloClient = useApolloClient();
 
   const { data, loading, error } = useQuery(GET_GAME_BY_ID, {
@@ -151,6 +157,32 @@ export const GamePage = () => {
       );
     }
   }, [loading]);
+
+  // Auto-switch to stats tab for completed games:
+  // 1. When opening a completed game, default to stats tab
+  // 2. When a game becomes completed during the session, auto-switch to stats
+  useEffect(() => {
+    const gameStatus = data?.game?.status;
+    if (!gameStatus) return;
+
+    // Case 1: Initial load of a completed game - set to stats tab
+    if (!initialTabSetRef.current && gameStatus === GameStatus.Completed) {
+      setActiveTab('stats');
+      initialTabSetRef.current = true;
+    }
+
+    // Case 2: Game just became completed (status changed during session)
+    if (
+      prevGameStatusRef.current !== null &&
+      prevGameStatusRef.current !== GameStatus.Completed &&
+      gameStatus === GameStatus.Completed
+    ) {
+      setActiveTab('stats');
+    }
+
+    // Update previous status ref
+    prevGameStatusRef.current = gameStatus;
+  }, [data?.game?.status]);
 
   const [updateGame, { loading: updatingGame }] = useMutation(UPDATE_GAME, {
     refetchQueries: [{ query: GET_GAME_BY_ID, variables: { id: gameId } }],
@@ -1265,54 +1297,109 @@ export const GamePage = () => {
             </div>
           )}
 
-          {/* Stats Tab - Playing Time */}
+          {/* Stats Tab - Game Summary and Playing Time */}
           {activeTab === 'stats' && (
-            <div className="space-y-4">
-              {/* Team Selector */}
-              <div className="flex justify-center gap-2">
-                <button
-                  onClick={() => setActiveTeam('home')}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                    activeTeam === 'home'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                  type="button"
-                >
-                  {homeTeam?.team.name || 'Home'}
-                </button>
-                <button
-                  onClick={() => setActiveTeam('away')}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                    activeTeam === 'away'
-                      ? 'bg-red-100 text-red-700'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                  type="button"
-                >
-                  {awayTeam?.team.name || 'Away'}
-                </button>
-              </div>
+            <div className="space-y-6">
+              {/* Game Summary - shown for completed games */}
+              {game.status === GameStatus.Completed && homeTeam && awayTeam && (
+                <GameSummaryPresentation
+                  homeTeam={{
+                    id: homeTeam.id,
+                    teamType: 'home',
+                    team: {
+                      id: homeTeam.team.id,
+                      name: homeTeam.team.name,
+                      homePrimaryColor: homeTeam.team.homePrimaryColor,
+                    },
+                    gameEvents: homeTeam.gameEvents?.map((e) => ({
+                      id: e.id,
+                      createdAt: e.createdAt,
+                      gameMinute: e.gameMinute,
+                      gameSecond: e.gameSecond,
+                      playerId: e.playerId,
+                      externalPlayerName: e.externalPlayerName,
+                      externalPlayerNumber: e.externalPlayerNumber,
+                      player: e.player,
+                      eventType: e.eventType,
+                      childEvents: e.childEvents,
+                    })),
+                  }}
+                  awayTeam={{
+                    id: awayTeam.id,
+                    teamType: 'away',
+                    team: {
+                      id: awayTeam.team.id,
+                      name: awayTeam.team.name,
+                      homePrimaryColor: awayTeam.team.homePrimaryColor,
+                    },
+                    gameEvents: awayTeam.gameEvents?.map((e) => ({
+                      id: e.id,
+                      createdAt: e.createdAt,
+                      gameMinute: e.gameMinute,
+                      gameSecond: e.gameSecond,
+                      playerId: e.playerId,
+                      externalPlayerName: e.externalPlayerName,
+                      externalPlayerNumber: e.externalPlayerNumber,
+                      player: e.player,
+                      eventType: e.eventType,
+                      childEvents: e.childEvents,
+                    })),
+                  }}
+                />
+              )}
 
-              {/* Stats Content - Now using GameStats component */}
-              {activeTeam === 'home' && homeTeam && (
-                <GameStats
-                  gameId={gameId!}
-                  teamId={homeTeam.team.id}
-                  teamName={homeTeam.team.name}
-                  teamColor={homeTeam.team.homePrimaryColor || '#3B82F6'}
-                  elapsedSeconds={isActivePlay ? elapsedSeconds : undefined}
-                />
-              )}
-              {activeTeam === 'away' && awayTeam && (
-                <GameStats
-                  gameId={gameId!}
-                  teamId={awayTeam.team.id}
-                  teamName={awayTeam.team.name}
-                  teamColor={awayTeam.team.homePrimaryColor || '#EF4444'}
-                  elapsedSeconds={isActivePlay ? elapsedSeconds : undefined}
-                />
-              )}
+              {/* Player Statistics Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Player Statistics
+                </h3>
+
+                {/* Team Selector */}
+                <div className="flex justify-center gap-2">
+                  <button
+                    onClick={() => setActiveTeam('home')}
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                      activeTeam === 'home'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                    type="button"
+                  >
+                    {homeTeam?.team.name || 'Home'}
+                  </button>
+                  <button
+                    onClick={() => setActiveTeam('away')}
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                      activeTeam === 'away'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                    type="button"
+                  >
+                    {awayTeam?.team.name || 'Away'}
+                  </button>
+                </div>
+
+                {/* Stats Content - Now using GameStats component */}
+                {activeTeam === 'home' && homeTeam && (
+                  <GameStats
+                    gameId={gameId!}
+                    teamId={homeTeam.team.id}
+                    teamName={homeTeam.team.name}
+                    teamColor={homeTeam.team.homePrimaryColor || '#3B82F6'}
+                    elapsedSeconds={isActivePlay ? elapsedSeconds : undefined}
+                  />
+                )}
+                {activeTeam === 'away' && awayTeam && (
+                  <GameStats
+                    gameId={gameId!}
+                    teamId={awayTeam.team.id}
+                    teamName={awayTeam.team.name}
+                    teamColor={awayTeam.team.homePrimaryColor || '#EF4444'}
+                    elapsedSeconds={isActivePlay ? elapsedSeconds : undefined}
+                  />
+                )}
+              </div>
             </div>
           )}
 
