@@ -10,14 +10,16 @@ import {
   GameFormat,
 } from '../services/games-graphql.service';
 import {
-  GET_TEAMS,
-  TeamsResponse,
+  GET_MANAGED_TEAMS,
+  FIND_OR_CREATE_UNMANAGED_TEAM,
   Team,
 } from '../services/teams-graphql.service';
 
 type GameFormState = {
   homeTeamId: string;
-  awayTeamId: string;
+  awayTeamId: string; // Used when selecting existing managed team as opponent
+  opponentName: string; // Used when creating/finding unmanaged opponent
+  useExistingManagedTeam: boolean; // Toggle for managed team mode
   gameFormatId: string;
   duration: number;
 };
@@ -30,16 +32,26 @@ export const CreateGamePage = () => {
   const [gameForm, setGameForm] = useState<GameFormState>({
     homeTeamId: '',
     awayTeamId: '',
+    opponentName: '',
+    useExistingManagedTeam: false,
     gameFormatId: '',
     duration: 60,
   });
   const [error, setError] = useState<string | null>(null);
 
   const {
-    data: teamsData,
+    data: managedTeamsData,
     loading: teamsLoading,
     error: teamsError,
-  } = useQuery<TeamsResponse>(GET_TEAMS, { fetchPolicy: 'cache-first' });
+  } = useQuery<{ managedTeams: Team[] }>(GET_MANAGED_TEAMS, {
+    fetchPolicy: 'cache-first',
+  });
+
+  // Mutation to find or create unmanaged opponent team
+  const [findOrCreateUnmanagedTeam, { loading: opponentLoading }] =
+    useMutation<{
+      findOrCreateUnmanagedTeam: Team;
+    }>(FIND_OR_CREATE_UNMANAGED_TEAM);
 
   const {
     data: gameFormatsData,
@@ -70,29 +82,72 @@ export const CreateGamePage = () => {
       setGameForm((prev) => ({ ...prev, [field]: value }));
       setError(null);
     },
-    []
+    [],
   );
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
 
-      if (!gameForm.homeTeamId || !gameForm.awayTeamId) {
-        setError('Please select both home and away teams');
+      if (!gameForm.homeTeamId) {
+        setError('Please select your team');
         return;
       }
-      if (gameForm.homeTeamId === gameForm.awayTeamId) {
-        setError('Home and away teams must be different');
-        return;
+
+      // Validate opponent based on mode
+      if (gameForm.useExistingManagedTeam) {
+        if (!gameForm.awayTeamId) {
+          setError('Please select an opponent team');
+          return;
+        }
+        if (gameForm.homeTeamId === gameForm.awayTeamId) {
+          setError('Home and away teams must be different');
+          return;
+        }
+      } else {
+        if (!gameForm.opponentName.trim()) {
+          setError('Please enter opponent team name');
+          return;
+        }
       }
+
       if (!gameForm.gameFormatId) {
         setError('Please select a game format');
         return;
       }
 
+      let awayTeamId = gameForm.awayTeamId;
+
+      // If using unmanaged opponent mode, create/find the opponent first
+      if (!gameForm.useExistingManagedTeam) {
+        try {
+          const opponentResult = await findOrCreateUnmanagedTeam({
+            variables: {
+              name: gameForm.opponentName.trim(),
+            },
+          });
+
+          awayTeamId = opponentResult.data?.findOrCreateUnmanagedTeam.id ?? '';
+
+          if (!awayTeamId) {
+            setError(
+              'Unexpected error creating opponent team. Please try again.',
+            );
+            return;
+          }
+        } catch (err) {
+          // Catches both network errors and GraphQL errors
+          const message = err instanceof Error ? err.message : 'Unknown error';
+          setError(
+            `Failed to create opponent "${gameForm.opponentName}": ${message}`,
+          );
+          return;
+        }
+      }
+
       const createGameInput: CreateGameInput = {
         homeTeamId: gameForm.homeTeamId,
-        awayTeamId: gameForm.awayTeamId,
+        awayTeamId,
         gameFormatId: gameForm.gameFormatId,
         duration: gameForm.duration,
       };
@@ -100,16 +155,16 @@ export const CreateGamePage = () => {
       try {
         await createGame({ variables: { createGameInput } });
       } catch (err) {
-        // Catches errors that bypass onError callback (e.g., network issues before request)
+        // Catches network errors that bypass onError callback
         const message =
           err instanceof Error ? err.message : 'Failed to create game';
         setError(message);
       }
     },
-    [gameForm, createGame]
+    [gameForm, createGame, findOrCreateUnmanagedTeam],
   );
 
-  const teams = teamsData?.teams || [];
+  const managedTeams = managedTeamsData?.managedTeams || [];
   const gameFormats = gameFormatsData?.gameFormats || [];
   const isLoading = teamsLoading || gameFormatsLoading;
   const queryError = teamsError || gameFormatsError;
@@ -143,15 +198,15 @@ export const CreateGamePage = () => {
     );
   }
 
-  if (teams.length < 2) {
+  if (managedTeams.length < 1) {
     return (
       <div className="p-4">
         <div className="mx-auto max-w-md rounded-lg bg-yellow-50 p-6 text-center">
           <h2 className="mb-2 text-lg font-semibold text-yellow-800">
-            Need More Teams
+            No Teams Found
           </h2>
           <p className="mb-4 text-yellow-700">
-            You need at least 2 teams to create a game.
+            You need at least one team to schedule a game.
           </p>
           <Link
             to="/teams/new"
@@ -176,13 +231,13 @@ export const CreateGamePage = () => {
             </div>
           )}
 
-          {/* Home Team */}
+          {/* Home Team (Your Team) */}
           <div>
             <label
               htmlFor="homeTeam"
               className="mb-1 block text-sm font-medium text-gray-700"
             >
-              Home Team
+              Your Team
             </label>
             <select
               id="homeTeam"
@@ -190,8 +245,8 @@ export const CreateGamePage = () => {
               onChange={(e) => handleFormChange('homeTeamId', e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
-              <option value="">Select home team...</option>
-              {teams.map((team: Team) => (
+              <option value="">Select your team...</option>
+              {managedTeams.map((team: Team) => (
                 <option key={team.id} value={team.id}>
                   {team.name}
                 </option>
@@ -199,27 +254,69 @@ export const CreateGamePage = () => {
             </select>
           </div>
 
-          {/* Away Team */}
+          {/* Opponent Team */}
           <div>
             <label
-              htmlFor="awayTeam"
+              htmlFor="opponent"
               className="mb-1 block text-sm font-medium text-gray-700"
             >
-              Away Team
+              Opponent
             </label>
-            <select
-              id="awayTeam"
-              value={gameForm.awayTeamId}
-              onChange={(e) => handleFormChange('awayTeamId', e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="">Select away team...</option>
-              {teams.map((team: Team) => (
-                <option key={team.id} value={team.id}>
-                  {team.name}
-                </option>
-              ))}
-            </select>
+
+            {!gameForm.useExistingManagedTeam ? (
+              // Default: Text input for opponent name
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  id="opponent"
+                  value={gameForm.opponentName}
+                  onChange={(e) =>
+                    handleFormChange('opponentName', e.target.value)
+                  }
+                  placeholder="Enter opponent team name..."
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleFormChange('useExistingManagedTeam', true);
+                    handleFormChange('opponentName', '');
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  Or select from your teams
+                </button>
+              </div>
+            ) : (
+              // Alternative: Select from managed teams
+              <div className="space-y-2">
+                <select
+                  id="opponent"
+                  value={gameForm.awayTeamId}
+                  onChange={(e) =>
+                    handleFormChange('awayTeamId', e.target.value)
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="">Select opponent team...</option>
+                  {managedTeams.map((team: Team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleFormChange('useExistingManagedTeam', false);
+                    handleFormChange('awayTeamId', '');
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  Or enter opponent name
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Game Format */}
@@ -278,10 +375,10 @@ export const CreateGamePage = () => {
             </button>
             <button
               type="submit"
-              disabled={createLoading}
+              disabled={createLoading || opponentLoading}
               className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {createLoading ? 'Creating...' : 'Create Game'}
+              {createLoading || opponentLoading ? 'Creating...' : 'Create Game'}
             </button>
           </div>
         </form>
