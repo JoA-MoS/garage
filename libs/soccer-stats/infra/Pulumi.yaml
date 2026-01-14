@@ -1,6 +1,6 @@
 name: soccer-stats-infra
 description: Shared AWS infrastructure for soccer-stats (VPC, ECS cluster, ALB, ECR)
-main: ../../../dist/libs/soccer-stats/infra/pulumi.js
+main: ../../../dist/libs/soccer-stats/infra/src/index.js
 runtime:
   name: nodejs
   options:

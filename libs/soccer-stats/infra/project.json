@@ -13,7 +13,7 @@
       "outputs": ["{options.outputPath}"],
       "options": {
         "outputPath": "dist/libs/soccer-stats/infra",
-        "main": "libs/soccer-stats/infra/pulumi.ts",
+        "main": "libs/soccer-stats/infra/src/index.ts",
         "tsConfig": "libs/soccer-stats/infra/tsconfig.build.json",
         "assets": []
       }
