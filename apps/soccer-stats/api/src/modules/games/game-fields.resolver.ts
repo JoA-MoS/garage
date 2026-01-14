@@ -45,7 +45,8 @@ export class GameFieldsResolver {
     @Context() context: GraphQLContext,
   ): Promise<GameTeam[]> {
     // If gameTeams was already loaded (e.g., via eager loading), return it
-    if (game.gameTeams && game.gameTeams.length > 0) {
+    // Check for defined (not just truthy) to handle empty arrays correctly
+    if (game.gameTeams !== undefined) {
       return game.gameTeams;
     }
     // Otherwise, use DataLoader to batch the query

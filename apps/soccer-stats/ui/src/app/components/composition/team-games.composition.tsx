@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useQuery, useLazyQuery } from '@apollo/client/react';
 
 import { graphql, FragmentType } from '@garage/soccer-stats/graphql-codegen';
@@ -159,11 +160,11 @@ export const TeamGamesComposition = ({ teamId }: TeamGamesCompositionProps) => {
   });
 
   // Handler to load modal data when needed
-  const handleOpenModal = () => {
+  const handleOpenModal = useCallback(() => {
     if (!modalCalled) {
       loadModalData();
     }
-  };
+  }, [modalCalled, loadModalData]);
 
   // Error state
   if (pageError) {
