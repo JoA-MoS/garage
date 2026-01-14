@@ -2,6 +2,8 @@ import { useState, useCallback, useMemo } from 'react';
 import { useMutation } from '@apollo/client/react';
 import { useNavigate } from 'react-router';
 
+import { useFragment } from '@garage/soccer-stats/graphql-codegen';
+
 import {
   CREATE_GAME,
   CreateGameInput,
@@ -11,115 +13,75 @@ import {
   type GameCardData,
   type OpponentTeamData,
   type GameFormatSelectData,
+  GameCardFragment,
+  OpponentTeamFragment,
+  GameFormatSelectFragment,
 } from '../composition/team-games.composition';
 
 // =============================================================================
-// HELPER HOOKS - Extract fragment data at the top level
+// HELPER HOOKS - Extract fragment data using useFragment
 // =============================================================================
 
 /**
  * Custom hook to transform game team fragments into presentation data.
- * Keeps useFragment calls at the component level (not inside callbacks).
+ * Uses useFragment for proper type-safe fragment masking.
  */
-function useGameCardsData(gameTeams: readonly GameCardData[], teamId: string) {
-  // useFragment is actually just a type-casting function, but we call it
-  // at the top level to satisfy the linter's rules-of-hooks check
-  return useMemo(() => {
-    return gameTeams.map((gameTeamRef) => {
-      // Cast to access the fragment data (useFragment is an identity function)
-      const gameTeam = gameTeamRef as unknown as {
-        id: string;
-        teamType: string;
-        finalScore?: number | null;
-        game: {
-          id: string;
-          name?: string | null;
-          status: string;
-          scheduledStart?: string | null;
-          venue?: string | null;
-          createdAt: string;
-          gameFormat: {
-            id: string;
-            name: string;
-            playersPerTeam: number;
-            durationMinutes: number;
-          };
-          gameTeams: readonly {
-            id: string;
-            teamType: string;
-            finalScore?: number | null;
-            team: {
-              id: string;
-              name: string;
-              shortName?: string | null;
-              homePrimaryColor?: string | null;
-              homeSecondaryColor?: string | null;
-            };
-          }[];
-        };
-      };
+function useGameCardsData(gameTeams: readonly GameCardData[]) {
+  // useFragment on the array gives us properly typed fragment data
+  const unmaskedGameTeams = useFragment(GameCardFragment, gameTeams);
 
-      return {
-        id: gameTeam.game.id,
-        name: gameTeam.game.name,
-        status: gameTeam.game.status,
-        scheduledStart: gameTeam.game.scheduledStart,
-        venue: gameTeam.game.venue,
-        createdAt: gameTeam.game.createdAt,
-        gameFormat: gameTeam.game.gameFormat,
-        gameTeams: gameTeam.game.gameTeams,
-        currentTeamType: gameTeam.teamType,
-        currentTeamScore: gameTeam.finalScore,
-      };
-    });
-  }, [gameTeams, teamId]);
+  return useMemo(() => {
+    return unmaskedGameTeams.map((gameTeam) => ({
+      id: gameTeam.game.id,
+      name: gameTeam.game.name,
+      status: gameTeam.game.status,
+      scheduledStart: gameTeam.game.scheduledStart,
+      venue: gameTeam.game.venue,
+      createdAt: gameTeam.game.createdAt,
+      gameFormat: gameTeam.game.gameFormat,
+      gameTeams: gameTeam.game.gameTeams ?? [],
+      currentTeamType: gameTeam.teamType,
+      currentTeamScore: gameTeam.finalScore,
+    }));
+  }, [unmaskedGameTeams]);
 }
 
 /**
  * Custom hook to transform opponent team fragments.
+ * Uses useFragment for proper type-safe fragment masking.
  */
 function useOpponentsData(
   opponents: readonly OpponentTeamData[],
   teamId: string,
 ) {
+  const unmaskedOpponents = useFragment(OpponentTeamFragment, opponents);
+
   return useMemo(() => {
-    return opponents
-      .map((opponentRef) => {
-        const team = opponentRef as unknown as {
-          id: string;
-          name: string;
-          shortName?: string | null;
-        };
-        return {
-          id: team.id,
-          name: team.name,
-          shortName: team.shortName,
-        };
-      })
+    return unmaskedOpponents
+      .map((team) => ({
+        id: team.id,
+        name: team.name,
+        shortName: team.shortName,
+      }))
       .filter((team) => team.id !== teamId);
-  }, [opponents, teamId]);
+  }, [unmaskedOpponents, teamId]);
 }
 
 /**
  * Custom hook to transform game format fragments.
+ * Uses useFragment for proper type-safe fragment masking.
  */
 function useGameFormatsData(gameFormats: readonly GameFormatSelectData[]) {
+  const unmaskedFormats = useFragment(GameFormatSelectFragment, gameFormats);
+
   return useMemo(() => {
-    return gameFormats.map((formatRef) => {
-      const format = formatRef as unknown as {
-        id: string;
-        name: string;
-        playersPerTeam: number;
-        durationMinutes: number;
-      };
-      return {
-        id: format.id,
-        name: format.name,
-        playersPerTeam: format.playersPerTeam,
-        durationMinutes: format.durationMinutes,
-      };
-    });
-  }, [gameFormats]);
+    return unmaskedFormats.map((format) => ({
+      id: format.id,
+      name: format.name,
+      playersPerTeam: format.playersPerTeam,
+      durationMinutes: format.durationMinutes,
+    }));
+  }, [unmaskedFormats]);
 }
 
 // =============================================================================
@@ -138,6 +100,8 @@ interface TeamGamesSmartProps {
   loading: boolean;
   /** Loading state for modal data */
   modalLoading: boolean;
+  /** Error message from modal data query */
+  modalError?: string;
   /** Callback when modal should open - triggers lazy load */
   onOpenModal: () => void;
   /** Callback after game is created - triggers refetch */
@@ -154,10 +118,12 @@ interface TeamGamesSmartProps {
  * Responsibilities:
  * - Manages form state for creating games
  * - Handles create game mutation
- * - Maps fragment data to presentation props
+ * - Maps fragment data to presentation props using useFragment
+ * - Manages validation and error states
  *
  * Does NOT:
  * - Make any queries (receives fragment data from composition)
+ * - Mutations for data modification are handled here
  */
 export const TeamGamesSmart = ({
   teamId,
@@ -166,6 +132,7 @@ export const TeamGamesSmart = ({
   gameFormats,
   loading,
   modalLoading,
+  modalError,
   onOpenModal,
   onGameCreated,
 }: TeamGamesSmartProps) => {
@@ -177,11 +144,15 @@ export const TeamGamesSmart = ({
     duration: 90,
     isHome: true,
   });
+  const [formError, setFormError] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   // Create game mutation
   const [createGame, { loading: createLoading }] = useMutation(CREATE_GAME, {
     onCompleted: (data) => {
-      // Reset form and close modal
+      // Clear errors and reset form
+      setFormError(null);
+      setMutationError(null);
       setGameForm({
         opponentTeamId: '',
         gameFormatId: '',
@@ -198,6 +169,9 @@ export const TeamGamesSmart = ({
     },
     onError: (error) => {
       console.error('Error creating game:', error);
+      setMutationError(
+        error.message || 'Failed to create game. Please try again.',
+      );
     },
   });
 
@@ -213,6 +187,8 @@ export const TeamGamesSmart = ({
 
   const handleCancelCreate = useCallback(() => {
     setShowCreateForm(false);
+    setFormError(null);
+    setMutationError(null);
     setGameForm({
       opponentTeamId: '',
       gameFormatId: '',
@@ -232,7 +208,17 @@ export const TeamGamesSmart = ({
   );
 
   const handleSubmitGame = useCallback(async () => {
-    if (!gameForm.opponentTeamId || !gameForm.gameFormatId) {
+    // Clear previous errors
+    setFormError(null);
+    setMutationError(null);
+
+    // Validate required fields
+    if (!gameForm.opponentTeamId) {
+      setFormError('Please select an opponent team.');
+      return;
+    }
+    if (!gameForm.gameFormatId) {
+      setFormError('Please select a game format.');
       return;
     }
 
@@ -259,9 +245,12 @@ export const TeamGamesSmart = ({
   // Data Transformation - Use custom hooks to transform fragment data
   // ==========================================================================
 
-  const games = useGameCardsData(gameTeams, teamId);
+  const games = useGameCardsData(gameTeams);
   const availableOpponents = useOpponentsData(opponents, teamId);
   const availableFormats = useGameFormatsData(gameFormats);
+
+  // Combine all errors for display
+  const error = modalError || formError || mutationError;
 
   // ==========================================================================
   // Render
@@ -277,6 +266,7 @@ export const TeamGamesSmart = ({
       gameForm={gameForm}
       loading={loading}
       createLoading={createLoading || modalLoading}
+      error={error}
       onCreateGame={handleCreateGame}
       onCancelCreate={handleCancelCreate}
       onFormChange={handleFormChange}
