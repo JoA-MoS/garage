@@ -13,7 +13,7 @@
       "outputs": ["{options.outputPath}"],
       "options": {
         "outputPath": "dist/apps/soccer-stats/api-infra",
-        "main": "apps/soccer-stats/api-infra/pulumi.ts",
+        "main": "apps/soccer-stats/api-infra/src/index.ts",
         "tsConfig": "apps/soccer-stats/api-infra/tsconfig.build.json",
         "assets": []
       }
@@ -40,7 +40,6 @@
         "cwd": "apps/soccer-stats/api-infra"
       },
       "dependsOn": [
-        "^build",
         "build",
         "soccer-stats-api:docker-build",
         "soccer-stats-infra:preview"
