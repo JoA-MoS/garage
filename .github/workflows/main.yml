@@ -61,6 +61,9 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       - run: NX_CLOUD_DISTRIBUTED_EXECUTION=false pnpm nx affected --target=docker-build
       - run: NX_CLOUD_DISTRIBUTED_EXECUTION=false pnpm nx affected --target=release
+      - name: Self-Healing CI
+        if: always()
+        run: npx nx fix-ci --auto-apply-fixes="*format*,*lint*,*build*"
       - name: Stop Nx Cloud Agents
         if: env.NX_CLOUD_DISTRIBUTED_EXECUTION == 'true'
         run: pnpm nx-cloud stop-all-agents
