@@ -37,12 +37,34 @@ Follow these coding standards consistently across the entire workspace.
 
 ### GraphQL Best Practices
 
+#### Frontend (Apollo Client)
+
 - Use **The Guild's GraphQL Code Generator** with client preset
 - Import `FragmentType` and `useFragment` from generated `fragment-masking` module
 - Import `graphql` function from generated `gql` directory
 - Define fragments using `graphql(/* GraphQL */ \`...\`)` syntax
 - Use fragment masking to prevent access to non-fragment fields
 - Implement collocated fragment spreading for optimal query structure
+
+#### Backend (NestJS + Apollo Server)
+
+- **Always use DataLoader for field resolvers** to prevent N+1 query problems
+- Create fresh DataLoader instances per-request via GraphQL context
+- Use field resolvers (`@ResolveField`) instead of eager loading for optional relations
+- Check if data is already loaded before calling DataLoader (optimization for eager-loaded data)
+
+**DataLoader Pattern:**
+
+```typescript
+// In field resolver - batch database queries automatically
+@ResolveField(() => Team)
+async team(@Parent() gameTeam: GameTeam, @Context() ctx: GraphQLContext): Promise<Team> {
+  if (gameTeam.team) return gameTeam.team; // Already loaded
+  return ctx.loaders.teamLoader.load(gameTeam.teamId); // Batched query
+}
+```
+
+**See CLAUDE.md** for complete DataLoader implementation guide.
 
 ### File Organization
 

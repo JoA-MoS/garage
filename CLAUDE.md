@@ -254,6 +254,99 @@ module/
 - Resolvers use `@Resolver()`, `@Query()`, `@Mutation()` decorators
 - Services handle database operations via TypeORM repositories
 
+### DataLoader Pattern for N+1 Prevention (Required for GraphQL APIs)
+
+**All GraphQL field resolvers that load related entities must use DataLoader.** This solves the N+1 query problem by batching multiple individual database lookups into a single query.
+
+**Architecture Overview:**
+
+```
+modules/dataloaders/
+├── dataloaders.module.ts      # Module declaration
+├── dataloaders.service.ts     # Creates DataLoader instances per request
+├── graphql-context.ts         # GraphQL context type with loaders
+└── index.ts                   # Barrel exports
+
+modules/{feature}/
+├── {feature}.resolver.ts      # Query/Mutation resolvers
+├── {feature}-fields.resolver.ts  # Field resolvers using DataLoaders
+└── ...
+```
+
+**Key Components:**
+
+1. **DataLoadersService** - Injectable service that creates fresh DataLoader instances per request:
+
+```typescript
+@Injectable()
+export class DataLoadersService {
+  constructor(
+    @InjectRepository(Game) private gameRepo: Repository<Game>,
+    // ... other repositories
+  ) {}
+
+  createLoaders(): IDataLoaders {
+    return {
+      gameLoader: new DataLoader<string, Game>(async (ids) => {
+        const games = await this.gameRepo.findByIds([...ids]);
+        const gameMap = new Map(games.map((g) => [g.id, g]));
+        return ids.map((id) => gameMap.get(id)!);
+      }),
+      // ... other loaders
+    };
+  }
+}
+```
+
+2. **GraphQL Context** - Loaders are created per-request in the context factory:
+
+```typescript
+GraphQLModule.forRootAsync({
+  imports: [DataLoadersModule],
+  inject: [DataLoadersService],
+  useFactory: (dataLoadersService: DataLoadersService) => ({
+    context: ({ req }) => ({
+      req,
+      loaders: dataLoadersService.createLoaders(), // Fresh loaders per request
+    }),
+  }),
+});
+```
+
+3. **Field Resolvers** - Use DataLoaders instead of direct repository calls:
+
+```typescript
+@Resolver(() => GameTeam)
+export class GameTeamResolver {
+  @ResolveField(() => Team)
+  async team(@Parent() gameTeam: GameTeam, @Context() ctx: GraphQLContext): Promise<Team> {
+    // Check if already loaded (eager loading optimization)
+    if (gameTeam.team) return gameTeam.team;
+    // Use DataLoader to batch the query
+    return ctx.loaders.teamLoader.load(gameTeam.teamId);
+  }
+}
+```
+
+**Why This Pattern Matters:**
+
+- **Without DataLoader**: 10 GameTeams → 10 separate `SELECT * FROM team WHERE id = ?` queries
+- **With DataLoader**: 10 GameTeams → 1 `SELECT * FROM team WHERE id IN (?, ?, ...)` query
+
+**DataLoader Provides Per-Request Memoization:**
+
+- Same entity requested multiple times in one request → only one database call
+- Fresh cache per request → no stale data across requests
+
+**When to Create a New DataLoader:**
+
+| Relationship Type | DataLoader Pattern                                     |
+| ----------------- | ------------------------------------------------------ |
+| Many-to-One (FK)  | `entityLoader: DataLoader<string, Entity>`             |
+| One-to-Many       | `entitiesByParentLoader: DataLoader<string, Entity[]>` |
+
+**Anti-pattern:** Using eager loading (`relations: ['team']`) everywhere. This fetches data even when not queried. Use DataLoaders + field resolvers for on-demand loading.
+
 ### Path Aliases
 
 TypeScript path aliases are defined in `tsconfig.base.json`:
@@ -421,6 +514,39 @@ When working with GraphQL in soccer-stats:
    ```
 
 **Configuration:** See `apps/soccer-stats/ui/codegen.ts` for GraphQL Code Generator setup.
+
+### Colocated Fragments Pattern (Required for New Development)
+
+**All new GraphQL-powered components must use the colocated fragments pattern.** This ensures a single network request per page load by design:
+
+1. **Smart components** define fragments for their data needs (never queries)
+2. **Composition components** compose child fragments into a single query
+3. **One request** fetches all data - no query waterfalls
+
+```typescript
+// Smart component defines fragment
+export const PlayerCardFragment = graphql(`
+  fragment PlayerCard on Player {
+    id
+    name
+    jerseyNumber
+  }
+`);
+
+// Composition component spreads fragments into ONE query
+const GetPlayersQuery = graphql(`
+  query GetPlayers {
+    players {
+      id
+      ...PlayerCard
+    }
+  }
+`);
+```
+
+**Anti-pattern:** Smart components making their own `useQuery` calls. This creates multiple independent requests and defeats the purpose of the fragment architecture.
+
+See `.github/instructions/react-component-patterns.instructions.md` for detailed examples and rules.
 
 ## Important Notes
 

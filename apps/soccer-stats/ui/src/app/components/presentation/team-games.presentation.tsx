@@ -1,5 +1,6 @@
-import { GameFormat, Game } from '../../services/games-graphql.service';
-import { UITeam } from '../types/ui.types';
+// =============================================================================
+// TYPES - Pure presentation types (no GraphQL dependencies)
+// =============================================================================
 
 interface GameFormData {
   opponentTeamId: string;
@@ -8,18 +9,58 @@ interface GameFormData {
   isHome: boolean;
 }
 
+interface GameTeamInfo {
+  id: string;
+  teamType: string;
+  finalScore?: number | null;
+  team: {
+    id: string;
+    name: string;
+    shortName?: string | null;
+    homePrimaryColor?: string | null;
+    homeSecondaryColor?: string | null;
+  };
+}
+
+interface GameFormatInfo {
+  id: string;
+  name: string;
+  playersPerTeam: number;
+  durationMinutes: number;
+}
+
+interface GameInfo {
+  id: string;
+  name?: string | null;
+  status: string;
+  scheduledStart?: string | null;
+  venue?: string | null;
+  createdAt: string;
+  gameFormat: GameFormatInfo;
+  gameTeams: readonly GameTeamInfo[];
+  /** Which side the current team is on */
+  currentTeamType: string;
+  currentTeamScore?: number | null;
+}
+
+interface OpponentInfo {
+  id: string;
+  name: string;
+  shortName?: string | null;
+}
+
 interface TeamGamesPresentationProps {
   teamId: string;
-  games: Game[];
-  availableOpponents: UITeam[];
-  gameFormats: GameFormat[];
+  games: GameInfo[];
+  availableOpponents: OpponentInfo[];
+  gameFormats: GameFormatInfo[];
   showCreateForm: boolean;
   gameForm: GameFormData;
   loading: boolean;
   createLoading: boolean;
   onCreateGame: () => void;
   onCancelCreate: () => void;
-  onFormChange: (field: string, value: any) => void;
+  onFormChange: (field: string, value: string | number | boolean) => void;
   onSubmitGame: () => void;
   onViewGame: (gameId: string) => void;
 }
@@ -71,14 +112,12 @@ export const TeamGamesPresentation = ({
     }
   };
 
-  const getOpponentTeam = (game: Game) => {
-    return game.gameTeams?.find((gt: any) => gt.team.id !== teamId)?.team;
+  const getOpponentTeam = (game: GameInfo) => {
+    return game.gameTeams.find((gt) => gt.team.id !== teamId)?.team;
   };
 
-  const isHomeTeam = (game: Game) => {
-    // TODO: Fix isHome property when migrating to new architecture
-    const gameTeam = game.gameTeams?.find((gt: any) => gt.team.id === teamId);
-    return (gameTeam as any)?.isHome || false;
+  const isHomeTeam = (game: GameInfo) => {
+    return game.currentTeamType === 'home';
   };
 
   return (
@@ -229,7 +268,7 @@ export const TeamGamesPresentation = ({
             const opponent = getOpponentTeam(game);
             const isHome = isHomeTeam(game);
             const statusInfo = getGameStatus(
-              (game as any).status || 'NOT_STARTED'
+              (game as any).status || 'NOT_STARTED',
             ); // TODO: Fix when migrating
 
             return (
