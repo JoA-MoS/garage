@@ -288,7 +288,7 @@ export class DataLoadersService {
   createLoaders(): IDataLoaders {
     return {
       gameLoader: new DataLoader<string, Game>(async (ids) => {
-        const games = await this.gameRepo.findByIds([...ids]);
+        const games = await this.gameRepo.find({ where: { id: In([...ids]) } });
         const gameMap = new Map(games.map((g) => [g.id, g]));
         return ids.map((id) => gameMap.get(id)!);
       }),
