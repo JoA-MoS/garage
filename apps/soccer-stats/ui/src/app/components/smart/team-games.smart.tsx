@@ -1,88 +1,28 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { useMutation } from '@apollo/client/react';
 import { useNavigate } from 'react-router';
-
-import { useFragment } from '@garage/soccer-stats/graphql-codegen';
 
 import {
   CREATE_GAME,
   CreateGameInput,
 } from '../../services/games-graphql.service';
 import { TeamGamesPresentation } from '../presentation/team-games.presentation';
+
+// =============================================================================
+// HOOK IMPORTS - From colocated smart components (Strict Pattern)
+// =============================================================================
+
+// Import data transformation hooks from their colocated smart components
+// Each smart component owns its fragment and provides a hook to transform it
+import { useGameCardsData, type GameCardData } from './game-card.smart';
 import {
-  type GameCardData,
+  useOpponentsData,
   type OpponentTeamData,
+} from './opponent-select.smart';
+import {
+  useGameFormatsData,
   type GameFormatSelectData,
-  GameCardFragment,
-  OpponentTeamFragment,
-  GameFormatSelectFragment,
-} from '../composition/team-games.composition';
-
-// =============================================================================
-// HELPER HOOKS - Extract fragment data using useFragment
-// =============================================================================
-
-/**
- * Custom hook to transform game team fragments into presentation data.
- * Uses useFragment for proper type-safe fragment masking.
- */
-function useGameCardsData(gameTeams: readonly GameCardData[]) {
-  // useFragment on the array gives us properly typed fragment data
-  const unmaskedGameTeams = useFragment(GameCardFragment, gameTeams);
-
-  return useMemo(() => {
-    return unmaskedGameTeams.map((gameTeam) => ({
-      id: gameTeam.game.id,
-      name: gameTeam.game.name,
-      status: gameTeam.game.status,
-      scheduledStart: gameTeam.game.scheduledStart,
-      venue: gameTeam.game.venue,
-      createdAt: gameTeam.game.createdAt,
-      gameFormat: gameTeam.game.gameFormat,
-      gameTeams: gameTeam.game.gameTeams ?? [],
-      currentTeamType: gameTeam.teamType,
-      currentTeamScore: gameTeam.finalScore,
-    }));
-  }, [unmaskedGameTeams]);
-}
-
-/**
- * Custom hook to transform opponent team fragments.
- * Uses useFragment for proper type-safe fragment masking.
- */
-function useOpponentsData(
-  opponents: readonly OpponentTeamData[],
-  teamId: string,
-) {
-  const unmaskedOpponents = useFragment(OpponentTeamFragment, opponents);
-
-  return useMemo(() => {
-    return unmaskedOpponents
-      .map((team) => ({
-        id: team.id,
-        name: team.name,
-        shortName: team.shortName,
-      }))
-      .filter((team) => team.id !== teamId);
-  }, [unmaskedOpponents, teamId]);
-}
-
-/**
- * Custom hook to transform game format fragments.
- * Uses useFragment for proper type-safe fragment masking.
- */
-function useGameFormatsData(gameFormats: readonly GameFormatSelectData[]) {
-  const unmaskedFormats = useFragment(GameFormatSelectFragment, gameFormats);
-
-  return useMemo(() => {
-    return unmaskedFormats.map((format) => ({
-      id: format.id,
-      name: format.name,
-      playersPerTeam: format.playersPerTeam,
-      durationMinutes: format.durationMinutes,
-    }));
-  }, [unmaskedFormats]);
-}
+} from './game-format-select.smart';
 
 // =============================================================================
 // TYPES
@@ -118,12 +58,12 @@ interface TeamGamesSmartProps {
  * Responsibilities:
  * - Manages form state for creating games
  * - Handles create game mutation
- * - Maps fragment data to presentation props using useFragment
+ * - Uses hooks from colocated smart components to transform fragment data
  * - Manages validation and error states
  *
  * Does NOT:
+ * - Define any GraphQL fragments (those live in colocated smart components)
  * - Make any queries (receives fragment data from composition)
- * - Mutations for data modification are handled here
  */
 export const TeamGamesSmart = ({
   teamId,
@@ -242,9 +182,10 @@ export const TeamGamesSmart = ({
   );
 
   // ==========================================================================
-  // Data Transformation - Use custom hooks to transform fragment data
+  // Data Transformation - Use hooks from colocated smart components
   // ==========================================================================
 
+  // Each hook uses useFragment internally to unmask and transform the data
   const games = useGameCardsData(gameTeams);
   const availableOpponents = useOpponentsData(opponents, teamId);
   const availableFormats = useGameFormatsData(gameFormats);

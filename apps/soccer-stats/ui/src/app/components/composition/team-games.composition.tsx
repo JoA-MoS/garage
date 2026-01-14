@@ -1,75 +1,25 @@
 import { useCallback } from 'react';
 import { useQuery, useLazyQuery } from '@apollo/client/react';
 
-import { graphql, FragmentType } from '@garage/soccer-stats/graphql-codegen';
+import { graphql } from '@garage/soccer-stats/graphql-codegen';
 
+// Fragments imported from colocated smart components (Strict Pattern).
+// Note: Fragments are imported to ensure they're registered with graphql-codegen.
+// The eslint-disable is needed because fragments are referenced by name in queries.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { GameCardFragment, type GameCardData } from '../smart/game-card.smart';
+import {
+  GameFormatSelectFragment,
+  type GameFormatSelectData,
+} from '../smart/game-format-select.smart';
+import {
+  OpponentTeamFragment,
+  type OpponentTeamData,
+} from '../smart/opponent-select.smart';
 import { TeamGamesSmart } from '../smart/team-games.smart';
 
-// =============================================================================
-// FRAGMENTS - Define data requirements for child components
-// =============================================================================
-
-/**
- * Fragment for displaying a game card in the list.
- * Used by TeamGamesSmart to render game information.
- */
-export const GameCardFragment = graphql(/* GraphQL */ `
-  fragment GameCard on GameTeam {
-    id
-    teamType
-    finalScore
-    game {
-      id
-      name
-      status
-      scheduledStart
-      venue
-      createdAt
-      gameFormat {
-        id
-        name
-        playersPerTeam
-        durationMinutes
-      }
-      gameTeams {
-        id
-        teamType
-        finalScore
-        team {
-          id
-          name
-          shortName
-          homePrimaryColor
-          homeSecondaryColor
-        }
-      }
-    }
-  }
-`);
-
-/**
- * Fragment for opponent team selection in create game modal.
- * Minimal fields needed for the dropdown.
- */
-export const OpponentTeamFragment = graphql(/* GraphQL */ `
-  fragment OpponentTeam on Team {
-    id
-    name
-    shortName
-  }
-`);
-
-/**
- * Fragment for game format selection in create game modal.
- */
-export const GameFormatSelectFragment = graphql(/* GraphQL */ `
-  fragment GameFormatSelect on GameFormat {
-    id
-    name
-    playersPerTeam
-    durationMinutes
-  }
-`);
+// Re-export types for consumers who need them
+export type { GameCardData, OpponentTeamData, GameFormatSelectData };
 
 // =============================================================================
 // QUERIES - Compose fragments into queries
@@ -78,6 +28,7 @@ export const GameFormatSelectFragment = graphql(/* GraphQL */ `
 /**
  * Main query for the team games page.
  * Fetches team info and all games for this team in a single request.
+ * Spreads fragments imported from smart components.
  */
 const TeamGamesPageQuery = graphql(/* GraphQL */ `
   query TeamGamesPage($teamId: ID!) {
@@ -95,6 +46,7 @@ const TeamGamesPageQuery = graphql(/* GraphQL */ `
 /**
  * Query for create game modal data.
  * Only fetched when the modal is opened (lazy-loaded).
+ * Spreads fragments imported from smart components.
  */
 const CreateGameModalQuery = graphql(/* GraphQL */ `
   query CreateGameModal {
@@ -111,12 +63,6 @@ const CreateGameModalQuery = graphql(/* GraphQL */ `
 // TYPES
 // =============================================================================
 
-export type GameCardData = FragmentType<typeof GameCardFragment>;
-export type OpponentTeamData = FragmentType<typeof OpponentTeamFragment>;
-export type GameFormatSelectData = FragmentType<
-  typeof GameFormatSelectFragment
->;
-
 interface TeamGamesCompositionProps {
   teamId: string;
 }
@@ -129,10 +75,14 @@ interface TeamGamesCompositionProps {
  * Composition component for the Team Games page.
  *
  * Responsibilities:
- * - Owns the main query (team + games) - fetched on mount
- * - Owns the modal query (teams + formats) - lazy-loaded when modal opens
+ * - Owns queries that compose fragments from smart components
  * - Handles loading/error states
  * - Passes fragment data to smart component
+ *
+ * Note: This follows the "strict" three-layer pattern where:
+ * - Layer 1 (Presentation): Pure UI, no GraphQL awareness
+ * - Layer 2 (Smart): Owns fragments and transforms data
+ * - Layer 3 (Composition): Owns queries, composes fragments, handles data fetching
  */
 export const TeamGamesComposition = ({ teamId }: TeamGamesCompositionProps) => {
   // Main query - fetches team and its games in a single request
@@ -196,3 +146,45 @@ export const TeamGamesComposition = ({ teamId }: TeamGamesCompositionProps) => {
     />
   );
 };
+
+// =============================================================================
+// STRICT PATTERN DOCUMENTATION
+// =============================================================================
+
+/**
+ * This file demonstrates the "strict" three-layer fragment colocation pattern:
+ *
+ * LAYER RESPONSIBILITIES:
+ *
+ * 1. Presentation Components (team-games.presentation.tsx)
+ *    - Pure UI rendering with plain TypeScript interfaces
+ *    - No GraphQL imports or awareness
+ *    - Receives fully transformed data as props
+ *
+ * 2. Smart Components (game-card.smart.tsx, opponent-select.smart.tsx, etc.)
+ *    - OWN and EXPORT their GraphQL fragments
+ *    - Provide hooks (useGameCardsData, useOpponentsData) that:
+ *      - Accept FragmentType<T> (masked fragment data)
+ *      - Use useFragment() to unmask the data
+ *      - Transform to presentation-friendly format
+ *    - Export types for both fragment input and presentation output
+ *
+ * 3. Composition Components (this file)
+ *    - IMPORT fragments from smart components
+ *    - Compose fragments into queries
+ *    - Handle data fetching (useQuery, useLazyQuery)
+ *    - Manage loading/error states
+ *    - Pass masked fragment data to smart components
+ *
+ * DATA FLOW:
+ *
+ *   Query (Composition) → Fragment Data (Smart) → Plain Props (Presentation)
+ *
+ * BENEFITS:
+ *
+ * - Fragment definitions live with the component that uses them
+ * - Clear ownership: each smart component owns its data requirements
+ * - Composition components remain focused on query orchestration
+ * - Presentation components stay pure and testable
+ * - Type safety enforced through FragmentType masking
+ */
