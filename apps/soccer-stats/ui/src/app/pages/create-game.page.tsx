@@ -127,17 +127,6 @@ export const CreateGamePage = () => {
             },
           });
 
-          // Check for GraphQL errors in the result
-          if (opponentResult.errors && opponentResult.errors.length > 0) {
-            const errorMessage = opponentResult.errors
-              .map((e) => e.message)
-              .join(', ');
-            setError(
-              `Could not create opponent "${gameForm.opponentName}": ${errorMessage}`,
-            );
-            return;
-          }
-
           awayTeamId = opponentResult.data?.findOrCreateUnmanagedTeam.id ?? '';
 
           if (!awayTeamId) {
@@ -147,8 +136,11 @@ export const CreateGamePage = () => {
             return;
           }
         } catch (err) {
-          const message = err instanceof Error ? err.message : 'Network error';
-          setError(`Failed to create opponent team: ${message}`);
+          // Catches both network errors and GraphQL errors
+          const message = err instanceof Error ? err.message : 'Unknown error';
+          setError(
+            `Failed to create opponent "${gameForm.opponentName}": ${message}`,
+          );
           return;
         }
       }
