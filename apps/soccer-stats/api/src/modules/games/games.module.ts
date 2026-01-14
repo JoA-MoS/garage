@@ -14,6 +14,8 @@ import { AuthModule } from '../auth/auth.module';
 
 import { GamesResolver } from './games.resolver';
 import { GamesService } from './games.service';
+import { GameFieldsResolver } from './game-fields.resolver';
+import { GameTeamResolver } from './game-team.resolver';
 
 @Module({
   imports: [
@@ -30,7 +32,13 @@ import { GamesService } from './games.service';
     ]),
     AuthModule,
   ],
-  providers: [GamesResolver, GamesService],
+  providers: [
+    GamesResolver,
+    GamesService,
+    // Field resolvers using DataLoaders for N+1 prevention
+    GameFieldsResolver,
+    GameTeamResolver,
+  ],
   exports: [GamesService],
 })
 export class GamesModule {}

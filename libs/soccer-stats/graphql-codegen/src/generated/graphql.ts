@@ -1192,6 +1192,41 @@ export type User = {
   updatedAt: Scalars['DateTime']['output'];
 };
 
+export type TeamGamesPageQueryVariables = Exact<{
+  teamId: Scalars['ID']['input'];
+}>;
+
+export type TeamGamesPageQuery = {
+  __typename?: 'Query';
+  team: {
+    __typename?: 'Team';
+    id: string;
+    name: string;
+    shortName?: string | null;
+    gameTeams?: Array<
+      { __typename?: 'GameTeam' } & {
+        ' $fragmentRefs'?: { GameCardFragment: GameCardFragment };
+      }
+    > | null;
+  };
+};
+
+export type CreateGameModalQueryVariables = Exact<{ [key: string]: never }>;
+
+export type CreateGameModalQuery = {
+  __typename?: 'Query';
+  teams: Array<
+    { __typename?: 'Team' } & {
+      ' $fragmentRefs'?: { OpponentTeamFragment: OpponentTeamFragment };
+    }
+  >;
+  gameFormats: Array<
+    { __typename?: 'GameFormat' } & {
+      ' $fragmentRefs'?: { GameFormatSelectFragment: GameFormatSelectFragment };
+    }
+  >;
+};
+
 export type GetUsersForListQueryVariables = Exact<{ [key: string]: never }>;
 
 export type GetUsersForListQuery = {
@@ -1202,6 +1237,58 @@ export type GetUsersForListQuery = {
     }
   >;
 };
+
+export type GameCardFragment = {
+  __typename?: 'GameTeam';
+  id: string;
+  teamType: string;
+  finalScore?: number | null;
+  game: {
+    __typename?: 'Game';
+    id: string;
+    name?: string | null;
+    status: GameStatus;
+    scheduledStart?: any | null;
+    venue?: string | null;
+    createdAt: any;
+    gameFormat: {
+      __typename?: 'GameFormat';
+      id: string;
+      name: string;
+      playersPerTeam: number;
+      durationMinutes: number;
+    };
+    gameTeams?: Array<{
+      __typename?: 'GameTeam';
+      id: string;
+      teamType: string;
+      finalScore?: number | null;
+      team: {
+        __typename?: 'Team';
+        id: string;
+        name: string;
+        shortName?: string | null;
+        homePrimaryColor?: string | null;
+        homeSecondaryColor?: string | null;
+      };
+    }> | null;
+  };
+} & { ' $fragmentName'?: 'GameCardFragment' };
+
+export type GameFormatSelectFragment = {
+  __typename?: 'GameFormat';
+  id: string;
+  name: string;
+  playersPerTeam: number;
+  durationMinutes: number;
+} & { ' $fragmentName'?: 'GameFormatSelectFragment' };
+
+export type OpponentTeamFragment = {
+  __typename?: 'Team';
+  id: string;
+  name: string;
+  shortName?: string | null;
+} & { ' $fragmentName'?: 'OpponentTeamFragment' };
 
 export type PlayerCardDataFragment = {
   __typename?: 'User';
@@ -3103,6 +3190,157 @@ export type UserCreatedSubscription = {
   };
 };
 
+export const GameCardFragmentDoc = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'FragmentDefinition',
+      name: { kind: 'Name', value: 'GameCard' },
+      typeCondition: {
+        kind: 'NamedType',
+        name: { kind: 'Name', value: 'GameTeam' },
+      },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'teamType' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'finalScore' } },
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'game' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'scheduledStart' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'venue' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'gameFormat' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'playersPerTeam' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'durationMinutes' },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'gameTeams' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'teamType' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'finalScore' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'team' },
+                        selectionSet: {
+                          kind: 'SelectionSet',
+                          selections: [
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'id' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'name' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'shortName' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'homePrimaryColor' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: {
+                                kind: 'Name',
+                                value: 'homeSecondaryColor',
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<GameCardFragment, unknown>;
+export const GameFormatSelectFragmentDoc = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'FragmentDefinition',
+      name: { kind: 'Name', value: 'GameFormatSelect' },
+      typeCondition: {
+        kind: 'NamedType',
+        name: { kind: 'Name', value: 'GameFormat' },
+      },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'playersPerTeam' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'durationMinutes' } },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<GameFormatSelectFragment, unknown>;
+export const OpponentTeamFragmentDoc = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'FragmentDefinition',
+      name: { kind: 'Name', value: 'OpponentTeam' },
+      typeCondition: {
+        kind: 'NamedType',
+        name: { kind: 'Name', value: 'Team' },
+      },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'shortName' } },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<OpponentTeamFragment, unknown>;
 export const PlayerCardDataFragmentDoc = {
   kind: 'Document',
   definitions: [
@@ -3272,6 +3510,249 @@ export const GameEventFragmentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<GameEventFragmentFragment, unknown>;
+export const TeamGamesPageDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'query',
+      name: { kind: 'Name', value: 'TeamGamesPage' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'teamId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'team' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'id' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'teamId' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'shortName' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'gameTeams' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      {
+                        kind: 'FragmentSpread',
+                        name: { kind: 'Name', value: 'GameCard' },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: 'FragmentDefinition',
+      name: { kind: 'Name', value: 'GameCard' },
+      typeCondition: {
+        kind: 'NamedType',
+        name: { kind: 'Name', value: 'GameTeam' },
+      },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'teamType' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'finalScore' } },
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'game' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'scheduledStart' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'venue' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'gameFormat' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'playersPerTeam' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'durationMinutes' },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'gameTeams' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'teamType' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'finalScore' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'team' },
+                        selectionSet: {
+                          kind: 'SelectionSet',
+                          selections: [
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'id' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'name' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'shortName' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'homePrimaryColor' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: {
+                                kind: 'Name',
+                                value: 'homeSecondaryColor',
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<TeamGamesPageQuery, TeamGamesPageQueryVariables>;
+export const CreateGameModalDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'query',
+      name: { kind: 'Name', value: 'CreateGameModal' },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'teams' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                {
+                  kind: 'FragmentSpread',
+                  name: { kind: 'Name', value: 'OpponentTeam' },
+                },
+              ],
+            },
+          },
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'gameFormats' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                {
+                  kind: 'FragmentSpread',
+                  name: { kind: 'Name', value: 'GameFormatSelect' },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: 'FragmentDefinition',
+      name: { kind: 'Name', value: 'OpponentTeam' },
+      typeCondition: {
+        kind: 'NamedType',
+        name: { kind: 'Name', value: 'Team' },
+      },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'shortName' } },
+        ],
+      },
+    },
+    {
+      kind: 'FragmentDefinition',
+      name: { kind: 'Name', value: 'GameFormatSelect' },
+      typeCondition: {
+        kind: 'NamedType',
+        name: { kind: 'Name', value: 'GameFormat' },
+      },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'playersPerTeam' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'durationMinutes' } },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  CreateGameModalQuery,
+  CreateGameModalQueryVariables
+>;
 export const GetUsersForListDocument = {
   kind: 'Document',
   definitions: [
