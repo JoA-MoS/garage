@@ -109,7 +109,17 @@ export const MobileFirstComponent = ({ data }: ComponentProps) => {
 
 ### Three-Layer Fragment Architecture (GraphQL Applications)
 
-**For GraphQL-powered applications, use the advanced three-layer fragment architecture following The Guild's GraphQL Code Generator approach:**
+**For GraphQL-powered applications, use the advanced three-layer fragment architecture following The Guild's GraphQL Code Generator approach.**
+
+#### Why This Pattern Matters: Single Network Request by Design
+
+The colocated fragments pattern ensures **one network request per page load** by design, not by accident:
+
+1. **Components declare** what data they need via fragments (Layer 2)
+2. **Parent queries compose** all child fragments into a single query (Layer 3)
+3. **One request fetches all data** - no query waterfalls, no batching hacks needed
+
+This is architecturally superior to approaches like HTTP request batching, which combine multiple independent requests post-hoc. With fragments, your data fetching strategy is **correct by construction**.
 
 #### Layer 1: Presentation Components (Pure UI)
 
@@ -203,6 +213,66 @@ export const UsersListComposition = () => {
       ))}
     </div>
   );
+};
+```
+
+#### Fragment Composition Rules
+
+1. **Parent components only spread fragments from direct children** - Never reach into grandchild fragments; let the intermediate component compose them
+2. **Smart components never make queries** - They only define fragments and receive data via `FragmentType<T>` props
+3. **Composition components own the query** - They are the only layer that calls `useQuery`
+4. **Always include `id` in composition queries** - Required for Apollo cache normalization alongside fragment spreads
+
+#### Anti-Patterns to Avoid
+
+**❌ Smart Component Making Its Own Query (WRONG)**
+
+```tsx
+// BAD: Smart component fetching its own data
+export const TeamsListSmart = () => {
+  // This violates the pattern - smart components should NOT make queries
+  const { data } = useQuery(GET_TEAMS);
+  return <TeamsList teams={data?.teams} />;
+};
+```
+
+**Why this is wrong:**
+
+- Creates multiple independent requests when the page loads
+- Loses the single-request-by-design benefit
+- Makes cache management harder (duplicate data)
+- Reduces component reusability (tightly coupled to specific query)
+
+**✅ Correct Pattern (RIGHT)**
+
+```tsx
+// GOOD: Smart component receives fragment data from parent
+export const TeamCardFragment = graphql(`
+  fragment TeamCard on Team {
+    id
+    name
+    shortName
+  }
+`);
+
+export const TeamCardSmart = ({ team: teamFragment }: TeamCardSmartProps) => {
+  const team = useFragment(TeamCardFragment, teamFragment);
+  return <TeamCardPresentation name={team.name} shortName={team.shortName} />;
+};
+
+// Parent composition component owns the query and spreads fragments
+const GetTeamsQuery = graphql(`
+  query GetTeams {
+    teams {
+      id
+      ...TeamCard
+    }
+  }
+`);
+
+export const TeamsListComposition = () => {
+  const { data } = useQuery(GetTeamsQuery);
+  return data?.teams?.map((team) => <TeamCardSmart key={team.id} team={team} />);
 };
 ```
 
@@ -493,7 +563,6 @@ When working with existing components:
 When generating code:
 
 1. **Determine component type first:**
-
    - Data/business logic needs → Smart component
    - Pure UI display → Presentation component
    - When unsure → Create both Smart and Presentation components

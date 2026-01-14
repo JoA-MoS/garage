@@ -112,6 +112,9 @@ importers:
       core-js:
         specifier: ^3.6.5
         version: 3.44.0
+      dataloader:
+        specifier: ^2.2.3
+        version: 2.2.3
       dayjs:
         specifier: ^1.10.7
         version: 1.11.13

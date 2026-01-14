@@ -179,6 +179,24 @@ GoalModal; // Goal entry form
 - **In-memory state** → **Database persistence**
 - **Local updates** → **WebSocket subscriptions**
 
+### **Frontend-Backend GraphQL Integration Pattern**
+
+The application uses a **colocated fragments** architecture for optimal data fetching:
+
+**Frontend (Three-Layer Pattern):**
+
+1. **Presentation Components** - Pure UI, no GraphQL
+2. **Smart Components** - Define fragments for their data needs
+3. **Composition Components** - Own queries, spread child fragments
+
+**Backend (DataLoader Pattern):**
+
+1. **Query/Mutation Resolvers** - Entry points, return base entities
+2. **Field Resolvers** - Load related entities on-demand using DataLoaders
+3. **DataLoaders** - Batch and deduplicate database queries per-request
+
+**Result:** Single GraphQL request from frontend → batched database queries on backend
+
 ### **API Endpoints Needed**
 
 ```graphql
@@ -232,11 +250,36 @@ substitutionMade(gameId: ID!): Substitution!
 
 ### **Phase 1: Basic API**
 
-- [ ] NestJS project setup with GraphQL
-- [ ] TypeORM configuration with database
-- [ ] Entity implementation from designs
-- [ ] Basic CRUD operations (games, teams, players)
-- [ ] GraphQL resolvers for queries/mutations
+- [x] NestJS project setup with GraphQL
+- [x] TypeORM configuration with database
+- [x] Entity implementation from designs
+- [x] Basic CRUD operations (games, teams, players)
+- [x] GraphQL resolvers for queries/mutations
+
+### **Phase 1.5: N+1 Prevention (DataLoader Pattern)**
+
+- [x] DataLoader package installed and configured
+- [x] DataLoadersModule with per-request loader creation
+- [x] GraphQL context extended with loaders
+- [x] Field resolvers for Game entity (gameFormat, gameTeams)
+- [x] Field resolvers for GameTeam entity (game, team)
+
+**DataLoader Architecture:**
+
+```
+modules/dataloaders/
+├── dataloaders.module.ts      # Module declaration
+├── dataloaders.service.ts     # Creates DataLoader instances per request
+├── graphql-context.ts         # GraphQL context type with loaders
+└── index.ts                   # Barrel exports
+```
+
+**Available DataLoaders:**
+
+- `gameLoader` - Load Game by ID
+- `gameFormatLoader` - Load GameFormat by ID
+- `teamLoader` - Load Team by ID
+- `gameTeamsByGameLoader` - Load GameTeam[] by Game ID
 
 ### **Phase 2: Advanced Features**
 
