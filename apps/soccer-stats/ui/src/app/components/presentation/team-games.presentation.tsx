@@ -58,6 +58,8 @@ interface TeamGamesPresentationProps {
   gameForm: GameFormData;
   loading: boolean;
   createLoading: boolean;
+  /** Error message to display in the form (validation, mutation, or data loading errors) */
+  error?: string | null;
   onCreateGame: () => void;
   onCancelCreate: () => void;
   onFormChange: (field: string, value: string | number | boolean) => void;
@@ -74,6 +76,7 @@ export const TeamGamesPresentation = ({
   gameForm,
   loading,
   createLoading,
+  error,
   onCreateGame,
   onCancelCreate,
   onFormChange,
@@ -88,12 +91,10 @@ export const TeamGamesPresentation = ({
     );
   }
 
-  const formatOptions = gameFormats
-    .filter((format) => (format as any).isActive !== false) // TODO: Fix when migrating to new architecture
-    .map((format) => ({
-      value: format.id,
-      label: (format as any).displayName || format.name || 'Unknown Format', // TODO: Fix when migrating
-    }));
+  const formatOptions = gameFormats.map((format) => ({
+    value: format.id,
+    label: format.name,
+  }));
 
   const getGameStatus = (status: string) => {
     switch (status) {
@@ -229,6 +230,13 @@ export const TeamGamesPresentation = ({
               </div>
             </div>
 
+            {/* Error Display */}
+            {error && (
+              <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+
             {/* Form Actions */}
             <div className="mt-6 flex space-x-3">
               <button
@@ -267,9 +275,7 @@ export const TeamGamesPresentation = ({
           {games.map((game) => {
             const opponent = getOpponentTeam(game);
             const isHome = isHomeTeam(game);
-            const statusInfo = getGameStatus(
-              (game as any).status || 'NOT_STARTED',
-            ); // TODO: Fix when migrating
+            const statusInfo = getGameStatus(game.status);
 
             return (
               <div
@@ -285,9 +291,7 @@ export const TeamGamesPresentation = ({
                     {statusInfo.text}
                   </span>
                   <span className="text-sm text-gray-500">
-                    {(game.gameFormat as any)?.displayName ||
-                      game.gameFormat?.name ||
-                      'Unknown Format'}
+                    {game.gameFormat?.name || 'Unknown Format'}
                   </span>
                 </div>
 
@@ -307,10 +311,10 @@ export const TeamGamesPresentation = ({
 
                 {/* Game Info */}
                 <div className="space-y-1 text-xs text-gray-500">
-                  {(game as any).startTime && (
+                  {game.scheduledStart && (
                     <div>
                       Scheduled:{' '}
-                      {new Date((game as any).startTime).toLocaleString()}
+                      {new Date(game.scheduledStart).toLocaleString()}
                     </div>
                   )}
                   <div>
@@ -327,9 +331,7 @@ export const TeamGamesPresentation = ({
                     }}
                     className="w-full text-sm font-medium text-blue-600 hover:text-blue-800"
                   >
-                    {(game as any).status === 'NOT_STARTED'
-                      ? 'Start Game'
-                      : 'View Game'}{' '}
+                    {game.status === 'NOT_STARTED' ? 'Start Game' : 'View Game'}{' '}
                     →
                   </button>
                 </div>

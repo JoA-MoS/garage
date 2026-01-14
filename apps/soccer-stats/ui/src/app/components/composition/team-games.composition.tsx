@@ -148,7 +148,12 @@ export const TeamGamesComposition = ({ teamId }: TeamGamesCompositionProps) => {
   // Modal query - lazy-loaded only when user clicks "Create Game"
   const [
     loadModalData,
-    { data: modalData, loading: modalLoading, called: modalCalled },
+    {
+      data: modalData,
+      loading: modalLoading,
+      error: modalError,
+      called: modalCalled,
+    },
   ] = useLazyQuery(CreateGameModalQuery, {
     fetchPolicy: 'cache-first',
   });
@@ -184,6 +189,7 @@ export const TeamGamesComposition = ({ teamId }: TeamGamesCompositionProps) => {
       gameFormats={gameFormats}
       loading={pageLoading}
       modalLoading={modalLoading}
+      modalError={modalError?.message}
       onOpenModal={handleOpenModal}
       onGameCreated={refetchGames}
     />
