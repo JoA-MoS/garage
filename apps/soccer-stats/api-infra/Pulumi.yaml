@@ -1,6 +1,6 @@
 name: soccer-stats-api-infra
 description: ECS service and task definition for soccer-stats API
-main: ../../../dist/apps/soccer-stats/api-infra/pulumi.js
+main: ../../../dist/apps/soccer-stats/api-infra/src/index.js
 runtime:
   name: nodejs
   options:
