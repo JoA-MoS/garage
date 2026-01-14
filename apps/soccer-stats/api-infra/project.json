@@ -9,14 +9,6 @@
       "executor": "@nx/eslint:lint"
     },
     "build": {
-      "executor": "nx:run-commands",
-      "outputs": ["{workspaceRoot}/dist/apps/soccer-stats/api-infra"],
-      "options": {
-        "command": "nx run soccer-stats-api-infra:build:tsc --batch"
-      },
-      "dependsOn": ["^build"]
-    },
-    "build:tsc": {
       "executor": "@nx/js:tsc",
       "outputs": ["{options.outputPath}"],
       "options": {

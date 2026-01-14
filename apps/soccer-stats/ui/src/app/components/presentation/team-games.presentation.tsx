@@ -1,5 +1,6 @@
-import { GameFormat, Game } from '../../services/games-graphql.service';
-import { UITeam } from '../types/ui.types';
+// =============================================================================
+// TYPES - Pure presentation types (no GraphQL dependencies)
+// =============================================================================
 
 interface GameFormData {
   opponentTeamId: string;
@@ -8,18 +9,60 @@ interface GameFormData {
   isHome: boolean;
 }
 
+interface GameTeamInfo {
+  id: string;
+  teamType: string;
+  finalScore?: number | null;
+  team: {
+    id: string;
+    name: string;
+    shortName?: string | null;
+    homePrimaryColor?: string | null;
+    homeSecondaryColor?: string | null;
+  };
+}
+
+interface GameFormatInfo {
+  id: string;
+  name: string;
+  playersPerTeam: number;
+  durationMinutes: number;
+}
+
+interface GameInfo {
+  id: string;
+  name?: string | null;
+  status: string;
+  scheduledStart?: string | null;
+  venue?: string | null;
+  createdAt: string;
+  gameFormat: GameFormatInfo;
+  gameTeams: readonly GameTeamInfo[];
+  /** Which side the current team is on */
+  currentTeamType: string;
+  currentTeamScore?: number | null;
+}
+
+interface OpponentInfo {
+  id: string;
+  name: string;
+  shortName?: string | null;
+}
+
 interface TeamGamesPresentationProps {
   teamId: string;
-  games: Game[];
-  availableOpponents: UITeam[];
-  gameFormats: GameFormat[];
+  games: GameInfo[];
+  availableOpponents: OpponentInfo[];
+  gameFormats: GameFormatInfo[];
   showCreateForm: boolean;
   gameForm: GameFormData;
   loading: boolean;
   createLoading: boolean;
+  /** Error message to display in the form (validation, mutation, or data loading errors) */
+  error?: string | null;
   onCreateGame: () => void;
   onCancelCreate: () => void;
-  onFormChange: (field: string, value: any) => void;
+  onFormChange: (field: string, value: string | number | boolean) => void;
   onSubmitGame: () => void;
   onViewGame: (gameId: string) => void;
 }
@@ -33,6 +76,7 @@ export const TeamGamesPresentation = ({
   gameForm,
   loading,
   createLoading,
+  error,
   onCreateGame,
   onCancelCreate,
   onFormChange,
@@ -47,12 +91,10 @@ export const TeamGamesPresentation = ({
     );
   }
 
-  const formatOptions = gameFormats
-    .filter((format) => (format as any).isActive !== false) // TODO: Fix when migrating to new architecture
-    .map((format) => ({
-      value: format.id,
-      label: (format as any).displayName || format.name || 'Unknown Format', // TODO: Fix when migrating
-    }));
+  const formatOptions = gameFormats.map((format) => ({
+    value: format.id,
+    label: format.name,
+  }));
 
   const getGameStatus = (status: string) => {
     switch (status) {
@@ -71,14 +113,12 @@ export const TeamGamesPresentation = ({
     }
   };
 
-  const getOpponentTeam = (game: Game) => {
-    return game.gameTeams?.find((gt: any) => gt.team.id !== teamId)?.team;
+  const getOpponentTeam = (game: GameInfo) => {
+    return game.gameTeams.find((gt) => gt.team.id !== teamId)?.team;
   };
 
-  const isHomeTeam = (game: Game) => {
-    // TODO: Fix isHome property when migrating to new architecture
-    const gameTeam = game.gameTeams?.find((gt: any) => gt.team.id === teamId);
-    return (gameTeam as any)?.isHome || false;
+  const isHomeTeam = (game: GameInfo) => {
+    return game.currentTeamType === 'home';
   };
 
   return (
@@ -190,6 +230,13 @@ export const TeamGamesPresentation = ({
               </div>
             </div>
 
+            {/* Error Display */}
+            {error && (
+              <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+
             {/* Form Actions */}
             <div className="mt-6 flex space-x-3">
               <button
@@ -228,9 +275,7 @@ export const TeamGamesPresentation = ({
           {games.map((game) => {
             const opponent = getOpponentTeam(game);
             const isHome = isHomeTeam(game);
-            const statusInfo = getGameStatus(
-              (game as any).status || 'NOT_STARTED'
-            ); // TODO: Fix when migrating
+            const statusInfo = getGameStatus(game.status);
 
             return (
               <div
@@ -246,9 +291,7 @@ export const TeamGamesPresentation = ({
                     {statusInfo.text}
                   </span>
                   <span className="text-sm text-gray-500">
-                    {(game.gameFormat as any)?.displayName ||
-                      game.gameFormat?.name ||
-                      'Unknown Format'}
+                    {game.gameFormat?.name || 'Unknown Format'}
                   </span>
                 </div>
 
@@ -268,10 +311,10 @@ export const TeamGamesPresentation = ({
 
                 {/* Game Info */}
                 <div className="space-y-1 text-xs text-gray-500">
-                  {(game as any).startTime && (
+                  {game.scheduledStart && (
                     <div>
                       Scheduled:{' '}
-                      {new Date((game as any).startTime).toLocaleString()}
+                      {new Date(game.scheduledStart).toLocaleString()}
                     </div>
                   )}
                   <div>
@@ -288,9 +331,7 @@ export const TeamGamesPresentation = ({
                     }}
                     className="w-full text-sm font-medium text-blue-600 hover:text-blue-800"
                   >
-                    {(game as any).status === 'NOT_STARTED'
-                      ? 'Start Game'
-                      : 'View Game'}{' '}
+                    {game.status === 'NOT_STARTED' ? 'Start Game' : 'View Game'}{' '}
                     →
                   </button>
                 </div>

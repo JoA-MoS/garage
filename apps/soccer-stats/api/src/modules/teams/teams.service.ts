@@ -34,7 +34,7 @@ export class TeamsService {
     @InjectRepository(TeamConfiguration)
     private readonly teamConfigurationRepository: Repository<TeamConfiguration>,
     @Inject(forwardRef(() => TeamMembersService))
-    private readonly teamMembersService: TeamMembersService
+    private readonly teamMembersService: TeamMembersService,
   ) {}
 
   async findAll(): Promise<Team[]> {
@@ -56,7 +56,7 @@ export class TeamsService {
   async create(
     createTeamInput: CreateTeamInput,
     createdById?: string,
-    internalUserId?: string
+    internalUserId?: string,
   ): Promise<Team> {
     const team = this.teamRepository.create({
       ...createTeamInput,
@@ -69,7 +69,7 @@ export class TeamsService {
       await this.teamMembersService.addMember(
         savedTeam.id,
         internalUserId,
-        TeamRole.OWNER
+        TeamRole.OWNER,
       );
     }
 
@@ -193,7 +193,7 @@ export class TeamsService {
     return teamPlayers
       .filter(
         (teamPlayer) =>
-          teamPlayer.user !== null && teamPlayer.user !== undefined
+          teamPlayer.user !== null && teamPlayer.user !== undefined,
       )
       .map((teamPlayer) => teamPlayer.user as User);
   }
@@ -210,12 +210,13 @@ export class TeamsService {
   async getGameTeams(teamId: string): Promise<GameTeam[]> {
     return this.gameTeamRepository.find({
       where: { team: { id: teamId } },
-      relations: ['game'],
+      // Nested relations are loaded via DataLoader + field resolvers
+      // to avoid over-fetching when not needed
     });
   }
 
   async addPlayerToTeam(
-    addPlayerToTeamInput: AddPlayerToTeamInput
+    addPlayerToTeamInput: AddPlayerToTeamInput,
   ): Promise<Team> {
     // Verify team exists
     const team = await this.findOne(addPlayerToTeamInput.teamId);
@@ -230,7 +231,7 @@ export class TeamsService {
 
     if (existing) {
       throw new ConflictException(
-        `Player is already associated with this team`
+        `Player is already associated with this team`,
       );
     }
 
@@ -244,7 +245,7 @@ export class TeamsService {
 
     if (jerseyTaken) {
       throw new ConflictException(
-        `Jersey number ${addPlayerToTeamInput.jersey} is already taken`
+        `Jersey number ${addPlayerToTeamInput.jersey} is already taken`,
       );
     }
 
@@ -265,7 +266,7 @@ export class TeamsService {
 
   async removePlayerFromTeam(
     teamId: string,
-    playerId: string
+    playerId: string,
   ): Promise<boolean> {
     const teamPlayer = await this.teamPlayerRepository.findOne({
       where: {
@@ -322,7 +323,7 @@ export class TeamsService {
    */
   async findOrCreateUnmanagedTeam(
     name: string,
-    shortName?: string
+    shortName?: string,
   ): Promise<Team> {
     const trimmedName = name.trim();
 
@@ -366,7 +367,7 @@ export class TeamsService {
    */
   async upgradeToManagedTeam(
     teamId: string,
-    updateData: Partial<Team>
+    updateData: Partial<Team>,
   ): Promise<Team> {
     const team = await this.findOne(teamId);
 
@@ -411,7 +412,7 @@ export class TeamsService {
    */
   async backfillOwnersForUser(
     clerkUserId: string,
-    internalUserId: string
+    internalUserId: string,
   ): Promise<Team[]> {
     // Find all teams created by this user
     const teamsCreatedByUser = await this.teamRepository.find({
@@ -423,7 +424,7 @@ export class TeamsService {
     for (const team of teamsCreatedByUser) {
       // Check if team already has an owner
       const existingOwner = await this.teamMembersService.findTeamOwner(
-        team.id
+        team.id,
       );
 
       if (!existingOwner) {
@@ -432,13 +433,13 @@ export class TeamsService {
           await this.teamMembersService.addMember(
             team.id,
             internalUserId,
-            TeamRole.OWNER
+            TeamRole.OWNER,
           );
           updatedTeams.push(team);
         } catch {
           // Skip if there's an error (e.g., user already has another role)
           console.warn(
-            `Could not add owner to team ${team.id}: user may already have a role`
+            `Could not add owner to team ${team.id}: user may already have a role`,
           );
         }
       }
@@ -453,7 +454,7 @@ export class TeamsService {
    * Get the configuration for a team. Returns null if no configuration exists.
    */
   async getTeamConfiguration(
-    teamId: string
+    teamId: string,
   ): Promise<TeamConfiguration | null> {
     return this.teamConfigurationRepository.findOne({
       where: { teamId },
@@ -466,7 +467,7 @@ export class TeamsService {
    */
   async updateTeamConfiguration(
     teamId: string,
-    input: UpdateTeamConfigurationInput
+    input: UpdateTeamConfigurationInput,
   ): Promise<TeamConfiguration> {
     // Verify team exists
     await this.findOne(teamId);

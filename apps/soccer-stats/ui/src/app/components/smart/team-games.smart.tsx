@@ -1,27 +1,81 @@
 import { useState, useCallback } from 'react';
-import { useMutation, useQuery } from '@apollo/client/react';
+import { useMutation } from '@apollo/client/react';
 import { useNavigate } from 'react-router';
 
 import {
   CREATE_GAME,
-  GET_GAMES,
-  GET_GAME_FORMATS,
   CreateGameInput,
-  CreateGameResponse,
-  GameFormat,
-  GamesResponse,
 } from '../../services/games-graphql.service';
-import { GET_TEAMS, TeamsResponse } from '../../services/teams-graphql.service';
 import { TeamGamesPresentation } from '../presentation/team-games.presentation';
+
+// =============================================================================
+// HOOK IMPORTS - From colocated smart components (Strict Pattern)
+// =============================================================================
+
+// Import data transformation hooks from their colocated smart components
+// Each smart component owns its fragment and provides a hook to transform it
+import { useGameCardsData, type GameCardData } from './game-card.smart';
+import {
+  useOpponentsData,
+  type OpponentTeamData,
+} from './opponent-select.smart';
+import {
+  useGameFormatsData,
+  type GameFormatSelectData,
+} from './game-format-select.smart';
+
+// =============================================================================
+// TYPES
+// =============================================================================
 
 interface TeamGamesSmartProps {
   teamId: string;
+  /** Game teams with fragment data - from composition query */
+  gameTeams: readonly GameCardData[];
+  /** Opponent teams for modal dropdown - lazy-loaded */
+  opponents: readonly OpponentTeamData[];
+  /** Game formats for modal dropdown - lazy-loaded */
+  gameFormats: readonly GameFormatSelectData[];
+  /** Loading state for main page data */
+  loading: boolean;
+  /** Loading state for modal data */
+  modalLoading: boolean;
+  /** Error message from modal data query */
+  modalError?: string;
+  /** Callback when modal should open - triggers lazy load */
+  onOpenModal: () => void;
+  /** Callback after game is created - triggers refetch */
+  onGameCreated: () => void;
 }
 
+// =============================================================================
+// SMART COMPONENT
+// =============================================================================
+
 /**
- * Smart component that manages game creation and listing for a specific team
+ * Smart component for team games page.
+ *
+ * Responsibilities:
+ * - Manages form state for creating games
+ * - Handles create game mutation
+ * - Uses hooks from colocated smart components to transform fragment data
+ * - Manages validation and error states
+ *
+ * Does NOT:
+ * - Define any GraphQL fragments (those live in colocated smart components)
+ * - Make any queries (receives fragment data from composition)
  */
-export const TeamGamesSmart = ({ teamId }: TeamGamesSmartProps) => {
+export const TeamGamesSmart = ({
+  teamId,
+  gameTeams,
+  opponents,
+  gameFormats,
+  loading,
+  modalLoading,
+  modalError,
+  onOpenModal,
+  onGameCreated,
+}: TeamGamesSmartProps) => {
   const navigate = useNavigate();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [gameForm, setGameForm] = useState({
@@ -30,62 +84,51 @@ export const TeamGamesSmart = ({ teamId }: TeamGamesSmartProps) => {
     duration: 90,
     isHome: true,
   });
-
-  // Fetch all teams for opponent selection
-  const { data: teamsData, loading: teamsLoading } = useQuery<TeamsResponse>(
-    GET_TEAMS,
-    {
-      fetchPolicy: 'cache-first',
-    }
-  );
-
-  // Fetch available game formats
-  const { data: gameFormatsData, loading: gameFormatsLoading } = useQuery<{
-    gameFormats: GameFormat[];
-  }>(GET_GAME_FORMATS, {
-    fetchPolicy: 'cache-first',
-  });
-
-  // Fetch games where this team is involved
-  const {
-    data: gamesData,
-    loading: gamesLoading,
-    refetch: refetchGames,
-  } = useQuery<GamesResponse>(GET_GAMES, {
-    fetchPolicy: 'cache-and-network',
-  });
+  const [formError, setFormError] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   // Create game mutation
-  const [createGame, { loading: createLoading }] =
-    useMutation<CreateGameResponse>(CREATE_GAME, {
-      onCompleted: (data: CreateGameResponse) => {
-        // Reset form and close modal
-        setGameForm({
-          opponentTeamId: '',
-          gameFormatId: '',
-          duration: 90,
-          isHome: true,
-        });
-        setShowCreateForm(false);
+  const [createGame, { loading: createLoading }] = useMutation(CREATE_GAME, {
+    onCompleted: (data) => {
+      // Clear errors and reset form
+      setFormError(null);
+      setMutationError(null);
+      setGameForm({
+        opponentTeamId: '',
+        gameFormatId: '',
+        duration: 90,
+        isHome: true,
+      });
+      setShowCreateForm(false);
 
-        // Refetch games list
-        refetchGames();
+      // Trigger refetch via composition
+      onGameCreated();
 
-        // Navigate to the created game
-        navigate(`/games/${data.createGame.id}`);
-      },
-      onError: (error: any) => {
-        console.error('Error creating game:', error);
-      },
-    });
+      // Navigate to the created game
+      navigate(`/games/${data.createGame.id}`);
+    },
+    onError: (error) => {
+      console.error('Error creating game:', error);
+      setMutationError(
+        error.message || 'Failed to create game. Please try again.',
+      );
+    },
+  });
 
-  // Event handlers
+  // ==========================================================================
+  // Event Handlers
+  // ==========================================================================
+
   const handleCreateGame = useCallback(() => {
+    // Trigger lazy-load of modal data
+    onOpenModal();
     setShowCreateForm(true);
-  }, []);
+  }, [onOpenModal]);
 
   const handleCancelCreate = useCallback(() => {
     setShowCreateForm(false);
+    setFormError(null);
+    setMutationError(null);
     setGameForm({
       opponentTeamId: '',
       gameFormatId: '',
@@ -94,15 +137,28 @@ export const TeamGamesSmart = ({ teamId }: TeamGamesSmartProps) => {
     });
   }, []);
 
-  const handleFormChange = useCallback((field: string, value: any) => {
-    setGameForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  }, []);
+  const handleFormChange = useCallback(
+    (field: string, value: string | number | boolean) => {
+      setGameForm((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
+    },
+    [],
+  );
 
   const handleSubmitGame = useCallback(async () => {
-    if (!gameForm.opponentTeamId || !gameForm.gameFormatId) {
+    // Clear previous errors
+    setFormError(null);
+    setMutationError(null);
+
+    // Validate required fields
+    if (!gameForm.opponentTeamId) {
+      setFormError('Please select an opponent team.');
+      return;
+    }
+    if (!gameForm.gameFormatId) {
+      setFormError('Please select a game format.');
       return;
     }
 
@@ -122,28 +178,36 @@ export const TeamGamesSmart = ({ teamId }: TeamGamesSmartProps) => {
     (gameId: string) => {
       navigate(`/games/${gameId}`);
     },
-    [navigate]
+    [navigate],
   );
 
-  // Filter games for this team
-  const teamGames =
-    gamesData?.games?.filter((game: any) =>
-      game.gameTeams.some((gt: any) => gt.team.id === teamId)
-    ) || [];
+  // ==========================================================================
+  // Data Transformation - Use hooks from colocated smart components
+  // ==========================================================================
 
-  // Get available opponent teams (exclude current team)
-  const availableOpponents =
-    teamsData?.teams?.filter((team: any) => team.id !== teamId) || [];
+  // Each hook uses useFragment internally to unmask and transform the data
+  const games = useGameCardsData(gameTeams);
+  const availableOpponents = useOpponentsData(opponents, teamId);
+  const availableFormats = useGameFormatsData(gameFormats);
+
+  // Combine all errors for display
+  const error = modalError || formError || mutationError;
+
+  // ==========================================================================
+  // Render
+  // ==========================================================================
+
   return (
     <TeamGamesPresentation
       teamId={teamId}
-      games={teamGames}
-      availableOpponents={availableOpponents as any} // TODO: Fix type when migrating
-      gameFormats={gameFormatsData?.gameFormats || []}
+      games={games}
+      availableOpponents={availableOpponents}
+      gameFormats={availableFormats}
       showCreateForm={showCreateForm}
       gameForm={gameForm}
-      loading={gamesLoading || teamsLoading || gameFormatsLoading}
-      createLoading={createLoading}
+      loading={loading}
+      createLoading={createLoading || modalLoading}
+      error={error}
       onCreateGame={handleCreateGame}
       onCancelCreate={handleCancelCreate}
       onFormChange={handleFormChange}
