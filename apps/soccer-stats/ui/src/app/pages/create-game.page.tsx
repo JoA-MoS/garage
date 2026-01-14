@@ -116,34 +116,54 @@ export const CreateGamePage = () => {
         return;
       }
 
-      try {
-        let awayTeamId = gameForm.awayTeamId;
+      let awayTeamId = gameForm.awayTeamId;
 
-        // If using unmanaged opponent mode, create/find the opponent first
-        if (!gameForm.useExistingManagedTeam) {
+      // If using unmanaged opponent mode, create/find the opponent first
+      if (!gameForm.useExistingManagedTeam) {
+        try {
           const opponentResult = await findOrCreateUnmanagedTeam({
             variables: {
               name: gameForm.opponentName.trim(),
             },
           });
+
+          // Check for GraphQL errors in the result
+          if (opponentResult.errors && opponentResult.errors.length > 0) {
+            const errorMessage = opponentResult.errors
+              .map((e) => e.message)
+              .join(', ');
+            setError(
+              `Could not create opponent "${gameForm.opponentName}": ${errorMessage}`,
+            );
+            return;
+          }
+
           awayTeamId = opponentResult.data?.findOrCreateUnmanagedTeam.id ?? '';
 
           if (!awayTeamId) {
-            setError('Failed to create opponent team');
+            setError(
+              'Unexpected error creating opponent team. Please try again.',
+            );
             return;
           }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Network error';
+          setError(`Failed to create opponent team: ${message}`);
+          return;
         }
+      }
 
-        const createGameInput: CreateGameInput = {
-          homeTeamId: gameForm.homeTeamId,
-          awayTeamId,
-          gameFormatId: gameForm.gameFormatId,
-          duration: gameForm.duration,
-        };
+      const createGameInput: CreateGameInput = {
+        homeTeamId: gameForm.homeTeamId,
+        awayTeamId,
+        gameFormatId: gameForm.gameFormatId,
+        duration: gameForm.duration,
+      };
 
+      try {
         await createGame({ variables: { createGameInput } });
       } catch (err) {
-        // Catches errors that bypass onError callback (e.g., network issues before request)
+        // Catches network errors that bypass onError callback
         const message =
           err instanceof Error ? err.message : 'Failed to create game';
         setError(message);
