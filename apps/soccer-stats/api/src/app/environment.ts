@@ -86,8 +86,13 @@ export const getDbPort = (): number =>
 export const getDbUsername = (): string => getRequiredEnv('DB_USERNAME');
 export const getDbPassword = (): string => getRequiredEnv('DB_PASSWORD');
 export const getDbName = (): string => getRequiredEnv('DB_NAME');
+/**
+ * Database synchronize setting.
+ * IMPORTANT: Should be false when using TypeORM migrations.
+ * Only set to true for rapid prototyping without migrations.
+ */
 export const getDbSynchronize = (): boolean =>
-  getEnv('DB_SYNCHRONIZE') === 'true' || !isProduction();
+  getEnv('DB_SYNCHRONIZE') === 'true';
 export const getDbLogging = (): boolean =>
   getEnv('DB_LOGGING') === 'true' || !isProduction();
 
