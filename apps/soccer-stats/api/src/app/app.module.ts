@@ -23,6 +23,7 @@ import {
   ClerkPayload,
   ClerkUser,
 } from '../modules/auth/clerk.service';
+import { nestTypeOrmConfig } from '../database/typeorm.config';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -31,13 +32,6 @@ import { ConfigController } from './config.controller';
 import {
   API_PREFIX,
   isProduction,
-  getDbHost,
-  getDbPort,
-  getDbUsername,
-  getDbPassword,
-  getDbName,
-  getDbSynchronize,
-  getDbLogging,
   getGraphqlIntrospection,
 } from './environment';
 
@@ -48,23 +42,10 @@ interface AuthenticatedRequest extends Request {
   isImpersonating?: boolean;
 }
 
-const typeOrmConfig = {
-  type: 'postgres' as const,
-  host: getDbHost(),
-  port: getDbPort(),
-  username: getDbUsername(),
-  password: getDbPassword(),
-  database: getDbName(),
-  autoLoadEntities: true,
-  synchronize: getDbSynchronize(),
-  logging: getDbLogging(),
-  ssl: isProduction() ? { rejectUnauthorized: false } : false,
-};
-
 @Module({
   imports: [
     // TypeORM must be imported first so entities are available for DataLoaders
-    TypeOrmModule.forRoot(typeOrmConfig),
+    TypeOrmModule.forRoot(nestTypeOrmConfig),
     // DataLoaders module provides batched query infrastructure
     DataLoadersModule,
     // GraphQL configured async to inject DataLoadersService into context
