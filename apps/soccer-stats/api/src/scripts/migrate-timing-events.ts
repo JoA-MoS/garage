@@ -26,29 +26,9 @@ import { randomUUID } from 'crypto';
 
 import { Client } from 'pg';
 
-// Load .env file if present (for local development)
-try {
-  const result = require('dotenv').config();
-  if (result.error) {
-    // dotenv installed but .env file has issues (e.g., parse error, permissions)
-    console.warn(
-      `Warning: Failed to load .env file: ${result.error.message}. Using environment variables.`,
-    );
-  }
-} catch (error) {
-  // Check if dotenv module is not installed vs other errors
-  if (
-    error instanceof Error &&
-    'code' in error &&
-    error.code === 'MODULE_NOT_FOUND'
-  ) {
-    // dotenv not installed - expected in production, use env vars
-    console.log('dotenv not installed - using environment variables');
-  } else {
-    console.error('Unexpected error loading dotenv:', error);
-    console.log('Continuing with environment variables');
-  }
-}
+// Environment variables are loaded by Nx via envFile option (local dev)
+// or set directly in the container environment (production).
+// No manual dotenv loading needed.
 
 // Legacy event type names to migrate
 const LEGACY_EVENT_TYPES = {

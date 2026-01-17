@@ -21,13 +21,9 @@
 import { createClerkClient } from '@clerk/backend';
 import { Client } from 'pg';
 
-// Load .env file if present (for local development)
-
-try {
-  require('dotenv').config();
-} catch {
-  /* dotenv not installed - using env vars */
-}
+// Environment variables are loaded by Nx via envFile option (local dev)
+// or set directly in the container environment (production).
+// No manual dotenv loading needed.
 
 interface User {
   id: string;
@@ -84,7 +80,7 @@ async function main() {
 
     // Fetch all users
     const result = await client.query<User>(
-      'SELECT id, email, "firstName", "lastName", "clerkId" FROM users ORDER BY email'
+      'SELECT id, email, "firstName", "lastName", "clerkId" FROM users ORDER BY email',
     );
     const users = result.rows;
 
