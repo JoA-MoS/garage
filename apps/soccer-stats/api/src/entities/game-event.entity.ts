@@ -92,7 +92,7 @@ export class GameEvent extends BaseEntity {
    * on this getter makes it automatically available in the GraphQL schema, so
    * no separate @ResolveField or resolver method is required.
    */
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   get period(): string | undefined {
     return (this.metadata as { period?: string } | undefined)?.period;
   }
