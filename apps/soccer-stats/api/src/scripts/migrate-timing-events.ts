@@ -55,6 +55,7 @@ interface EventType {
 
 interface GameEvent {
   id: string;
+  gameId: string;
   gameTeamId: string;
   eventTypeId: string;
   gameMinute: number;
@@ -165,7 +166,7 @@ async function main() {
     if (kickoffTypeId) {
       console.log('\nStep 2: Migrating KICKOFF events...');
       const kickoffEvents = await client.query<GameEvent>(
-        `SELECT id, "gameTeamId", "eventTypeId", "gameMinute", "gameSecond",
+        `SELECT id, "gameId", "gameTeamId", "eventTypeId", "gameMinute", "gameSecond",
                 "createdAt", "recordedByUserId"
          FROM game_events WHERE "eventTypeId" = $1`,
         [kickoffTypeId],
@@ -184,11 +185,12 @@ async function main() {
           // Create new PERIOD_START event with same timestamp
           await client.query(
             `INSERT INTO game_events
-             (id, "gameTeamId", "eventTypeId", "gameMinute", "gameSecond",
+             (id, "gameId", "gameTeamId", "eventTypeId", "gameMinute", "gameSecond",
               "createdAt", "recordedByUserId", metadata)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
             [
               randomUUID(),
+              event.gameId,
               event.gameTeamId,
               eventTypeMap.get(NEW_EVENT_TYPES.PERIOD_START),
               event.gameMinute,
@@ -238,7 +240,7 @@ async function main() {
     if (fullTimeTypeId) {
       console.log('\nStep 4: Migrating FULL_TIME events...');
       const fullTimeEvents = await client.query<GameEvent>(
-        `SELECT id, "gameTeamId", "eventTypeId", "gameMinute", "gameSecond",
+        `SELECT id, "gameId", "gameTeamId", "eventTypeId", "gameMinute", "gameSecond",
                 "createdAt", "recordedByUserId"
          FROM game_events WHERE "eventTypeId" = $1`,
         [fullTimeTypeId],
@@ -257,11 +259,12 @@ async function main() {
           // Create new PERIOD_END event with period: "2"
           await client.query(
             `INSERT INTO game_events
-             (id, "gameTeamId", "eventTypeId", "gameMinute", "gameSecond",
+             (id, "gameId", "gameTeamId", "eventTypeId", "gameMinute", "gameSecond",
               "createdAt", "recordedByUserId", metadata)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
             [
               randomUUID(),
+              event.gameId,
               event.gameTeamId,
               eventTypeMap.get(NEW_EVENT_TYPES.PERIOD_END),
               event.gameMinute,
@@ -351,8 +354,14 @@ async function main() {
       try {
         await client.query('ROLLBACK');
         console.error('\nTransaction rolled back due to error');
-      } catch {
-        /* ignore rollback errors */
+      } catch (rollbackError) {
+        console.error(
+          '\nCRITICAL: Failed to rollback transaction! Database may be in an inconsistent state.',
+        );
+        console.error('Rollback error:', rollbackError);
+        console.error(
+          'MANUAL INTERVENTION REQUIRED: Check game_events and event_types tables for partial migration.',
+        );
       }
     }
     throw error;
