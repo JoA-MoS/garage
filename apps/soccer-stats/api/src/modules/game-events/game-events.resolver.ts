@@ -13,8 +13,7 @@ import { GameEvent } from '../../entities/game-event.entity';
 import { Public } from '../auth/public.decorator';
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
 import { CurrentUser } from '../auth/user.decorator';
-import { ClerkUser } from '../auth/clerk.service';
-import { UsersService } from '../users/users.service';
+import { AuthenticatedUser } from '../auth/authenticated-user.type';
 
 import { GameEventsService } from './game-events.service';
 import { AddToLineupInput } from './dto/add-to-lineup.input';
@@ -38,18 +37,8 @@ import { GameEventSubscriptionPayload } from './dto/game-event-subscription.outp
 export class GameEventsResolver {
   constructor(
     private readonly gameEventsService: GameEventsService,
-    private readonly usersService: UsersService,
     @Inject('PUB_SUB') private pubSub: PubSub,
   ) {}
-
-  /**
-   * Converts a Clerk user to internal user ID.
-   * Uses JIT provisioning - creates user if not found.
-   */
-  private async getInternalUserId(clerkUser: ClerkUser): Promise<string> {
-    const user = await this.usersService.findOrCreateByClerkUser(clerkUser);
-    return user.id;
-  }
 
   @Query(() => GameLineup, { name: 'gameLineup' })
   @Public()
@@ -76,21 +65,19 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => GameEvent, { name: 'addPlayerToLineup' })
-  async addPlayerToLineup(
+  addPlayerToLineup(
     @Args('input') input: AddToLineupInput,
-    @CurrentUser() clerkUser: ClerkUser,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<GameEvent> {
-    const userId = await this.getInternalUserId(clerkUser);
-    return this.gameEventsService.addPlayerToLineup(input, userId);
+    return this.gameEventsService.addPlayerToLineup(input, user.id);
   }
 
   @Mutation(() => GameEvent, { name: 'addPlayerToBench' })
-  async addPlayerToBench(
+  addPlayerToBench(
     @Args('input') input: AddToBenchInput,
-    @CurrentUser() clerkUser: ClerkUser,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<GameEvent> {
-    const userId = await this.getInternalUserId(clerkUser);
-    return this.gameEventsService.addPlayerToBench(input, userId);
+    return this.gameEventsService.addPlayerToBench(input, user.id);
   }
 
   @Mutation(() => Boolean, { name: 'removeFromLineup' })
@@ -111,33 +98,30 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => [GameEvent], { name: 'substitutePlayer' })
-  async substitutePlayer(
+  substitutePlayer(
     @Args('input') input: SubstitutePlayerInput,
-    @CurrentUser() clerkUser: ClerkUser,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<GameEvent[]> {
-    const userId = await this.getInternalUserId(clerkUser);
-    return this.gameEventsService.substitutePlayer(input, userId);
+    return this.gameEventsService.substitutePlayer(input, user.id);
   }
 
   @Mutation(() => GameEvent, { name: 'recordGoal' })
-  async recordGoal(
+  recordGoal(
     @Args('input') input: RecordGoalInput,
-    @CurrentUser() clerkUser: ClerkUser,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<GameEvent> {
-    const userId = await this.getInternalUserId(clerkUser);
-    return this.gameEventsService.recordGoal(input, userId);
+    return this.gameEventsService.recordGoal(input, user.id);
   }
 
   @Mutation(() => GameEvent, {
     name: 'recordFormationChange',
     description: 'Record a formation change event during a game',
   })
-  async recordFormationChange(
+  recordFormationChange(
     @Args('input') input: RecordFormationChangeInput,
-    @CurrentUser() clerkUser: ClerkUser,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<GameEvent> {
-    const userId = await this.getInternalUserId(clerkUser);
-    return this.gameEventsService.recordFormationChange(input, userId);
+    return this.gameEventsService.recordFormationChange(input, user.id);
   }
 
   @Mutation(() => GameEvent, {
@@ -145,12 +129,11 @@ export class GameEventsResolver {
     description:
       'Record a position change event during a game for accurate position-time tracking',
   })
-  async recordPositionChange(
+  recordPositionChange(
     @Args('input') input: RecordPositionChangeInput,
-    @CurrentUser() clerkUser: ClerkUser,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<GameEvent> {
-    const userId = await this.getInternalUserId(clerkUser);
-    return this.gameEventsService.recordPositionChange(input, userId);
+    return this.gameEventsService.recordPositionChange(input, user.id);
   }
 
   @Mutation(() => Boolean, { name: 'deleteGoal' })
@@ -192,12 +175,11 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => [GameEvent], { name: 'swapPositions' })
-  async swapPositions(
+  swapPositions(
     @Args('input') input: SwapPositionsInput,
-    @CurrentUser() clerkUser: ClerkUser,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<GameEvent[]> {
-    const userId = await this.getInternalUserId(clerkUser);
-    return this.gameEventsService.swapPositions(input, userId);
+    return this.gameEventsService.swapPositions(input, user.id);
   }
 
   @Mutation(() => [GameEvent], {
@@ -207,12 +189,11 @@ export class GameEventsResolver {
   })
   async batchLineupChanges(
     @Args('input') input: BatchLineupChangesInput,
-    @CurrentUser() clerkUser: ClerkUser,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<GameEvent[]> {
-    const userId = await this.getInternalUserId(clerkUser);
     const result = await this.gameEventsService.batchLineupChanges(
       input,
-      userId,
+      user.id,
     );
     return result.events;
   }

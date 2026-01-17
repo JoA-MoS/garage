@@ -1,19 +1,24 @@
 import {
   CanActivate,
   ExecutionContext,
+  Inject,
   Injectable,
   Logger,
+  forwardRef,
 } from '@nestjs/common';
 import { GqlExecutionContext } from '@nestjs/graphql';
 
+import { UsersService } from '../users/users.service';
+
 import { ClerkActor, ClerkService } from './clerk.service';
+import { AuthenticatedUser } from './authenticated-user.type';
 
 /**
  * Optional authentication guard for Clerk.
  *
  * Unlike ClerkAuthGuard which throws on missing/invalid tokens,
  * this guard:
- * - Sets req.user if a valid token is present
+ * - Sets req.user (as AuthenticatedUser) if a valid token is present
  * - Continues without error if no token or invalid token
  *
  * Use this for endpoints that have different behavior for
@@ -23,7 +28,11 @@ import { ClerkActor, ClerkService } from './clerk.service';
 export class OptionalClerkAuthGuard implements CanActivate {
   private readonly logger = new Logger(OptionalClerkAuthGuard.name);
 
-  constructor(private clerkService: ClerkService) {}
+  constructor(
+    private clerkService: ClerkService,
+    @Inject(forwardRef(() => UsersService))
+    private usersService: UsersService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const gqlContext = GqlExecutionContext.create(context);
@@ -48,7 +57,23 @@ export class OptionalClerkAuthGuard implements CanActivate {
 
     try {
       const payload = await this.clerkService.verifyToken(token);
-      const user = await this.clerkService.getUser(payload.sub);
+      const clerkUser = await this.clerkService.getUser(payload.sub);
+
+      // Look up or create internal user (JIT provisioning)
+      // This is the single point where Clerk ID is mapped to internal user
+      const internalUser =
+        await this.usersService.findOrCreateByClerkUser(clerkUser);
+
+      // Create unified AuthenticatedUser with both Clerk and internal info
+      const authenticatedUser: AuthenticatedUser = {
+        id: internalUser.id,
+        clerkId: clerkUser.id,
+        email: clerkUser.emailAddresses?.[0]?.emailAddress ?? '',
+        firstName: clerkUser.firstName,
+        lastName: clerkUser.lastName,
+        imageUrl: clerkUser.imageUrl,
+        internal: internalUser,
+      };
 
       // Extract actor (impersonation) information
       const actor: ClerkActor | null = payload.act ?? null;
@@ -57,12 +82,12 @@ export class OptionalClerkAuthGuard implements CanActivate {
       // Log impersonation for audit purposes
       if (isImpersonating) {
         this.logger.log(
-          `Impersonation session: Admin ${actor.sub} acting as user ${user.id} (${user.firstName} ${user.lastName})`
+          `Impersonation session: Admin ${actor.sub} acting as user ${internalUser.id} (${internalUser.firstName} ${internalUser.lastName})`,
         );
       }
 
-      // Attach user and impersonation context to the request
-      req.user = user;
+      // Attach authenticated user and impersonation context to the request
+      req.user = authenticatedUser;
       req.clerkPayload = payload;
       req.actor = actor;
       req.isImpersonating = isImpersonating;
@@ -85,7 +110,7 @@ export class OptionalClerkAuthGuard implements CanActivate {
         // System errors (network, Clerk API down, etc.) - log with stack for debugging
         this.logger.error(
           `Optional auth failed (system error): ${errorMessage}`,
-          error instanceof Error ? error.stack : undefined
+          error instanceof Error ? error.stack : undefined,
         );
       }
     }

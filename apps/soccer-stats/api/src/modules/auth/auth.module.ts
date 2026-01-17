@@ -21,6 +21,9 @@ import { TeamAccessGuard } from './team-access.guard';
     ClerkAuthGuard,
     OptionalClerkAuthGuard,
     TeamAccessGuard,
+    // Re-export UsersModule so modules importing AuthModule have access to
+    // UsersService (needed by ClerkAuthGuard for internal user lookup)
+    UsersModule,
   ],
 })
 export class AuthModule {}

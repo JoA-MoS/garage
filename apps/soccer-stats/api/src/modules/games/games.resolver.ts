@@ -14,7 +14,7 @@ import { GameTeam } from '../../entities/game-team.entity';
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
 import { CurrentUser } from '../auth/user.decorator';
 import { Public } from '../auth/public.decorator';
-import { ClerkUser } from '../auth/clerk.service';
+import { AuthenticatedUser } from '../auth/authenticated-user.type';
 
 import { GamesService } from './games.service';
 import { CreateGameInput } from './dto/create-game.input';
@@ -65,7 +65,7 @@ export class GamesResolver {
   async updateGame(
     @Args('id', { type: () => ID }) id: string,
     @Args('updateGameInput') updateGameInput: UpdateGameInput,
-    @CurrentUser() user: ClerkUser,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     this.logger.log(`Updating game ${id} for user: ${user.id}`);
     const game = await this.gamesService.update(id, updateGameInput);
