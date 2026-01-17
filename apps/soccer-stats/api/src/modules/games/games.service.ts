@@ -406,6 +406,8 @@ export class GamesService {
   /**
    * Creates timing events based on game status changes.
    * This replaces direct column updates with event-based timing.
+   *
+   * @throws Error if required event types are not found in the database
    */
   private async createTimingEventsForStatusChange(
     gameId: string,
@@ -413,25 +415,41 @@ export class GamesService {
   ): Promise<void> {
     if (!status) return;
 
+    const requiredEventTypes = [
+      'GAME_START',
+      'GAME_END',
+      'PERIOD_START',
+      'PERIOD_END',
+    ];
+
     const eventTypeMap = new Map<string, EventType>();
     const eventTypes = await this.eventTypeRepository.find({
-      where: [
-        { name: 'GAME_START' },
-        { name: 'GAME_END' },
-        { name: 'PERIOD_START' },
-        { name: 'PERIOD_END' },
-      ],
+      where: requiredEventTypes.map((name) => ({ name })),
     });
     eventTypes.forEach((et) => eventTypeMap.set(et.name, et));
+
+    // Validate all required event types exist
+    const missingTypes = requiredEventTypes.filter(
+      (name) => !eventTypeMap.has(name),
+    );
+    if (missingTypes.length > 0) {
+      const errorMsg =
+        `Cannot create timing events: missing event types [${missingTypes.join(', ')}]. ` +
+        'Database may not be properly seeded.';
+      this.logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
 
     const createEvent = async (
       eventTypeName: string,
       metadata?: Record<string, unknown>,
     ) => {
       const eventType = eventTypeMap.get(eventTypeName);
+      // This should never happen due to validation above, but TypeScript needs the check
       if (!eventType) {
-        this.logger.warn(`Event type ${eventTypeName} not found`);
-        return;
+        throw new Error(
+          `Event type ${eventTypeName} not found after validation`,
+        );
       }
 
       const event = this.gameEventRepository.create({
@@ -473,6 +491,8 @@ export class GamesService {
    * Creates stoppage events for pause/resume functionality.
    * pausedAt = Date means pause (create STOPPAGE_START)
    * pausedAt = null means resume (create STOPPAGE_END)
+   *
+   * @throws Error if required event type is not found in the database
    */
   private async handlePauseResumeEvent(
     gameId: string,
@@ -485,8 +505,11 @@ export class GamesService {
     });
 
     if (!eventType) {
-      this.logger.warn(`Event type ${eventTypeName} not found`);
-      return;
+      const errorMsg =
+        `Cannot ${pausedAt ? 'pause' : 'resume'} game: ` +
+        `event type ${eventTypeName} not found. Database may not be properly seeded.`;
+      this.logger.error(errorMsg);
+      throw new Error(errorMsg);
     }
 
     const event = this.gameEventRepository.create({

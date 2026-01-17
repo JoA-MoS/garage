@@ -5,8 +5,6 @@ import { GameFormat } from '../../entities/game-format.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { GraphQLContext } from '../dataloaders';
 
-import { GameTimingService } from './game-timing.service';
-
 /**
  * Resolver for Game entity field-level data loading.
  *
@@ -14,12 +12,11 @@ import { GameTimingService } from './game-timing.service';
  * Each field resolver only triggers when that field is actually queried.
  *
  * Timing fields (actualStart, firstHalfEnd, secondHalfStart, actualEnd, pausedAt)
- * are computed from timing events, with fallback to legacy column values for
- * backward compatibility during the migration period.
+ * are computed from timing events via DataLoader, with fallback to legacy column
+ * values for backward compatibility during the migration period.
  */
 @Resolver(() => Game)
 export class GameFieldsResolver {
-  constructor(private readonly gameTimingService: GameTimingService) {}
   /**
    * Resolves the 'gameFormat' field on Game.
    * Uses DataLoader to batch multiple gameFormat lookups into a single query.
@@ -63,17 +60,21 @@ export class GameFieldsResolver {
   // ============================================================
   // Timing Field Resolvers
   // ============================================================
-  // These compute timing from events, with fallback to legacy column values.
-  // Once all games have timing events, the column fallbacks can be removed.
+  // These compute timing from events via DataLoader (batched), with fallback
+  // to legacy column values. Once all games have timing events, the column
+  // fallbacks can be removed.
 
   /**
    * When the game actually started.
    * Computed from GAME_START event, falls back to legacy column.
    */
   @ResolveField(() => Date, { nullable: true })
-  async actualStart(@Parent() game: Game): Promise<Date | undefined> {
-    // Try to get from timing events first
-    const timing = await this.gameTimingService.getGameTiming(game.id);
+  async actualStart(
+    @Parent() game: Game,
+    @Context() context: GraphQLContext,
+  ): Promise<Date | undefined> {
+    // Use DataLoader to batch timing queries across multiple games
+    const timing = await context.loaders.gameTimingLoader.load(game.id);
     if (timing.actualStart) {
       return timing.actualStart;
     }
@@ -86,8 +87,11 @@ export class GameFieldsResolver {
    * Computed from PERIOD_END event with period="1", falls back to legacy column.
    */
   @ResolveField(() => Date, { nullable: true })
-  async firstHalfEnd(@Parent() game: Game): Promise<Date | undefined> {
-    const timing = await this.gameTimingService.getGameTiming(game.id);
+  async firstHalfEnd(
+    @Parent() game: Game,
+    @Context() context: GraphQLContext,
+  ): Promise<Date | undefined> {
+    const timing = await context.loaders.gameTimingLoader.load(game.id);
     if (timing.firstHalfEnd) {
       return timing.firstHalfEnd;
     }
@@ -99,8 +103,11 @@ export class GameFieldsResolver {
    * Computed from PERIOD_START event with period="2", falls back to legacy column.
    */
   @ResolveField(() => Date, { nullable: true })
-  async secondHalfStart(@Parent() game: Game): Promise<Date | undefined> {
-    const timing = await this.gameTimingService.getGameTiming(game.id);
+  async secondHalfStart(
+    @Parent() game: Game,
+    @Context() context: GraphQLContext,
+  ): Promise<Date | undefined> {
+    const timing = await context.loaders.gameTimingLoader.load(game.id);
     if (timing.secondHalfStart) {
       return timing.secondHalfStart;
     }
@@ -112,8 +119,11 @@ export class GameFieldsResolver {
    * Computed from GAME_END event, falls back to legacy column.
    */
   @ResolveField(() => Date, { nullable: true })
-  async actualEnd(@Parent() game: Game): Promise<Date | undefined> {
-    const timing = await this.gameTimingService.getGameTiming(game.id);
+  async actualEnd(
+    @Parent() game: Game,
+    @Context() context: GraphQLContext,
+  ): Promise<Date | undefined> {
+    const timing = await context.loaders.gameTimingLoader.load(game.id);
     if (timing.actualEnd) {
       return timing.actualEnd;
     }
@@ -125,8 +135,11 @@ export class GameFieldsResolver {
    * Computed from unmatched STOPPAGE_START event, falls back to legacy column.
    */
   @ResolveField(() => Date, { nullable: true })
-  async pausedAt(@Parent() game: Game): Promise<Date | undefined> {
-    const timing = await this.gameTimingService.getGameTiming(game.id);
+  async pausedAt(
+    @Parent() game: Game,
+    @Context() context: GraphQLContext,
+  ): Promise<Date | undefined> {
+    const timing = await context.loaders.gameTimingLoader.load(game.id);
     if (timing.pausedAt) {
       return timing.pausedAt;
     }
