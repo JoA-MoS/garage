@@ -82,6 +82,14 @@ export class GameEvent extends BaseEntity {
   @Column({ type: 'json', nullable: true })
   metadata?: object;
 
+  /**
+   * Period identifier for timing events (PERIOD_START, PERIOD_END).
+   * Extracted from metadata.period. Returns null for non-period events.
+   * Examples: "1" (first half), "2" (second half), "OT1" (overtime)
+   */
+  @Field({ nullable: true })
+  period?: string;
+
   @Field(() => Game)
   @ManyToOne(() => Game, (game) => game.gameEvents, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'gameId' })
