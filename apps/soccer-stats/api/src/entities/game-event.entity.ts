@@ -88,7 +88,9 @@ export class GameEvent extends BaseEntity {
    * Examples: "1" (first half), "2" (second half), "OT1" (overtime)
    *
    * Note: This is a computed property, not a database column. It works both
-   * when accessed directly on the entity and via GraphQL (resolver also handles it).
+   * when accessed directly on the entity and via GraphQL. The @Field decorator
+   * on this getter makes it automatically available in the GraphQL schema, so
+   * no separate @ResolveField or resolver method is required.
    */
   @Field({ nullable: true })
   get period(): string | undefined {

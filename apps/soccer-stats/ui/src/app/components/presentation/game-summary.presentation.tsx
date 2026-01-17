@@ -22,7 +22,7 @@ interface ChildEvent {
   } | null;
 }
 
-interface GameEvent {
+export interface GameEvent {
   id: string;
   createdAt: string;
   gameMinute: number;
@@ -104,7 +104,7 @@ type TimelineItem =
  * Checks if an event represents halftime.
  * Supports both legacy (HALFTIME) and new (PERIOD_END with period="1") event types.
  */
-function isHalftimeEvent(event: GameEvent): boolean {
+export function isHalftimeEvent(event: GameEvent): boolean {
   // Legacy event type
   if (event.eventType?.name === 'HALFTIME') {
     return true;
