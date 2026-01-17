@@ -7,7 +7,8 @@
  *    - KICKOFF → GAME_START + PERIOD_START (period: "1")
  *    - HALFTIME → PERIOD_END (period: "1")
  *    - FULL_TIME → GAME_END + PERIOD_END (period: "2")
- * 3. Deletes INJURY_STOPPAGE events (no equivalent in new model)
+ * 3. Deletes INJURY_STOPPAGE events (legacy events lack start/end timing
+ *    required for STOPPAGE_START/STOPPAGE_END pairs - cannot be migrated)
  * 4. Removes old event types from the database
  *
  * Usage:
@@ -27,9 +28,26 @@ import { Client } from 'pg';
 
 // Load .env file if present (for local development)
 try {
-  require('dotenv').config();
-} catch {
-  /* dotenv not installed - using env vars */
+  const result = require('dotenv').config();
+  if (result.error) {
+    // dotenv installed but .env file has issues (e.g., parse error, permissions)
+    console.warn(
+      `Warning: Failed to load .env file: ${result.error.message}. Using environment variables.`,
+    );
+  }
+} catch (error) {
+  // Check if dotenv module is not installed vs other errors
+  if (
+    error instanceof Error &&
+    'code' in error &&
+    error.code === 'MODULE_NOT_FOUND'
+  ) {
+    // dotenv not installed - expected in production, use env vars
+    console.log('dotenv not installed - using environment variables');
+  } else {
+    console.error('Unexpected error loading dotenv:', error);
+    console.log('Continuing with environment variables');
+  }
 }
 
 // Legacy event type names to migrate
@@ -40,7 +58,9 @@ const LEGACY_EVENT_TYPES = {
   INJURY_STOPPAGE: 'INJURY_STOPPAGE',
 } as const;
 
-// New event type names
+// New event type names required for this migration.
+// Note: Does not include STOPPAGE_START/STOPPAGE_END since INJURY_STOPPAGE
+// events are deleted (they lack paired start/end timing) rather than converted.
 const NEW_EVENT_TYPES = {
   GAME_START: 'GAME_START',
   GAME_END: 'GAME_END',
@@ -281,7 +301,8 @@ async function main() {
       console.log(`  Converted ${stats.fullTimesConverted} FULL_TIME events`);
     }
 
-    // Step 5: Delete INJURY_STOPPAGE events (no equivalent in new model)
+    // Step 5: Delete INJURY_STOPPAGE events (cannot convert to STOPPAGE_START/END pairs
+    // because legacy events lack the paired start/end timing information)
     const stoppageTypeId = eventTypeMap.get(LEGACY_EVENT_TYPES.INJURY_STOPPAGE);
     if (stoppageTypeId) {
       console.log('\nStep 5: Deleting INJURY_STOPPAGE events...');
