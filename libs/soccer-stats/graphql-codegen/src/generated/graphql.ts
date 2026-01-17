@@ -230,6 +230,7 @@ export type GameEvent = {
   id: Scalars['ID']['output'];
   parentEvent?: Maybe<GameEvent>;
   parentEventId?: Maybe<Scalars['ID']['output']>;
+  period?: Maybe<Scalars['String']['output']>;
   player?: Maybe<User>;
   playerId?: Maybe<Scalars['ID']['output']>;
   position?: Maybe<Scalars['String']['output']>;
@@ -1406,6 +1407,7 @@ export type GameEventFragmentFragment = {
   playerId?: string | null;
   externalPlayerName?: string | null;
   externalPlayerNumber?: string | null;
+  period?: string | null;
   player?: {
     __typename?: 'User';
     id: string;
@@ -1550,6 +1552,7 @@ export type GetGameByIdQuery = {
         playerId?: string | null;
         externalPlayerName?: string | null;
         externalPlayerNumber?: string | null;
+        period?: string | null;
         player?: {
           __typename?: 'User';
           id: string;
@@ -3480,6 +3483,7 @@ export const GameEventFragmentFragmentDoc = {
             kind: 'Field',
             name: { kind: 'Name', value: 'externalPlayerNumber' },
           },
+          { kind: 'Field', name: { kind: 'Name', value: 'period' } },
           {
             kind: 'Field',
             name: { kind: 'Name', value: 'player' },
@@ -4426,6 +4430,10 @@ export const GetGameByIdDocument = {
                                 kind: 'Name',
                                 value: 'externalPlayerNumber',
                               },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'period' },
                             },
                             {
                               kind: 'Field',

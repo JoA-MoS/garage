@@ -56,6 +56,7 @@ const GameEventFragmentDoc = gql`
     playerId
     externalPlayerName
     externalPlayerNumber
+    period
     player {
       id
       firstName

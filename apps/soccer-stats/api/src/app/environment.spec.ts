@@ -176,20 +176,12 @@ describe('Environment Configuration', () => {
       expect(getDbSynchronize()).toBe(true);
     });
 
-    it('should return false when DB_SYNCHRONIZE is "false" in production', () => {
-      process.env['NODE_ENV'] = 'production';
+    it('should return false when DB_SYNCHRONIZE is "false"', () => {
       process.env['DB_SYNCHRONIZE'] = 'false';
       expect(getDbSynchronize()).toBe(false);
     });
 
-    it('should return true in development when not set', () => {
-      process.env['NODE_ENV'] = 'development';
-      delete process.env['DB_SYNCHRONIZE'];
-      expect(getDbSynchronize()).toBe(true);
-    });
-
-    it('should return false in production when not set', () => {
-      process.env['NODE_ENV'] = 'production';
+    it('should return false when not set (use migrations instead)', () => {
       delete process.env['DB_SYNCHRONIZE'];
       expect(getDbSynchronize()).toBe(false);
     });

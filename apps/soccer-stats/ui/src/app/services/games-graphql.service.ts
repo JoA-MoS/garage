@@ -109,6 +109,7 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
           playerId
           externalPlayerName
           externalPlayerNumber
+          period
           player {
             id
             firstName

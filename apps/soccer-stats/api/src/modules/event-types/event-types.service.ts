@@ -12,11 +12,67 @@ interface CreateEventTypeInput {
   allowsParent?: boolean;
 }
 
+/**
+ * Timing event types that replace legacy KICKOFF, HALFTIME, FULL_TIME, INJURY_STOPPAGE.
+ * Defined separately so they can be used in both seedDefaultEventTypes (fresh DBs)
+ * and ensureNewEventTypesExist (existing DBs that need the new event types).
+ */
+const TIMING_EVENT_TYPES: CreateEventTypeInput[] = [
+  // Game lifecycle
+  {
+    name: 'GAME_START',
+    category: EventCategory.GAME_FLOW,
+    description: 'Game officially begins',
+    requiresPosition: false,
+    allowsParent: false,
+  },
+  {
+    name: 'GAME_END',
+    category: EventCategory.GAME_FLOW,
+    description: 'Game officially ends',
+    requiresPosition: false,
+    allowsParent: false,
+  },
+  // Periods
+  {
+    name: 'PERIOD_START',
+    category: EventCategory.GAME_FLOW,
+    description:
+      'Period begins (metadata.period indicates which: "1", "2", "OT1", etc.)',
+    requiresPosition: false,
+    allowsParent: false,
+  },
+  {
+    name: 'PERIOD_END',
+    category: EventCategory.GAME_FLOW,
+    description:
+      'Period ends (metadata.period indicates which: "1", "2", "OT1", etc.)',
+    requiresPosition: false,
+    allowsParent: false,
+  },
+  // Stoppages
+  {
+    name: 'STOPPAGE_START',
+    category: EventCategory.GAME_FLOW,
+    description:
+      'Clock paused (metadata.reason optional: "injury", "weather", etc.)',
+    requiresPosition: false,
+    allowsParent: false,
+  },
+  {
+    name: 'STOPPAGE_END',
+    category: EventCategory.GAME_FLOW,
+    description: 'Clock resumes after stoppage',
+    requiresPosition: false,
+    allowsParent: false,
+  },
+];
+
 @Injectable()
 export class EventTypesService {
   constructor(
     @InjectRepository(EventType)
-    private eventTypesRepository: Repository<EventType>
+    private eventTypesRepository: Repository<EventType>,
   ) {}
 
   async findAll(): Promise<EventType[]> {
@@ -141,35 +197,8 @@ export class EventTypesService {
         requiresPosition: false,
         allowsParent: true,
       },
-      // Game flow events
-      {
-        name: 'KICKOFF',
-        category: EventCategory.GAME_FLOW,
-        description: 'Game kickoff',
-        requiresPosition: false,
-        allowsParent: false,
-      },
-      {
-        name: 'HALFTIME',
-        category: EventCategory.GAME_FLOW,
-        description: 'Halftime whistle',
-        requiresPosition: false,
-        allowsParent: false,
-      },
-      {
-        name: 'FULL_TIME',
-        category: EventCategory.GAME_FLOW,
-        description: 'Full time whistle',
-        requiresPosition: false,
-        allowsParent: false,
-      },
-      {
-        name: 'INJURY_STOPPAGE',
-        category: EventCategory.GAME_FLOW,
-        description: 'Play stopped for injury',
-        requiresPosition: false,
-        allowsParent: false,
-      },
+      // Game flow events - timing (uses shared constant)
+      ...TIMING_EVENT_TYPES,
     ];
 
     for (const eventType of defaultEventTypes) {
@@ -192,11 +221,13 @@ export class EventTypesService {
   }
 
   /**
-   * Ensure all new event types added after initial seed exist
+   * Ensure all new event types added after initial seed exist.
+   * This ensures existing databases get new event types that weren't
+   * in the original seed.
    */
   async ensureNewEventTypesExist(): Promise<void> {
-    // Add any new event types here that weren't in the original seed
     const newEventTypes: CreateEventTypeInput[] = [
+      // Added after initial release
       {
         name: 'POSITION_SWAP',
         category: EventCategory.TACTICAL,
@@ -204,6 +235,8 @@ export class EventTypesService {
         requiresPosition: true,
         allowsParent: true,
       },
+      // Timing events (replaces legacy KICKOFF, HALFTIME, FULL_TIME, INJURY_STOPPAGE)
+      ...TIMING_EVENT_TYPES,
     ];
 
     for (const eventType of newEventTypes) {
