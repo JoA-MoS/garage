@@ -1,22 +1,40 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { GqlExecutionContext } from '@nestjs/graphql';
 
-import {
-  ClerkActor,
-  ClerkPayload as ClerkPayloadType,
-  ClerkUser,
-} from './clerk.service';
+import { ClerkActor, ClerkPayload as ClerkPayloadType } from './clerk.service';
+import { AuthenticatedUser } from './authenticated-user.type';
 
 /**
  * Parameter decorator to get the current authenticated user.
- * Returns the impersonated user during impersonation sessions.
+ *
+ * Returns an AuthenticatedUser object that includes:
+ * - `id`: Internal user ID (UUID) - use this for all domain operations
+ * - `clerkId`: Clerk user ID - only for Clerk-specific operations
+ * - `email`, `firstName`, `lastName`: User profile data
+ * - `internal`: Full internal User entity
+ *
+ * The internal user lookup happens once in the auth guard, so resolvers
+ * can access the internal user ID directly without additional DB queries.
+ *
+ * @example
+ * ```typescript
+ * @Mutation(() => Team)
+ * @UseGuards(ClerkAuthGuard)
+ * async createTeam(
+ *   @Args('input') input: CreateTeamInput,
+ *   @CurrentUser() user: AuthenticatedUser,
+ * ) {
+ *   // Use user.id (internal UUID) for domain operations
+ *   return this.teamsService.create(input, user.id);
+ * }
+ * ```
  */
 export const CurrentUser = createParamDecorator(
-  (data: unknown, context: ExecutionContext): ClerkUser => {
+  (data: unknown, context: ExecutionContext): AuthenticatedUser | null => {
     const ctx = GqlExecutionContext.create(context);
     const { req } = ctx.getContext();
-    return req.user;
-  }
+    return req.user ?? null;
+  },
 );
 
 /**
@@ -27,7 +45,7 @@ export const ClerkPayload = createParamDecorator(
     const ctx = GqlExecutionContext.create(context);
     const { req } = ctx.getContext();
     return req.clerkPayload;
-  }
+  },
 );
 
 /**
@@ -40,7 +58,7 @@ export const Actor = createParamDecorator(
     const ctx = GqlExecutionContext.create(context);
     const { req } = ctx.getContext();
     return req.actor ?? null;
-  }
+  },
 );
 
 /**
@@ -52,5 +70,5 @@ export const IsImpersonating = createParamDecorator(
     const ctx = GqlExecutionContext.create(context);
     const { req } = ctx.getContext();
     return req.isImpersonating ?? false;
-  }
+  },
 );
