@@ -1,0 +1,382 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+
+import { Game, GameStatus } from '../../entities/game.entity';
+import { Team } from '../../entities/team.entity';
+import { GameTeam } from '../../entities/game-team.entity';
+import { GameFormat } from '../../entities/game-format.entity';
+import { GameEvent } from '../../entities/game-event.entity';
+import { EventType, EventCategory } from '../../entities/event-type.entity';
+import {
+  TeamConfiguration,
+  StatsTrackingLevel,
+} from '../../entities/team-configuration.entity';
+
+import { GamesService } from './games.service';
+
+describe('GamesService', () => {
+  let service: GamesService;
+  let gameRepository: jest.Mocked<Repository<Game>>;
+  let gameEventRepository: jest.Mocked<Repository<GameEvent>>;
+  let eventTypeRepository: jest.Mocked<Repository<EventType>>;
+
+  // Mock repositories
+  const mockGameRepository = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    createQueryBuilder: jest.fn(),
+  };
+
+  const mockTeamRepository = {
+    findOne: jest.fn(),
+  };
+
+  const mockGameTeamRepository = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+  };
+
+  const mockGameFormatRepository = {
+    findOne: jest.fn(),
+  };
+
+  const mockGameEventRepository = {
+    find: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    createQueryBuilder: jest.fn(),
+  };
+
+  const mockEventTypeRepository = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+  };
+
+  const mockTeamConfigurationRepository = {
+    findOne: jest.fn(),
+  };
+
+  // Mock event types for timing
+  const mockTimingEventTypes: Partial<EventType>[] = [
+    {
+      id: 'et-game-start',
+      name: 'GAME_START',
+      category: EventCategory.GAME_FLOW,
+    },
+    { id: 'et-game-end', name: 'GAME_END', category: EventCategory.GAME_FLOW },
+    {
+      id: 'et-period-start',
+      name: 'PERIOD_START',
+      category: EventCategory.GAME_FLOW,
+    },
+    {
+      id: 'et-period-end',
+      name: 'PERIOD_END',
+      category: EventCategory.GAME_FLOW,
+    },
+    {
+      id: 'et-stoppage-start',
+      name: 'STOPPAGE_START',
+      category: EventCategory.GAME_FLOW,
+    },
+    {
+      id: 'et-stoppage-end',
+      name: 'STOPPAGE_END',
+      category: EventCategory.GAME_FLOW,
+    },
+  ];
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        GamesService,
+        { provide: getRepositoryToken(Game), useValue: mockGameRepository },
+        { provide: getRepositoryToken(Team), useValue: mockTeamRepository },
+        {
+          provide: getRepositoryToken(GameTeam),
+          useValue: mockGameTeamRepository,
+        },
+        {
+          provide: getRepositoryToken(GameFormat),
+          useValue: mockGameFormatRepository,
+        },
+        {
+          provide: getRepositoryToken(GameEvent),
+          useValue: mockGameEventRepository,
+        },
+        {
+          provide: getRepositoryToken(EventType),
+          useValue: mockEventTypeRepository,
+        },
+        {
+          provide: getRepositoryToken(TeamConfiguration),
+          useValue: mockTeamConfigurationRepository,
+        },
+      ],
+    }).compile();
+
+    service = module.get<GamesService>(GamesService);
+    gameRepository = module.get(getRepositoryToken(Game));
+    gameEventRepository = module.get(getRepositoryToken(GameEvent));
+    eventTypeRepository = module.get(getRepositoryToken(EventType));
+
+    jest.clearAllMocks();
+  });
+
+  describe('update - timing event creation', () => {
+    const mockGame: Partial<Game> = {
+      id: 'game-1',
+      status: GameStatus.SCHEDULED,
+      gameFormatId: 'format-1',
+    };
+
+    beforeEach(() => {
+      // Default: findOne returns the mock game with full relations
+      mockGameRepository.findOne.mockResolvedValue({
+        ...mockGame,
+        gameTeams: [],
+        gameFormat: { id: 'format-1', name: '5v5' },
+      } as Game);
+      mockGameRepository.update.mockResolvedValue({ affected: 1 } as any);
+
+      // Default: return all timing event types
+      mockEventTypeRepository.find.mockResolvedValue(
+        mockTimingEventTypes as EventType[],
+      );
+
+      // Event creation mocks
+      mockGameEventRepository.create.mockImplementation(
+        (input) => input as GameEvent,
+      );
+      mockGameEventRepository.save.mockImplementation((entity) =>
+        Promise.resolve({ ...entity, id: `event-${Date.now()}` } as GameEvent),
+      );
+    });
+
+    describe('createTimingEventsForStatusChange', () => {
+      it('should create GAME_START and PERIOD_START events when status is FIRST_HALF', async () => {
+        await service.update('game-1', { status: GameStatus.FIRST_HALF });
+
+        // Should have created 2 events: GAME_START and PERIOD_START
+        expect(mockGameEventRepository.create).toHaveBeenCalledTimes(2);
+        expect(mockGameEventRepository.save).toHaveBeenCalledTimes(2);
+
+        const createCalls = mockGameEventRepository.create.mock.calls;
+
+        // First event: GAME_START
+        expect(createCalls[0][0]).toMatchObject({
+          gameId: 'game-1',
+          eventTypeId: 'et-game-start',
+        });
+
+        // Second event: PERIOD_START with period 1
+        expect(createCalls[1][0]).toMatchObject({
+          gameId: 'game-1',
+          eventTypeId: 'et-period-start',
+          metadata: { period: '1' },
+        });
+      });
+
+      it('should create PERIOD_END event when status is HALFTIME', async () => {
+        await service.update('game-1', { status: GameStatus.HALFTIME });
+
+        expect(mockGameEventRepository.create).toHaveBeenCalledTimes(1);
+        expect(mockGameEventRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            gameId: 'game-1',
+            eventTypeId: 'et-period-end',
+            metadata: { period: '1' },
+          }),
+        );
+      });
+
+      it('should create PERIOD_START event when status is SECOND_HALF', async () => {
+        await service.update('game-1', { status: GameStatus.SECOND_HALF });
+
+        expect(mockGameEventRepository.create).toHaveBeenCalledTimes(1);
+        expect(mockGameEventRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            gameId: 'game-1',
+            eventTypeId: 'et-period-start',
+            metadata: { period: '2' },
+          }),
+        );
+      });
+
+      it('should create PERIOD_END and GAME_END events when status is COMPLETED', async () => {
+        await service.update('game-1', { status: GameStatus.COMPLETED });
+
+        expect(mockGameEventRepository.create).toHaveBeenCalledTimes(2);
+
+        const createCalls = mockGameEventRepository.create.mock.calls;
+
+        // First event: PERIOD_END with period 2
+        expect(createCalls[0][0]).toMatchObject({
+          gameId: 'game-1',
+          eventTypeId: 'et-period-end',
+          metadata: { period: '2' },
+        });
+
+        // Second event: GAME_END
+        expect(createCalls[1][0]).toMatchObject({
+          gameId: 'game-1',
+          eventTypeId: 'et-game-end',
+        });
+      });
+
+      it('should not create events when status is not provided', async () => {
+        await service.update('game-1', {
+          statsTrackingLevel: StatsTrackingLevel.FULL,
+        });
+
+        expect(mockGameEventRepository.create).not.toHaveBeenCalled();
+      });
+
+      it('should throw error when required event types are missing', async () => {
+        // Return only partial event types
+        mockEventTypeRepository.find.mockResolvedValue([
+          { id: 'et-game-start', name: 'GAME_START' },
+        ] as EventType[]);
+
+        await expect(
+          service.update('game-1', { status: GameStatus.FIRST_HALF }),
+        ).rejects.toThrow('Cannot create timing events: missing event types');
+      });
+    });
+
+    describe('handlePauseResumeEvent', () => {
+      beforeEach(() => {
+        mockEventTypeRepository.findOne.mockImplementation(({ where }: any) => {
+          const eventType = mockTimingEventTypes.find(
+            (et) => et.name === where.name,
+          );
+          return Promise.resolve(eventType as EventType);
+        });
+      });
+
+      it('should create STOPPAGE_START event when pausedAt is a date', async () => {
+        const pauseTime = new Date('2024-01-01T10:15:00Z');
+
+        await service.update('game-1', { pausedAt: pauseTime });
+
+        expect(mockEventTypeRepository.findOne).toHaveBeenCalledWith({
+          where: { name: 'STOPPAGE_START' },
+        });
+        expect(mockGameEventRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            gameId: 'game-1',
+            eventTypeId: 'et-stoppage-start',
+          }),
+        );
+      });
+
+      it('should create STOPPAGE_END event when pausedAt is null', async () => {
+        await service.update('game-1', { pausedAt: null });
+
+        expect(mockEventTypeRepository.findOne).toHaveBeenCalledWith({
+          where: { name: 'STOPPAGE_END' },
+        });
+        expect(mockGameEventRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            gameId: 'game-1',
+            eventTypeId: 'et-stoppage-end',
+          }),
+        );
+      });
+
+      it('should throw error when STOPPAGE event type is not found', async () => {
+        mockEventTypeRepository.findOne.mockResolvedValue(null);
+
+        await expect(
+          service.update('game-1', { pausedAt: new Date() }),
+        ).rejects.toThrow('Cannot pause game');
+      });
+    });
+
+    describe('resetGame with timing events', () => {
+      const setupDeleteQueryBuilder = () => {
+        const mockDeleteBuilder = {
+          delete: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          execute: jest.fn().mockResolvedValue({ affected: 5 }),
+        };
+        mockGameEventRepository.createQueryBuilder.mockReturnValue(
+          mockDeleteBuilder as any,
+        );
+        return mockDeleteBuilder;
+      };
+
+      const setupUpdateQueryBuilder = () => {
+        const mockUpdateBuilder = {
+          update: jest.fn().mockReturnThis(),
+          set: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          execute: jest.fn().mockResolvedValue({ affected: 1 }),
+        };
+        mockGameRepository.createQueryBuilder.mockReturnValue(
+          mockUpdateBuilder as any,
+        );
+        return mockUpdateBuilder;
+      };
+
+      it('should delete ALL events when clearEvents is true', async () => {
+        const deleteBuilder = setupDeleteQueryBuilder();
+        setupUpdateQueryBuilder();
+
+        await service.update('game-1', { resetGame: true, clearEvents: true });
+
+        // Should delete all events (not filter by event type)
+        expect(deleteBuilder.where).toHaveBeenCalledWith('gameId = :gameId', {
+          gameId: 'game-1',
+        });
+        expect(deleteBuilder.andWhere).not.toHaveBeenCalled();
+      });
+
+      it('should delete only timing events when clearEvents is false', async () => {
+        const deleteBuilder = setupDeleteQueryBuilder();
+        setupUpdateQueryBuilder();
+
+        await service.update('game-1', { resetGame: true, clearEvents: false });
+
+        // Should filter by timing event types
+        expect(deleteBuilder.where).toHaveBeenCalledWith('gameId = :gameId', {
+          gameId: 'game-1',
+        });
+        expect(deleteBuilder.andWhere).toHaveBeenCalledWith(
+          'eventTypeId IN (:...timingEventTypeIds)',
+          expect.objectContaining({
+            timingEventTypeIds: expect.arrayContaining([
+              'et-game-start',
+              'et-game-end',
+              'et-period-start',
+              'et-period-end',
+              'et-stoppage-start',
+              'et-stoppage-end',
+            ]),
+          }),
+        );
+      });
+
+      it('should reset status to SCHEDULED', async () => {
+        setupDeleteQueryBuilder();
+        const updateBuilder = setupUpdateQueryBuilder();
+
+        await service.update('game-1', { resetGame: true });
+
+        expect(updateBuilder.set).toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: GameStatus.SCHEDULED,
+          }),
+        );
+      });
+    });
+  });
+});

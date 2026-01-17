@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -22,6 +22,18 @@ export interface GameTiming {
   pausedAt?: Date;
 }
 
+/** Timing event type names for type safety */
+const TIMING_EVENT_NAMES = [
+  'GAME_START',
+  'GAME_END',
+  'PERIOD_START',
+  'PERIOD_END',
+  'STOPPAGE_START',
+  'STOPPAGE_END',
+] as const;
+
+type TimingEventName = (typeof TIMING_EVENT_NAMES)[number];
+
 /**
  * Service to derive game timing from timing events.
  *
@@ -32,7 +44,18 @@ export interface GameTiming {
  * - STOPPAGE_START, STOPPAGE_END
  */
 @Injectable()
-export class GameTimingService {
+export class GameTimingService implements OnModuleInit {
+  private readonly logger = new Logger(GameTimingService.name);
+
+  /** Cached timing event type IDs for efficient queries */
+  private timingEventTypeIds: string[] = [];
+
+  /** Map of event type ID to name for quick lookup */
+  private eventTypeIdToName = new Map<string, TimingEventName>();
+
+  /** Flag to track if event types are cached */
+  private eventTypesCached = false;
+
   constructor(
     @InjectRepository(GameEvent)
     private readonly gameEventRepository: Repository<GameEvent>,
@@ -41,45 +64,148 @@ export class GameTimingService {
   ) {}
 
   /**
+   * Initialize the service by caching timing event types.
+   * Event types are static reference data that rarely changes.
+   */
+  async onModuleInit(): Promise<void> {
+    await this.loadTimingEventTypes();
+  }
+
+  /**
+   * Load and cache timing event types from the database.
+   * Called on module init and can be called to refresh the cache.
+   */
+  private async loadTimingEventTypes(): Promise<void> {
+    try {
+      const timingEventTypes = await this.eventTypeRepository.find({
+        where: TIMING_EVENT_NAMES.map((name) => ({ name })),
+      });
+
+      this.timingEventTypeIds = timingEventTypes.map((et) => et.id);
+      this.eventTypeIdToName.clear();
+      timingEventTypes.forEach((et) => {
+        this.eventTypeIdToName.set(et.id, et.name as TimingEventName);
+      });
+      this.eventTypesCached = true;
+
+      if (this.timingEventTypeIds.length === 0) {
+        this.logger.warn(
+          'No timing event types found in database. ' +
+            'Timing features will not work until event types are seeded.',
+        );
+      } else if (this.timingEventTypeIds.length < TIMING_EVENT_NAMES.length) {
+        const foundNames = [...this.eventTypeIdToName.values()];
+        const missingNames = TIMING_EVENT_NAMES.filter(
+          (name) => !foundNames.includes(name),
+        );
+        this.logger.warn(
+          `Missing timing event types: ${missingNames.join(', ')}. ` +
+            'Some timing features may not work correctly.',
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        'Failed to load timing event types. Timing features will not work.',
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Ensure event types are cached before querying.
+   * This handles the case where the service is used before onModuleInit completes.
+   */
+  private async ensureEventTypesCached(): Promise<void> {
+    if (!this.eventTypesCached) {
+      await this.loadTimingEventTypes();
+    }
+  }
+
+  /**
    * Get computed timing for a game from its timing events.
    */
   async getGameTiming(gameId: string): Promise<GameTiming> {
-    // Get timing event types
-    const timingEventTypes = await this.eventTypeRepository.find({
-      where: [
-        { name: 'GAME_START' },
-        { name: 'GAME_END' },
-        { name: 'PERIOD_START' },
-        { name: 'PERIOD_END' },
-        { name: 'STOPPAGE_START' },
-        { name: 'STOPPAGE_END' },
-      ],
-    });
+    const timingMap = await this.getGameTimingBatch([gameId]);
+    return timingMap.get(gameId) ?? {};
+  }
 
-    const eventTypeIds = timingEventTypes.map((et) => et.id);
-    const eventTypeMap = new Map(
-      timingEventTypes.map((et) => [et.id, et.name]),
-    );
-
-    if (eventTypeIds.length === 0) {
-      return {};
+  /**
+   * Batch load computed timing for multiple games.
+   * This is the primary method used by DataLoaders to prevent N+1 queries.
+   */
+  async getGameTimingBatch(
+    gameIds: string[],
+  ): Promise<Map<string, GameTiming>> {
+    if (gameIds.length === 0) {
+      return new Map();
     }
 
-    // Get all timing events for this game
-    const events = await this.gameEventRepository
-      .createQueryBuilder('ge')
-      .where('ge.gameId = :gameId', { gameId })
-      .andWhere('ge.eventTypeId IN (:...eventTypeIds)', { eventTypeIds })
-      .orderBy('ge.createdAt', 'ASC')
-      .getMany();
+    await this.ensureEventTypesCached();
 
+    const result = new Map<string, GameTiming>();
+
+    // Initialize all games with empty timing
+    for (const gameId of gameIds) {
+      result.set(gameId, {});
+    }
+
+    if (this.timingEventTypeIds.length === 0) {
+      this.logger.warn(
+        'Cannot compute game timing: no timing event types are cached. ' +
+          'Returning empty timing for all games.',
+      );
+      return result;
+    }
+
+    try {
+      // Get all timing events for all games in a single query
+      const events = await this.gameEventRepository
+        .createQueryBuilder('ge')
+        .where('ge.gameId IN (:...gameIds)', { gameIds })
+        .andWhere('ge.eventTypeId IN (:...eventTypeIds)', {
+          eventTypeIds: this.timingEventTypeIds,
+        })
+        .orderBy('ge.gameId', 'ASC')
+        .addOrderBy('ge.createdAt', 'ASC')
+        .getMany();
+
+      // Group events by game and process
+      const eventsByGame = new Map<string, GameEvent[]>();
+      for (const event of events) {
+        const gameEvents = eventsByGame.get(event.gameId) || [];
+        gameEvents.push(event);
+        eventsByGame.set(event.gameId, gameEvents);
+      }
+
+      // Process events for each game
+      for (const [gameId, gameEvents] of eventsByGame) {
+        const timing = this.computeTimingFromEvents(gameEvents);
+        result.set(gameId, timing);
+      }
+
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Failed to load timing events for games: ${gameIds.join(', ')}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Compute timing from a list of events for a single game.
+   * Events must be sorted by createdAt in ascending order.
+   */
+  private computeTimingFromEvents(events: GameEvent[]): GameTiming {
     const timing: GameTiming = {};
 
     // Track stoppage events to determine if currently paused
     let lastStoppageStart: Date | undefined;
 
     for (const event of events) {
-      const eventTypeName = eventTypeMap.get(event.eventTypeId);
+      const eventTypeName = this.eventTypeIdToName.get(event.eventTypeId);
       const period = (event.metadata as { period?: string } | undefined)
         ?.period;
 
