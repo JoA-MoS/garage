@@ -165,22 +165,6 @@
         "cwd": "{workspaceRoot}",
         "envFile": "apps/soccer-stats/api/.env"
       }
-    },
-    "migrate:timing-events": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "npx ts-node apps/soccer-stats/api/src/scripts/migrate-timing-events.ts",
-        "cwd": "{workspaceRoot}",
-        "envFile": "apps/soccer-stats/api/.env"
-      }
-    },
-    "migrate:timing-events:dry-run": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "DRY_RUN=true npx ts-node apps/soccer-stats/api/src/scripts/migrate-timing-events.ts",
-        "cwd": "{workspaceRoot}",
-        "envFile": "apps/soccer-stats/api/.env"
-      }
     }
   }
 }

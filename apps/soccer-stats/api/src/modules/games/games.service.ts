@@ -158,17 +158,42 @@ export class GamesService {
   }
 
   async update(id: string, updateGameInput: UpdateGameInput): Promise<Game> {
-    // Handle resetGame flag - reset to SCHEDULED and clear all timestamps
+    // Handle resetGame flag - reset to SCHEDULED and clear timing
     if (updateGameInput.resetGame) {
-      // Optionally clear all game events
       if (updateGameInput.clearEvents) {
+        // Clear ALL game events
         await this.gameEventRepository
           .createQueryBuilder()
           .delete()
           .where('gameId = :gameId', { gameId: id })
           .execute();
+      } else {
+        // Clear only timing events (event-based timing model)
+        const timingEventTypes = await this.eventTypeRepository.find({
+          where: [
+            { name: 'GAME_START' },
+            { name: 'GAME_END' },
+            { name: 'PERIOD_START' },
+            { name: 'PERIOD_END' },
+            { name: 'STOPPAGE_START' },
+            { name: 'STOPPAGE_END' },
+          ],
+        });
+        const timingEventTypeIds = timingEventTypes.map((et) => et.id);
+
+        if (timingEventTypeIds.length > 0) {
+          await this.gameEventRepository
+            .createQueryBuilder()
+            .delete()
+            .where('gameId = :gameId', { gameId: id })
+            .andWhere('eventTypeId IN (:...timingEventTypeIds)', {
+              timingEventTypeIds,
+            })
+            .execute();
+        }
       }
 
+      // Reset status and clear legacy timing columns (kept for backward compatibility)
       await this.gameRepository
         .createQueryBuilder()
         .update(Game)
@@ -185,7 +210,8 @@ export class GamesService {
       return this.findOne(id);
     }
 
-    // Extract only the fields that don't exist on the Game entity (from CreateGameInput)
+    // Extract fields that should not be passed directly to entity update
+    // Timing fields are now derived from events, not stored as columns
     const {
       homeTeamId: _homeTeamId,
       awayTeamId: _awayTeamId,
@@ -193,12 +219,25 @@ export class GamesService {
       duration: _duration,
       resetGame: _resetGame,
       clearEvents: _clearEvents,
+      actualStart: _actualStart,
+      firstHalfEnd: _firstHalfEnd,
+      secondHalfStart: _secondHalfStart,
+      actualEnd: _actualEnd,
+      pausedAt: inputPausedAt,
       ...gameFields
     } = updateGameInput as Record<string, unknown>;
 
-    // Only update with valid Game entity fields
+    // Only update with valid Game entity fields (excludes timing fields)
     if (Object.keys(gameFields).length > 0) {
       await this.gameRepository.update(id, gameFields);
+    }
+
+    // Create timing events based on status changes
+    await this.createTimingEventsForStatusChange(id, updateGameInput.status);
+
+    // Handle pause/resume via events
+    if (inputPausedAt !== undefined) {
+      await this.handlePauseResumeEvent(id, inputPausedAt as Date | null);
     }
 
     // Convert STARTING_LINEUP events to SUBSTITUTION_IN when game starts
@@ -362,5 +401,100 @@ export class GamesService {
     this.logger.log(
       `Converted ${startingLineupEvents.length} STARTING_LINEUP events to SUBSTITUTION_IN for game ${gameId}`,
     );
+  }
+
+  /**
+   * Creates timing events based on game status changes.
+   * This replaces direct column updates with event-based timing.
+   */
+  private async createTimingEventsForStatusChange(
+    gameId: string,
+    status?: GameStatus,
+  ): Promise<void> {
+    if (!status) return;
+
+    const eventTypeMap = new Map<string, EventType>();
+    const eventTypes = await this.eventTypeRepository.find({
+      where: [
+        { name: 'GAME_START' },
+        { name: 'GAME_END' },
+        { name: 'PERIOD_START' },
+        { name: 'PERIOD_END' },
+      ],
+    });
+    eventTypes.forEach((et) => eventTypeMap.set(et.name, et));
+
+    const createEvent = async (
+      eventTypeName: string,
+      metadata?: Record<string, unknown>,
+    ) => {
+      const eventType = eventTypeMap.get(eventTypeName);
+      if (!eventType) {
+        this.logger.warn(`Event type ${eventTypeName} not found`);
+        return;
+      }
+
+      const event = this.gameEventRepository.create({
+        gameId,
+        eventTypeId: eventType.id,
+        gameMinute: 0,
+        gameSecond: 0,
+        metadata,
+      });
+      await this.gameEventRepository.save(event);
+    };
+
+    switch (status) {
+      case GameStatus.FIRST_HALF:
+        // Game starting: create GAME_START and PERIOD_START (period 1)
+        await createEvent('GAME_START');
+        await createEvent('PERIOD_START', { period: '1' });
+        break;
+
+      case GameStatus.HALFTIME:
+        // First half ending: create PERIOD_END (period 1)
+        await createEvent('PERIOD_END', { period: '1' });
+        break;
+
+      case GameStatus.SECOND_HALF:
+        // Second half starting: create PERIOD_START (period 2)
+        await createEvent('PERIOD_START', { period: '2' });
+        break;
+
+      case GameStatus.COMPLETED:
+        // Game ending: create PERIOD_END (period 2) and GAME_END
+        await createEvent('PERIOD_END', { period: '2' });
+        await createEvent('GAME_END');
+        break;
+    }
+  }
+
+  /**
+   * Creates stoppage events for pause/resume functionality.
+   * pausedAt = Date means pause (create STOPPAGE_START)
+   * pausedAt = null means resume (create STOPPAGE_END)
+   */
+  private async handlePauseResumeEvent(
+    gameId: string,
+    pausedAt: Date | null,
+  ): Promise<void> {
+    const eventTypeName = pausedAt ? 'STOPPAGE_START' : 'STOPPAGE_END';
+
+    const eventType = await this.eventTypeRepository.findOne({
+      where: { name: eventTypeName },
+    });
+
+    if (!eventType) {
+      this.logger.warn(`Event type ${eventTypeName} not found`);
+      return;
+    }
+
+    const event = this.gameEventRepository.create({
+      gameId,
+      eventTypeId: eventType.id,
+      gameMinute: 0,
+      gameSecond: 0,
+    });
+    await this.gameEventRepository.save(event);
   }
 }
