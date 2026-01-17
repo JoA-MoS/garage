@@ -157,6 +157,14 @@
         "cwd": "{workspaceRoot}",
         "envFile": "apps/soccer-stats/api/.env"
       }
+    },
+    "migration:revert": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "TS_NODE_PROJECT=apps/soccer-stats/api/tsconfig.app.json npx typeorm-ts-node-commonjs migration:revert -d apps/soccer-stats/api/src/database/data-source.ts",
+        "cwd": "{workspaceRoot}",
+        "envFile": "apps/soccer-stats/api/.env"
+      }
     }
   }
 }
