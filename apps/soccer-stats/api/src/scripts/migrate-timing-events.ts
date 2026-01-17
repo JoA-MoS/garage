@@ -220,15 +220,14 @@ async function main() {
 
       if (!isDryRun && halftimeEvents.rows.length > 0) {
         // Update all HALFTIME events to PERIOD_END with period: "1"
+        // Use JSONB merge to preserve any existing metadata while adding period
+        // Note: HALFTIME events historically didn't have metadata, but this is defensive
         await client.query(
           `UPDATE game_events
-           SET "eventTypeId" = $1, metadata = $2
-           WHERE "eventTypeId" = $3`,
-          [
-            eventTypeMap.get(NEW_EVENT_TYPES.PERIOD_END),
-            JSON.stringify({ period: '1' }),
-            halftimeTypeId,
-          ],
+           SET "eventTypeId" = $1,
+               metadata = (COALESCE(metadata::jsonb, '{}'::jsonb) || '{"period": "1"}'::jsonb)::json
+           WHERE "eventTypeId" = $2`,
+          [eventTypeMap.get(NEW_EVENT_TYPES.PERIOD_END), halftimeTypeId],
         );
       }
       stats.halftimesConverted = halftimeEvents.rows.length;
