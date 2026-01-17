@@ -5,8 +5,6 @@ import {
   Args,
   ID,
   Subscription,
-  ResolveField,
-  Parent,
 } from '@nestjs/graphql';
 import { UseGuards, Inject, BadRequestException } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
@@ -294,14 +292,6 @@ export class GameEventsResolver {
     return this.pubSub.asyncIterableIterator(`gameEvent:${gameId}`);
   }
 
-  /**
-   * Computed field: extracts period from metadata for timing events.
-   * Returns the period identifier (e.g., "1", "2", "OT1") for PERIOD_START/PERIOD_END events.
-   * Returns null for all other event types.
-   */
-  @ResolveField(() => String, { nullable: true })
-  period(@Parent() event: GameEvent): string | null {
-    const metadata = event.metadata as { period?: string } | null;
-    return metadata?.period ?? null;
-  }
+  // Note: The `period` field is now a computed getter on the GameEvent entity itself,
+  // so no @ResolveField is needed here. See GameEvent.period getter.
 }

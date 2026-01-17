@@ -29,17 +29,38 @@ export class StartupService implements OnModuleInit {
       throw error; // Prevent app from starting with broken migration state
     }
 
-    // Seeding operations - log but continue (idempotent operations)
+    // Seeding operations - differentiate between transient and permanent errors
     try {
       await this.gameFormatsService.seedDefaultFormats();
       await this.eventTypesService.seedDefaultEventTypes();
       await this.eventTypesService.ensureNewEventTypesExist();
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+
+      // Schema/structural errors indicate a broken database state - fail fast
+      const isSchemaError =
+        errorMessage.includes('column') ||
+        errorMessage.includes('relation') ||
+        errorMessage.includes('does not exist') ||
+        errorMessage.includes('already exists');
+
+      if (isSchemaError) {
+        this.logger.error(
+          'CRITICAL: Database schema error during seeding. Check database schema matches expected state.',
+          errorStack,
+        );
+        throw error; // Fail fast - schema issues won't fix themselves
+      }
+
+      // Transient errors (connection, timeout) - warn and continue
       this.logger.warn(
-        'Failed to seed reference data. Application will start but some features may not work correctly.',
-        error instanceof Error ? error.stack : String(error),
+        'Failed to seed reference data (game formats, event types). ' +
+          'Application will start but game creation and event recording may fail until next restart.',
+        errorStack,
       );
-      // Don't throw - seeding is idempotent and will be retried on next startup
+      // Don't throw - transient errors may resolve on next startup
     }
 
     this.logger.log('Application initialization completed successfully');

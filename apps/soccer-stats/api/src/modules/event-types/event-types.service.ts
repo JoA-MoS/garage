@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -70,6 +70,8 @@ const TIMING_EVENT_TYPES: CreateEventTypeInput[] = [
 
 @Injectable()
 export class EventTypesService {
+  private readonly logger = new Logger(EventTypesService.name);
+
   constructor(
     @InjectRepository(EventType)
     private eventTypesRepository: Repository<EventType>,
@@ -109,7 +111,7 @@ export class EventTypesService {
     const existingTypes = await this.eventTypesRepository.count();
 
     if (existingTypes > 0) {
-      console.log('Event types already exist, skipping seed');
+      this.logger.debug('Event types already exist, skipping seed');
       return;
     }
 
@@ -205,7 +207,7 @@ export class EventTypesService {
       await this.create(eventType);
     }
 
-    console.log('Successfully seeded default event types');
+    this.logger.log('Successfully seeded default event types');
   }
 
   /**
@@ -216,7 +218,7 @@ export class EventTypesService {
     if (existing) {
       return existing;
     }
-    console.log(`Creating missing event type: ${input.name}`);
+    this.logger.log(`Creating missing event type: ${input.name}`);
     return this.create(input);
   }
 

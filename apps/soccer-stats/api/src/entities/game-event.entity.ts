@@ -84,11 +84,16 @@ export class GameEvent extends BaseEntity {
 
   /**
    * Period identifier for timing events (PERIOD_START, PERIOD_END).
-   * Extracted from metadata.period. Returns null for non-period events.
+   * Derived from metadata.period. Returns undefined for non-period events.
    * Examples: "1" (first half), "2" (second half), "OT1" (overtime)
+   *
+   * Note: This is a computed property, not a database column. It works both
+   * when accessed directly on the entity and via GraphQL (resolver also handles it).
    */
   @Field({ nullable: true })
-  period?: string;
+  get period(): string | undefined {
+    return (this.metadata as { period?: string } | undefined)?.period;
+  }
 
   @Field(() => Game)
   @ManyToOne(() => Game, (game) => game.gameEvents, { onDelete: 'CASCADE' })
