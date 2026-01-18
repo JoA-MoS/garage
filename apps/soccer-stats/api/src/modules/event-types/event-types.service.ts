@@ -155,6 +155,13 @@ export class EventTypesService {
         requiresPosition: true,
         allowsParent: true,
       },
+      {
+        name: 'FORMATION_CHANGE',
+        category: EventCategory.TACTICAL,
+        description: 'Team formation changed during the game',
+        requiresPosition: false,
+        allowsParent: false,
+      },
       // Scoring events
       {
         name: 'GOAL',
@@ -236,6 +243,13 @@ export class EventTypesService {
         description: 'Two players swap positions on the field',
         requiresPosition: true,
         allowsParent: true,
+      },
+      {
+        name: 'FORMATION_CHANGE',
+        category: EventCategory.TACTICAL,
+        description: 'Team formation changed during the game',
+        requiresPosition: false,
+        allowsParent: false,
       },
       // Timing events (replaces legacy KICKOFF, HALFTIME, FULL_TIME, INJURY_STOPPAGE)
       ...TIMING_EVENT_TYPES,
