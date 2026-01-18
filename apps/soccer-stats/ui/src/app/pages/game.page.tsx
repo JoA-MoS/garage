@@ -1427,12 +1427,18 @@ export const GamePage = () => {
                     | 'substitution'
                     | 'position_swap'
                     | 'starter_entry'
-                    | 'formation_change';
+                    | 'formation_change'
+                    | 'game_start'
+                    | 'period_start'
+                    | 'period_end'
+                    | 'game_end';
                   gameMinute: number;
                   gameSecond: number;
                   teamType: string;
                   teamName: string;
                   teamColor: string;
+                  // Timing event-specific
+                  period?: string | null;
                   // Goal-specific
                   playerId?: string | null;
                   externalPlayerName?: string | null;
@@ -1660,6 +1666,66 @@ export const GamePage = () => {
                         newFormation: event.formation,
                       });
                     }
+
+                    // Note: GAME_START events are not displayed - PERIOD_START period 1 serves as the game start indicator
+
+                    // Process PERIOD_START events (show all - period 1 implies game started)
+                    if (event.eventType?.name === 'PERIOD_START') {
+                      matchEvents.push({
+                        id: event.id,
+                        createdAt: event.createdAt,
+                        eventType: 'period_start',
+                        gameMinute: event.gameMinute,
+                        gameSecond: event.gameSecond,
+                        teamType,
+                        teamName: gameTeam.team.name,
+                        teamColor:
+                          gameTeam.team.homePrimaryColor || defaultColor,
+                        period: event.period,
+                      });
+                    }
+
+                    // Process PERIOD_END events (skip if GAME_END exists at same time - redundant with Full Time)
+                    if (event.eventType?.name === 'PERIOD_END') {
+                      // Check if there's a GAME_END at the same minute/second (final whistle)
+                      const hasGameEndAtSameTime = gameTeam.gameEvents?.some(
+                        (e) =>
+                          e.eventType?.name === 'GAME_END' &&
+                          e.gameMinute === event.gameMinute &&
+                          e.gameSecond === event.gameSecond,
+                      );
+                      // Only show PERIOD_END if it's not the final period (no concurrent GAME_END)
+                      if (!hasGameEndAtSameTime) {
+                        matchEvents.push({
+                          id: event.id,
+                          createdAt: event.createdAt,
+                          eventType: 'period_end',
+                          gameMinute: event.gameMinute,
+                          gameSecond: event.gameSecond,
+                          teamType,
+                          teamName: gameTeam.team.name,
+                          teamColor:
+                            gameTeam.team.homePrimaryColor || defaultColor,
+                          period: event.period,
+                        });
+                      }
+                    }
+
+                    // Process GAME_END events
+                    if (event.eventType?.name === 'GAME_END') {
+                      matchEvents.push({
+                        id: event.id,
+                        createdAt: event.createdAt,
+                        eventType: 'game_end',
+                        gameMinute: event.gameMinute,
+                        gameSecond: event.gameSecond,
+                        teamType,
+                        teamName: gameTeam.team.name,
+                        teamColor:
+                          gameTeam.team.homePrimaryColor || defaultColor,
+                        period: event.period,
+                      });
+                    }
                   });
                 };
 
@@ -1831,6 +1897,7 @@ export const GamePage = () => {
                           player2Name={player2Name}
                           player2Position={event.swapPlayer2?.position}
                           newFormation={event.newFormation}
+                          period={event.period}
                           onDeleteClick={handleDeleteClick}
                           onEdit={
                             event.eventType === 'goal'
