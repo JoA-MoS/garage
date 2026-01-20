@@ -68,7 +68,7 @@ export class GamesResolver {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     this.logger.log(`Updating game ${id} for user: ${user.id}`);
-    const game = await this.gamesService.update(id, updateGameInput);
+    const game = await this.gamesService.update(id, updateGameInput, user.id);
     try {
       await this.pubSub.publish('gameUpdated', { gameUpdated: game });
     } catch (error) {

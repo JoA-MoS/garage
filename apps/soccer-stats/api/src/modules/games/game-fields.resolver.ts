@@ -145,4 +145,31 @@ export class GameFieldsResolver {
     }
     return game.pausedAt;
   }
+
+  // ============================================================
+  // Duration Field Resolvers
+  // ============================================================
+
+  /**
+   * The effective duration for this game in minutes.
+   * Returns game-specific override if set, otherwise the game format's default.
+   */
+  @ResolveField('effectiveDuration', () => Number, {
+    description:
+      'Effective game duration in minutes (game override or format default)',
+  })
+  async effectiveDuration(
+    @Parent() game: Game,
+    @Context() context: GraphQLContext,
+  ): Promise<number> {
+    // If game has its own duration set, use it
+    if (game.durationMinutes != null) {
+      return game.durationMinutes;
+    }
+    // Otherwise, get the format's default duration
+    const format = game.gameFormat
+      ? game.gameFormat
+      : await context.loaders.gameFormatLoader.load(game.gameFormatId);
+    return format.durationMinutes;
+  }
 }

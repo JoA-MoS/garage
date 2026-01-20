@@ -27,7 +27,6 @@ import { nestTypeOrmConfig } from '../database/typeorm.config';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { StartupService } from './startup.service';
 import { ConfigController } from './config.controller';
 import {
   API_PREFIX,
@@ -112,6 +111,6 @@ interface AuthenticatedRequest extends Request {
     MyModule,
   ],
   controllers: [AppController, ConfigController],
-  providers: [AppService, StartupService],
+  providers: [AppService],
 })
 export class AppModule {}

@@ -3,15 +3,16 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 /**
  * Data migration to convert legacy timing events to the new event-based model.
  *
+ * This migration is self-contained:
+ *   1. Creates new timing event types if they don't exist
+ *   2. Converts legacy events to new format
+ *   3. Removes legacy event types
+ *
  * Conversions:
  *   - KICKOFF → GAME_START + PERIOD_START (period: "1")
  *   - HALFTIME → PERIOD_END (period: "1")
  *   - FULL_TIME → GAME_END + PERIOD_END (period: "2")
  *   - INJURY_STOPPAGE → Deleted (lacks start/end timing for STOPPAGE_START/END pairs)
- *
- * Prerequisites:
- *   - New event types (GAME_START, GAME_END, PERIOD_START, PERIOD_END) must exist
- *   - These are created by ensureNewEventTypesExist() on app startup
  *
  * Note: The down() migration recreates legacy event types but cannot fully restore
  * deleted INJURY_STOPPAGE events or the exact original state of converted events.
@@ -20,23 +21,50 @@ export class MigrateTimingEvents1768674674895 implements MigrationInterface {
   name = 'MigrateTimingEvents1768674674895';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Check if new event types exist (required for migration)
-    const newTypes = await queryRunner.query(
-      `SELECT name FROM event_types WHERE name IN ('GAME_START', 'GAME_END', 'PERIOD_START', 'PERIOD_END')`,
-    );
-    const newTypeNames = new Set(newTypes.map((t: { name: string }) => t.name));
+    // Step 0: Create new timing event types if they don't exist
+    const timingEventTypes = [
+      {
+        name: 'GAME_START',
+        category: 'GAME_FLOW',
+        description: 'Game officially begins',
+      },
+      {
+        name: 'GAME_END',
+        category: 'GAME_FLOW',
+        description: 'Game officially ends',
+      },
+      {
+        name: 'PERIOD_START',
+        category: 'GAME_FLOW',
+        description:
+          'Period begins (metadata.period indicates which: "1", "2", "OT1", etc.)',
+      },
+      {
+        name: 'PERIOD_END',
+        category: 'GAME_FLOW',
+        description:
+          'Period ends (metadata.period indicates which: "1", "2", "OT1", etc.)',
+      },
+      {
+        name: 'STOPPAGE_START',
+        category: 'GAME_FLOW',
+        description:
+          'Clock paused (metadata.reason optional: "injury", "weather", etc.)',
+      },
+      {
+        name: 'STOPPAGE_END',
+        category: 'GAME_FLOW',
+        description: 'Clock resumes after stoppage',
+      },
+    ];
 
-    const missingTypes = [
-      'GAME_START',
-      'GAME_END',
-      'PERIOD_START',
-      'PERIOD_END',
-    ].filter((name) => !newTypeNames.has(name));
-
-    if (missingTypes.length > 0) {
-      throw new Error(
-        `Missing required event types: ${missingTypes.join(', ')}. ` +
-          'Run the API server first to create new event types via ensureNewEventTypesExist().',
+    for (const eventType of timingEventTypes) {
+      // Use INSERT ... WHERE NOT EXISTS since there's no unique constraint on name
+      await queryRunner.query(
+        `INSERT INTO event_types (id, name, category, description, "requiresPosition", "allowsParent", "createdAt", "updatedAt")
+         SELECT uuid_generate_v4(), $1::varchar, $2, $3, false, false, NOW(), NOW()
+         WHERE NOT EXISTS (SELECT 1 FROM event_types WHERE name = $1::varchar)`,
+        [eventType.name, eventType.category, eventType.description],
       );
     }
 
@@ -76,10 +104,11 @@ export class MigrateTimingEvents1768674674895 implements MigrationInterface {
 
       // Create corresponding PERIOD_START events for each former KICKOFF
       // We need to select the events that were just updated (now GAME_START)
+      // Only copy events with valid recordedByUserId (required NOT NULL column)
       await queryRunner.query(
         `INSERT INTO game_events (id, "gameId", "gameTeamId", "eventTypeId", "gameMinute", "gameSecond", "createdAt", "recordedByUserId", metadata)
          SELECT uuid_generate_v4(), "gameId", "gameTeamId", $1, "gameMinute", "gameSecond", "createdAt", "recordedByUserId", '{"period": "1"}'::json
-         FROM game_events WHERE "eventTypeId" = $2`,
+         FROM game_events WHERE "eventTypeId" = $2 AND "recordedByUserId" IS NOT NULL`,
         [typeMap.get('PERIOD_START'), typeMap.get('GAME_START')],
       );
     }
@@ -101,10 +130,11 @@ export class MigrateTimingEvents1768674674895 implements MigrationInterface {
     const fullTimeTypeId = typeMap.get('FULL_TIME');
     if (fullTimeTypeId) {
       // First create PERIOD_END events for each FULL_TIME (before updating them)
+      // Only copy events with valid recordedByUserId (required NOT NULL column)
       await queryRunner.query(
         `INSERT INTO game_events (id, "gameId", "gameTeamId", "eventTypeId", "gameMinute", "gameSecond", "createdAt", "recordedByUserId", metadata)
          SELECT uuid_generate_v4(), "gameId", "gameTeamId", $1, "gameMinute", "gameSecond", "createdAt", "recordedByUserId", '{"period": "2"}'::json
-         FROM game_events WHERE "eventTypeId" = $2`,
+         FROM game_events WHERE "eventTypeId" = $2 AND "recordedByUserId" IS NOT NULL`,
         [typeMap.get('PERIOD_END'), fullTimeTypeId],
       );
 
@@ -131,16 +161,22 @@ export class MigrateTimingEvents1768674674895 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Recreate legacy event types
-    await queryRunner.query(`
-      INSERT INTO event_types (id, name, category, description, "requiresPosition", "allowsParent", "createdAt", "updatedAt")
-      VALUES
-        (uuid_generate_v4(), 'KICKOFF', 'GAME_FLOW', 'Game kickoff', false, false, NOW(), NOW()),
-        (uuid_generate_v4(), 'HALFTIME', 'GAME_FLOW', 'Halftime break', false, false, NOW(), NOW()),
-        (uuid_generate_v4(), 'FULL_TIME', 'GAME_FLOW', 'Full time whistle', false, false, NOW(), NOW()),
-        (uuid_generate_v4(), 'INJURY_STOPPAGE', 'GAME_FLOW', 'Play stopped for injury', false, false, NOW(), NOW())
-      ON CONFLICT DO NOTHING
-    `);
+    // Recreate legacy event types (use INSERT ... WHERE NOT EXISTS since no unique constraint)
+    const legacyTypes = [
+      { name: 'KICKOFF', description: 'Game kickoff' },
+      { name: 'HALFTIME', description: 'Halftime break' },
+      { name: 'FULL_TIME', description: 'Full time whistle' },
+      { name: 'INJURY_STOPPAGE', description: 'Play stopped for injury' },
+    ];
+
+    for (const eventType of legacyTypes) {
+      await queryRunner.query(
+        `INSERT INTO event_types (id, name, category, description, "requiresPosition", "allowsParent", "createdAt", "updatedAt")
+         SELECT uuid_generate_v4(), $1::varchar, 'GAME_FLOW', $2, false, false, NOW(), NOW()
+         WHERE NOT EXISTS (SELECT 1 FROM event_types WHERE name = $1::varchar)`,
+        [eventType.name, eventType.description],
+      );
+    }
 
     // Get type IDs
     const types = await queryRunner.query(
@@ -204,6 +240,11 @@ export class MigrateTimingEvents1768674674895 implements MigrationInterface {
     // Note: INJURY_STOPPAGE events cannot be restored as they were deleted
     console.log(
       'Warning: INJURY_STOPPAGE events were deleted during up() migration and cannot be restored.',
+    );
+
+    // Delete new timing event types (reverse of up() which created them)
+    await queryRunner.query(
+      `DELETE FROM event_types WHERE name IN ('GAME_START', 'GAME_END', 'PERIOD_START', 'PERIOD_END', 'STOPPAGE_START', 'STOPPAGE_END')`,
     );
   }
 }

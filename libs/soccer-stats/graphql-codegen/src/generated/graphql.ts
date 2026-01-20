@@ -704,7 +704,7 @@ export type Query = {
   my?: Maybe<MyData>;
   myRoleInTeam?: Maybe<TeamMember>;
   myTeamMemberships: Array<TeamMember>;
-  /** Get teams the current user has access to (created, plays on, or coaches) */
+  /** Get teams the current user has access to via team membership */
   myTeams: Array<Team>;
   player: User;
   playerPositionStats: Array<PlayerPositionStats>;

@@ -131,6 +131,7 @@ export class GamesService {
     // Create the game with inherited settings from team configuration
     const game = this.gameRepository.create({
       gameFormatId: createGameInput.gameFormatId,
+      durationMinutes: createGameInput.duration,
       statsTrackingLevel: homeTeamConfig?.statsTrackingLevel,
     });
 
@@ -157,7 +158,11 @@ export class GamesService {
     return this.findOne(savedGame.id);
   }
 
-  async update(id: string, updateGameInput: UpdateGameInput): Promise<Game> {
+  async update(
+    id: string,
+    updateGameInput: UpdateGameInput,
+    userId?: string,
+  ): Promise<Game> {
     // Handle resetGame flag - reset to SCHEDULED and clear timing
     if (updateGameInput.resetGame) {
       if (updateGameInput.clearEvents) {
@@ -216,7 +221,7 @@ export class GamesService {
       homeTeamId: _homeTeamId,
       awayTeamId: _awayTeamId,
       gameFormatId: _gameFormatId,
-      duration: _duration,
+      duration,
       resetGame: _resetGame,
       clearEvents: _clearEvents,
       actualStart: _actualStart,
@@ -227,17 +232,31 @@ export class GamesService {
       ...gameFields
     } = updateGameInput as Record<string, unknown>;
 
+    // Map duration input to durationMinutes entity field
+    const entityFields = {
+      ...gameFields,
+      ...(duration !== undefined && { durationMinutes: duration as number }),
+    };
+
     // Only update with valid Game entity fields (excludes timing fields)
-    if (Object.keys(gameFields).length > 0) {
-      await this.gameRepository.update(id, gameFields);
+    if (Object.keys(entityFields).length > 0) {
+      await this.gameRepository.update(id, entityFields);
     }
 
     // Create timing events based on status changes
-    await this.createTimingEventsForStatusChange(id, updateGameInput.status);
+    await this.createTimingEventsForStatusChange(
+      id,
+      updateGameInput.status,
+      userId,
+    );
 
     // Handle pause/resume via events
     if (inputPausedAt !== undefined) {
-      await this.handlePauseResumeEvent(id, inputPausedAt as Date | null);
+      await this.handlePauseResumeEvent(
+        id,
+        inputPausedAt as Date | null,
+        userId,
+      );
     }
 
     // Convert STARTING_LINEUP events to SUBSTITUTION_IN when game starts
@@ -412,6 +431,7 @@ export class GamesService {
   private async createTimingEventsForStatusChange(
     gameId: string,
     status?: GameStatus,
+    userId?: string,
   ): Promise<void> {
     if (!status) return;
 
@@ -440,6 +460,14 @@ export class GamesService {
       throw new Error(errorMsg);
     }
 
+    // Get home team's gameTeamId for timing events (game-level events use home team)
+    const homeGameTeam = await this.gameTeamRepository.findOne({
+      where: { gameId, teamType: 'home' },
+    });
+    if (!homeGameTeam) {
+      throw new Error(`Home team not found for game ${gameId}`);
+    }
+
     const createEvent = async (
       eventTypeName: string,
       metadata?: Record<string, unknown>,
@@ -454,7 +482,9 @@ export class GamesService {
 
       const event = this.gameEventRepository.create({
         gameId,
+        gameTeamId: homeGameTeam.id,
         eventTypeId: eventType.id,
+        recordedByUserId: userId,
         gameMinute: 0,
         gameSecond: 0,
         metadata,
@@ -497,6 +527,7 @@ export class GamesService {
   private async handlePauseResumeEvent(
     gameId: string,
     pausedAt: Date | null,
+    userId?: string,
   ): Promise<void> {
     const eventTypeName = pausedAt ? 'STOPPAGE_START' : 'STOPPAGE_END';
 
@@ -512,9 +543,19 @@ export class GamesService {
       throw new Error(errorMsg);
     }
 
+    // Get home team's gameTeamId for timing events (game-level events use home team)
+    const homeGameTeam = await this.gameTeamRepository.findOne({
+      where: { gameId, teamType: 'home' },
+    });
+    if (!homeGameTeam) {
+      throw new Error(`Home team not found for game ${gameId}`);
+    }
+
     const event = this.gameEventRepository.create({
       gameId,
+      gameTeamId: homeGameTeam.id,
       eventTypeId: eventType.id,
+      recordedByUserId: userId,
       gameMinute: 0,
       gameSecond: 0,
     });
