@@ -43,6 +43,9 @@ export const baseTypeOrmConfig = {
 /**
  * TypeORM configuration for NestJS runtime.
  * Uses autoLoadEntities for automatic entity discovery from modules.
+ *
+ * Note: Migrations are NOT loaded here - they run via a separate ECS container
+ * before the app starts. See apps/soccer-stats/api-infra for deployment config.
  */
 export const nestTypeOrmConfig: DataSourceOptions = {
   ...baseTypeOrmConfig,

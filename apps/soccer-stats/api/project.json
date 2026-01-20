@@ -134,36 +134,47 @@
         "cwd": "{workspaceRoot}"
       }
     },
+    "db:seed:dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker exec -i soccer-stats-db psql -U postgres -d soccer_stats < apps/soccer-stats/api/database/seeds/seed-dev-data.sql",
+        "cwd": "{workspaceRoot}"
+      }
+    },
     "migration:generate": {
       "executor": "nx:run-commands",
       "options": {
         "command": "TS_NODE_PROJECT=apps/soccer-stats/api/tsconfig.app.json npx typeorm-ts-node-commonjs migration:generate apps/soccer-stats/api/src/database/migrations/{args.name} -d apps/soccer-stats/api/src/database/data-source.ts",
-        "cwd": "{workspaceRoot}",
-        "envFile": "apps/soccer-stats/api/.env"
+        "cwd": "{workspaceRoot}"
       }
     },
     "migration:run": {
       "executor": "nx:run-commands",
       "options": {
         "command": "TS_NODE_PROJECT=apps/soccer-stats/api/tsconfig.app.json npx typeorm-ts-node-commonjs migration:run -d apps/soccer-stats/api/src/database/data-source.ts",
-        "cwd": "{workspaceRoot}",
-        "envFile": "apps/soccer-stats/api/.env"
+        "cwd": "{workspaceRoot}"
       }
     },
     "migration:show": {
       "executor": "nx:run-commands",
       "options": {
         "command": "TS_NODE_PROJECT=apps/soccer-stats/api/tsconfig.app.json npx typeorm-ts-node-commonjs migration:show -d apps/soccer-stats/api/src/database/data-source.ts",
-        "cwd": "{workspaceRoot}",
-        "envFile": "apps/soccer-stats/api/.env"
+        "cwd": "{workspaceRoot}"
       }
     },
     "migration:revert": {
       "executor": "nx:run-commands",
       "options": {
         "command": "TS_NODE_PROJECT=apps/soccer-stats/api/tsconfig.app.json npx typeorm-ts-node-commonjs migration:revert -d apps/soccer-stats/api/src/database/data-source.ts",
-        "cwd": "{workspaceRoot}",
-        "envFile": "apps/soccer-stats/api/.env"
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "migration:run:cd": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "node dist/apps/soccer-stats/api/run-migrations.js",
+        "cwd": "{workspaceRoot}"
       }
     }
   }

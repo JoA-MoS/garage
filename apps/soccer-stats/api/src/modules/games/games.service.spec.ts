@@ -146,6 +146,13 @@ describe('GamesService', () => {
       } as Game);
       mockGameRepository.update.mockResolvedValue({ affected: 1 } as any);
 
+      // Default: return home team for timing events
+      mockGameTeamRepository.findOne.mockResolvedValue({
+        id: 'game-team-home',
+        gameId: 'game-1',
+        teamType: 'home',
+      } as GameTeam);
+
       // Default: return all timing event types
       mockEventTypeRepository.find.mockResolvedValue(
         mockTimingEventTypes as EventType[],
