@@ -17,6 +17,7 @@ import { EventType } from '../../entities/event-type.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { Game } from '../../entities/game.entity';
 import { Team } from '../../entities/team.entity';
+import { GameTimingService } from '../games/game-timing.service';
 
 import { AddToLineupInput } from './dto/add-to-lineup.input';
 import { AddToBenchInput } from './dto/add-to-bench.input';
@@ -78,6 +79,7 @@ export class GameEventsService implements OnModuleInit {
     @InjectRepository(Team)
     private teamsRepository: Repository<Team>,
     @Inject('PUB_SUB') private pubSub: PubSub,
+    private readonly gameTimingService: GameTimingService,
   ) {}
 
   /**
@@ -1612,45 +1614,12 @@ export class GameEventsService implements OnModuleInit {
       order: { gameMinute: 'ASC', gameSecond: 'ASC', createdAt: 'ASC' },
     });
 
-    // Calculate current game time in seconds
-    const getCurrentGameSeconds = (): number => {
-      // If game is completed, use actual end time
-      if (game.actualEnd && game.actualStart) {
-        return Math.floor(
-          (new Date(game.actualEnd).getTime() -
-            new Date(game.actualStart).getTime()) /
-            1000,
-        );
-      }
-      // If game is in progress, calculate from actual start
-      if (game.actualStart) {
-        const halfDuration =
-          ((game.gameFormat?.durationMinutes || 60) / 2) * 60;
-
-        if (game.secondHalfStart) {
-          // In second half
-          const secondsIntoSecondHalf = Math.floor(
-            (Date.now() - new Date(game.secondHalfStart).getTime()) / 1000,
-          );
-          return halfDuration + secondsIntoSecondHalf;
-        } else if (game.firstHalfEnd) {
-          // At halftime - use first half end
-          return Math.floor(
-            (new Date(game.firstHalfEnd).getTime() -
-              new Date(game.actualStart).getTime()) /
-              1000,
-          );
-        } else {
-          // In first half
-          return Math.floor(
-            (Date.now() - new Date(game.actualStart).getTime()) / 1000,
-          );
-        }
-      }
-      return 0;
-    };
-
-    const currentGameSeconds = getCurrentGameSeconds();
+    // Get current game time in seconds from timing service
+    const currentGameSeconds =
+      await this.gameTimingService.getGameDurationSeconds(
+        game.id,
+        game.gameFormat?.durationMinutes,
+      );
 
     // Track player position time spans
     type PlayerTimeSpan = {
@@ -1898,38 +1867,6 @@ export class GameEventsService implements OnModuleInit {
       return stats;
     };
 
-    // Helper to calculate game duration in seconds
-    const getGameDurationSeconds = (game: Game): number => {
-      if (game.actualEnd && game.actualStart) {
-        return Math.floor(
-          (new Date(game.actualEnd).getTime() -
-            new Date(game.actualStart).getTime()) /
-            1000,
-        );
-      }
-      if (game.actualStart) {
-        const halfDuration =
-          ((game.gameFormat?.durationMinutes || 60) / 2) * 60;
-        if (game.secondHalfStart) {
-          const secondsIntoSecondHalf = Math.floor(
-            (Date.now() - new Date(game.secondHalfStart).getTime()) / 1000,
-          );
-          return halfDuration + secondsIntoSecondHalf;
-        } else if (game.firstHalfEnd) {
-          return Math.floor(
-            (new Date(game.firstHalfEnd).getTime() -
-              new Date(game.actualStart).getTime()) /
-              1000,
-          );
-        } else {
-          return Math.floor(
-            (Date.now() - new Date(game.actualStart).getTime()) / 1000,
-          );
-        }
-      }
-      return 0;
-    };
-
     // Group events by gameTeamId for processing
     const eventsByGameTeam = new Map<string, GameEvent[]>();
     for (const event of events) {
@@ -1943,7 +1880,11 @@ export class GameEventsService implements OnModuleInit {
       const game = gameMap.get(gameTeamId);
       if (!game) continue;
 
-      const currentGameSeconds = getGameDurationSeconds(game);
+      const currentGameSeconds =
+        await this.gameTimingService.getGameDurationSeconds(
+          game.id,
+          game.gameFormat?.durationMinutes,
+        );
 
       // Track open spans for this game
       type PlayerSpan = {

@@ -131,6 +131,7 @@ export class GamesService {
     // Create the game with inherited settings from team configuration
     const game = this.gameRepository.create({
       gameFormatId: createGameInput.gameFormatId,
+      durationMinutes: createGameInput.duration,
       statsTrackingLevel: homeTeamConfig?.statsTrackingLevel,
     });
 
@@ -157,18 +158,47 @@ export class GamesService {
     return this.findOne(savedGame.id);
   }
 
-  async update(id: string, updateGameInput: UpdateGameInput): Promise<Game> {
-    // Handle resetGame flag - reset to SCHEDULED and clear all timestamps
+  async update(
+    id: string,
+    updateGameInput: UpdateGameInput,
+    userId?: string,
+  ): Promise<Game> {
+    // Handle resetGame flag - reset to SCHEDULED and clear timing
     if (updateGameInput.resetGame) {
-      // Optionally clear all game events
       if (updateGameInput.clearEvents) {
+        // Clear ALL game events
         await this.gameEventRepository
           .createQueryBuilder()
           .delete()
           .where('gameId = :gameId', { gameId: id })
           .execute();
+      } else {
+        // Clear only timing events (event-based timing model)
+        const timingEventTypes = await this.eventTypeRepository.find({
+          where: [
+            { name: 'GAME_START' },
+            { name: 'GAME_END' },
+            { name: 'PERIOD_START' },
+            { name: 'PERIOD_END' },
+            { name: 'STOPPAGE_START' },
+            { name: 'STOPPAGE_END' },
+          ],
+        });
+        const timingEventTypeIds = timingEventTypes.map((et) => et.id);
+
+        if (timingEventTypeIds.length > 0) {
+          await this.gameEventRepository
+            .createQueryBuilder()
+            .delete()
+            .where('gameId = :gameId', { gameId: id })
+            .andWhere('eventTypeId IN (:...timingEventTypeIds)', {
+              timingEventTypeIds,
+            })
+            .execute();
+        }
       }
 
+      // Reset status and clear legacy timing columns (kept for backward compatibility)
       await this.gameRepository
         .createQueryBuilder()
         .update(Game)
@@ -185,20 +215,61 @@ export class GamesService {
       return this.findOne(id);
     }
 
-    // Extract only the fields that don't exist on the Game entity (from CreateGameInput)
+    // Extract fields that should not be passed directly to entity update
+    // Timing fields are now derived from events, not stored as columns
     const {
       homeTeamId: _homeTeamId,
       awayTeamId: _awayTeamId,
       gameFormatId: _gameFormatId,
-      duration: _duration,
+      duration,
       resetGame: _resetGame,
       clearEvents: _clearEvents,
+      actualStart: _actualStart,
+      firstHalfEnd: _firstHalfEnd,
+      secondHalfStart: _secondHalfStart,
+      actualEnd: _actualEnd,
+      pausedAt: inputPausedAt,
       ...gameFields
     } = updateGameInput as Record<string, unknown>;
 
-    // Only update with valid Game entity fields
-    if (Object.keys(gameFields).length > 0) {
-      await this.gameRepository.update(id, gameFields);
+    // Map duration input to durationMinutes entity field
+    const entityFields = {
+      ...gameFields,
+      ...(duration !== undefined && { durationMinutes: duration as number }),
+    };
+
+    // Only update with valid Game entity fields (excludes timing fields)
+    if (Object.keys(entityFields).length > 0) {
+      await this.gameRepository.update(id, entityFields);
+    }
+
+    // Create timing events based on status changes
+    await this.createTimingEventsForStatusChange(
+      id,
+      updateGameInput.status,
+      userId,
+    );
+
+    // Handle pause/resume via events
+    if (inputPausedAt !== undefined) {
+      // Validate and normalize pausedAt input
+      let normalizedPausedAt: Date | null;
+      if (inputPausedAt === null) {
+        normalizedPausedAt = null;
+      } else if (inputPausedAt instanceof Date) {
+        normalizedPausedAt = inputPausedAt;
+      } else if (typeof inputPausedAt === 'string') {
+        normalizedPausedAt = new Date(inputPausedAt);
+        if (isNaN(normalizedPausedAt.getTime())) {
+          throw new Error(`Invalid pausedAt date string: ${inputPausedAt}`);
+        }
+      } else {
+        throw new Error(
+          `Invalid pausedAt type: expected Date, string, or null, got ${typeof inputPausedAt}`,
+        );
+      }
+
+      await this.handlePauseResumeEvent(id, normalizedPausedAt, userId);
     }
 
     // Convert STARTING_LINEUP events to SUBSTITUTION_IN when game starts
@@ -362,5 +433,191 @@ export class GamesService {
     this.logger.log(
       `Converted ${startingLineupEvents.length} STARTING_LINEUP events to SUBSTITUTION_IN for game ${gameId}`,
     );
+  }
+
+  /**
+   * Creates timing events based on game status changes.
+   * This replaces direct column updates with event-based timing.
+   *
+   * @throws Error if required event types are not found in the database
+   * @throws Error if userId is not provided for status changes that create timing events
+   */
+  private async createTimingEventsForStatusChange(
+    gameId: string,
+    status?: GameStatus,
+    userId?: string,
+  ): Promise<void> {
+    if (!status) return;
+
+    // Validate userId is provided for status changes that create timing events
+    const statusesRequiringEvents: GameStatus[] = [
+      GameStatus.FIRST_HALF,
+      GameStatus.HALFTIME,
+      GameStatus.SECOND_HALF,
+      GameStatus.COMPLETED,
+    ];
+    if (statusesRequiringEvents.includes(status) && !userId) {
+      throw new Error(
+        `Cannot create timing events for status ${status}: userId is required`,
+      );
+    }
+
+    const requiredEventTypes = [
+      'GAME_START',
+      'GAME_END',
+      'PERIOD_START',
+      'PERIOD_END',
+    ];
+
+    const eventTypeMap = new Map<string, EventType>();
+    const eventTypes = await this.eventTypeRepository.find({
+      where: requiredEventTypes.map((name) => ({ name })),
+    });
+    eventTypes.forEach((et) => eventTypeMap.set(et.name, et));
+
+    // Validate all required event types exist
+    const missingTypes = requiredEventTypes.filter(
+      (name) => !eventTypeMap.has(name),
+    );
+    if (missingTypes.length > 0) {
+      const errorMsg =
+        `Cannot create timing events: missing event types [${missingTypes.join(', ')}]. ` +
+        'Database may not be properly seeded.';
+      this.logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    // Get home team's gameTeamId for timing events (game-level events use home team)
+    const homeGameTeam = await this.gameTeamRepository.findOne({
+      where: { gameId, teamType: 'home' },
+    });
+    if (!homeGameTeam) {
+      throw new Error(`Home team not found for game ${gameId}`);
+    }
+
+    const createEvent = async (
+      eventTypeName: string,
+      metadata?: Record<string, unknown>,
+    ) => {
+      const eventType = eventTypeMap.get(eventTypeName);
+      // This should never happen due to validation above, but TypeScript needs the check
+      if (!eventType) {
+        throw new Error(
+          `Event type ${eventTypeName} not found after validation`,
+        );
+      }
+
+      // Idempotency check: skip if this event already exists for the game
+      // For period events, also check metadata.period matches
+      const existingEventQuery = this.gameEventRepository
+        .createQueryBuilder('event')
+        .where('event.gameId = :gameId', { gameId })
+        .andWhere('event.eventTypeId = :eventTypeId', {
+          eventTypeId: eventType.id,
+        });
+
+      // For PERIOD_START/PERIOD_END, check the specific period
+      if (metadata?.period) {
+        existingEventQuery.andWhere("event.metadata->>'period' = :period", {
+          period: metadata.period,
+        });
+      }
+
+      const existingEvent = await existingEventQuery.getOne();
+      if (existingEvent) {
+        this.logger.debug(
+          `Skipping duplicate ${eventTypeName} event for game ${gameId}` +
+            (metadata?.period ? ` (period ${metadata.period})` : ''),
+        );
+        return;
+      }
+
+      const event = this.gameEventRepository.create({
+        gameId,
+        gameTeamId: homeGameTeam.id,
+        eventTypeId: eventType.id,
+        recordedByUserId: userId,
+        gameMinute: 0,
+        gameSecond: 0,
+        metadata,
+      });
+      await this.gameEventRepository.save(event);
+    };
+
+    switch (status) {
+      case GameStatus.FIRST_HALF:
+        // Game starting: create GAME_START and PERIOD_START (period 1)
+        await createEvent('GAME_START');
+        await createEvent('PERIOD_START', { period: '1' });
+        break;
+
+      case GameStatus.HALFTIME:
+        // First half ending: create PERIOD_END (period 1)
+        await createEvent('PERIOD_END', { period: '1' });
+        break;
+
+      case GameStatus.SECOND_HALF:
+        // Second half starting: create PERIOD_START (period 2)
+        await createEvent('PERIOD_START', { period: '2' });
+        break;
+
+      case GameStatus.COMPLETED:
+        // Game ending: create PERIOD_END (period 2) and GAME_END
+        await createEvent('PERIOD_END', { period: '2' });
+        await createEvent('GAME_END');
+        break;
+    }
+  }
+
+  /**
+   * Creates stoppage events for pause/resume functionality.
+   * pausedAt = Date means pause (create STOPPAGE_START)
+   * pausedAt = null means resume (create STOPPAGE_END)
+   *
+   * @throws Error if required event type is not found in the database
+   * @throws Error if userId is not provided
+   */
+  private async handlePauseResumeEvent(
+    gameId: string,
+    pausedAt: Date | null,
+    userId?: string,
+  ): Promise<void> {
+    if (!userId) {
+      throw new Error(
+        `Cannot ${pausedAt ? 'pause' : 'resume'} game: userId is required`,
+      );
+    }
+
+    const eventTypeName = pausedAt ? 'STOPPAGE_START' : 'STOPPAGE_END';
+
+    const eventType = await this.eventTypeRepository.findOne({
+      where: { name: eventTypeName },
+    });
+
+    if (!eventType) {
+      const errorMsg =
+        `Cannot ${pausedAt ? 'pause' : 'resume'} game: ` +
+        `event type ${eventTypeName} not found. Database may not be properly seeded.`;
+      this.logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    // Get home team's gameTeamId for timing events (game-level events use home team)
+    const homeGameTeam = await this.gameTeamRepository.findOne({
+      where: { gameId, teamType: 'home' },
+    });
+    if (!homeGameTeam) {
+      throw new Error(`Home team not found for game ${gameId}`);
+    }
+
+    const event = this.gameEventRepository.create({
+      gameId,
+      gameTeamId: homeGameTeam.id,
+      eventTypeId: eventType.id,
+      recordedByUserId: userId,
+      gameMinute: 0,
+      gameSecond: 0,
+    });
+    await this.gameEventRepository.save(event);
   }
 }

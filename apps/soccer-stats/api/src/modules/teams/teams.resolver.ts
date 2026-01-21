@@ -18,13 +18,12 @@ import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
 import { TeamAccessGuard } from '../auth/team-access.guard';
 import { RequireTeamRole } from '../auth/require-team-role.decorator';
 import { CurrentUser } from '../auth/user.decorator';
-import { ClerkUser } from '../auth/clerk.service';
+import { AuthenticatedUser } from '../auth/authenticated-user.type';
 import { TeamPlayer } from '../../entities/team-player.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { User } from '../../entities/user.entity';
 import { PlayersService } from '../players/players.service';
 import { TeamMembersService } from '../team-members/team-members.service';
-import { UsersService } from '../users/users.service';
 
 import { TeamPlayerWithJersey } from './dto/team-player-with-jersey.dto';
 import { TeamsService } from './teams.service';
@@ -40,18 +39,8 @@ export class TeamsResolver {
     private readonly teamsService: TeamsService,
     private readonly playersService: PlayersService,
     private readonly teamMembersService: TeamMembersService,
-    private readonly usersService: UsersService,
     @Inject('PUB_SUB') private pubSub: PubSub,
   ) {}
-
-  /**
-   * Converts a Clerk user to internal user ID.
-   * Uses JIT provisioning - creates user if not found.
-   */
-  private async getInternalUserId(clerkUser: ClerkUser): Promise<string> {
-    const user = await this.usersService.findOrCreateByClerkUser(clerkUser);
-    return user.id;
-  }
 
   @Query(() => [Team], { name: 'teams' })
   findAll() {
@@ -85,12 +74,12 @@ export class TeamsResolver {
 
   @Query(() => [Team], {
     name: 'myTeams',
-    description:
-      'Get teams the current user has access to (created, plays on, or coaches)',
+    description: 'Get teams the current user has access to via team membership',
   })
   @UseGuards(ClerkAuthGuard)
-  findMyTeams(@CurrentUser() user: ClerkUser) {
-    return this.teamsService.findMyTeams(user.id);
+  findMyTeams(@CurrentUser() user: AuthenticatedUser) {
+    // Use internal user ID to find teams via team_members relationship
+    return this.teamMembersService.findTeamsForUser(user.id);
   }
 
   @ResolveField(() => [User])
@@ -133,13 +122,13 @@ export class TeamsResolver {
   @UseGuards(ClerkAuthGuard)
   async createTeam(
     @Args('createTeamInput') createTeamInput: CreateTeamInput,
-    @CurrentUser() clerkUser: ClerkUser,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    const internalUserId = await this.getInternalUserId(clerkUser);
+    // Use both clerkId (for createdById legacy field) and internal ID (for ownership)
     const team = await this.teamsService.create(
       createTeamInput,
-      clerkUser.id,
-      internalUserId,
+      user.clerkId,
+      user.id,
     );
     this.pubSub.publish('teamCreated', { teamCreated: team });
     return team;
@@ -217,12 +206,8 @@ export class TeamsResolver {
       'Backfill ownership for teams created by the current user that do not have an owner. Returns the list of teams that were updated.',
   })
   @UseGuards(ClerkAuthGuard)
-  async backfillMyTeamOwners(@CurrentUser() clerkUser: ClerkUser) {
-    const internalUserId = await this.getInternalUserId(clerkUser);
-    return this.teamsService.backfillOwnersForUser(
-      clerkUser.id,
-      internalUserId,
-    );
+  async backfillMyTeamOwners(@CurrentUser() user: AuthenticatedUser) {
+    return this.teamsService.backfillOwnersForUser(user.clerkId, user.id);
   }
 
   @Mutation(() => TeamConfiguration, {

@@ -33,7 +33,7 @@ function getRequiredEnv(key: string): string {
     // In development, this will be caught at runtime when the value is used
     // Nx should have loaded defaults from .env files
     console.warn(
-      `[Environment] Missing ${key} - ensure .env file is loaded by Nx`,
+      `[Environment] Missing ${key} - ensure environment variables are loaded`,
     );
     return '';
   }

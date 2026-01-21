@@ -11,7 +11,7 @@ import { UpdateGameFormatInput } from './dto/update-game-format.input';
 export class GameFormatsService {
   constructor(
     @InjectRepository(GameFormat)
-    private gameFormatsRepository: Repository<GameFormat>
+    private gameFormatsRepository: Repository<GameFormat>,
   ) {}
 
   async findAll(): Promise<GameFormat[]> {
@@ -33,7 +33,7 @@ export class GameFormatsService {
   }
 
   async create(
-    createGameFormatInput: CreateGameFormatInput
+    createGameFormatInput: CreateGameFormatInput,
   ): Promise<GameFormat> {
     const gameFormat = this.gameFormatsRepository.create(createGameFormatInput);
     return this.gameFormatsRepository.save(gameFormat);
@@ -41,7 +41,7 @@ export class GameFormatsService {
 
   async update(
     id: string,
-    updateGameFormatInput: UpdateGameFormatInput
+    updateGameFormatInput: UpdateGameFormatInput,
   ): Promise<GameFormat | null> {
     await this.gameFormatsRepository.update(id, updateGameFormatInput);
     return this.findOne(id);
@@ -52,6 +52,10 @@ export class GameFormatsService {
     return result.affected ? result.affected > 0 : false;
   }
 
+  /**
+   * @deprecated Use SeedReferenceData migration instead. This method is kept
+   * for backwards compatibility but seeding is now done via TypeORM migrations.
+   */
   async seedDefaultFormats(): Promise<void> {
     const existingFormats = await this.gameFormatsRepository.count();
 
@@ -78,9 +82,9 @@ export class GameFormatsService {
         playersPerTeam: 9,
         minPlayers: 6,
         maxSubstitutions: 5,
-        durationMinutes: 70,
+        durationMinutes: 60,
         allowsSubstitutions: true,
-        description: 'Youth football format with 9 players per side',
+        description: 'Youth football format with 9 players per side (2x30 min)',
       },
       {
         name: '7v7',
@@ -88,9 +92,9 @@ export class GameFormatsService {
         playersPerTeam: 7,
         minPlayers: 5,
         maxSubstitutions: 5,
-        durationMinutes: 60,
+        durationMinutes: 50,
         allowsSubstitutions: true,
-        description: 'Small-sided game with 7 players per side',
+        description: 'Small-sided game with 7 players per side (2x25 min)',
       },
       {
         name: '5v5',

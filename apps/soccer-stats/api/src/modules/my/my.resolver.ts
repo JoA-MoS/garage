@@ -13,7 +13,7 @@ import { Team } from '../../entities/team.entity';
 import { Game, GameStatus } from '../../entities/game.entity';
 import { TeamRole } from '../../entities/team-member.entity';
 import { CurrentUser } from '../auth/user.decorator';
-import { ClerkUser } from '../auth/clerk.service';
+import { AuthenticatedUser } from '../auth/authenticated-user.type';
 import { OptionalClerkAuthGuard } from '../auth/optional-clerk-auth.guard';
 import { UsersService } from '../users/users.service';
 import { TeamMembersService } from '../team-members/team-members.service';
@@ -52,11 +52,10 @@ export class MyResolver {
   /**
    * Root query for user-scoped data.
    *
-   * Returns null if not authenticated (no Clerk user in context).
+   * Returns null if not authenticated (no user in context).
    *
-   * Implements Just-In-Time (JIT) user provisioning:
-   * - If an internal user exists (by clerkId or email), returns it
-   * - If no internal user exists, creates one from Clerk data
+   * The internal user lookup and JIT provisioning is now handled by
+   * OptionalClerkAuthGuard, so we receive the AuthenticatedUser directly.
    *
    * The returned MyData contains only the userId - all other fields
    * are resolved via @ResolveField() to enable lazy loading and
@@ -68,16 +67,14 @@ export class MyResolver {
     description:
       'Get data for the authenticated user. Returns null if not authenticated.',
   })
-  async getMy(@CurrentUser() clerkUser: ClerkUser): Promise<MyData | null> {
+  getMy(@CurrentUser() user: AuthenticatedUser | null): MyData | null {
     // Not authenticated - expected for anonymous users
-    if (!clerkUser) {
+    if (!user) {
       return null;
     }
 
-    // Find or create internal user (JIT provisioning)
-    const user = await this.usersService.findOrCreateByClerkUser(clerkUser);
-
     // Return minimal data - field resolvers will fetch the rest
+    // The internal user ID comes directly from the auth context
     return { userId: user.id } as MyData;
   }
 

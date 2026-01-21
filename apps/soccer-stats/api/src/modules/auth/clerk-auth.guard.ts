@@ -1,14 +1,19 @@
 import {
   CanActivate,
   ExecutionContext,
+  Inject,
   Injectable,
   Logger,
   UnauthorizedException,
+  forwardRef,
 } from '@nestjs/common';
 import { GqlExecutionContext } from '@nestjs/graphql';
 import { Reflector } from '@nestjs/core';
 
+import { UsersService } from '../users/users.service';
+
 import { ClerkActor, ClerkService } from './clerk.service';
+import { AuthenticatedUser } from './authenticated-user.type';
 
 @Injectable()
 export class ClerkAuthGuard implements CanActivate {
@@ -16,7 +21,9 @@ export class ClerkAuthGuard implements CanActivate {
 
   constructor(
     private clerkService: ClerkService,
-    private reflector: Reflector
+    private reflector: Reflector,
+    @Inject(forwardRef(() => UsersService))
+    private usersService: UsersService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -45,7 +52,23 @@ export class ClerkAuthGuard implements CanActivate {
 
     try {
       const payload = await this.clerkService.verifyToken(token);
-      const user = await this.clerkService.getUser(payload.sub);
+      const clerkUser = await this.clerkService.getUser(payload.sub);
+
+      // Look up or create internal user (JIT provisioning)
+      // This is the single point where Clerk ID is mapped to internal user
+      const internalUser =
+        await this.usersService.findOrCreateByClerkUser(clerkUser);
+
+      // Create unified AuthenticatedUser with both Clerk and internal info
+      const authenticatedUser: AuthenticatedUser = {
+        id: internalUser.id,
+        clerkId: clerkUser.id,
+        email: clerkUser.emailAddresses?.[0]?.emailAddress ?? '',
+        firstName: clerkUser.firstName,
+        lastName: clerkUser.lastName,
+        imageUrl: clerkUser.imageUrl,
+        internal: internalUser,
+      };
 
       // Extract actor (impersonation) information
       const actor: ClerkActor | null = payload.act ?? null;
@@ -54,18 +77,23 @@ export class ClerkAuthGuard implements CanActivate {
       // Log impersonation for audit purposes
       if (isImpersonating) {
         this.logger.log(
-          `Impersonation session: Admin ${actor.sub} acting as user ${user.id} (${user.firstName} ${user.lastName})`
+          `Impersonation session: Admin ${actor.sub} acting as user ${internalUser.id} (${internalUser.firstName} ${internalUser.lastName})`,
         );
       }
 
-      // Attach user and impersonation context to the request
-      req.user = user;
+      // Attach authenticated user and impersonation context to the request
+      req.user = authenticatedUser;
       req.clerkPayload = payload;
       req.actor = actor;
       req.isImpersonating = isImpersonating;
 
       return true;
-    } catch {
+    } catch (error) {
+      // Log the actual error for debugging but return generic message
+      this.logger.error(
+        'Authentication failed',
+        error instanceof Error ? error.message : String(error),
+      );
       throw new UnauthorizedException('Invalid token');
     }
   }

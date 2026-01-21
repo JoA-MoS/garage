@@ -27,6 +27,15 @@ import { image, currentRegion } from './docker';
 // =============================================================================
 // ECS Task Definition
 // =============================================================================
+// Shared database secrets configuration for both containers
+const databaseSecrets = (dbSecretArn: string) => [
+  { name: 'DB_HOST', valueFrom: `${dbSecretArn}:host::` },
+  { name: 'DB_PORT', valueFrom: `${dbSecretArn}:port::` },
+  { name: 'DB_USERNAME', valueFrom: `${dbSecretArn}:username::` },
+  { name: 'DB_PASSWORD', valueFrom: `${dbSecretArn}:password::` },
+  { name: 'DB_NAME', valueFrom: `${dbSecretArn}:database::` },
+];
+
 export const taskDefinition = new aws.ecs.TaskDefinition(`${namePrefix}-task`, {
   family: namePrefix,
   networkMode: 'awsvpc',
@@ -45,10 +54,46 @@ export const taskDefinition = new aws.ecs.TaskDefinition(`${namePrefix}-task`, {
     ])
     .apply(([imageRef, logGroup, dbSecretArn, clerkSecretArn, region]) =>
       JSON.stringify([
+        // =====================================================================
+        // Migration Container - Runs before API starts
+        // =====================================================================
+        // This container runs database migrations and exits. The API container
+        // depends on this completing successfully before starting.
+        // Pattern inspired by: https://atlasgo.io/guides/deploying/aws-ecs-fargate
+        {
+          name: 'migrations',
+          image: imageRef,
+          essential: false, // Can exit after completion
+          command: ['node', 'run-migrations.js'],
+          environment: [
+            { name: 'NODE_ENV', value: 'production' },
+            // Disable ANSI color codes for cleaner CloudWatch logs
+            { name: 'NO_COLOR', value: 'true' },
+          ],
+          secrets: databaseSecrets(dbSecretArn),
+          logConfiguration: {
+            logDriver: 'awslogs',
+            options: {
+              'awslogs-group': logGroup,
+              'awslogs-region': region,
+              'awslogs-stream-prefix': 'migrations',
+            },
+          },
+        },
+        // =====================================================================
+        // API Container - Main application
+        // =====================================================================
         {
           name: 'api',
           image: imageRef,
           essential: true,
+          // Wait for migrations to complete successfully before starting
+          dependsOn: [
+            {
+              containerName: 'migrations',
+              condition: 'SUCCESS',
+            },
+          ],
           portMappings: [
             {
               containerPort: containerPort,
@@ -68,28 +113,8 @@ export const taskDefinition = new aws.ecs.TaskDefinition(`${namePrefix}-task`, {
               : []),
           ],
           secrets: [
-            // Database credentials from AWS Secrets Manager (managed by shared infrastructure)
-            // The app expects individual DB_* variables, not a single DATABASE_URL
-            {
-              name: 'DB_HOST',
-              valueFrom: `${dbSecretArn}:host::`,
-            },
-            {
-              name: 'DB_PORT',
-              valueFrom: `${dbSecretArn}:port::`,
-            },
-            {
-              name: 'DB_USERNAME',
-              valueFrom: `${dbSecretArn}:username::`,
-            },
-            {
-              name: 'DB_PASSWORD',
-              valueFrom: `${dbSecretArn}:password::`,
-            },
-            {
-              name: 'DB_NAME',
-              valueFrom: `${dbSecretArn}:database::`,
-            },
+            // Database credentials from AWS Secrets Manager
+            ...databaseSecrets(dbSecretArn),
             // Clerk authentication credentials
             {
               name: 'CLERK_SECRET_KEY',
