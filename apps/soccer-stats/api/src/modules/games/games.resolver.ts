@@ -14,7 +14,7 @@ import { GameTeam } from '../../entities/game-team.entity';
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
 import { CurrentUser } from '../auth/user.decorator';
 import { Public } from '../auth/public.decorator';
-import { ClerkUser } from '../auth/clerk.service';
+import { AuthenticatedUser } from '../auth/authenticated-user.type';
 
 import { GamesService } from './games.service';
 import { CreateGameInput } from './dto/create-game.input';
@@ -53,10 +53,15 @@ export class GamesResolver {
     try {
       await this.pubSub.publish('gameCreated', { gameCreated: game });
     } catch (error) {
-      this.logger.error('Failed to publish gameCreated event', {
-        error,
-        gameId: game.id,
-      });
+      // Non-fatal: mutation succeeded but real-time notification failed
+      this.logger.warn(
+        'Real-time notification failed - subscribers may have stale data',
+        {
+          error: error instanceof Error ? error.message : String(error),
+          gameId: game.id,
+          eventType: 'gameCreated',
+        },
+      );
     }
     return game;
   }
@@ -65,17 +70,22 @@ export class GamesResolver {
   async updateGame(
     @Args('id', { type: () => ID }) id: string,
     @Args('updateGameInput') updateGameInput: UpdateGameInput,
-    @CurrentUser() user: ClerkUser,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     this.logger.log(`Updating game ${id} for user: ${user.id}`);
-    const game = await this.gamesService.update(id, updateGameInput);
+    const game = await this.gamesService.update(id, updateGameInput, user.id);
     try {
       await this.pubSub.publish('gameUpdated', { gameUpdated: game });
     } catch (error) {
-      this.logger.error('Failed to publish gameUpdated event', {
-        error,
-        gameId: game.id,
-      });
+      // Non-fatal: mutation succeeded but real-time notification failed
+      this.logger.warn(
+        'Real-time notification failed - subscribers may have stale data',
+        {
+          error: error instanceof Error ? error.message : String(error),
+          gameId: game.id,
+          eventType: 'gameUpdated',
+        },
+      );
     }
     return game;
   }
@@ -102,10 +112,15 @@ export class GamesResolver {
         gameTeamUpdated: gameTeam,
       });
     } catch (error) {
-      this.logger.error('Failed to publish gameTeamUpdated event', {
-        error,
-        gameTeamId: gameTeam.id,
-      });
+      // Non-fatal: mutation succeeded but real-time notification failed
+      this.logger.warn(
+        'Real-time notification failed - subscribers may have stale data',
+        {
+          error: error instanceof Error ? error.message : String(error),
+          gameTeamId: gameTeam.id,
+          eventType: 'gameTeamUpdated',
+        },
+      );
     }
     return gameTeam;
   }

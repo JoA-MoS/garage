@@ -14,7 +14,7 @@ import { Team } from '../../entities/team.entity';
 import { User } from '../../entities/user.entity';
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
 import { CurrentUser } from '../auth/user.decorator';
-import { ClerkUser } from '../auth/clerk.service';
+import { AuthenticatedUser } from '../auth/authenticated-user.type';
 
 import { TeamMembersService } from './team-members.service';
 
@@ -28,19 +28,18 @@ export class TeamMembersResolver {
    */
   @Query(() => [TeamMember], { name: 'teamMembers' })
   async getTeamMembers(
-    @Args('teamId', { type: () => ID }) teamId: string
+    @Args('teamId', { type: () => ID }) teamId: string,
   ): Promise<TeamMember[]> {
     return this.teamMembersService.findByTeam(teamId);
   }
 
   /**
    * Get current user's team memberships.
-   * Note: Clerk user IDs (e.g., "user_xxx") are stored directly in the database as the primary
-   * user identifier. This is intentional - see User entity and ClerkAuthGuard for the sync logic.
+   * Uses internal user ID from the auth context.
    */
   @Query(() => [TeamMember], { name: 'myTeamMemberships' })
   async getMyTeamMemberships(
-    @CurrentUser() user: ClerkUser
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<TeamMember[]> {
     return this.teamMembersService.findByUser(user.id);
   }
@@ -50,7 +49,7 @@ export class TeamMembersResolver {
    */
   @Query(() => TeamMember, { name: 'teamMember', nullable: true })
   async getTeamMember(
-    @Args('id', { type: () => ID }) id: string
+    @Args('id', { type: () => ID }) id: string,
   ): Promise<TeamMember | null> {
     return this.teamMembersService.findOne(id);
   }
@@ -61,7 +60,7 @@ export class TeamMembersResolver {
   @Query(() => TeamMember, { name: 'myRoleInTeam', nullable: true })
   async getMyRoleInTeam(
     @Args('teamId', { type: () => ID }) teamId: string,
-    @CurrentUser() user: ClerkUser
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<TeamMember | null> {
     return this.teamMembersService.findUserRoleInTeam(user.id, teamId);
   }
@@ -72,7 +71,7 @@ export class TeamMembersResolver {
   @Query(() => Boolean, { name: 'amITeamMember' })
   async amITeamMember(
     @Args('teamId', { type: () => ID }) teamId: string,
-    @CurrentUser() user: ClerkUser
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<boolean> {
     return this.teamMembersService.isTeamMember(user.id, teamId);
   }
@@ -89,7 +88,7 @@ export class TeamMembersResolver {
     @Args('linkedPlayerId', { type: () => ID, nullable: true })
     linkedPlayerId?: string,
     @Args('isGuest', { nullable: true }) isGuest?: boolean,
-    @CurrentUser() currentUser?: ClerkUser
+    @CurrentUser() currentUser?: AuthenticatedUser,
   ): Promise<TeamMember> {
     return this.teamMembersService.addMember(
       teamId,
@@ -97,7 +96,7 @@ export class TeamMembersResolver {
       role,
       currentUser?.id,
       linkedPlayerId,
-      isGuest ?? false
+      isGuest ?? false,
     );
   }
 
@@ -108,7 +107,7 @@ export class TeamMembersResolver {
   @Mutation(() => TeamMember)
   async updateTeamMemberRole(
     @Args('membershipId', { type: () => ID }) membershipId: string,
-    @Args('newRole', { type: () => TeamRole }) newRole: TeamRole
+    @Args('newRole', { type: () => TeamRole }) newRole: TeamRole,
   ): Promise<TeamMember> {
     return this.teamMembersService.updateRole(membershipId, newRole);
   }
@@ -120,12 +119,12 @@ export class TeamMembersResolver {
   async transferTeamOwnership(
     @Args('teamId', { type: () => ID }) teamId: string,
     @Args('newOwnerId', { type: () => ID }) newOwnerId: string,
-    @CurrentUser() currentUser: ClerkUser
+    @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<TeamMember> {
     const result = await this.teamMembersService.transferOwnership(
       teamId,
       currentUser.id,
-      newOwnerId
+      newOwnerId,
     );
     return result.newOwner;
   }
@@ -136,7 +135,7 @@ export class TeamMembersResolver {
    */
   @Mutation(() => Boolean)
   async removeTeamMember(
-    @Args('membershipId', { type: () => ID }) membershipId: string
+    @Args('membershipId', { type: () => ID }) membershipId: string,
   ): Promise<boolean> {
     return this.teamMembersService.removeMember(membershipId);
   }
@@ -147,7 +146,7 @@ export class TeamMembersResolver {
    */
   @Mutation(() => TeamMember)
   async promoteGuestCoach(
-    @Args('membershipId', { type: () => ID }) membershipId: string
+    @Args('membershipId', { type: () => ID }) membershipId: string,
   ): Promise<TeamMember> {
     return this.teamMembersService.promoteGuestCoach(membershipId);
   }

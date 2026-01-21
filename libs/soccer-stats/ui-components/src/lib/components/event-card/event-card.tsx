@@ -5,7 +5,11 @@ export type EventType =
   | 'substitution'
   | 'position_swap'
   | 'starter_entry'
-  | 'formation_change';
+  | 'formation_change'
+  | 'game_start'
+  | 'period_start'
+  | 'period_end'
+  | 'game_end';
 
 export interface EventCardProps {
   id: string;
@@ -27,6 +31,8 @@ export interface EventCardProps {
   player2Position?: string | null;
   // Formation change-specific
   newFormation?: string | null;
+  // Timing event-specific
+  period?: string | null;
   // Actions
   onDeleteClick?: (id: string, eventType: EventType) => void;
   onEdit?: () => void;
@@ -52,6 +58,7 @@ export const EventCard = memo(function EventCard({
   player2Name,
   player2Position,
   newFormation,
+  period,
   onDeleteClick,
   onEdit,
   isDeleting = false,
@@ -143,6 +150,90 @@ export const EventCard = memo(function EventCard({
                 strokeLinejoin="round"
                 strokeWidth={2}
                 d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"
+              />
+            </svg>
+          </div>
+        );
+      case 'game_start':
+        return (
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+            <svg
+              className="h-5 w-5 text-green-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+        );
+      case 'period_start':
+        return (
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+            <svg
+              className="h-5 w-5 text-blue-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+        );
+      case 'period_end':
+        return (
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100">
+            <svg
+              className="h-5 w-5 text-yellow-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+        );
+      case 'game_end':
+        return (
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+            <svg
+              className="h-5 w-5 text-red-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
               />
             </svg>
           </div>
@@ -272,6 +363,54 @@ export const EventCard = memo(function EventCard({
                 {newFormation || 'Formation updated'}
               </span>
             </div>
+          </>
+        );
+      case 'game_start':
+        return (
+          <>
+            <div className="font-semibold text-gray-900">Kickoff</div>
+            <div className="text-sm text-green-600">Game started</div>
+          </>
+        );
+      case 'period_start': {
+        const periodLabel =
+          period === '1'
+            ? 'First Half'
+            : period === '2'
+              ? 'Second Half'
+              : period === '3'
+                ? 'Third Period'
+                : period === '4'
+                  ? 'Fourth Period'
+                  : `Period ${period}`;
+        return (
+          <>
+            <div className="font-semibold text-gray-900">{periodLabel}</div>
+            <div className="text-sm text-blue-600">
+              {period === '1' ? 'Game started' : 'Period started'}
+            </div>
+          </>
+        );
+      }
+      case 'period_end': {
+        const endLabel =
+          period === '1'
+            ? 'Halftime'
+            : period === '2'
+              ? 'End of Second Half'
+              : `End of Period ${period}`;
+        return (
+          <>
+            <div className="font-semibold text-gray-900">{endLabel}</div>
+            <div className="text-sm text-yellow-600">Period ended</div>
+          </>
+        );
+      }
+      case 'game_end':
+        return (
+          <>
+            <div className="font-semibold text-gray-900">Full Time</div>
+            <div className="text-sm text-red-600">Game ended</div>
           </>
         );
     }
