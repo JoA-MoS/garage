@@ -53,10 +53,15 @@ export class GamesResolver {
     try {
       await this.pubSub.publish('gameCreated', { gameCreated: game });
     } catch (error) {
-      this.logger.error('Failed to publish gameCreated event', {
-        error,
-        gameId: game.id,
-      });
+      // Non-fatal: mutation succeeded but real-time notification failed
+      this.logger.warn(
+        'Real-time notification failed - subscribers may have stale data',
+        {
+          error: error instanceof Error ? error.message : String(error),
+          gameId: game.id,
+          eventType: 'gameCreated',
+        },
+      );
     }
     return game;
   }
@@ -72,10 +77,15 @@ export class GamesResolver {
     try {
       await this.pubSub.publish('gameUpdated', { gameUpdated: game });
     } catch (error) {
-      this.logger.error('Failed to publish gameUpdated event', {
-        error,
-        gameId: game.id,
-      });
+      // Non-fatal: mutation succeeded but real-time notification failed
+      this.logger.warn(
+        'Real-time notification failed - subscribers may have stale data',
+        {
+          error: error instanceof Error ? error.message : String(error),
+          gameId: game.id,
+          eventType: 'gameUpdated',
+        },
+      );
     }
     return game;
   }
@@ -102,10 +112,15 @@ export class GamesResolver {
         gameTeamUpdated: gameTeam,
       });
     } catch (error) {
-      this.logger.error('Failed to publish gameTeamUpdated event', {
-        error,
-        gameTeamId: gameTeam.id,
-      });
+      // Non-fatal: mutation succeeded but real-time notification failed
+      this.logger.warn(
+        'Real-time notification failed - subscribers may have stale data',
+        {
+          error: error instanceof Error ? error.message : String(error),
+          gameTeamId: gameTeam.id,
+          eventType: 'gameTeamUpdated',
+        },
+      );
     }
     return gameTeam;
   }
