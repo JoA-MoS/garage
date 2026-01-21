@@ -252,11 +252,24 @@ export class GamesService {
 
     // Handle pause/resume via events
     if (inputPausedAt !== undefined) {
-      await this.handlePauseResumeEvent(
-        id,
-        inputPausedAt as Date | null,
-        userId,
-      );
+      // Validate and normalize pausedAt input
+      let normalizedPausedAt: Date | null;
+      if (inputPausedAt === null) {
+        normalizedPausedAt = null;
+      } else if (inputPausedAt instanceof Date) {
+        normalizedPausedAt = inputPausedAt;
+      } else if (typeof inputPausedAt === 'string') {
+        normalizedPausedAt = new Date(inputPausedAt);
+        if (isNaN(normalizedPausedAt.getTime())) {
+          throw new Error(`Invalid pausedAt date string: ${inputPausedAt}`);
+        }
+      } else {
+        throw new Error(
+          `Invalid pausedAt type: expected Date, string, or null, got ${typeof inputPausedAt}`,
+        );
+      }
+
+      await this.handlePauseResumeEvent(id, normalizedPausedAt, userId);
     }
 
     // Convert STARTING_LINEUP events to SUBSTITUTION_IN when game starts
@@ -427,6 +440,7 @@ export class GamesService {
    * This replaces direct column updates with event-based timing.
    *
    * @throws Error if required event types are not found in the database
+   * @throws Error if userId is not provided for status changes that create timing events
    */
   private async createTimingEventsForStatusChange(
     gameId: string,
@@ -434,6 +448,19 @@ export class GamesService {
     userId?: string,
   ): Promise<void> {
     if (!status) return;
+
+    // Validate userId is provided for status changes that create timing events
+    const statusesRequiringEvents: GameStatus[] = [
+      GameStatus.FIRST_HALF,
+      GameStatus.HALFTIME,
+      GameStatus.SECOND_HALF,
+      GameStatus.COMPLETED,
+    ];
+    if (statusesRequiringEvents.includes(status) && !userId) {
+      throw new Error(
+        `Cannot create timing events for status ${status}: userId is required`,
+      );
+    }
 
     const requiredEventTypes = [
       'GAME_START',
@@ -480,6 +507,31 @@ export class GamesService {
         );
       }
 
+      // Idempotency check: skip if this event already exists for the game
+      // For period events, also check metadata.period matches
+      const existingEventQuery = this.gameEventRepository
+        .createQueryBuilder('event')
+        .where('event.gameId = :gameId', { gameId })
+        .andWhere('event.eventTypeId = :eventTypeId', {
+          eventTypeId: eventType.id,
+        });
+
+      // For PERIOD_START/PERIOD_END, check the specific period
+      if (metadata?.period) {
+        existingEventQuery.andWhere("event.metadata->>'period' = :period", {
+          period: metadata.period,
+        });
+      }
+
+      const existingEvent = await existingEventQuery.getOne();
+      if (existingEvent) {
+        this.logger.debug(
+          `Skipping duplicate ${eventTypeName} event for game ${gameId}` +
+            (metadata?.period ? ` (period ${metadata.period})` : ''),
+        );
+        return;
+      }
+
       const event = this.gameEventRepository.create({
         gameId,
         gameTeamId: homeGameTeam.id,
@@ -523,12 +575,19 @@ export class GamesService {
    * pausedAt = null means resume (create STOPPAGE_END)
    *
    * @throws Error if required event type is not found in the database
+   * @throws Error if userId is not provided
    */
   private async handlePauseResumeEvent(
     gameId: string,
     pausedAt: Date | null,
     userId?: string,
   ): Promise<void> {
+    if (!userId) {
+      throw new Error(
+        `Cannot ${pausedAt ? 'pause' : 'resume'} game: userId is required`,
+      );
+    }
+
     const eventTypeName = pausedAt ? 'STOPPAGE_START' : 'STOPPAGE_END';
 
     const eventType = await this.eventTypeRepository.findOne({

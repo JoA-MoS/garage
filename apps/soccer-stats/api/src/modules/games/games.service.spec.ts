@@ -165,11 +165,25 @@ describe('GamesService', () => {
       mockGameEventRepository.save.mockImplementation((entity) =>
         Promise.resolve({ ...entity, id: `event-${Date.now()}` } as GameEvent),
       );
+
+      // Idempotency check mock - default: no existing events
+      const mockSelectQueryBuilder = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      };
+      mockGameEventRepository.createQueryBuilder.mockReturnValue(
+        mockSelectQueryBuilder as any,
+      );
     });
 
     describe('createTimingEventsForStatusChange', () => {
       it('should create GAME_START and PERIOD_START events when status is FIRST_HALF', async () => {
-        await service.update('game-1', { status: GameStatus.FIRST_HALF });
+        await service.update(
+          'game-1',
+          { status: GameStatus.FIRST_HALF },
+          'user-123',
+        );
 
         // Should have created 2 events: GAME_START and PERIOD_START
         expect(mockGameEventRepository.create).toHaveBeenCalledTimes(2);
@@ -181,18 +195,24 @@ describe('GamesService', () => {
         expect(createCalls[0][0]).toMatchObject({
           gameId: 'game-1',
           eventTypeId: 'et-game-start',
+          recordedByUserId: 'user-123',
         });
 
         // Second event: PERIOD_START with period 1
         expect(createCalls[1][0]).toMatchObject({
           gameId: 'game-1',
           eventTypeId: 'et-period-start',
+          recordedByUserId: 'user-123',
           metadata: { period: '1' },
         });
       });
 
       it('should create PERIOD_END event when status is HALFTIME', async () => {
-        await service.update('game-1', { status: GameStatus.HALFTIME });
+        await service.update(
+          'game-1',
+          { status: GameStatus.HALFTIME },
+          'user-123',
+        );
 
         expect(mockGameEventRepository.create).toHaveBeenCalledTimes(1);
         expect(mockGameEventRepository.create).toHaveBeenCalledWith(
@@ -205,7 +225,11 @@ describe('GamesService', () => {
       });
 
       it('should create PERIOD_START event when status is SECOND_HALF', async () => {
-        await service.update('game-1', { status: GameStatus.SECOND_HALF });
+        await service.update(
+          'game-1',
+          { status: GameStatus.SECOND_HALF },
+          'user-123',
+        );
 
         expect(mockGameEventRepository.create).toHaveBeenCalledTimes(1);
         expect(mockGameEventRepository.create).toHaveBeenCalledWith(
@@ -218,7 +242,11 @@ describe('GamesService', () => {
       });
 
       it('should create PERIOD_END and GAME_END events when status is COMPLETED', async () => {
-        await service.update('game-1', { status: GameStatus.COMPLETED });
+        await service.update(
+          'game-1',
+          { status: GameStatus.COMPLETED },
+          'user-123',
+        );
 
         expect(mockGameEventRepository.create).toHaveBeenCalledTimes(2);
 
@@ -253,8 +281,43 @@ describe('GamesService', () => {
         ] as EventType[]);
 
         await expect(
-          service.update('game-1', { status: GameStatus.FIRST_HALF }),
+          service.update(
+            'game-1',
+            { status: GameStatus.FIRST_HALF },
+            'user-123',
+          ),
         ).rejects.toThrow('Cannot create timing events: missing event types');
+      });
+
+      it('should throw error when userId is not provided for status requiring timing events', async () => {
+        await expect(
+          service.update('game-1', { status: GameStatus.FIRST_HALF }),
+        ).rejects.toThrow('userId is required');
+      });
+
+      it('should skip creating duplicate timing events (idempotency)', async () => {
+        // Mock that GAME_START already exists
+        const mockSelectQueryBuilder = {
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          getOne: jest
+            .fn()
+            .mockResolvedValueOnce({ id: 'existing-event' }) // GAME_START exists
+            .mockResolvedValueOnce(null), // PERIOD_START doesn't exist
+        };
+        mockGameEventRepository.createQueryBuilder.mockReturnValue(
+          mockSelectQueryBuilder as any,
+        );
+
+        await service.update(
+          'game-1',
+          { status: GameStatus.FIRST_HALF },
+          'user-123',
+        );
+
+        // Should only create 1 event (PERIOD_START), not 2
+        expect(mockGameEventRepository.create).toHaveBeenCalledTimes(1);
+        expect(mockGameEventRepository.save).toHaveBeenCalledTimes(1);
       });
     });
 
@@ -271,7 +334,7 @@ describe('GamesService', () => {
       it('should create STOPPAGE_START event when pausedAt is a date', async () => {
         const pauseTime = new Date('2024-01-01T10:15:00Z');
 
-        await service.update('game-1', { pausedAt: pauseTime });
+        await service.update('game-1', { pausedAt: pauseTime }, 'user-123');
 
         expect(mockEventTypeRepository.findOne).toHaveBeenCalledWith({
           where: { name: 'STOPPAGE_START' },
@@ -285,7 +348,7 @@ describe('GamesService', () => {
       });
 
       it('should create STOPPAGE_END event when pausedAt is null', async () => {
-        await service.update('game-1', { pausedAt: null });
+        await service.update('game-1', { pausedAt: null }, 'user-123');
 
         expect(mockEventTypeRepository.findOne).toHaveBeenCalledWith({
           where: { name: 'STOPPAGE_END' },
@@ -302,8 +365,51 @@ describe('GamesService', () => {
         mockEventTypeRepository.findOne.mockResolvedValue(null);
 
         await expect(
-          service.update('game-1', { pausedAt: new Date() }),
+          service.update('game-1', { pausedAt: new Date() }, 'user-123'),
         ).rejects.toThrow('Cannot pause game');
+      });
+
+      it('should throw error when userId is not provided for pause', async () => {
+        await expect(
+          service.update('game-1', { pausedAt: new Date() }),
+        ).rejects.toThrow('userId is required');
+      });
+
+      it('should throw error when userId is not provided for resume', async () => {
+        await expect(
+          service.update('game-1', { pausedAt: null }),
+        ).rejects.toThrow('userId is required');
+      });
+
+      it('should accept string date for pausedAt and convert to Date', async () => {
+        const dateString = '2024-01-01T10:15:00Z';
+
+        await service.update(
+          'game-1',
+          { pausedAt: dateString } as any,
+          'user-123',
+        );
+
+        expect(mockEventTypeRepository.findOne).toHaveBeenCalledWith({
+          where: { name: 'STOPPAGE_START' },
+        });
+        expect(mockGameEventRepository.create).toHaveBeenCalled();
+      });
+
+      it('should throw error for invalid pausedAt string', async () => {
+        await expect(
+          service.update(
+            'game-1',
+            { pausedAt: 'not-a-date' } as any,
+            'user-123',
+          ),
+        ).rejects.toThrow('Invalid pausedAt date string');
+      });
+
+      it('should throw error for invalid pausedAt type', async () => {
+        await expect(
+          service.update('game-1', { pausedAt: 12345 } as any, 'user-123'),
+        ).rejects.toThrow('Invalid pausedAt type');
       });
     });
 

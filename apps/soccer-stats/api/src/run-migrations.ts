@@ -62,7 +62,16 @@ async function registerBaselineIfNeeded(dataSource: DataSource): Promise<void> {
       BASELINE_MIGRATION,
     ])
     .then((rows) => rows.length > 0)
-    .catch(() => false); // Table doesn't exist yet
+    .catch((error) => {
+      // "relation does not exist" (42P01) is expected for fresh databases
+      const errorStr = error instanceof Error ? error.message : String(error);
+      if (!errorStr.includes('does not exist') && !errorStr.includes('42P01')) {
+        console.warn(
+          `Warning: Unexpected error checking migrations table: ${errorStr}`,
+        );
+      }
+      return false;
+    });
 
   if (hasBaseline) {
     return; // Baseline already registered
@@ -74,7 +83,14 @@ async function registerBaselineIfNeeded(dataSource: DataSource): Promise<void> {
       `SELECT 1 FROM information_schema.tables WHERE table_name = 'users' LIMIT 1`,
     )
     .then((rows) => rows.length > 0)
-    .catch(() => false);
+    .catch((error) => {
+      // Log unexpected errors - information_schema should always be accessible
+      const errorStr = error instanceof Error ? error.message : String(error);
+      console.warn(
+        `Warning: Unexpected error checking schema existence: ${errorStr}`,
+      );
+      return false;
+    });
 
   if (!schemaExists) {
     return; // Fresh database, let migrations create everything
@@ -88,12 +104,15 @@ async function registerBaselineIfNeeded(dataSource: DataSource): Promise<void> {
     `CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE_NAME} (
       id SERIAL PRIMARY KEY,
       timestamp bigint NOT NULL,
-      name varchar NOT NULL
+      name varchar NOT NULL,
+      CONSTRAINT ${MIGRATIONS_TABLE_NAME}_name_unique UNIQUE (name)
     )`,
   );
 
+  // Use ON CONFLICT to handle race conditions when multiple migration containers start
   await dataSource.query(
-    `INSERT INTO ${MIGRATIONS_TABLE_NAME} (timestamp, name) VALUES ($1, $2)`,
+    `INSERT INTO ${MIGRATIONS_TABLE_NAME} (timestamp, name) VALUES ($1, $2)
+     ON CONFLICT (name) DO NOTHING`,
     [BASELINE_TIMESTAMP, BASELINE_MIGRATION],
   );
 
@@ -149,8 +168,15 @@ async function runMigrations(): Promise<void> {
 
     try {
       await migrationDataSource.destroy();
-    } catch {
-      // Ignore cleanup errors
+    } catch (cleanupError) {
+      console.error(
+        'Warning: Failed to close database connection during cleanup:',
+      );
+      console.error(
+        cleanupError instanceof Error
+          ? cleanupError.message
+          : String(cleanupError),
+      );
     }
 
     process.exit(1);
