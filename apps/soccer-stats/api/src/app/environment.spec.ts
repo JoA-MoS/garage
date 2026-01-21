@@ -98,7 +98,7 @@ describe('Environment Configuration', () => {
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
       expect(getDbHost()).toBe('');
       expect(warnSpy).toHaveBeenCalledWith(
-        '[Environment] Missing DB_HOST - ensure .env file is loaded by Nx',
+        '[Environment] Missing DB_HOST - ensure environment variables are loaded',
       );
       warnSpy.mockRestore();
     });
@@ -132,7 +132,7 @@ describe('Environment Configuration', () => {
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
       expect(getDbUsername()).toBe('');
       expect(warnSpy).toHaveBeenCalledWith(
-        '[Environment] Missing DB_USERNAME - ensure .env file is loaded by Nx',
+        '[Environment] Missing DB_USERNAME - ensure environment variables are loaded',
       );
       warnSpy.mockRestore();
     });
@@ -148,7 +148,7 @@ describe('Environment Configuration', () => {
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
       expect(getDbPassword()).toBe('');
       expect(warnSpy).toHaveBeenCalledWith(
-        '[Environment] Missing DB_PASSWORD - ensure .env file is loaded by Nx',
+        '[Environment] Missing DB_PASSWORD - ensure environment variables are loaded',
       );
       warnSpy.mockRestore();
     });
@@ -164,7 +164,7 @@ describe('Environment Configuration', () => {
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
       expect(getDbName()).toBe('');
       expect(warnSpy).toHaveBeenCalledWith(
-        '[Environment] Missing DB_NAME - ensure .env file is loaded by Nx',
+        '[Environment] Missing DB_NAME - ensure environment variables are loaded',
       );
       warnSpy.mockRestore();
     });

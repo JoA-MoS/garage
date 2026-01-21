@@ -46,6 +46,60 @@ const migrationDataSource = new DataSource({
   logging: ['migration', 'error'],
 });
 
+/**
+ * Register baseline migration for databases created before migrations were enabled.
+ *
+ * If the database has existing schema (e.g., from synchronize: true) but no
+ * migration records, this registers InitialSchema as already applied.
+ */
+async function registerBaselineIfNeeded(dataSource: DataSource): Promise<void> {
+  const BASELINE_MIGRATION = 'InitialSchema1768502441068';
+  const BASELINE_TIMESTAMP = 1768502441068;
+
+  // Check if migrations table exists and has the baseline
+  const hasBaseline = await dataSource
+    .query(`SELECT 1 FROM ${MIGRATIONS_TABLE_NAME} WHERE name = $1 LIMIT 1`, [
+      BASELINE_MIGRATION,
+    ])
+    .then((rows) => rows.length > 0)
+    .catch(() => false); // Table doesn't exist yet
+
+  if (hasBaseline) {
+    return; // Baseline already registered
+  }
+
+  // Check if schema exists (look for a table from InitialSchema)
+  const schemaExists = await dataSource
+    .query(
+      `SELECT 1 FROM information_schema.tables WHERE table_name = 'users' LIMIT 1`,
+    )
+    .then((rows) => rows.length > 0)
+    .catch(() => false);
+
+  if (!schemaExists) {
+    return; // Fresh database, let migrations create everything
+  }
+
+  // Schema exists but baseline not registered - register it
+  console.log('Existing schema detected without migration records.');
+  console.log(`Registering baseline migration: ${BASELINE_MIGRATION}`);
+
+  await dataSource.query(
+    `CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE_NAME} (
+      id SERIAL PRIMARY KEY,
+      timestamp bigint NOT NULL,
+      name varchar NOT NULL
+    )`,
+  );
+
+  await dataSource.query(
+    `INSERT INTO ${MIGRATIONS_TABLE_NAME} (timestamp, name) VALUES ($1, $2)`,
+    [BASELINE_TIMESTAMP, BASELINE_MIGRATION],
+  );
+
+  console.log('Baseline migration registered successfully.');
+}
+
 async function runMigrations(): Promise<void> {
   console.log('=== Database Migration Runner ===');
   console.log(`Host: ${getDbHost()}`);
@@ -55,6 +109,9 @@ async function runMigrations(): Promise<void> {
   try {
     console.log('Initializing database connection...');
     await migrationDataSource.initialize();
+
+    // Handle databases created before migrations were enabled
+    await registerBaselineIfNeeded(migrationDataSource);
 
     console.log('Checking for pending migrations...');
     const pendingMigrations = await migrationDataSource.showMigrations();
