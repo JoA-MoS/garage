@@ -164,7 +164,15 @@ async function runMigrations(): Promise<void> {
   } catch (error) {
     console.error('');
     console.error('=== Migration Failed ===');
-    console.error(error instanceof Error ? error.message : String(error));
+    if (error instanceof Error) {
+      console.error(error.message);
+      if (error.stack) {
+        console.error('Stack trace:');
+        console.error(error.stack);
+      }
+    } else {
+      console.error(String(error));
+    }
 
     try {
       await migrationDataSource.destroy();
