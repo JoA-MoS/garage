@@ -83,14 +83,14 @@ export class TeamMember extends BaseEntity {
    * When the invitation was sent.
    */
   @Field({ nullable: true })
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   invitedAt?: Date;
 
   /**
    * When the user accepted the invitation and joined the team.
    */
   @Field({ nullable: true })
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   acceptedAt?: Date;
 
   // Relations

@@ -21,11 +21,14 @@ const PROJECT_ROOT = 'apps/soccer-stats/api/src';
 /**
  * CLI-specific configuration with explicit entity and migration paths.
  * The CLI cannot use autoLoadEntities - it needs glob patterns.
+ * Note: Migration pattern uses [0-9]* prefix to exclude index.ts (used for webpack bundling).
  */
 export const cliDataSourceOptions: DataSourceOptions = {
   ...baseTypeOrmConfig,
   entities: [path.join(PROJECT_ROOT, 'entities', '*.entity.{ts,js}')],
-  migrations: [path.join(PROJECT_ROOT, 'database', 'migrations', '*.{ts,js}')],
+  migrations: [
+    path.join(PROJECT_ROOT, 'database', 'migrations', '[0-9]*-*.{ts,js}'),
+  ],
 };
 
 /**
