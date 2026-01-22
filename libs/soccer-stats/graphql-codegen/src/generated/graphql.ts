@@ -373,6 +373,8 @@ export type Mutation = {
   removeUser: Scalars['Boolean']['output'];
   resolveEventConflict: GameEvent;
   seedGameFormats: Scalars['Boolean']['output'];
+  /** Set the second half lineup during halftime. Subs everyone out and in with new positions. */
+  setSecondHalfLineup: SecondHalfLineupResult;
   substitutePlayer: Array<GameEvent>;
   swapPositions: Array<GameEvent>;
   /** Returns the new owner */
@@ -538,6 +540,10 @@ export type MutationResolveEventConflictArgs = {
   conflictId: Scalars['ID']['input'];
   keepAll?: InputMaybe<Scalars['Boolean']['input']>;
   selectedEventId: Scalars['ID']['input'];
+};
+
+export type MutationSetSecondHalfLineupArgs = {
+  input: SetSecondHalfLineupInput;
 };
 
 export type MutationSubstitutePlayerArgs = {
@@ -880,6 +886,33 @@ export type RecordPositionChangeInput = {
   playerEventId: Scalars['ID']['input'];
   /** Reason for position change */
   reason?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type SecondHalfLineupPlayerInput = {
+  /** External player name (for opponents) */
+  externalPlayerName?: InputMaybe<Scalars['String']['input']>;
+  /** External player jersey number */
+  externalPlayerNumber?: InputMaybe<Scalars['String']['input']>;
+  /** Player ID for managed roster player */
+  playerId?: InputMaybe<Scalars['ID']['input']>;
+  /** Position for second half (e.g., "CM", "ST", "GK") */
+  position: Scalars['String']['input'];
+};
+
+export type SecondHalfLineupResult = {
+  __typename?: 'SecondHalfLineupResult';
+  /** All created events */
+  events: Array<GameEvent>;
+  /** Players subbed in for second half */
+  substitutionsIn: Scalars['Int']['output'];
+  /** Players subbed out from first half */
+  substitutionsOut: Scalars['Int']['output'];
+};
+
+export type SetSecondHalfLineupInput = {
+  gameTeamId: Scalars['ID']['input'];
+  /** Players for second half lineup */
+  lineup: Array<SecondHalfLineupPlayerInput>;
 };
 
 /** The source of team data - internal (user created) or external (imported) */

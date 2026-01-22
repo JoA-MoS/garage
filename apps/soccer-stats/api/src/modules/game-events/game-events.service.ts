@@ -15,7 +15,7 @@ import type { PubSub } from 'graphql-subscriptions';
 import { GameEvent } from '../../entities/game-event.entity';
 import { EventType } from '../../entities/event-type.entity';
 import { GameTeam } from '../../entities/game-team.entity';
-import { Game } from '../../entities/game.entity';
+import { Game, GameStatus } from '../../entities/game.entity';
 import { Team } from '../../entities/team.entity';
 import { GameTimingService } from '../games/game-timing.service';
 
@@ -48,6 +48,8 @@ import {
   GameEventAction,
   GameEventSubscriptionPayload,
 } from './dto/game-event-subscription.output';
+import { SetSecondHalfLineupInput } from './dto/set-second-half-lineup.input';
+import { SecondHalfLineupResult } from './dto/set-second-half-lineup.output';
 
 // Detection result for duplicate/conflict checking
 interface DuplicateConflictResult {
@@ -2451,5 +2453,137 @@ export class GameEventsService implements OnModuleInit {
         'childEvents.eventType',
       ],
     });
+  }
+
+  /**
+   * Set the second half lineup during halftime.
+   *
+   * Creates SUBSTITUTION_OUT events for all players currently on field (at the actual
+   * game clock time when halftime started) and SUBSTITUTION_IN events for the new lineup
+   * (at the same time).
+   *
+   * Uses the actual elapsed game time from the timing service, which accounts for
+   * games that ran longer or shorter than the scheduled half duration.
+   *
+   * This approach is simpler than diffing lineups because everyone gets fresh events
+   * with their new positions, mirroring the starting lineup → SUBSTITUTION_IN conversion pattern.
+   */
+  async setSecondHalfLineup(
+    input: SetSecondHalfLineupInput,
+    recordedByUserId: string,
+  ): Promise<SecondHalfLineupResult> {
+    // 1. Validate game team exists and get game
+    const gameTeam = await this.gameTeamsRepository.findOne({
+      where: { id: input.gameTeamId },
+      relations: ['game', 'game.gameFormat'],
+    });
+
+    if (!gameTeam) {
+      throw new NotFoundException(`GameTeam ${input.gameTeamId} not found`);
+    }
+
+    const game = gameTeam.game;
+
+    // 2. Validate game is in HALFTIME status
+    if (game.status !== GameStatus.HALFTIME) {
+      throw new BadRequestException(
+        `Cannot set second half lineup: game is in ${game.status} status, expected HALFTIME`,
+      );
+    }
+
+    // 3. Validate each lineup player has either playerId OR externalPlayerName
+    for (const player of input.lineup) {
+      this.ensurePlayerInfoProvided(
+        player.playerId,
+        player.externalPlayerName,
+        'second half lineup entry',
+      );
+    }
+
+    // 4. Get current on-field players
+    const currentLineup = await this.getGameLineup(input.gameTeamId);
+    const playersOnField = currentLineup.currentOnField;
+
+    // 5. Get actual game clock time at halftime (when first half ended)
+    const totalDuration =
+      game.durationMinutes ?? game.gameFormat?.durationMinutes ?? 90;
+    const actualHalftimeSeconds =
+      await this.gameTimingService.getGameDurationSeconds(
+        game.id,
+        totalDuration,
+      );
+    const halftimeMinute = Math.floor(actualHalftimeSeconds / 60);
+    const halftimeSecond = actualHalftimeSeconds % 60;
+
+    // 6. Get event types
+    const subOutType = this.getEventTypeByName('SUBSTITUTION_OUT');
+    const subInType = this.getEventTypeByName('SUBSTITUTION_IN');
+
+    const allEvents: GameEvent[] = [];
+
+    // 7. Create SUBSTITUTION_OUT events for each player currently on field
+    // Uses actual game clock time when first half ended
+    for (const player of playersOnField) {
+      const subOutEvent = this.gameEventsRepository.create({
+        gameId: game.id,
+        gameTeamId: input.gameTeamId,
+        eventTypeId: subOutType.id,
+        playerId: player.playerId,
+        externalPlayerName: player.externalPlayerName,
+        externalPlayerNumber: player.externalPlayerNumber,
+        recordedByUserId,
+        gameMinute: halftimeMinute,
+        gameSecond: halftimeSecond,
+        position: player.position,
+      });
+
+      const savedSubOut = await this.gameEventsRepository.save(subOutEvent);
+      allEvents.push(savedSubOut);
+    }
+
+    // 8. Create SUBSTITUTION_IN events for each player in the new lineup
+    // Also uses actual halftime clock (players enter at same logical moment)
+    for (const player of input.lineup) {
+      const subInEvent = this.gameEventsRepository.create({
+        gameId: game.id,
+        gameTeamId: input.gameTeamId,
+        eventTypeId: subInType.id,
+        playerId: player.playerId,
+        externalPlayerName: player.externalPlayerName,
+        externalPlayerNumber: player.externalPlayerNumber,
+        recordedByUserId,
+        gameMinute: halftimeMinute,
+        gameSecond: halftimeSecond,
+        position: player.position,
+      });
+
+      const savedSubIn = await this.gameEventsRepository.save(subInEvent);
+      allEvents.push(savedSubIn);
+    }
+
+    // 9. Load relations for all created events
+    const eventsWithRelations = await this.gameEventsRepository.find({
+      where: allEvents.map((e) => ({ id: e.id })),
+      relations: [
+        'eventType',
+        'player',
+        'recordedByUser',
+        'gameTeam',
+        'game',
+        'childEvents',
+        'childEvents.eventType',
+      ],
+    });
+
+    // 10. Publish events to subscribers (batch notification)
+    for (const event of eventsWithRelations) {
+      await this.publishGameEvent(game.id, GameEventAction.CREATED, event);
+    }
+
+    return {
+      events: eventsWithRelations,
+      substitutionsOut: playersOnField.length,
+      substitutionsIn: input.lineup.length,
+    };
   }
 }
