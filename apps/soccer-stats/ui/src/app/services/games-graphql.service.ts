@@ -725,3 +725,26 @@ export const GAME_UPDATED = graphql(/* GraphQL */ `
     }
   }
 `);
+
+// Set second half lineup - subs everyone out/in at halftime with new positions
+export const SET_SECOND_HALF_LINEUP = graphql(/* GraphQL */ `
+  mutation SetSecondHalfLineup($input: SetSecondHalfLineupInput!) {
+    setSecondHalfLineup(input: $input) {
+      events {
+        id
+        gameMinute
+        gameSecond
+        position
+        playerId
+        externalPlayerName
+        externalPlayerNumber
+        eventType {
+          id
+          name
+        }
+      }
+      substitutionsOut
+      substitutionsIn
+    }
+  }
+`);

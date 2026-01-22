@@ -10,6 +10,7 @@ import {
   RemoveFromLineupDocument,
   UpdatePlayerPositionDocument,
   SubstitutePlayerDocument,
+  SetSecondHalfLineupDocument,
   LineupPlayer,
 } from '@garage/soccer-stats/graphql-codegen';
 
@@ -107,6 +108,13 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
 
   const [recordPositionChangeMutation, { loading: recordingPositionChange }] =
     useMutation(RECORD_POSITION_CHANGE, {
+      refetchQueries: [
+        { query: GetGameLineupDocument, variables: { gameTeamId } },
+      ],
+    });
+
+  const [setSecondHalfLineupMutation, { loading: settingSecondHalfLineup }] =
+    useMutation(SetSecondHalfLineupDocument, {
       refetchQueries: [
         { query: GetGameLineupDocument, variables: { gameTeamId } },
       ],
@@ -265,6 +273,28 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     [gameTeamId, recordPositionChangeMutation],
   );
 
+  // Set the second half lineup (subs everyone out/in with new positions at halftime)
+  const setSecondHalfLineup = useCallback(
+    async (
+      lineup: Array<{
+        playerId?: string;
+        externalPlayerName?: string;
+        externalPlayerNumber?: string;
+        position: string;
+      }>,
+    ) => {
+      return setSecondHalfLineupMutation({
+        variables: {
+          input: {
+            gameTeamId,
+            lineup,
+          },
+        },
+      });
+    },
+    [gameTeamId, setSecondHalfLineupMutation],
+  );
+
   return {
     // Data
     lineup: lineupData?.gameLineup,
@@ -283,7 +313,8 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       removing ||
       updatingPosition ||
       substituting ||
-      recordingPositionChange,
+      recordingPositionChange ||
+      settingSecondHalfLineup,
 
     // Error
     error: lineupError,
@@ -295,6 +326,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     updatePosition,
     substitutePlayer,
     recordPositionChange,
+    setSecondHalfLineup,
     refetchLineup,
   };
 }

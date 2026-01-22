@@ -2193,6 +2193,30 @@ export type GameUpdatedSubscription = {
   };
 };
 
+export type SetSecondHalfLineupMutationVariables = Exact<{
+  input: SetSecondHalfLineupInput;
+}>;
+
+export type SetSecondHalfLineupMutation = {
+  __typename?: 'Mutation';
+  setSecondHalfLineup: {
+    __typename?: 'SecondHalfLineupResult';
+    substitutionsOut: number;
+    substitutionsIn: number;
+    events: Array<{
+      __typename?: 'GameEvent';
+      id: string;
+      gameMinute: number;
+      gameSecond: number;
+      position?: string | null;
+      playerId?: string | null;
+      externalPlayerName?: string | null;
+      externalPlayerNumber?: string | null;
+      eventType: { __typename?: 'EventType'; id: string; name: string };
+    }>;
+  };
+};
+
 export type GetMyDashboardQueryVariables = Exact<{
   upcomingLimit?: InputMaybe<Scalars['Int']['input']>;
   recentLimit?: InputMaybe<Scalars['Int']['input']>;
@@ -6941,6 +6965,118 @@ export const GameUpdatedDocument = {
 } as unknown as DocumentNode<
   GameUpdatedSubscription,
   GameUpdatedSubscriptionVariables
+>;
+export const SetSecondHalfLineupDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'mutation',
+      name: { kind: 'Name', value: 'SetSecondHalfLineup' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'input' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: {
+              kind: 'NamedType',
+              name: { kind: 'Name', value: 'SetSecondHalfLineupInput' },
+            },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'setSecondHalfLineup' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'input' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'input' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'events' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameMinute' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameSecond' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'position' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'playerId' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'externalPlayerName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'externalPlayerNumber' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'eventType' },
+                        selectionSet: {
+                          kind: 'SelectionSet',
+                          selections: [
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'id' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'name' },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'substitutionsOut' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'substitutionsIn' },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  SetSecondHalfLineupMutation,
+  SetSecondHalfLineupMutationVariables
 >;
 export const GetMyDashboardDocument = {
   kind: 'Document',

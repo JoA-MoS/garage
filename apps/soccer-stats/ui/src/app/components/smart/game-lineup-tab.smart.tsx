@@ -325,6 +325,34 @@ export const GameLineupTab = memo(function GameLineupTab({
     [addToLineup],
   );
 
+  // Assign bench player to a position (move from bench to lineup)
+  const handleAssignBenchPlayerToPosition = useCallback(
+    async (player: LineupPlayer, position: string) => {
+      try {
+        // First remove from bench
+        await removeFromLineup(player.gameEventId);
+
+        // Then add to lineup at the position
+        if (player.playerId) {
+          await addToLineup({
+            playerId: player.playerId,
+            position,
+          });
+        } else {
+          await addToLineup({
+            externalPlayerName: player.externalPlayerName || undefined,
+            externalPlayerNumber: player.externalPlayerNumber || undefined,
+            position,
+          });
+        }
+        setModalMode({ type: 'closed' });
+      } catch (err) {
+        console.error('Failed to move bench player to lineup:', err);
+      }
+    },
+    [addToLineup, removeFromLineup],
+  );
+
   // Add external player
   const handleAddExternalPlayer = useCallback(
     async (target: 'lineup' | 'bench', position?: string) => {
@@ -548,11 +576,50 @@ export const GameLineupTab = memo(function GameLineupTab({
                   Assign Player to {modalMode.position.position}
                 </h4>
 
-                {/* Roster selection for managed teams */}
+                {/* Bench players - these are the players marked available for the game */}
+                {bench.length > 0 && (
+                  <div className="mb-4">
+                    <p className="mb-2 text-sm font-medium text-gray-700">
+                      Available for Game:
+                    </p>
+                    <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto">
+                      {bench.map((player) => (
+                        <button
+                          key={player.gameEventId}
+                          onClick={() =>
+                            handleAssignBenchPlayerToPosition(
+                              player,
+                              modalMode.position.position,
+                            )
+                          }
+                          className="flex items-center gap-1 rounded-full px-3 py-1 text-sm hover:opacity-80"
+                          style={{
+                            backgroundColor: teamColor,
+                            color: 'white',
+                          }}
+                          type="button"
+                        >
+                          #{player.externalPlayerNumber || '?'}{' '}
+                          {player.externalPlayerName ||
+                            player.playerName ||
+                            'Unknown'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Roster selection for managed teams - add directly to position */}
                 {isManaged && (
                   <div className="mb-4">
                     <p className="mb-2 text-sm font-medium text-gray-700">
-                      Team Roster:
+                      {bench.length > 0
+                        ? 'Or add from roster:'
+                        : 'Team Roster:'}
+                    </p>
+                    <p className="mb-2 text-xs text-gray-500">
+                      Tip: Add players to bench first to mark them as available
+                      for this game
                     </p>
                     {availableRoster.length > 0 ? (
                       <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto">
