@@ -138,6 +138,49 @@ pnpm nx serve:dev soccer-stats-api
 
 **Database Initialization:** SQL scripts in `apps/soccer-stats-api/database/init/` run automatically on first container start.
 
+### Database Migrations (soccer-stats-api)
+
+The soccer-stats-api uses TypeORM migrations for schema changes. **Never use `synchronize: true` in production.**
+
+```bash
+# Show migration status
+pnpm nx migration:show soccer-stats-api
+
+# Generate a new migration from entity changes
+pnpm nx migration:generate soccer-stats-api --name=AddUserEmail
+
+# Run pending migrations
+pnpm nx migration:run soccer-stats-api
+
+# Revert the last migration
+pnpm nx migration:revert soccer-stats-api
+```
+
+**Migration Workflow:**
+
+1. **Modify entities** - Update TypeORM entity files in `apps/soccer-stats/api/src/entities/`
+2. **Generate migration** - Run `migration:generate` to create a migration file
+3. **Review migration** - Check the generated SQL in `apps/soccer-stats/api/src/database/migrations/`
+4. **Run migration** - Apply with `migration:run`
+5. **Commit both** - Commit entity changes AND migration file together
+
+**Configuration Files:**
+
+| File                         | Purpose                                |
+| ---------------------------- | -------------------------------------- |
+| `database/typeorm.config.ts` | Shared config for NestJS app and CLI   |
+| `database/data-source.ts`    | CLI-specific DataSource for migrations |
+| `database/migrations/*.ts`   | Migration files (auto-generated)       |
+
+**Environment Variables:**
+
+- `DB_SYNCHRONIZE=false` - **Must be false** when using migrations (default)
+- Migrations use `.env` file via Nx's `envFile` option in project.json
+
+**Baseline Migration:**
+
+The `InitialSchema` migration represents the database state before migrations were enabled. The `StartupService` automatically registers this baseline migration on existing databases during app startup.
+
 ## High-Level Architecture
 
 ### Monorepo Structure
@@ -188,7 +231,12 @@ The soccer-stats application is a full-stack youth soccer statistics tracking sy
 app/
 ├── app.module.ts          # Root module with GraphQL configuration
 ├── app.controller.ts      # Health check endpoints
-└── startup.service.ts     # Database initialization
+└── startup.service.ts     # Database initialization & baseline migrations
+
+database/                  # TypeORM migrations infrastructure
+├── typeorm.config.ts      # Shared config (NestJS + CLI)
+├── data-source.ts         # CLI DataSource for migrations
+└── migrations/            # Generated migration files
 
 entities/                  # TypeORM database entities
 ├── base.entity.ts

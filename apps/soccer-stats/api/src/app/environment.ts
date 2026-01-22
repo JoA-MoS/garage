@@ -33,7 +33,7 @@ function getRequiredEnv(key: string): string {
     // In development, this will be caught at runtime when the value is used
     // Nx should have loaded defaults from .env files
     console.warn(
-      `[Environment] Missing ${key} - ensure .env file is loaded by Nx`,
+      `[Environment] Missing ${key} - ensure environment variables are loaded`,
     );
     return '';
   }
@@ -86,8 +86,13 @@ export const getDbPort = (): number =>
 export const getDbUsername = (): string => getRequiredEnv('DB_USERNAME');
 export const getDbPassword = (): string => getRequiredEnv('DB_PASSWORD');
 export const getDbName = (): string => getRequiredEnv('DB_NAME');
+/**
+ * Database synchronize setting.
+ * IMPORTANT: Should be false when using TypeORM migrations.
+ * Only set to true for rapid prototyping without migrations.
+ */
 export const getDbSynchronize = (): boolean =>
-  getEnv('DB_SYNCHRONIZE') === 'true' || !isProduction();
+  getEnv('DB_SYNCHRONIZE') === 'true';
 export const getDbLogging = (): boolean =>
   getEnv('DB_LOGGING') === 'true' || !isProduction();
 

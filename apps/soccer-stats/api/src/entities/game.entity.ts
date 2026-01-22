@@ -91,6 +91,14 @@ export class Game extends BaseEntity {
   })
   statsTrackingLevel?: StatsTrackingLevel;
 
+  @Field({
+    nullable: true,
+    description:
+      'Override for game duration in minutes (null = use game format default)',
+  })
+  @Column({ type: 'int', nullable: true })
+  durationMinutes?: number;
+
   // Note: statsFeatureOverrides field is excluded from GraphQL schema to avoid type complexity
   // Feature toggles can be overridden per-game (trackSubstitutions, trackPossession, etc.)
   @Column({ type: 'json', nullable: true })

@@ -9,14 +9,13 @@ import { GqlExecutionContext } from '@nestjs/graphql';
 import { Reflector } from '@nestjs/core';
 
 import { TeamMembersService } from '../team-members/team-members.service';
-import { UsersService } from '../users/users.service';
 import { TeamRole } from '../../entities/team-member.entity';
 
 import {
   TEAM_ROLES_KEY,
   TeamRoleMetadata,
 } from './require-team-role.decorator';
-import { ClerkUser } from './clerk.service';
+import { AuthenticatedUser } from './authenticated-user.type';
 
 /**
  * Role hierarchy for team access control.
@@ -38,6 +37,9 @@ const ROLE_HIERARCHY: Record<TeamRole, number> = {
  * It reads the @RequireTeamRole metadata to determine required roles and how to extract
  * the teamId from the request.
  *
+ * The internal user is now provided by ClerkAuthGuard via the AuthenticatedUser context,
+ * so this guard no longer needs to look up the user separately.
+ *
  * @example
  * @Mutation(() => Team)
  * @UseGuards(ClerkAuthGuard, TeamAccessGuard)
@@ -51,7 +53,6 @@ export class TeamAccessGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly teamMembersService: TeamMembersService,
-    private readonly usersService: UsersService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -70,8 +71,9 @@ export class TeamAccessGuard implements CanActivate {
     const args = gqlContext.getArgs();
 
     // Get the authenticated user from the request (set by ClerkAuthGuard)
-    const clerkUser: ClerkUser = req.user;
-    if (!clerkUser) {
+    // Now includes internal user ID directly
+    const user: AuthenticatedUser = req.user;
+    if (!user) {
       throw new ForbiddenException('User not authenticated');
     }
 
@@ -86,20 +88,14 @@ export class TeamAccessGuard implements CanActivate {
       throw new ForbiddenException('Team ID not found in request');
     }
 
-    // Find or create internal user (JIT provisioning)
-    const internalUser =
-      await this.usersService.findOrCreateByClerkUser(clerkUser);
-
-    // Get user's role in the team using internal user ID
+    // Get user's role in the team using internal user ID (directly from context)
     const membership = await this.teamMembersService.findUserRoleInTeam(
-      internalUser.id,
+      user.id,
       teamId,
     );
 
     if (!membership) {
-      this.logger.debug(
-        `User ${internalUser.id} is not a member of team ${teamId}`,
-      );
+      this.logger.debug(`User ${user.id} is not a member of team ${teamId}`);
       throw new ForbiddenException('You are not a member of this team');
     }
 
@@ -112,7 +108,7 @@ export class TeamAccessGuard implements CanActivate {
 
     if (!hasRequiredRole) {
       this.logger.debug(
-        `User ${internalUser.id} with role ${
+        `User ${user.id} with role ${
           membership.role
         } does not have required roles: ${metadata.roles.join(', ')}`,
       );
@@ -124,7 +120,7 @@ export class TeamAccessGuard implements CanActivate {
     }
 
     this.logger.debug(
-      `User ${internalUser.id} with role ${membership.role} granted access to team ${teamId}`,
+      `User ${user.id} with role ${membership.role} granted access to team ${teamId}`,
     );
 
     return true;

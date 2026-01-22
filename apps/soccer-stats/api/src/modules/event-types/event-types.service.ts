@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -14,9 +14,11 @@ interface CreateEventTypeInput {
 
 @Injectable()
 export class EventTypesService {
+  private readonly logger = new Logger(EventTypesService.name);
+
   constructor(
     @InjectRepository(EventType)
-    private eventTypesRepository: Repository<EventType>
+    private eventTypesRepository: Repository<EventType>,
   ) {}
 
   async findAll(): Promise<EventType[]> {
@@ -49,11 +51,15 @@ export class EventTypesService {
     return this.eventTypesRepository.save(eventType);
   }
 
+  /**
+   * @deprecated Use SeedReferenceData migration instead. This method is kept
+   * for backwards compatibility but seeding is now done via TypeORM migrations.
+   */
   async seedDefaultEventTypes(): Promise<void> {
     const existingTypes = await this.eventTypesRepository.count();
 
     if (existingTypes > 0) {
-      console.log('Event types already exist, skipping seed');
+      this.logger.debug('Event types already exist, skipping seed');
       return;
     }
 
@@ -96,6 +102,13 @@ export class EventTypesService {
         description: 'Two players swap positions on the field',
         requiresPosition: true,
         allowsParent: true,
+      },
+      {
+        name: 'FORMATION_CHANGE',
+        category: EventCategory.TACTICAL,
+        description: 'Team formation changed during the game',
+        requiresPosition: false,
+        allowsParent: false,
       },
       // Scoring events
       {
@@ -141,32 +154,49 @@ export class EventTypesService {
         requiresPosition: false,
         allowsParent: true,
       },
-      // Game flow events
+      // Game flow events - timing
       {
-        name: 'KICKOFF',
+        name: 'GAME_START',
         category: EventCategory.GAME_FLOW,
-        description: 'Game kickoff',
+        description: 'Game officially begins',
         requiresPosition: false,
         allowsParent: false,
       },
       {
-        name: 'HALFTIME',
+        name: 'GAME_END',
         category: EventCategory.GAME_FLOW,
-        description: 'Halftime whistle',
+        description: 'Game officially ends',
         requiresPosition: false,
         allowsParent: false,
       },
       {
-        name: 'FULL_TIME',
+        name: 'PERIOD_START',
         category: EventCategory.GAME_FLOW,
-        description: 'Full time whistle',
+        description:
+          'Period begins (metadata.period indicates which: "1", "2", "OT1", etc.)',
         requiresPosition: false,
         allowsParent: false,
       },
       {
-        name: 'INJURY_STOPPAGE',
+        name: 'PERIOD_END',
         category: EventCategory.GAME_FLOW,
-        description: 'Play stopped for injury',
+        description:
+          'Period ends (metadata.period indicates which: "1", "2", "OT1", etc.)',
+        requiresPosition: false,
+        allowsParent: false,
+      },
+      {
+        name: 'STOPPAGE_START',
+        category: EventCategory.GAME_FLOW,
+        description:
+          'Clock paused (metadata.reason optional: "injury", "weather", etc.)',
+        requiresPosition: false,
+        allowsParent: false,
+      },
+      {
+        name: 'STOPPAGE_END',
+        category: EventCategory.GAME_FLOW,
+        description: 'Clock resumes after stoppage',
         requiresPosition: false,
         allowsParent: false,
       },
@@ -176,38 +206,6 @@ export class EventTypesService {
       await this.create(eventType);
     }
 
-    console.log('Successfully seeded default event types');
-  }
-
-  /**
-   * Ensure a specific event type exists (useful for migrations/updates)
-   */
-  async ensureEventTypeExists(input: CreateEventTypeInput): Promise<EventType> {
-    const existing = await this.findByName(input.name);
-    if (existing) {
-      return existing;
-    }
-    console.log(`Creating missing event type: ${input.name}`);
-    return this.create(input);
-  }
-
-  /**
-   * Ensure all new event types added after initial seed exist
-   */
-  async ensureNewEventTypesExist(): Promise<void> {
-    // Add any new event types here that weren't in the original seed
-    const newEventTypes: CreateEventTypeInput[] = [
-      {
-        name: 'POSITION_SWAP',
-        category: EventCategory.TACTICAL,
-        description: 'Two players swap positions on the field',
-        requiresPosition: true,
-        allowsParent: true,
-      },
-    ];
-
-    for (const eventType of newEventTypes) {
-      await this.ensureEventTypeExists(eventType);
-    }
+    this.logger.log('Successfully seeded default event types');
   }
 }
