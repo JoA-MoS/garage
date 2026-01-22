@@ -82,6 +82,21 @@ export class GameEvent extends BaseEntity {
   @Column({ type: 'json', nullable: true })
   metadata?: object;
 
+  /**
+   * Period identifier for timing events (PERIOD_START, PERIOD_END).
+   * Derived from metadata.period. Returns undefined for non-period events.
+   * Examples: "1" (first half), "2" (second half), "OT1" (overtime)
+   *
+   * Note: This is a computed property, not a database column. It works both
+   * when accessed directly on the entity and via GraphQL. The @Field decorator
+   * on this getter makes it automatically available in the GraphQL schema, so
+   * no separate @ResolveField or resolver method is required.
+   */
+  @Field(() => String, { nullable: true })
+  get period(): string | undefined {
+    return (this.metadata as { period?: string } | undefined)?.period;
+  }
+
   @Field(() => Game)
   @ManyToOne(() => Game, (game) => game.gameEvents, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'gameId' })

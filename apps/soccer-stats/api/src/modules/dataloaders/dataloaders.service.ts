@@ -7,6 +7,7 @@ import { Game } from '../../entities/game.entity';
 import { GameFormat } from '../../entities/game-format.entity';
 import { Team } from '../../entities/team.entity';
 import { GameTeam } from '../../entities/game-team.entity';
+import { GameTimingService, GameTiming } from '../games/game-timing.service';
 
 /**
  * Interface for all DataLoaders available in GraphQL context.
@@ -17,6 +18,7 @@ export interface IDataLoaders {
   gameFormatLoader: DataLoader<string, GameFormat>;
   teamLoader: DataLoader<string, Team>;
   gameTeamsByGameLoader: DataLoader<string, GameTeam[]>;
+  gameTimingLoader: DataLoader<string, GameTiming>;
 }
 
 /**
@@ -38,6 +40,7 @@ export class DataLoadersService {
     private readonly teamRepository: Repository<Team>,
     @InjectRepository(GameTeam)
     private readonly gameTeamRepository: Repository<GameTeam>,
+    private readonly gameTimingService: GameTimingService,
   ) {}
 
   /**
@@ -50,6 +53,7 @@ export class DataLoadersService {
       gameFormatLoader: this.createGameFormatLoader(),
       teamLoader: this.createTeamLoader(),
       gameTeamsByGameLoader: this.createGameTeamsByGameLoader(),
+      gameTimingLoader: this.createGameTimingLoader(),
     };
   }
 
@@ -122,6 +126,21 @@ export class DataLoadersService {
       }
 
       return gameIds.map((id) => gameTeamsMap.get(id) || []);
+    });
+  }
+
+  /**
+   * Batch loads GameTiming by gameId.
+   * Computes timing from timing events for multiple games in a single query.
+   */
+  private createGameTimingLoader(): DataLoader<string, GameTiming> {
+    return new DataLoader<string, GameTiming>(async (gameIds) => {
+      const timingMap = await this.gameTimingService.getGameTimingBatch([
+        ...gameIds,
+      ]);
+
+      // Return timing for each game, defaulting to empty object if not found
+      return gameIds.map((id) => timingMap.get(id) || {});
     });
   }
 }

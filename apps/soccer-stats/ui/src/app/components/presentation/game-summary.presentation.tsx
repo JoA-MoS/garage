@@ -22,7 +22,7 @@ interface ChildEvent {
   } | null;
 }
 
-interface GameEvent {
+export interface GameEvent {
   id: string;
   createdAt: string;
   gameMinute: number;
@@ -36,6 +36,8 @@ interface GameEvent {
     category: string;
   } | null;
   childEvents?: ChildEvent[] | null;
+  /** Period identifier for timing events (e.g., "1", "2", "OT1") */
+  period?: string | null;
 }
 
 interface TeamData {
@@ -98,6 +100,22 @@ type TimelineItem =
       minute: number;
     };
 
+/**
+ * Checks if an event represents halftime.
+ * Supports both legacy (HALFTIME) and new (PERIOD_END with period="1") event types.
+ */
+export function isHalftimeEvent(event: GameEvent): boolean {
+  // Legacy event type
+  if (event.eventType?.name === 'HALFTIME') {
+    return true;
+  }
+  // New event type: PERIOD_END with period "1" marks end of first half
+  if (event.eventType?.name === 'PERIOD_END' && event.period === '1') {
+    return true;
+  }
+  return false;
+}
+
 // Extract timeline items from a team's game events
 function extractTimelineItems(teamData: TeamData): TimelineItem[] {
   const events = teamData.gameEvents || [];
@@ -136,7 +154,7 @@ function extractTimelineItems(teamData: TeamData): TimelineItem[] {
         ),
         assistName,
       });
-    } else if (event.eventType?.name === 'HALFTIME') {
+    } else if (isHalftimeEvent(event)) {
       items.push({
         type: 'halftime',
         createdAt: event.createdAt,
