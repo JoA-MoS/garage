@@ -34,7 +34,7 @@ export class Game extends BaseEntity {
   name?: string;
 
   @Field({ nullable: true })
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   scheduledStart?: Date;
 
   @Field({ nullable: true })
@@ -58,26 +58,26 @@ export class Game extends BaseEntity {
   status: GameStatus;
 
   @Field({ nullable: true })
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   actualStart?: Date;
 
   @Field({ nullable: true })
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   firstHalfEnd?: Date;
 
   @Field({ nullable: true })
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   secondHalfStart?: Date;
 
   @Field({ nullable: true })
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   actualEnd?: Date;
 
   @Field({
     nullable: true,
     description: 'When the game clock was paused (null = not paused)',
   })
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   pausedAt?: Date;
 
   @Field(() => StatsTrackingLevel, {
