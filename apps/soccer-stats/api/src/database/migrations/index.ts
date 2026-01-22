@@ -15,6 +15,7 @@ import { AddTacticalEventTypes1768720556985 } from './1768720556985-AddTacticalE
 import { SeedReferenceData1768848719848 } from './1768848719848-SeedReferenceData';
 import { UpdateGameFormatDurations1768867746931 } from './1768867746931-UpdateGameFormatDurations';
 import { AddGameDurationMinutes1768868248064 } from './1768868248064-AddGameDurationMinutes';
+import { ConvertToTimestamptz1769110989864 } from './1769110989864-ConvertToTimestamptz';
 
 /**
  * All migrations in chronological order.
@@ -27,4 +28,5 @@ export const migrations = [
   SeedReferenceData1768848719848,
   UpdateGameFormatDurations1768867746931,
   AddGameDurationMinutes1768868248064,
+  ConvertToTimestamptz1769110989864,
 ];
