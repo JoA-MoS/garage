@@ -189,6 +189,10 @@ export type Game = {
   actualEnd?: Maybe<Scalars['DateTime']['output']>;
   actualStart?: Maybe<Scalars['DateTime']['output']>;
   createdAt: Scalars['DateTime']['output'];
+  /** Override for game duration in minutes (null = use game format default) */
+  durationMinutes?: Maybe<Scalars['Float']['output']>;
+  /** Effective game duration in minutes (game override or format default) */
+  effectiveDuration: Scalars['Float']['output'];
   firstHalfEnd?: Maybe<Scalars['DateTime']['output']>;
   gameEvents?: Maybe<Array<GameEvent>>;
   gameFormat: GameFormat;
