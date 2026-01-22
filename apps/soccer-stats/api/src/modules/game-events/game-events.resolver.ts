@@ -25,12 +25,14 @@ import { RecordFormationChangeInput } from './dto/record-formation-change.input'
 import { RecordPositionChangeInput } from './dto/record-position-change.input';
 import { SwapPositionsInput } from './dto/swap-positions.input';
 import { BatchLineupChangesInput } from './dto/batch-lineup-changes.input';
+import { SetSecondHalfLineupInput } from './dto/set-second-half-lineup.input';
 import { GameLineup } from './dto/game-lineup.output';
 import { PlayerPositionStats } from './dto/player-position-stats.output';
 import { PlayerFullStats } from './dto/player-full-stats.output';
 import { PlayerStatsInput } from './dto/player-stats.input';
 import { DependentEventsResult } from './dto/dependent-event.output';
 import { GameEventSubscriptionPayload } from './dto/game-event-subscription.output';
+import { SecondHalfLineupResult } from './dto/set-second-half-lineup.output';
 
 @Resolver(() => GameEvent)
 @UseGuards(ClerkAuthGuard)
@@ -196,6 +198,18 @@ export class GameEventsResolver {
       user.id,
     );
     return result.events;
+  }
+
+  @Mutation(() => SecondHalfLineupResult, {
+    name: 'setSecondHalfLineup',
+    description:
+      'Set the second half lineup during halftime. Subs everyone out and in with new positions.',
+  })
+  setSecondHalfLineup(
+    @Args('input') input: SetSecondHalfLineupInput,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<SecondHalfLineupResult> {
+    return this.gameEventsService.setSecondHalfLineup(input, user.id);
   }
 
   @Query(() => [PlayerPositionStats], { name: 'playerPositionStats' })
