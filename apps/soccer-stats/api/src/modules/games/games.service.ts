@@ -1,4 +1,10 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 
@@ -9,10 +15,12 @@ import { GameFormat } from '../../entities/game-format.entity';
 import { GameEvent } from '../../entities/game-event.entity';
 import { EventType } from '../../entities/event-type.entity';
 import { TeamConfiguration } from '../../entities/team-configuration.entity';
+import { GameEventsService } from '../game-events/game-events.service';
 
 import { CreateGameInput } from './dto/create-game.input';
 import { UpdateGameInput } from './dto/update-game.input';
 import { UpdateGameTeamInput } from './dto/update-game-team.input';
+import { GameTimingService } from './game-timing.service';
 
 @Injectable()
 export class GamesService {
@@ -33,6 +41,9 @@ export class GamesService {
     private readonly eventTypeRepository: Repository<EventType>,
     @InjectRepository(TeamConfiguration)
     private readonly teamConfigurationRepository: Repository<TeamConfiguration>,
+    @Inject(forwardRef(() => GameEventsService))
+    private readonly gameEventsService: GameEventsService,
+    private readonly gameTimingService: GameTimingService,
   ) {}
 
   async findAll(): Promise<Game[]> {
@@ -243,6 +254,13 @@ export class GamesService {
       await this.gameRepository.update(id, entityFields);
     }
 
+    // Convert STARTING_LINEUP events to SUBSTITUTION_IN when game starts
+    // This MUST happen BEFORE createTimingEventsForStatusChange because
+    // linkFirstHalfStartersToPeriodStart looks for SUBSTITUTION_IN events
+    if (updateGameInput.status === GameStatus.FIRST_HALF) {
+      await this.convertStartingLineupToSubstitutionIn(id);
+    }
+
     // Create timing events based on status changes
     await this.createTimingEventsForStatusChange(
       id,
@@ -270,11 +288,6 @@ export class GamesService {
       }
 
       await this.handlePauseResumeEvent(id, normalizedPausedAt, userId);
-    }
-
-    // Convert STARTING_LINEUP events to SUBSTITUTION_IN when game starts
-    if (updateGameInput.status === GameStatus.FIRST_HALF) {
-      await this.convertStartingLineupToSubstitutionIn(id);
     }
 
     return this.findOne(id);
@@ -498,7 +511,9 @@ export class GamesService {
     const createEvent = async (
       eventTypeName: string,
       metadata?: Record<string, unknown>,
-    ) => {
+      gameMinute = 0,
+      gameSecond = 0,
+    ): Promise<GameEvent> => {
       const eventType = eventTypeMap.get(eventTypeName);
       // This should never happen due to validation above, but TypeScript needs the check
       if (!eventType) {
@@ -529,7 +544,7 @@ export class GamesService {
           `Skipping duplicate ${eventTypeName} event for game ${gameId}` +
             (metadata?.period ? ` (period ${metadata.period})` : ''),
         );
-        return;
+        return existingEvent;
       }
 
       const event = this.gameEventRepository.create({
@@ -537,35 +552,166 @@ export class GamesService {
         gameTeamId: homeGameTeam.id,
         eventTypeId: eventType.id,
         recordedByUserId: userId,
-        gameMinute: 0,
-        gameSecond: 0,
+        gameMinute,
+        gameSecond,
         metadata,
       });
-      await this.gameEventRepository.save(event);
+      return this.gameEventRepository.save(event);
     };
 
+    // Get all game teams for substitution events
+    const gameTeams = await this.gameTeamRepository.find({
+      where: { gameId },
+    });
+
+    // Get game details for duration calculation
+    const game = await this.gameRepository.findOne({
+      where: { id: gameId },
+      relations: ['gameFormat'],
+    });
+
+    if (!game) {
+      throw new Error(`Game ${gameId} not found`);
+    }
+
+    const totalDuration =
+      game.durationMinutes ?? game.gameFormat?.durationMinutes ?? 90;
+
     switch (status) {
-      case GameStatus.FIRST_HALF:
+      case GameStatus.FIRST_HALF: {
         // Game starting: create GAME_START and PERIOD_START (period 1)
         await createEvent('GAME_START');
-        await createEvent('PERIOD_START', { period: '1' });
-        break;
+        const periodStartEvent = await createEvent('PERIOD_START', {
+          period: '1',
+        });
 
-      case GameStatus.HALFTIME:
-        // First half ending: create PERIOD_END (period 1)
-        await createEvent('PERIOD_END', { period: '1' });
+        // Link any existing minute 0 SUB_IN events (starters) to PERIOD_START
+        for (const gameTeam of gameTeams) {
+          await this.gameEventsService.linkFirstHalfStartersToPeriodStart(
+            gameTeam.id,
+            periodStartEvent.id,
+          );
+        }
         break;
+      }
 
-      case GameStatus.SECOND_HALF:
-        // Second half starting: create PERIOD_START (period 2)
-        await createEvent('PERIOD_START', { period: '2' });
-        break;
+      case GameStatus.HALFTIME: {
+        // First half ending:
+        const halftimeSeconds =
+          await this.gameTimingService.getGameDurationSeconds(
+            gameId,
+            totalDuration,
+          );
+        const halftimeMinute = Math.floor(halftimeSeconds / 60);
+        const halftimeSecond = halftimeSeconds % 60;
 
-      case GameStatus.COMPLETED:
-        // Game ending: create PERIOD_END (period 2) and GAME_END
-        await createEvent('PERIOD_END', { period: '2' });
-        await createEvent('GAME_END');
+        // 1. Create PERIOD_END (period 1) first - will be parent of SUB_OUT events
+        const periodEndEvent = await createEvent(
+          'PERIOD_END',
+          { period: '1' },
+          halftimeMinute,
+          halftimeSecond,
+        );
+
+        // 2. Create SUBSTITUTION_OUT for all on-field players as children of PERIOD_END
+        for (const gameTeam of gameTeams) {
+          await this.gameEventsService.createSubstitutionOutForAllOnField(
+            gameTeam.id,
+            halftimeMinute,
+            halftimeSecond,
+            userId!,
+            periodEndEvent.id,
+          );
+        }
         break;
+      }
+
+      case GameStatus.SECOND_HALF: {
+        // Second half starting:
+        // Get halftime timing for lineup check
+        const timing = await this.gameTimingService.getGameTiming(gameId);
+        console.log('[SECOND_HALF] timing:', {
+          actualStart: timing.actualStart,
+          firstHalfEnd: timing.firstHalfEnd,
+          secondHalfStart: timing.secondHalfStart,
+        });
+
+        const halftimeMinute = timing.firstHalfEnd
+          ? Math.floor(
+              (timing.firstHalfEnd.getTime() -
+                (timing.actualStart?.getTime() ?? 0)) /
+                60000,
+            )
+          : Math.floor(totalDuration / 2);
+
+        console.log(
+          `[SECOND_HALF] halftimeMinute=${halftimeMinute} (totalDuration=${totalDuration})`,
+        );
+
+        // 1. Create PERIOD_START (period 2) first - will be parent of SUB_IN events
+        const periodStartEvent = await createEvent(
+          'PERIOD_START',
+          { period: '2' },
+          halftimeMinute,
+          0,
+        );
+
+        // 2. Link any orphan SUB_IN events created during halftime to PERIOD_START
+        // These are events from bringPlayerOntoField or setSecondHalfLineup called before PERIOD_START existed
+        for (const gameTeam of gameTeams) {
+          await this.gameEventsService.linkOrphanSubInsToSecondHalfPeriodStart(
+            gameId,
+            gameTeam.id,
+            halftimeMinute,
+            periodStartEvent.id,
+          );
+        }
+
+        // 3. If no second half lineup set, auto-copy first half ending lineup
+        // SUB_IN events are created as children of PERIOD_START
+        for (const gameTeam of gameTeams) {
+          await this.gameEventsService.ensureSecondHalfLineupExists(
+            gameTeam.id,
+            halftimeMinute,
+            userId!,
+            periodStartEvent.id,
+          );
+        }
+        break;
+      }
+
+      case GameStatus.COMPLETED: {
+        // Game ending:
+        const gameSeconds = await this.gameTimingService.getGameDurationSeconds(
+          gameId,
+          totalDuration,
+        );
+        const endMinute = Math.floor(gameSeconds / 60);
+        const endSecond = gameSeconds % 60;
+
+        // 1. Create PERIOD_END (period 2)
+        await createEvent('PERIOD_END', { period: '2' }, endMinute, endSecond);
+
+        // 2. Create GAME_END first - will be parent of SUB_OUT events
+        const gameEndEvent = await createEvent(
+          'GAME_END',
+          undefined,
+          endMinute,
+          endSecond,
+        );
+
+        // 3. Create SUBSTITUTION_OUT for all on-field players as children of GAME_END
+        for (const gameTeam of gameTeams) {
+          await this.gameEventsService.createSubstitutionOutForAllOnField(
+            gameTeam.id,
+            endMinute,
+            endSecond,
+            userId!,
+            gameEndEvent.id,
+          );
+        }
+        break;
+      }
     }
   }
 

@@ -11,6 +11,9 @@ import {
   UpdatePlayerPositionDocument,
   SubstitutePlayerDocument,
   SetSecondHalfLineupDocument,
+  BringPlayerOntoFieldDocument,
+  StartPeriodDocument,
+  EndPeriodDocument,
   LineupPlayer,
 } from '@garage/soccer-stats/graphql-codegen';
 
@@ -119,6 +122,31 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
         { query: GetGameLineupDocument, variables: { gameTeamId } },
       ],
     });
+
+  const [bringPlayerOntoFieldMutation, { loading: bringingOntoField }] =
+    useMutation(BringPlayerOntoFieldDocument, {
+      refetchQueries: [
+        { query: GetGameLineupDocument, variables: { gameTeamId } },
+      ],
+    });
+
+  const [startPeriodMutation, { loading: startingPeriod }] = useMutation(
+    StartPeriodDocument,
+    {
+      refetchQueries: [
+        { query: GetGameLineupDocument, variables: { gameTeamId } },
+      ],
+    },
+  );
+
+  const [endPeriodMutation, { loading: endingPeriod }] = useMutation(
+    EndPeriodDocument,
+    {
+      refetchQueries: [
+        { query: GetGameLineupDocument, variables: { gameTeamId } },
+      ],
+    },
+  );
 
   // Get the team roster from game data
   const teamRoster = useMemo((): RosterPlayer[] => {
@@ -295,6 +323,83 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     [gameTeamId, setSecondHalfLineupMutation],
   );
 
+  // Bring a player onto the field during a game (halftime or mid-game)
+  const bringPlayerOntoField = useCallback(
+    async (params: {
+      playerId?: string;
+      externalPlayerName?: string;
+      externalPlayerNumber?: string;
+      position: string;
+      gameMinute: number;
+      gameSecond?: number;
+    }) => {
+      return bringPlayerOntoFieldMutation({
+        variables: {
+          input: {
+            gameTeamId,
+            playerId: params.playerId,
+            externalPlayerName: params.externalPlayerName,
+            externalPlayerNumber: params.externalPlayerNumber,
+            position: params.position,
+            gameMinute: params.gameMinute,
+            gameSecond: params.gameSecond ?? 0,
+          },
+        },
+      });
+    },
+    [gameTeamId, bringPlayerOntoFieldMutation],
+  );
+
+  // Start a period - creates PERIOD_START event with SUB_IN events as children
+  const startPeriod = useCallback(
+    async (params: {
+      period: number;
+      lineup: Array<{
+        playerId?: string;
+        externalPlayerName?: string;
+        externalPlayerNumber?: string;
+        position: string;
+      }>;
+      gameMinute?: number;
+      gameSecond?: number;
+    }) => {
+      return startPeriodMutation({
+        variables: {
+          input: {
+            gameTeamId,
+            period: params.period,
+            lineup: params.lineup,
+            gameMinute: params.gameMinute,
+            gameSecond: params.gameSecond,
+          },
+        },
+      });
+    },
+    [gameTeamId, startPeriodMutation],
+  );
+
+  // End a period - creates PERIOD_END event with SUB_OUT events as children
+  // Queries the database for current on-field players
+  const endPeriod = useCallback(
+    async (params: {
+      period: number;
+      gameMinute?: number;
+      gameSecond?: number;
+    }) => {
+      return endPeriodMutation({
+        variables: {
+          input: {
+            gameTeamId,
+            period: params.period,
+            gameMinute: params.gameMinute,
+            gameSecond: params.gameSecond,
+          },
+        },
+      });
+    },
+    [gameTeamId, endPeriodMutation],
+  );
+
   return {
     // Data
     lineup: lineupData?.gameLineup,
@@ -314,7 +419,10 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       updatingPosition ||
       substituting ||
       recordingPositionChange ||
-      settingSecondHalfLineup,
+      settingSecondHalfLineup ||
+      bringingOntoField ||
+      startingPeriod ||
+      endingPeriod,
 
     // Error
     error: lineupError,
@@ -327,6 +435,9 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     substitutePlayer,
     recordPositionChange,
     setSecondHalfLineup,
+    bringPlayerOntoField,
+    startPeriod,
+    endPeriod,
     refetchLineup,
   };
 }

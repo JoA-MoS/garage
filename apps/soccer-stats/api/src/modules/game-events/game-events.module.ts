@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { GameEvent } from '../../entities/game-event.entity';
@@ -18,7 +18,7 @@ import { GameEventsResolver } from './game-events.resolver';
     TypeOrmModule.forFeature([GameEvent, EventType, GameTeam, Game, Team]),
     AuthModule,
     UsersModule,
-    GamesModule,
+    forwardRef(() => GamesModule), // Circular dependency with GamesModule
   ],
   providers: [GameEventsService, GameEventsResolver],
   exports: [GameEventsService],

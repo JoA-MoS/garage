@@ -13,6 +13,7 @@ import {
   ConflictResolutionModal,
   EventCard,
   type EventType as EventCardType,
+  type ChildEventData,
 } from '@garage/soccer-stats/ui-components';
 import {
   GameStatus,
@@ -395,6 +396,9 @@ export const GamePage = () => {
     refetchQueries: [{ query: GET_GAME_BY_ID, variables: { id: gameId } }],
   });
 
+  // Note: startPeriod and endPeriod mutations are NOT used here.
+  // The backend's updateGame automatically handles period events via createTimingEventsForStatusChange.
+
   // Memoize team lookups to prevent unnecessary recalculations
   const homeTeamData = useMemo(
     () => data?.game?.gameTeams?.find((gt) => gt.teamType === 'home'),
@@ -625,6 +629,8 @@ export const GamePage = () => {
   });
 
   // Start first half
+  // Note: The backend's updateGame automatically creates PERIOD_START and SUB_IN events
+  // via createTimingEventsForStatusChange when status changes to FIRST_HALF
   const handleStartFirstHalf = async () => {
     try {
       await updateGame({
@@ -642,6 +648,8 @@ export const GamePage = () => {
   };
 
   // End first half and go to halftime
+  // Note: The backend's updateGame automatically creates PERIOD_END and SUB_OUT events
+  // via createTimingEventsForStatusChange when status changes to HALFTIME
   const handleEndFirstHalf = async () => {
     try {
       await updateGame({
@@ -659,6 +667,9 @@ export const GamePage = () => {
   };
 
   // Start second half
+  // Note: The backend's updateGame automatically creates PERIOD_START and SUB_IN events
+  // via createTimingEventsForStatusChange when status changes to SECOND_HALF.
+  // It also auto-copies the first half lineup if setSecondHalfLineup wasn't called.
   const handleStartSecondHalf = async () => {
     try {
       await updateGame({
@@ -676,6 +687,8 @@ export const GamePage = () => {
   };
 
   // End game
+  // Note: The backend's updateGame automatically creates PERIOD_END, SUB_OUT, and GAME_END events
+  // via createTimingEventsForStatusChange when status changes to COMPLETED
   const handleEndGame = async () => {
     try {
       await updateGame({
@@ -1132,8 +1145,16 @@ export const GamePage = () => {
     game.status === GameStatus.InProgress;
 
   // Get current game time in minutes and seconds for goal recording
-  const gameMinute = Math.floor(elapsedSeconds / 60);
-  const gameSecond = elapsedSeconds % 60;
+  // During HALFTIME, use the end-of-first-half time (half of total duration)
+  const halftimeDurationMinutes = Math.floor(
+    (game.gameFormat?.durationMinutes || 60) / 2,
+  );
+  const gameMinute =
+    game.status === GameStatus.Halftime
+      ? halftimeDurationMinutes
+      : Math.floor(elapsedSeconds / 60);
+  const gameSecond =
+    game.status === GameStatus.Halftime ? 0 : elapsedSeconds % 60;
 
   // Compute compact half indicator for sticky header
   const halfIndicator =
@@ -1479,6 +1500,8 @@ export const GamePage = () => {
                   };
                   // Formation change-specific
                   newFormation?: string | null;
+                  // Period event child events (players entering/exiting)
+                  childEvents?: ChildEventData[];
                 };
 
                 const matchEvents: MatchEvent[] = [];
@@ -1495,8 +1518,28 @@ export const GamePage = () => {
                   const processedSubIns = new Set<string>();
                   // Track POSITION_SWAP events we've already paired
                   const processedSwaps = new Set<string>();
+                  // Track child events of period events (should not be shown separately)
+                  const periodChildEventIds = new Set<string>();
+
+                  // First pass: collect all child event IDs from period and game end events
+                  gameTeam.gameEvents.forEach((event) => {
+                    if (
+                      (event.eventType?.name === 'PERIOD_START' ||
+                        event.eventType?.name === 'PERIOD_END' ||
+                        event.eventType?.name === 'GAME_END') &&
+                      event.childEvents
+                    ) {
+                      event.childEvents.forEach((child) => {
+                        periodChildEventIds.add(child.id);
+                      });
+                    }
+                  });
 
                   gameTeam.gameEvents.forEach((event) => {
+                    // Skip events that are children of period events
+                    if (periodChildEventIds.has(event.id)) {
+                      return;
+                    }
                     // Process GOAL events
                     if (event.eventType?.name === 'GOAL') {
                       const assistEvent = gameTeam.gameEvents?.find(
@@ -1669,6 +1712,26 @@ export const GamePage = () => {
 
                     // Note: GAME_START events are not displayed - PERIOD_START period 1 serves as the game start indicator
 
+                    // Helper to build child event data from childEvents array
+                    const buildChildEvents = (
+                      children: typeof event.childEvents,
+                    ): ChildEventData[] => {
+                      if (!children) return [];
+                      return children.map((child) => ({
+                        id: child.id,
+                        playerName:
+                          child.externalPlayerName ||
+                          (child.externalPlayerNumber
+                            ? `#${child.externalPlayerNumber}`
+                            : null) ||
+                          (child.player
+                            ? `${child.player.firstName || ''} ${child.player.lastName || ''}`.trim() ||
+                              'Unknown'
+                            : 'Unknown'),
+                        position: (child as { position?: string }).position,
+                      }));
+                    };
+
                     // Process PERIOD_START events (show all - period 1 implies game started)
                     if (event.eventType?.name === 'PERIOD_START') {
                       matchEvents.push({
@@ -1682,6 +1745,7 @@ export const GamePage = () => {
                         teamColor:
                           gameTeam.team.homePrimaryColor || defaultColor,
                         period: event.period,
+                        childEvents: buildChildEvents(event.childEvents),
                       });
                     }
 
@@ -1707,11 +1771,12 @@ export const GamePage = () => {
                           teamColor:
                             gameTeam.team.homePrimaryColor || defaultColor,
                           period: event.period,
+                          childEvents: buildChildEvents(event.childEvents),
                         });
                       }
                     }
 
-                    // Process GAME_END events
+                    // Process GAME_END events (with child SUB_OUT events)
                     if (event.eventType?.name === 'GAME_END') {
                       matchEvents.push({
                         id: event.id,
@@ -1724,6 +1789,7 @@ export const GamePage = () => {
                         teamColor:
                           gameTeam.team.homePrimaryColor || defaultColor,
                         period: event.period,
+                        childEvents: buildChildEvents(event.childEvents),
                       });
                     }
                   });
@@ -1898,6 +1964,7 @@ export const GamePage = () => {
                           player2Position={event.swapPlayer2?.position}
                           newFormation={event.newFormation}
                           period={event.period}
+                          childEvents={event.childEvents}
                           onDeleteClick={handleDeleteClick}
                           onEdit={
                             event.eventType === 'goal'

@@ -126,6 +126,7 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
             playerId
             externalPlayerName
             externalPlayerNumber
+            position
             player {
               id
               firstName
@@ -661,6 +662,7 @@ export const GAME_EVENT_CHANGED = graphql(/* GraphQL */ `
         gameMinute
         gameSecond
         position
+        period
         playerId
         externalPlayerName
         externalPlayerNumber
@@ -726,6 +728,25 @@ export const GAME_UPDATED = graphql(/* GraphQL */ `
   }
 `);
 
+// Bring a player onto the field during a game (halftime or mid-game)
+export const BRING_PLAYER_ONTO_FIELD = graphql(/* GraphQL */ `
+  mutation BringPlayerOntoField($input: BringPlayerOntoFieldInput!) {
+    bringPlayerOntoField(input: $input) {
+      id
+      gameMinute
+      gameSecond
+      position
+      playerId
+      externalPlayerName
+      externalPlayerNumber
+      eventType {
+        id
+        name
+      }
+    }
+  }
+`);
+
 // Set second half lineup - subs everyone out/in at halftime with new positions
 export const SET_SECOND_HALF_LINEUP = graphql(/* GraphQL */ `
   mutation SetSecondHalfLineup($input: SetSecondHalfLineupInput!) {
@@ -745,6 +766,96 @@ export const SET_SECOND_HALF_LINEUP = graphql(/* GraphQL */ `
       }
       substitutionsOut
       substitutionsIn
+    }
+  }
+`);
+
+// Start a period - creates PERIOD_START event and SUB_IN events for lineup
+export const START_PERIOD = graphql(/* GraphQL */ `
+  mutation StartPeriod($input: StartPeriodInput!) {
+    startPeriod(input: $input) {
+      periodEvent {
+        id
+        gameMinute
+        gameSecond
+        period
+        eventType {
+          id
+          name
+        }
+        childEvents {
+          id
+          playerId
+          externalPlayerName
+          externalPlayerNumber
+          position
+          eventType {
+            id
+            name
+          }
+        }
+      }
+      substitutionEvents {
+        id
+        gameMinute
+        gameSecond
+        position
+        period
+        playerId
+        externalPlayerName
+        externalPlayerNumber
+        eventType {
+          id
+          name
+        }
+      }
+      period
+      substitutionCount
+    }
+  }
+`);
+
+// End a period - creates PERIOD_END event and SUB_OUT events for all on-field players
+export const END_PERIOD = graphql(/* GraphQL */ `
+  mutation EndPeriod($input: EndPeriodInput!) {
+    endPeriod(input: $input) {
+      periodEvent {
+        id
+        gameMinute
+        gameSecond
+        period
+        eventType {
+          id
+          name
+        }
+        childEvents {
+          id
+          playerId
+          externalPlayerName
+          externalPlayerNumber
+          position
+          eventType {
+            id
+            name
+          }
+        }
+      }
+      substitutionEvents {
+        id
+        gameMinute
+        gameSecond
+        position
+        period
+        playerId
+        externalPlayerName
+        externalPlayerNumber
+        eventType {
+          id
+          name
+        }
+      }
+      period
+      substitutionCount
     }
   }
 `);

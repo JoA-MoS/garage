@@ -9,7 +9,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, IsNull, MoreThanOrEqual, Repository } from 'typeorm';
 import type { PubSub } from 'graphql-subscriptions';
 
 import { GameEvent } from '../../entities/game-event.entity';
@@ -50,6 +50,11 @@ import {
 } from './dto/game-event-subscription.output';
 import { SetSecondHalfLineupInput } from './dto/set-second-half-lineup.input';
 import { SecondHalfLineupResult } from './dto/set-second-half-lineup.output';
+import { StartPeriodInput } from './dto/start-period.input';
+import { EndPeriodInput } from './dto/end-period.input';
+import { PeriodResult } from './dto/period-result.output';
+import { RemovePlayerFromFieldInput } from './dto/remove-player-from-field.input';
+import { BringPlayerOntoFieldInput } from './dto/bring-player-onto-field.input';
 
 // Detection result for duplicate/conflict checking
 interface DuplicateConflictResult {
@@ -374,6 +379,153 @@ export class GameEventsService implements OnModuleInit {
     });
   }
 
+  /**
+   * Bring a player onto the field during a game (creates SUBSTITUTION_IN event).
+   * Used at halftime or when adding a player to an empty position mid-game.
+   * Unlike addPlayerToLineup, this doesn't check for existing bench/lineup events
+   * since the player may already have BENCH or SUBSTITUTION_OUT events.
+   */
+  async bringPlayerOntoField(
+    input: BringPlayerOntoFieldInput,
+    recordedByUserId: string,
+  ): Promise<GameEvent> {
+    this.ensurePlayerInfoProvided(
+      input.playerId,
+      input.externalPlayerName,
+      'field entry',
+    );
+
+    const gameTeam = await this.getGameTeam(input.gameTeamId);
+    const eventType = this.getEventTypeByName('SUBSTITUTION_IN');
+
+    // Build metadata object with optional fields
+    const metadata: Record<string, string | null> = {};
+    if (input.period !== undefined) {
+      metadata.period = String(input.period);
+    }
+    if (input.reason) {
+      metadata.reason = input.reason;
+    }
+    if (input.notes) {
+      metadata.notes = input.notes;
+    }
+
+    const gameEvent = this.gameEventsRepository.create({
+      gameId: gameTeam.gameId,
+      gameTeamId: input.gameTeamId,
+      eventTypeId: eventType.id,
+      playerId: input.playerId,
+      externalPlayerName: input.externalPlayerName,
+      externalPlayerNumber: input.externalPlayerNumber,
+      position: input.position,
+      recordedByUserId,
+      gameMinute: input.gameMinute,
+      gameSecond: input.gameSecond ?? 0,
+      metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+    });
+
+    const savedEvent = await this.gameEventsRepository.save(gameEvent);
+
+    return this.gameEventsRepository.findOneOrFail({
+      where: { id: savedEvent.id },
+      relations: [
+        'eventType',
+        'player',
+        'recordedByUser',
+        'gameTeam',
+        'game',
+        'childEvents',
+        'childEvents.eventType',
+      ],
+    });
+  }
+
+  /**
+   * Remove a player from the field without replacement (injury, red card, etc.).
+   * Creates only a SUBSTITUTION_OUT event - no paired SUBSTITUTION_IN required.
+   */
+  async removePlayerFromField(
+    input: RemovePlayerFromFieldInput,
+    recordedByUserId: string,
+  ): Promise<GameEvent> {
+    // 1. Get the game team
+    const gameTeam = await this.getGameTeam(input.gameTeamId);
+
+    // 2. Get the player's current on-field event
+    const playerEvent = await this.gameEventsRepository.findOne({
+      where: { id: input.playerEventId },
+      relations: ['eventType', 'player'],
+    });
+
+    if (!playerEvent) {
+      throw new NotFoundException(`GameEvent ${input.playerEventId} not found`);
+    }
+
+    // 3. Validate that the player is currently on the field
+    // Valid on-field event types are STARTING_LINEUP, SUBSTITUTION_IN, or the result of a position change
+    const validOnFieldTypes = ['STARTING_LINEUP', 'SUBSTITUTION_IN'];
+    if (!validOnFieldTypes.includes(playerEvent.eventType.name)) {
+      throw new BadRequestException(
+        `Player event ${input.playerEventId} is not an on-field event type. ` +
+          `Expected STARTING_LINEUP or SUBSTITUTION_IN, got ${playerEvent.eventType.name}`,
+      );
+    }
+
+    // 4. Get the SUBSTITUTION_OUT event type
+    const subOutType = this.getEventTypeByName('SUBSTITUTION_OUT');
+
+    // 5. Build metadata object with optional fields
+    const metadata: Record<string, string | null> = {};
+    if (input.period !== undefined) {
+      metadata.period = String(input.period);
+    }
+    if (input.reason) {
+      metadata.reason = input.reason;
+    }
+    if (input.notes) {
+      metadata.notes = input.notes;
+    }
+
+    // 6. Create SUBSTITUTION_OUT event (no parentEventId - this is an unbalanced sub)
+    const subOutEvent = this.gameEventsRepository.create({
+      gameId: gameTeam.gameId,
+      gameTeamId: input.gameTeamId,
+      eventTypeId: subOutType.id,
+      playerId: playerEvent.playerId,
+      externalPlayerName: playerEvent.externalPlayerName,
+      externalPlayerNumber: playerEvent.externalPlayerNumber,
+      position: playerEvent.position,
+      recordedByUserId,
+      gameMinute: input.gameMinute,
+      gameSecond: input.gameSecond ?? 0,
+      metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+    });
+
+    const savedEvent = await this.gameEventsRepository.save(subOutEvent);
+
+    // 7. Publish the event
+    const eventWithRelations = await this.gameEventsRepository.findOneOrFail({
+      where: { id: savedEvent.id },
+      relations: [
+        'eventType',
+        'player',
+        'recordedByUser',
+        'gameTeam',
+        'game',
+        'childEvents',
+        'childEvents.eventType',
+      ],
+    });
+
+    await this.publishGameEvent(
+      gameTeam.gameId,
+      GameEventAction.CREATED,
+      eventWithRelations,
+    );
+
+    return eventWithRelations;
+  }
+
   async removeFromLineup(gameEventId: string): Promise<boolean> {
     const gameEvent = await this.gameEventsRepository.findOne({
       where: { id: gameEventId },
@@ -659,11 +811,20 @@ export class GameEventsService implements OnModuleInit {
       }
     }
 
+    // Filter bench to only include players NOT currently on field
+    // (players who were subbed out and then subbed back in should not appear in bench)
+    const filteredBench = bench.filter((player) => {
+      const key =
+        player.playerId || player.externalPlayerName || player.gameEventId;
+      const status = playerStatusMap.get(key);
+      return status && !status.isOnField;
+    });
+
     return {
       gameTeamId,
       formation: gameTeam.formation,
       starters,
-      bench,
+      bench: filteredBench,
       currentOnField: Array.from(currentOnField.values()),
     };
   }
@@ -2456,17 +2617,331 @@ export class GameEventsService implements OnModuleInit {
   }
 
   /**
+   * Create SUBSTITUTION_OUT events for all players currently on field.
+   * Used during period transitions (halftime, game end) to formally track
+   * when players leave the field.
+   *
+   * @param gameTeamId - The game team ID
+   * @param gameMinute - Game minute for the events
+   * @param gameSecond - Game second for the events
+   * @param recordedByUserId - User recording the events
+   * @returns Array of created SUB_OUT events
+   */
+  async createSubstitutionOutForAllOnField(
+    gameTeamId: string,
+    gameMinute: number,
+    gameSecond: number,
+    recordedByUserId: string,
+    parentEventId?: string,
+  ): Promise<GameEvent[]> {
+    const lineup = await this.getGameLineup(gameTeamId);
+    const subOutType = this.getEventTypeByName('SUBSTITUTION_OUT');
+
+    const gameTeam = await this.gameTeamsRepository.findOne({
+      where: { id: gameTeamId },
+    });
+
+    if (!gameTeam) {
+      throw new NotFoundException(`GameTeam ${gameTeamId} not found`);
+    }
+
+    const events: GameEvent[] = [];
+
+    for (const player of lineup.currentOnField) {
+      const subOutEvent = this.gameEventsRepository.create({
+        gameId: gameTeam.gameId,
+        gameTeamId,
+        eventTypeId: subOutType.id,
+        playerId: player.playerId,
+        externalPlayerName: player.externalPlayerName,
+        externalPlayerNumber: player.externalPlayerNumber,
+        position: player.position,
+        recordedByUserId,
+        gameMinute,
+        gameSecond,
+        parentEventId,
+      });
+
+      const savedEvent = await this.gameEventsRepository.save(subOutEvent);
+      events.push(savedEvent);
+    }
+
+    return events;
+  }
+
+  /**
+   * Ensure second half lineup exists by copying first half ending lineup if needed.
+   * Called when transitioning to SECOND_HALF without explicit setSecondHalfLineup call.
+   *
+   * The logic: Players were SUB_OUT at halftime. We need to SUB_IN the same players
+   * (with their positions) for the second half unless coach explicitly changed lineup.
+   *
+   * @param gameTeamId - The game team ID
+   * @param halftimeMinute - Game minute at halftime (when players were subbed out)
+   * @param recordedByUserId - User recording the events
+   * @param parentEventId - Optional parent event ID (PERIOD_START) to link SUB_IN events as children
+   */
+  async ensureSecondHalfLineupExists(
+    gameTeamId: string,
+    halftimeMinute: number,
+    recordedByUserId: string,
+    parentEventId?: string,
+  ): Promise<void> {
+    console.log(
+      `[ensureSecondHalfLineupExists] gameTeamId=${gameTeamId}, halftimeMinute=${halftimeMinute}`,
+    );
+
+    const gameTeam = await this.gameTeamsRepository.findOne({
+      where: { id: gameTeamId },
+    });
+
+    if (!gameTeam) {
+      throw new NotFoundException(`GameTeam ${gameTeamId} not found`);
+    }
+
+    // Find the PERIOD_START (period='2') event to check if second half lineup already exists
+    const periodStartType = this.getEventTypeByName('PERIOD_START');
+    const subInType = this.getEventTypeByName('SUBSTITUTION_IN');
+
+    // Find PERIOD_START events for period 2
+    const periodStartEvents = await this.gameEventsRepository.find({
+      where: {
+        gameId: gameTeam.gameId,
+        eventTypeId: periodStartType.id,
+      },
+    });
+
+    const periodStart2 = periodStartEvents.find((e) => {
+      const metadata = e.metadata as { period?: string } | undefined;
+      return metadata?.period === '2';
+    });
+
+    console.log(
+      `[ensureSecondHalfLineupExists] Found PERIOD_START period 2: ${periodStart2?.id ?? 'none'}`,
+    );
+
+    // Check if SUB_IN events already exist as children of PERIOD_START period 2
+    // This is more robust than checking gameMinute, which fails for short games
+    if (periodStart2) {
+      const existingSecondHalfSubIns = await this.gameEventsRepository.find({
+        where: {
+          gameTeamId,
+          eventTypeId: subInType.id,
+          parentEventId: periodStart2.id,
+        },
+      });
+
+      console.log(
+        `[ensureSecondHalfLineupExists] Found ${existingSecondHalfSubIns.length} existing SUB_IN events linked to PERIOD_START period 2`,
+      );
+
+      if (existingSecondHalfSubIns.length > 0) {
+        // Second half lineup already exists (from setSecondHalfLineup)
+        console.log(
+          `[ensureSecondHalfLineupExists] Second half lineup already set, skipping`,
+        );
+        return;
+      }
+    }
+
+    // Find the PERIOD_END (period='1') event first, then get its child SUB_OUT events
+    // This is more robust than matching by gameMinute, which can be affected by timing calculations
+    const periodEndType = this.getEventTypeByName('PERIOD_END');
+    const subOutType = this.getEventTypeByName('SUBSTITUTION_OUT');
+
+    // Find the PERIOD_END event for period 1 (halftime)
+    const periodEndEvent = await this.gameEventsRepository.findOne({
+      where: {
+        gameId: gameTeam.gameId,
+        eventTypeId: periodEndType.id,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!periodEndEvent) {
+      console.log(
+        `[ensureSecondHalfLineupExists] No PERIOD_END event found for game ${gameTeam.gameId}`,
+      );
+      return;
+    }
+
+    // Check if this is period 1's end by looking at metadata
+    const periodMetadata = periodEndEvent.metadata as
+      | { period?: string }
+      | undefined;
+    if (periodMetadata?.period !== '1') {
+      console.log(
+        `[ensureSecondHalfLineupExists] PERIOD_END event is for period ${periodMetadata?.period}, not period 1`,
+      );
+      return;
+    }
+
+    console.log(
+      `[ensureSecondHalfLineupExists] Found PERIOD_END event: id=${periodEndEvent.id}, gameMinute=${periodEndEvent.gameMinute}`,
+    );
+
+    // Find SUB_OUT events that are children of the PERIOD_END event (halftime subs)
+    const halftimeSubOuts = await this.gameEventsRepository.find({
+      where: {
+        gameTeamId,
+        eventTypeId: subOutType.id,
+        parentEventId: periodEndEvent.id,
+      },
+    });
+
+    console.log(
+      `[ensureSecondHalfLineupExists] Found ${halftimeSubOuts.length} SUB_OUT events as children of PERIOD_END`,
+      halftimeSubOuts.map((e) => ({
+        id: e.id,
+        playerId: e.playerId,
+        externalPlayerName: e.externalPlayerName,
+        position: e.position,
+        gameMinute: e.gameMinute,
+      })),
+    );
+
+    // Create SUB_IN events for each player who was subbed out at halftime
+    // This effectively "brings them back" for the second half
+    // Use the gameMinute from the PERIOD_END event for consistency
+    const actualHalftimeMinute = periodEndEvent.gameMinute;
+
+    for (const subOut of halftimeSubOuts) {
+      const subInEvent = this.gameEventsRepository.create({
+        gameId: gameTeam.gameId,
+        gameTeamId,
+        eventTypeId: subInType.id,
+        playerId: subOut.playerId,
+        externalPlayerName: subOut.externalPlayerName,
+        externalPlayerNumber: subOut.externalPlayerNumber,
+        position: subOut.position, // Preserve their position from first half
+        recordedByUserId,
+        gameMinute: actualHalftimeMinute,
+        gameSecond: 0, // Second half starts at the next second
+        parentEventId,
+      });
+
+      await this.gameEventsRepository.save(subInEvent);
+    }
+  }
+
+  /**
+   * Link orphan SUB_IN events (created during halftime via bringPlayerOntoField)
+   * to the PERIOD_START period=2 event.
+   *
+   * Called when transitioning to SECOND_HALF to ensure all second-half SUB_IN events
+   * have proper parentEventId linkage.
+   *
+   * @param gameId - The game ID
+   * @param gameTeamId - The game team ID
+   * @param halftimeMinute - The game minute when halftime occurred
+   * @param periodStartEventId - The PERIOD_START period=2 event ID
+   */
+  async linkOrphanSubInsToSecondHalfPeriodStart(
+    gameId: string,
+    gameTeamId: string,
+    halftimeMinute: number,
+    periodStartEventId: string,
+  ): Promise<number> {
+    const subInType = this.getEventTypeByName('SUBSTITUTION_IN');
+
+    // Find SUB_IN events that:
+    // 1. Belong to this game team
+    // 2. Are at or after halftime (second half starters)
+    // 3. Have NO parentEventId (orphan events from bringPlayerOntoField or setSecondHalfLineup)
+    const orphanSubIns = await this.gameEventsRepository.find({
+      where: {
+        gameTeamId,
+        eventTypeId: subInType.id,
+        parentEventId: IsNull(),
+        gameMinute: MoreThanOrEqual(halftimeMinute),
+      },
+    });
+
+    console.log(
+      `[linkOrphanSubInsToSecondHalfPeriodStart] Found ${orphanSubIns.length} orphan SUB_IN events for gameTeam ${gameTeamId}`,
+    );
+
+    if (orphanSubIns.length === 0) {
+      return 0;
+    }
+
+    // Update all orphan events to link to the PERIOD_START
+    for (const event of orphanSubIns) {
+      event.parentEventId = periodStartEventId;
+    }
+
+    await this.gameEventsRepository.save(orphanSubIns);
+
+    console.log(
+      `[linkOrphanSubInsToSecondHalfPeriodStart] Linked ${orphanSubIns.length} orphan SUB_IN events to PERIOD_START ${periodStartEventId}`,
+    );
+
+    return orphanSubIns.length;
+  }
+
+  /**
+   * Link first half starters (minute 0 SUB_IN events without parent) to the PERIOD_START period=1 event.
+   *
+   * Called when transitioning to FIRST_HALF to ensure all starter SUB_IN events
+   * have proper parentEventId linkage for display in the Events tab.
+   *
+   * @param gameTeamId - The game team ID
+   * @param periodStartEventId - The PERIOD_START period=1 event ID
+   */
+  async linkFirstHalfStartersToPeriodStart(
+    gameTeamId: string,
+    periodStartEventId: string,
+  ): Promise<number> {
+    const subInType = this.getEventTypeByName('SUBSTITUTION_IN');
+
+    // Find SUB_IN events that:
+    // 1. Belong to this game team
+    // 2. Are at minute 0 (starters)
+    // 3. Have NO parentEventId (orphan events)
+    const starterSubIns = await this.gameEventsRepository.find({
+      where: {
+        gameTeamId,
+        eventTypeId: subInType.id,
+        parentEventId: IsNull(),
+        gameMinute: 0,
+        gameSecond: 0,
+      },
+    });
+
+    console.log(
+      `[linkFirstHalfStartersToPeriodStart] Found ${starterSubIns.length} starter SUB_IN events for gameTeam ${gameTeamId}`,
+    );
+
+    if (starterSubIns.length === 0) {
+      return 0;
+    }
+
+    // Update all starter events to link to the PERIOD_START
+    for (const event of starterSubIns) {
+      event.parentEventId = periodStartEventId;
+    }
+
+    await this.gameEventsRepository.save(starterSubIns);
+
+    console.log(
+      `[linkFirstHalfStartersToPeriodStart] Linked ${starterSubIns.length} starter SUB_IN events to PERIOD_START ${periodStartEventId}`,
+    );
+
+    return starterSubIns.length;
+  }
+
+  /**
    * Set the second half lineup during halftime.
    *
-   * Creates SUBSTITUTION_OUT events for all players currently on field (at the actual
-   * game clock time when halftime started) and SUBSTITUTION_IN events for the new lineup
-   * (at the same time).
+   * Since SUBSTITUTION_OUT events are now created automatically during the HALFTIME
+   * transition, this method only creates SUBSTITUTION_IN events for the new lineup.
+   *
+   * If the coach wants the same lineup for the second half, they don't need to call this -
+   * the ensureSecondHalfLineupExists() method will auto-copy the lineup when the second
+   * half starts.
    *
    * Uses the actual elapsed game time from the timing service, which accounts for
    * games that ran longer or shorter than the scheduled half duration.
-   *
-   * This approach is simpler than diffing lineups because everyone gets fresh events
-   * with their new positions, mirroring the starting lineup → SUBSTITUTION_IN conversion pattern.
    */
   async setSecondHalfLineup(
     input: SetSecondHalfLineupInput,
@@ -2500,11 +2975,7 @@ export class GameEventsService implements OnModuleInit {
       );
     }
 
-    // 4. Get current on-field players
-    const currentLineup = await this.getGameLineup(input.gameTeamId);
-    const playersOnField = currentLineup.currentOnField;
-
-    // 5. Get actual game clock time at halftime (when first half ended)
+    // 4. Get actual game clock time at halftime (when first half ended)
     const totalDuration =
       game.durationMinutes ?? game.gameFormat?.durationMinutes ?? 90;
     const actualHalftimeSeconds =
@@ -2515,34 +2986,18 @@ export class GameEventsService implements OnModuleInit {
     const halftimeMinute = Math.floor(actualHalftimeSeconds / 60);
     const halftimeSecond = actualHalftimeSeconds % 60;
 
-    // 6. Get event types
-    const subOutType = this.getEventTypeByName('SUBSTITUTION_OUT');
+    // 5. Get SUBSTITUTION_IN event type
     const subInType = this.getEventTypeByName('SUBSTITUTION_IN');
+
+    // 6. Clear any existing second half SUB_IN events
+    // (in case coach is changing their mind about the lineup)
+    await this.clearSecondHalfLineup(input.gameTeamId, halftimeMinute);
 
     const allEvents: GameEvent[] = [];
 
-    // 7. Create SUBSTITUTION_OUT events for each player currently on field
-    // Uses actual game clock time when first half ended
-    for (const player of playersOnField) {
-      const subOutEvent = this.gameEventsRepository.create({
-        gameId: game.id,
-        gameTeamId: input.gameTeamId,
-        eventTypeId: subOutType.id,
-        playerId: player.playerId,
-        externalPlayerName: player.externalPlayerName,
-        externalPlayerNumber: player.externalPlayerNumber,
-        recordedByUserId,
-        gameMinute: halftimeMinute,
-        gameSecond: halftimeSecond,
-        position: player.position,
-      });
-
-      const savedSubOut = await this.gameEventsRepository.save(subOutEvent);
-      allEvents.push(savedSubOut);
-    }
-
-    // 8. Create SUBSTITUTION_IN events for each player in the new lineup
-    // Also uses actual halftime clock (players enter at same logical moment)
+    // 7. Create SUBSTITUTION_IN events for each player in the new lineup
+    // Uses actual halftime clock (players enter at the halftime moment)
+    // Note: SUB_OUT events were created automatically when game transitioned to HALFTIME
     for (const player of input.lineup) {
       const subInEvent = this.gameEventsRepository.create({
         gameId: game.id,
@@ -2561,7 +3016,7 @@ export class GameEventsService implements OnModuleInit {
       allEvents.push(savedSubIn);
     }
 
-    // 9. Load relations for all created events
+    // 8. Load relations for all created events
     const eventsWithRelations = await this.gameEventsRepository.find({
       where: allEvents.map((e) => ({ id: e.id })),
       relations: [
@@ -2575,15 +3030,299 @@ export class GameEventsService implements OnModuleInit {
       ],
     });
 
-    // 10. Publish events to subscribers (batch notification)
+    // 9. Publish events to subscribers (batch notification)
     for (const event of eventsWithRelations) {
       await this.publishGameEvent(game.id, GameEventAction.CREATED, event);
     }
 
+    // Note: substitutionsOut is 0 because SUB_OUT events are now created
+    // automatically during HALFTIME transition, not in this method
     return {
       events: eventsWithRelations,
-      substitutionsOut: playersOnField.length,
+      substitutionsOut: 0,
       substitutionsIn: input.lineup.length,
     };
+  }
+
+  /**
+   * Clear any existing second half lineup (SUB_IN events at or after halftime).
+   * Used when coach wants to change their mind about the second half lineup.
+   */
+  private async clearSecondHalfLineup(
+    gameTeamId: string,
+    halftimeMinute: number,
+  ): Promise<void> {
+    const subInType = this.getEventTypeByName('SUBSTITUTION_IN');
+
+    // Find and delete existing SUB_IN events at halftime or later
+    const existingSubIns = await this.gameEventsRepository.find({
+      where: {
+        gameTeamId,
+        eventTypeId: subInType.id,
+      },
+    });
+
+    // Only delete SUB_IN events at or after halftime (second half lineup)
+    // Keep SUB_IN events from earlier (first half substitutions)
+    const secondHalfSubIns = existingSubIns.filter(
+      (event) => event.gameMinute >= halftimeMinute,
+    );
+
+    if (secondHalfSubIns.length > 0) {
+      await this.gameEventsRepository.remove(secondHalfSubIns);
+    }
+  }
+
+  /**
+   * Start a period by creating PERIOD_START event and SUB_IN events for the lineup.
+   * SUB_IN events are created as children of the PERIOD_START event.
+   *
+   * @param input - Period start input with lineup
+   * @param recordedByUserId - User recording the events
+   * @returns PeriodResult with created events
+   */
+  async startPeriod(
+    input: StartPeriodInput,
+    recordedByUserId: string,
+  ): Promise<PeriodResult> {
+    // 1. Validate game team exists and get game
+    const gameTeam = await this.gameTeamsRepository.findOne({
+      where: { id: input.gameTeamId },
+      relations: ['game', 'game.gameFormat'],
+    });
+
+    if (!gameTeam) {
+      throw new NotFoundException(`GameTeam ${input.gameTeamId} not found`);
+    }
+
+    const game = gameTeam.game;
+
+    // 2. Validate each lineup player has either playerId OR externalPlayerName
+    for (const player of input.lineup) {
+      this.ensurePlayerInfoProvided(
+        player.playerId,
+        player.externalPlayerName,
+        'period lineup entry',
+      );
+    }
+
+    // 3. Determine game time for period start
+    const gameMinute =
+      input.gameMinute ??
+      (input.period === 1 ? 0 : await this.calculateHalftimeMinute(game));
+    const gameSecond = input.gameSecond ?? 0;
+
+    // 4. Get event types
+    const periodStartType = this.getEventTypeByName('PERIOD_START');
+    const subInType = this.getEventTypeByName('SUBSTITUTION_IN');
+
+    // 5. Create PERIOD_START event
+    const periodEvent = this.gameEventsRepository.create({
+      gameId: game.id,
+      gameTeamId: input.gameTeamId,
+      eventTypeId: periodStartType.id,
+      recordedByUserId,
+      gameMinute,
+      gameSecond,
+      metadata: { period: String(input.period) },
+    });
+
+    const savedPeriodEvent = await this.gameEventsRepository.save(periodEvent);
+
+    // 6. Create SUB_IN events as children of PERIOD_START
+    const substitutionEvents: GameEvent[] = [];
+
+    for (const player of input.lineup) {
+      const subInEvent = this.gameEventsRepository.create({
+        gameId: game.id,
+        gameTeamId: input.gameTeamId,
+        eventTypeId: subInType.id,
+        playerId: player.playerId,
+        externalPlayerName: player.externalPlayerName,
+        externalPlayerNumber: player.externalPlayerNumber,
+        position: player.position,
+        recordedByUserId,
+        gameMinute,
+        gameSecond,
+        parentEventId: savedPeriodEvent.id,
+      });
+
+      const savedSubIn = await this.gameEventsRepository.save(subInEvent);
+      substitutionEvents.push(savedSubIn);
+    }
+
+    // 7. Load relations for period event
+    const periodEventWithRelations = await this.gameEventsRepository.findOne({
+      where: { id: savedPeriodEvent.id },
+      relations: [
+        'eventType',
+        'recordedByUser',
+        'gameTeam',
+        'game',
+        'childEvents',
+        'childEvents.eventType',
+        'childEvents.player',
+      ],
+    });
+
+    // 8. Reload substitution events with relations
+    const substitutionEventIds = substitutionEvents.map((e) => e.id);
+    const substitutionEventsWithRelations =
+      substitutionEventIds.length > 0
+        ? await this.gameEventsRepository.find({
+            where: { id: In(substitutionEventIds) },
+            relations: ['eventType', 'player'],
+          })
+        : [];
+
+    // 9. Publish events
+    await this.publishGameEvent(
+      game.id,
+      GameEventAction.CREATED,
+      periodEventWithRelations!,
+    );
+
+    return {
+      periodEvent: periodEventWithRelations!,
+      substitutionEvents: substitutionEventsWithRelations,
+      period: input.period,
+      substitutionCount: substitutionEventsWithRelations.length,
+    };
+  }
+
+  /**
+   * End a period by creating PERIOD_END event and SUB_OUT events for all on-field players.
+   * Queries the current lineup from the database to determine who needs to be subbed out.
+   * SUB_OUT events are created as children of the PERIOD_END event.
+   *
+   * @param input - Period end input
+   * @param recordedByUserId - User recording the events
+   * @returns PeriodResult with created events
+   */
+  async endPeriod(
+    input: EndPeriodInput,
+    recordedByUserId: string,
+  ): Promise<PeriodResult> {
+    // 1. Validate game team exists and get game
+    const gameTeam = await this.gameTeamsRepository.findOne({
+      where: { id: input.gameTeamId },
+      relations: ['game', 'game.gameFormat'],
+    });
+
+    if (!gameTeam) {
+      throw new NotFoundException(`GameTeam ${input.gameTeamId} not found`);
+    }
+
+    const game = gameTeam.game;
+
+    // 2. Determine game time for period end
+    const totalDuration =
+      game.durationMinutes ?? game.gameFormat?.durationMinutes ?? 90;
+    const elapsedSeconds = await this.gameTimingService.getGameDurationSeconds(
+      game.id,
+      totalDuration,
+    );
+
+    const gameMinute = input.gameMinute ?? Math.floor(elapsedSeconds / 60);
+    const gameSecond = input.gameSecond ?? elapsedSeconds % 60;
+
+    // 3. Get event types
+    const periodEndType = this.getEventTypeByName('PERIOD_END');
+    const subOutType = this.getEventTypeByName('SUBSTITUTION_OUT');
+
+    // 4. Create PERIOD_END event first
+    const periodEvent = this.gameEventsRepository.create({
+      gameId: game.id,
+      gameTeamId: input.gameTeamId,
+      eventTypeId: periodEndType.id,
+      recordedByUserId,
+      gameMinute,
+      gameSecond,
+      metadata: { period: String(input.period) },
+    });
+
+    const savedPeriodEvent = await this.gameEventsRepository.save(periodEvent);
+
+    // 5. Get current lineup from database
+    const lineup = await this.getGameLineup(input.gameTeamId);
+
+    // 6. Create SUB_OUT events for all on-field players as children of PERIOD_END
+    const substitutionEvents: GameEvent[] = [];
+
+    for (const player of lineup.currentOnField) {
+      const subOutEvent = this.gameEventsRepository.create({
+        gameId: game.id,
+        gameTeamId: input.gameTeamId,
+        eventTypeId: subOutType.id,
+        playerId: player.playerId,
+        externalPlayerName: player.externalPlayerName,
+        externalPlayerNumber: player.externalPlayerNumber,
+        position: player.position,
+        recordedByUserId,
+        gameMinute,
+        gameSecond,
+        parentEventId: savedPeriodEvent.id,
+      });
+
+      const savedSubOut = await this.gameEventsRepository.save(subOutEvent);
+      substitutionEvents.push(savedSubOut);
+    }
+
+    // 7. Load relations for period event
+    const periodEventWithRelations = await this.gameEventsRepository.findOne({
+      where: { id: savedPeriodEvent.id },
+      relations: [
+        'eventType',
+        'recordedByUser',
+        'gameTeam',
+        'game',
+        'childEvents',
+        'childEvents.eventType',
+        'childEvents.player',
+      ],
+    });
+
+    // 8. Reload substitution events with relations
+    const substitutionEventIds = substitutionEvents.map((e) => e.id);
+    const substitutionEventsWithRelations =
+      substitutionEventIds.length > 0
+        ? await this.gameEventsRepository.find({
+            where: { id: In(substitutionEventIds) },
+            relations: ['eventType', 'player'],
+          })
+        : [];
+
+    // 9. Publish events
+    await this.publishGameEvent(
+      game.id,
+      GameEventAction.CREATED,
+      periodEventWithRelations!,
+    );
+
+    return {
+      periodEvent: periodEventWithRelations!,
+      substitutionEvents: substitutionEventsWithRelations,
+      period: input.period,
+      substitutionCount: substitutionEventsWithRelations.length,
+    };
+  }
+
+  /**
+   * Calculate the halftime minute based on game timing.
+   * Used when starting period 2 without explicit gameMinute.
+   */
+  private async calculateHalftimeMinute(game: Game): Promise<number> {
+    const totalDuration =
+      game.durationMinutes ?? game.gameFormat?.durationMinutes ?? 90;
+    const timing = await this.gameTimingService.getGameTiming(game.id);
+
+    if (timing.firstHalfEnd && timing.actualStart) {
+      return Math.floor(
+        (timing.firstHalfEnd.getTime() - timing.actualStart.getTime()) / 60000,
+      );
+    }
+
+    // Fallback: use half of total duration
+    return Math.floor(totalDuration / 2);
   }
 }
