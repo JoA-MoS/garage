@@ -718,12 +718,18 @@ export const GamePage = () => {
   // via createTimingEventsForStatusChange when status changes to HALFTIME
   const handleEndFirstHalf = async () => {
     try {
+      // Send the current game time from the frontend timer for accurate event timing
+      const gameMinute = Math.floor(elapsedSeconds / 60);
+      const gameSecond = elapsedSeconds % 60;
+
       await updateGame({
         variables: {
           id: gameId!,
           updateGameInput: {
             status: GameStatus.Halftime,
             firstHalfEnd: new Date().toISOString(),
+            gameMinute,
+            gameSecond,
           },
         },
       });
@@ -757,12 +763,18 @@ export const GamePage = () => {
   // via createTimingEventsForStatusChange when status changes to COMPLETED
   const handleEndGame = async () => {
     try {
+      // Send the current game time from the frontend timer for accurate event timing
+      const gameMinute = Math.floor(elapsedSeconds / 60);
+      const gameSecond = elapsedSeconds % 60;
+
       await updateGame({
         variables: {
           id: gameId!,
           updateGameInput: {
             status: GameStatus.Completed,
             actualEnd: new Date().toISOString(),
+            gameMinute,
+            gameSecond,
           },
         },
       });

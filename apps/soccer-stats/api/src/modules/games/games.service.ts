@@ -234,6 +234,7 @@ export class GamesService {
 
     // Extract fields that should not be passed directly to entity update
     // Timing fields are now derived from events, not stored as columns
+    // gameMinute/gameSecond are used for event timing, not stored on Game entity
     const {
       homeTeamId: _homeTeamId,
       awayTeamId: _awayTeamId,
@@ -246,6 +247,8 @@ export class GamesService {
       secondHalfStart: _secondHalfStart,
       actualEnd: _actualEnd,
       pausedAt: inputPausedAt,
+      gameMinute: _gameMinute,
+      gameSecond: _gameSecond,
       ...gameFields
     } = updateGameInput as Record<string, unknown>;
 
@@ -268,10 +271,21 @@ export class GamesService {
     }
 
     // Create timing events based on status changes
+    // Pass game time from frontend for consistent timing with displayed timer
+    const providedGameTime =
+      updateGameInput.gameMinute !== undefined &&
+      updateGameInput.gameSecond !== undefined
+        ? {
+            gameMinute: updateGameInput.gameMinute,
+            gameSecond: updateGameInput.gameSecond,
+          }
+        : undefined;
+
     await this.createTimingEventsForStatusChange(
       id,
       updateGameInput.status,
       userId,
+      providedGameTime,
     );
 
     // Handle pause/resume via events
@@ -458,6 +472,8 @@ export class GamesService {
    * Creates timing events based on game status changes.
    * This replaces direct column updates with event-based timing.
    *
+   * @param providedGameTime - Optional game minute/second from frontend for the status change.
+   *                          Used to ensure consistent timing between frontend timer and events.
    * @throws Error if required event types are not found in the database
    * @throws Error if userId is not provided for status changes that create timing events
    */
@@ -465,6 +481,7 @@ export class GamesService {
     gameId: string,
     status?: GameStatus,
     userId?: string,
+    providedGameTime?: { gameMinute: number; gameSecond: number },
   ): Promise<void> {
     if (!status) return;
 
@@ -519,6 +536,7 @@ export class GamesService {
       metadata?: Record<string, unknown>,
       gameMinute = 0,
       gameSecond = 0,
+      skipPublish = false,
     ): Promise<GameEvent> => {
       const eventType = eventTypeMap.get(eventTypeName);
       // This should never happen due to validation above, but TypeScript needs the check
@@ -565,13 +583,21 @@ export class GamesService {
       const savedEvent = await this.gameEventRepository.save(event);
 
       // Fetch the event with relations needed for subscription payload
+      // Include childEvents to satisfy GraphQL schema (non-nullable array field)
       const eventWithRelations = await this.gameEventRepository.findOne({
         where: { id: savedEvent.id },
-        relations: ['eventType', 'player', 'recordedByUser', 'gameTeam'],
+        relations: [
+          'eventType',
+          'player',
+          'recordedByUser',
+          'gameTeam',
+          'childEvents',
+        ],
       });
 
       // Publish the timing event so all viewers see it in real-time
-      if (eventWithRelations) {
+      // Skip if caller will publish later (e.g., after linking child events)
+      if (eventWithRelations && !skipPublish) {
         await this.publishGameEvent(
           gameId,
           GameEventAction.CREATED,
@@ -604,9 +630,14 @@ export class GamesService {
       case GameStatus.FIRST_HALF: {
         // Game starting: create GAME_START and PERIOD_START (period 1)
         await createEvent('GAME_START');
-        const periodStartEvent = await createEvent('PERIOD_START', {
-          period: '1',
-        });
+        // Skip publishing PERIOD_START until after starters are linked as children
+        const periodStartEvent = await createEvent(
+          'PERIOD_START',
+          { period: '1' },
+          0,
+          0,
+          true, // skipPublish - we'll publish after linking children
+        );
 
         // Link any existing minute 0 SUB_IN events (starters) to PERIOD_START
         for (const gameTeam of gameTeams) {
@@ -615,25 +646,57 @@ export class GamesService {
             periodStartEvent.id,
           );
         }
+
+        // Now publish PERIOD_START with childEvents included
+        const periodStartWithChildren = await this.gameEventRepository.findOne({
+          where: { id: periodStartEvent.id },
+          relations: [
+            'eventType',
+            'player',
+            'recordedByUser',
+            'gameTeam',
+            'childEvents',
+            'childEvents.eventType',
+            'childEvents.player',
+          ],
+        });
+        if (periodStartWithChildren) {
+          await this.publishGameEvent(
+            gameId,
+            GameEventAction.CREATED,
+            periodStartWithChildren,
+          );
+        }
         break;
       }
 
       case GameStatus.HALFTIME: {
         // First half ending:
-        const halftimeSeconds =
-          await this.gameTimingService.getGameDurationSeconds(
-            gameId,
-            totalDuration,
-          );
-        const halftimeMinute = Math.floor(halftimeSeconds / 60);
-        const halftimeSecond = halftimeSeconds % 60;
+        // Use providedGameTime from frontend for consistent timing
+        let halftimeMinute: number;
+        let halftimeSecond: number;
+
+        if (providedGameTime) {
+          halftimeMinute = providedGameTime.gameMinute;
+          halftimeSecond = providedGameTime.gameSecond;
+        } else {
+          const halftimeSeconds =
+            await this.gameTimingService.getGameDurationSeconds(
+              gameId,
+              totalDuration,
+            );
+          halftimeMinute = Math.floor(halftimeSeconds / 60);
+          halftimeSecond = halftimeSeconds % 60;
+        }
 
         // 1. Create PERIOD_END (period 1) first - will be parent of SUB_OUT events
+        // Skip publishing until children are created
         const periodEndEvent = await createEvent(
           'PERIOD_END',
           { period: '1' },
           halftimeMinute,
           halftimeSecond,
+          true, // skipPublish
         );
 
         // 2. Create SUBSTITUTION_OUT for all on-field players as children of PERIOD_END
@@ -644,6 +707,27 @@ export class GamesService {
             halftimeSecond,
             userId!,
             periodEndEvent.id,
+          );
+        }
+
+        // 3. Now publish PERIOD_END with childEvents included
+        const periodEndWithChildren = await this.gameEventRepository.findOne({
+          where: { id: periodEndEvent.id },
+          relations: [
+            'eventType',
+            'player',
+            'recordedByUser',
+            'gameTeam',
+            'childEvents',
+            'childEvents.eventType',
+            'childEvents.player',
+          ],
+        });
+        if (periodEndWithChildren) {
+          await this.publishGameEvent(
+            gameId,
+            GameEventAction.CREATED,
+            periodEndWithChildren,
           );
         }
         break;
@@ -659,24 +743,25 @@ export class GamesService {
           secondHalfStart: timing.secondHalfStart,
         });
 
-        const halftimeMinute = timing.firstHalfEnd
-          ? Math.floor(
-              (timing.firstHalfEnd.getTime() -
-                (timing.actualStart?.getTime() ?? 0)) /
-                60000,
-            )
-          : Math.floor(totalDuration / 2);
+        // Use the configured period duration for second half start time
+        // This ensures second half always starts at the correct nominal time
+        // (e.g., 45:00 for standard 45-minute halves) regardless of when first half actually ended
+        const halftimeMinute =
+          game.gameFormat?.periodDurationMinutes ??
+          Math.floor(totalDuration / 2);
 
         console.log(
           `[SECOND_HALF] halftimeMinute=${halftimeMinute} (totalDuration=${totalDuration})`,
         );
 
         // 1. Create PERIOD_START (period 2) first - will be parent of SUB_IN events
+        // Skip publishing until children are linked/created
         const periodStartEvent = await createEvent(
           'PERIOD_START',
           { period: '2' },
           halftimeMinute,
           0,
+          true, // skipPublish
         );
 
         // 2. Link any orphan SUB_IN events created during halftime to PERIOD_START
@@ -700,27 +785,62 @@ export class GamesService {
             periodStartEvent.id,
           );
         }
+
+        // 4. Now publish PERIOD_START with childEvents included
+        const periodStartWithChildren = await this.gameEventRepository.findOne({
+          where: { id: periodStartEvent.id },
+          relations: [
+            'eventType',
+            'player',
+            'recordedByUser',
+            'gameTeam',
+            'childEvents',
+            'childEvents.eventType',
+            'childEvents.player',
+          ],
+        });
+        if (periodStartWithChildren) {
+          await this.publishGameEvent(
+            gameId,
+            GameEventAction.CREATED,
+            periodStartWithChildren,
+          );
+        }
         break;
       }
 
       case GameStatus.COMPLETED: {
         // Game ending:
-        const gameSeconds = await this.gameTimingService.getGameDurationSeconds(
-          gameId,
-          totalDuration,
-        );
-        const endMinute = Math.floor(gameSeconds / 60);
-        const endSecond = gameSeconds % 60;
+        // Use providedGameTime from frontend for consistent timing with displayed timer
+        let endMinute: number;
+        let endSecond: number;
 
-        // 1. Create PERIOD_END (period 2)
+        if (providedGameTime) {
+          // Use the game time directly from frontend (what the user sees)
+          endMinute = providedGameTime.gameMinute;
+          endSecond = providedGameTime.gameSecond;
+        } else {
+          // Fallback to calculating from timing events (less accurate)
+          const gameSeconds =
+            await this.gameTimingService.getGameDurationSeconds(
+              gameId,
+              totalDuration,
+            );
+          endMinute = Math.floor(gameSeconds / 60);
+          endSecond = gameSeconds % 60;
+        }
+
+        // 1. Create PERIOD_END (period 2) - no children, can publish immediately
         await createEvent('PERIOD_END', { period: '2' }, endMinute, endSecond);
 
         // 2. Create GAME_END first - will be parent of SUB_OUT events
+        // Skip publishing until children are created
         const gameEndEvent = await createEvent(
           'GAME_END',
           undefined,
           endMinute,
           endSecond,
+          true, // skipPublish
         );
 
         // 3. Create SUBSTITUTION_OUT for all on-field players as children of GAME_END
@@ -731,6 +851,27 @@ export class GamesService {
             endSecond,
             userId!,
             gameEndEvent.id,
+          );
+        }
+
+        // 4. Now publish GAME_END with childEvents included
+        const gameEndWithChildren = await this.gameEventRepository.findOne({
+          where: { id: gameEndEvent.id },
+          relations: [
+            'eventType',
+            'player',
+            'recordedByUser',
+            'gameTeam',
+            'childEvents',
+            'childEvents.eventType',
+            'childEvents.player',
+          ],
+        });
+        if (gameEndWithChildren) {
+          await this.publishGameEvent(
+            gameId,
+            GameEventAction.CREATED,
+            gameEndWithChildren,
           );
         }
         break;

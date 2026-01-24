@@ -22,7 +22,15 @@ export class GameFormat extends BaseEntity {
 
   @Field(() => Int)
   @Column({ type: 'int', default: 90 })
-  durationMinutes: number; // Default game duration in minutes
+  durationMinutes: number; // Total game duration in minutes (computed: numberOfPeriods * periodDurationMinutes)
+
+  @Field(() => Int)
+  @Column({ type: 'int', default: 2 })
+  numberOfPeriods: number; // Number of periods (e.g., 2 for halves, 4 for quarters)
+
+  @Field(() => Int)
+  @Column({ type: 'int', default: 45 })
+  periodDurationMinutes: number; // Duration of each period in minutes
 
   @Field()
   @Column({ default: true })
@@ -39,7 +47,7 @@ export class GameFormat extends BaseEntity {
   @Field(() => [TeamConfiguration])
   @OneToMany(
     () => TeamConfiguration,
-    (teamConfiguration) => teamConfiguration.defaultGameFormat
+    (teamConfiguration) => teamConfiguration.defaultGameFormat,
   )
   teamConfigurations: TeamConfiguration[];
 }
