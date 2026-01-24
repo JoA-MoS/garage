@@ -381,10 +381,9 @@ export class SubstitutionService {
       throw new NotFoundException(`GameTeam ${gameTeamId} not found`);
     }
 
-    const events: GameEvent[] = [];
-
-    for (const player of lineup.currentOnField) {
-      const subOutEvent = this.gameEventsRepository.create({
+    // Batch create all SUB_OUT events
+    const subOutEventsToCreate = lineup.currentOnField.map((player) =>
+      this.gameEventsRepository.create({
         gameId: gameTeam.gameId,
         gameTeamId,
         eventTypeId: subOutType.id,
@@ -397,13 +396,14 @@ export class SubstitutionService {
         gameSecond,
         parentEventId,
         period,
-      });
+      }),
+    );
 
-      const savedEvent = await this.gameEventsRepository.save(subOutEvent);
-      events.push(savedEvent);
-    }
+    // Single batch insert instead of N individual inserts
+    const savedEvents =
+      await this.gameEventsRepository.save(subOutEventsToCreate);
 
-    return events;
+    return savedEvents;
   }
 
   /**

@@ -104,8 +104,9 @@ export class PeriodService {
     const substitutionEvents: GameEvent[] = [];
     const periodString = String(input.period);
 
-    for (const player of input.lineup) {
-      const subInEvent = this.gameEventsRepository.create({
+    // Batch create all SUB_IN events
+    const subInEventsToCreate = input.lineup.map((player) =>
+      this.gameEventsRepository.create({
         gameId: game.id,
         gameTeamId: input.gameTeamId,
         eventTypeId: subInType.id,
@@ -118,11 +119,13 @@ export class PeriodService {
         gameSecond,
         parentEventId: savedPeriodEvent.id,
         period: periodString,
-      });
+      }),
+    );
 
-      const savedSubIn = await this.gameEventsRepository.save(subInEvent);
-      substitutionEvents.push(savedSubIn);
-    }
+    // Single batch insert instead of N individual inserts
+    const savedSubInEvents =
+      await this.gameEventsRepository.save(subInEventsToCreate);
+    substitutionEvents.push(...savedSubInEvents);
 
     // 7. Load relations for period event
     const periodEventWithRelations = await this.gameEventsRepository.findOne({
@@ -222,8 +225,9 @@ export class PeriodService {
     // 6. Create SUB_OUT events for all on-field players as children of PERIOD_END
     const substitutionEvents: GameEvent[] = [];
 
-    for (const player of lineup.currentOnField) {
-      const subOutEvent = this.gameEventsRepository.create({
+    // Batch create all SUB_OUT events
+    const subOutEventsToCreate = lineup.currentOnField.map((player) =>
+      this.gameEventsRepository.create({
         gameId: game.id,
         gameTeamId: input.gameTeamId,
         eventTypeId: subOutType.id,
@@ -235,11 +239,13 @@ export class PeriodService {
         gameMinute,
         gameSecond,
         parentEventId: savedPeriodEvent.id,
-      });
+      }),
+    );
 
-      const savedSubOut = await this.gameEventsRepository.save(subOutEvent);
-      substitutionEvents.push(savedSubOut);
-    }
+    // Single batch insert instead of N individual inserts
+    const savedSubOutEvents =
+      await this.gameEventsRepository.save(subOutEventsToCreate);
+    substitutionEvents.push(...savedSubOutEvents);
 
     // 7. Load relations for period event
     const periodEventWithRelations = await this.gameEventsRepository.findOne({
@@ -348,8 +354,9 @@ export class PeriodService {
     // 7. Create SUBSTITUTION_IN events for each player in the new lineup
     // Uses actual halftime clock (players enter at the halftime moment)
     // Note: SUB_OUT events were created automatically when game transitioned to HALFTIME
-    for (const player of input.lineup) {
-      const subInEvent = this.gameEventsRepository.create({
+    // Batch create all SUB_IN events for second half lineup
+    const subInEventsToCreate = input.lineup.map((player) =>
+      this.gameEventsRepository.create({
         gameId: game.id,
         gameTeamId: input.gameTeamId,
         eventTypeId: subInType.id,
@@ -361,11 +368,13 @@ export class PeriodService {
         gameSecond: halftimeSecond,
         position: player.position,
         period: '2', // Second half
-      });
+      }),
+    );
 
-      const savedSubIn = await this.gameEventsRepository.save(subInEvent);
-      allEvents.push(savedSubIn);
-    }
+    // Single batch insert instead of N individual inserts
+    const savedSubInEvents =
+      await this.gameEventsRepository.save(subInEventsToCreate);
+    allEvents.push(...savedSubInEvents);
 
     // 8. Load relations for all created events
     const eventsWithRelations = await this.gameEventsRepository.find({
@@ -381,14 +390,16 @@ export class PeriodService {
       ],
     });
 
-    // 9. Publish events to subscribers (batch notification)
-    for (const event of eventsWithRelations) {
-      await this.coreService.publishGameEvent(
-        game.id,
-        GameEventAction.CREATED,
-        event,
-      );
-    }
+    // 9. Publish events to subscribers in parallel
+    await Promise.all(
+      eventsWithRelations.map((event) =>
+        this.coreService.publishGameEvent(
+          game.id,
+          GameEventAction.CREATED,
+          event,
+        ),
+      ),
+    );
 
     // Note: substitutionsOut is 0 because SUB_OUT events are now created
     // automatically during HALFTIME transition, not in this method
