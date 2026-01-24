@@ -356,7 +356,7 @@ test.describe('Game Lifecycle', () => {
     page,
   }) => {
     // Create and start a game
-    const gameId = await createNewGame(page, 'Test FC', 'Opponent FC', '5v5');
+    const _gameId = await createNewGame(page, 'Test FC', 'Opponent FC', '5v5');
 
     // Start game
     await startGame(page);
@@ -414,7 +414,7 @@ test.describe('Game Creation', () => {
   test('should show correct teams on game page after creation', async ({
     page,
   }) => {
-    const gameId = await createNewGame(page, 'Test FC', 'Opponent FC', '5v5');
+    const _gameId = await createNewGame(page, 'Test FC', 'Opponent FC', '5v5');
 
     // Verify both team names are visible
     await expect(page.getByText('Test FC')).toBeVisible();
