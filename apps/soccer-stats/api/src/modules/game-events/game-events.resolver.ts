@@ -26,6 +26,10 @@ import { RecordPositionChangeInput } from './dto/record-position-change.input';
 import { SwapPositionsInput } from './dto/swap-positions.input';
 import { BatchLineupChangesInput } from './dto/batch-lineup-changes.input';
 import { SetSecondHalfLineupInput } from './dto/set-second-half-lineup.input';
+import { BringPlayerOntoFieldInput } from './dto/bring-player-onto-field.input';
+import { RemovePlayerFromFieldInput } from './dto/remove-player-from-field.input';
+import { StartPeriodInput } from './dto/start-period.input';
+import { EndPeriodInput } from './dto/end-period.input';
 import { GameLineup } from './dto/game-lineup.output';
 import { PlayerPositionStats } from './dto/player-position-stats.output';
 import { PlayerFullStats } from './dto/player-full-stats.output';
@@ -33,6 +37,7 @@ import { PlayerStatsInput } from './dto/player-stats.input';
 import { DependentEventsResult } from './dto/dependent-event.output';
 import { GameEventSubscriptionPayload } from './dto/game-event-subscription.output';
 import { SecondHalfLineupResult } from './dto/set-second-half-lineup.output';
+import { PeriodResult } from './dto/period-result.output';
 
 @Resolver(() => GameEvent)
 @UseGuards(ClerkAuthGuard)
@@ -80,6 +85,30 @@ export class GameEventsResolver {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<GameEvent> {
     return this.gameEventsService.addPlayerToBench(input, user.id);
+  }
+
+  @Mutation(() => GameEvent, {
+    name: 'bringPlayerOntoField',
+    description:
+      'Bring a player onto the field during a game (creates SUBSTITUTION_IN event). Used at halftime or when adding to an empty position mid-game.',
+  })
+  bringPlayerOntoField(
+    @Args('input') input: BringPlayerOntoFieldInput,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<GameEvent> {
+    return this.gameEventsService.bringPlayerOntoField(input, user.id);
+  }
+
+  @Mutation(() => GameEvent, {
+    name: 'removePlayerFromField',
+    description:
+      'Remove a player from the field without replacement (injury, red card, etc.). Creates only a SUBSTITUTION_OUT event.',
+  })
+  removePlayerFromField(
+    @Args('input') input: RemovePlayerFromFieldInput,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<GameEvent> {
+    return this.gameEventsService.removePlayerFromField(input, user.id);
   }
 
   @Mutation(() => Boolean, { name: 'removeFromLineup' })
@@ -210,6 +239,30 @@ export class GameEventsResolver {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<SecondHalfLineupResult> {
     return this.gameEventsService.setSecondHalfLineup(input, user.id);
+  }
+
+  @Mutation(() => PeriodResult, {
+    name: 'startPeriod',
+    description:
+      'Start a period by creating PERIOD_START event and SUB_IN events for the lineup. SUB_IN events are created as children of the PERIOD_START event.',
+  })
+  startPeriod(
+    @Args('input') input: StartPeriodInput,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<PeriodResult> {
+    return this.gameEventsService.startPeriod(input, user.id);
+  }
+
+  @Mutation(() => PeriodResult, {
+    name: 'endPeriod',
+    description:
+      'End a period by creating PERIOD_END event and SUB_OUT events for all on-field players. Queries current lineup from database. SUB_OUT events are created as children of the PERIOD_END event.',
+  })
+  endPeriod(
+    @Args('input') input: EndPeriodInput,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<PeriodResult> {
+    return this.gameEventsService.endPeriod(input, user.id);
   }
 
   @Query(() => [PlayerPositionStats], { name: 'playerPositionStats' })

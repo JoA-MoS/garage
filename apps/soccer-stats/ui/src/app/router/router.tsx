@@ -36,7 +36,24 @@ export const router = createBrowserRouter([
       },
       {
         path: 'games/:gameId',
-        element: <GamePage />,
+        children: [
+          {
+            index: true,
+            element: <Navigate to="lineup" replace />,
+          },
+          {
+            path: 'lineup',
+            element: <GamePage />,
+          },
+          {
+            path: 'stats',
+            element: <GamePage />,
+          },
+          {
+            path: 'events',
+            element: <GamePage />,
+          },
+        ],
       },
       {
         path: 'history',

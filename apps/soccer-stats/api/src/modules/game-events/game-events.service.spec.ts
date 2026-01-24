@@ -1,198 +1,156 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import { GameEvent } from '../../entities/game-event.entity';
-import { EventType, EventCategory } from '../../entities/event-type.entity';
-import { GameTeam } from '../../entities/game-team.entity';
-import { Game, GameStatus } from '../../entities/game.entity';
-import { Team } from '../../entities/team.entity';
-import { GameTimingService } from '../games/game-timing.service';
 
 import { GameEventsService } from './game-events.service';
+import {
+  EventCoreService,
+  LineupService,
+  GoalService,
+  SubstitutionService,
+  StatsService,
+  PeriodService,
+  EventManagementService,
+} from './services';
 
 describe('GameEventsService', () => {
   let service: GameEventsService;
-  let gameEventsRepository: jest.Mocked<Repository<GameEvent>>;
-  let gameTeamsRepository: jest.Mocked<Repository<GameTeam>>;
+  let periodService: jest.Mocked<PeriodService>;
+  let lineupService: jest.Mocked<LineupService>;
 
-  const mockGameEventsRepository = {
-    find: jest.fn(),
+  // Mock specialized services
+  const mockEventCoreService = {
+    onModuleInit: jest.fn(),
+    getEventTypeByName: jest.fn(),
+    getGameTeam: jest.fn(),
+    ensurePlayerInfoProvided: jest.fn(),
+    publishGameEvent: jest.fn(),
+    checkForDuplicateOrConflict: jest.fn(),
+    loadEventWithRelations: jest.fn(),
+    buildConflictInfo: jest.fn(),
+    getPlayerNameFromEvent: jest.fn(),
+    getRecordedByUserName: jest.fn(),
+    gameEventsRepository: {},
+    eventTypesRepository: {},
+    gameTeamsRepository: {},
+    gamesRepository: {},
+    teamsRepository: {},
+  };
+
+  const mockLineupService = {
+    addPlayerToLineup: jest.fn(),
+    addPlayerToBench: jest.fn(),
+    removeFromLineup: jest.fn(),
+    updatePlayerPosition: jest.fn(),
+    getGameLineup: jest.fn(),
+    findEventsByGameTeam: jest.fn(),
     findOne: jest.fn(),
-    findOneOrFail: jest.fn(),
-    create: jest.fn(),
-    save: jest.fn(),
   };
 
-  const mockEventTypesRepository = {
-    find: jest.fn(),
-    findOne: jest.fn(),
+  const mockGoalService = {
+    recordGoal: jest.fn(),
+    updateGoal: jest.fn(),
+    deleteGoal: jest.fn(),
   };
 
-  const mockGameTeamsRepository = {
-    find: jest.fn(),
-    findOne: jest.fn(),
+  const mockSubstitutionService = {
+    substitutePlayer: jest.fn(),
+    bringPlayerOntoField: jest.fn(),
+    removePlayerFromField: jest.fn(),
+    deleteSubstitution: jest.fn(),
+    deleteStarterEntry: jest.fn(),
+    createSubstitutionOutForAllOnField: jest.fn(),
+    batchLineupChanges: jest.fn(),
   };
 
-  const mockGamesRepository = {
-    find: jest.fn(),
-    findOne: jest.fn(),
+  const mockStatsService = {
+    getPlayerPositionStats: jest.fn(),
+    getPlayerStats: jest.fn(),
   };
 
-  const mockTeamsRepository = {
-    find: jest.fn(),
-    findOne: jest.fn(),
+  const mockPeriodService = {
+    startPeriod: jest.fn(),
+    endPeriod: jest.fn(),
+    setSecondHalfLineup: jest.fn(),
+    ensureSecondHalfLineupExists: jest.fn(),
+    linkOrphanSubInsToSecondHalfPeriodStart: jest.fn(),
+    linkFirstHalfStartersToPeriodStart: jest.fn(),
   };
 
-  const mockPubSub = {
-    publish: jest.fn(),
+  const mockEventManagementService = {
+    recordFormationChange: jest.fn(),
+    recordPositionChange: jest.fn(),
+    swapPositions: jest.fn(),
+    deletePositionSwap: jest.fn(),
+    findDependentEvents: jest.fn(),
+    deleteEventWithCascade: jest.fn(),
+    resolveEventConflict: jest.fn(),
   };
-
-  const mockGameTimingService = {
-    getGameDurationSeconds: jest.fn(),
-    getGameTiming: jest.fn(),
-  };
-
-  // Mock event types
-  const mockEventTypes: Partial<EventType>[] = [
-    {
-      id: 'et-sub-in',
-      name: 'SUBSTITUTION_IN',
-      category: EventCategory.SUBSTITUTION,
-    },
-    {
-      id: 'et-sub-out',
-      name: 'SUBSTITUTION_OUT',
-      category: EventCategory.SUBSTITUTION,
-    },
-    {
-      id: 'et-starting',
-      name: 'STARTING_LINEUP',
-      category: EventCategory.SUBSTITUTION,
-    },
-    { id: 'et-bench', name: 'BENCH', category: EventCategory.SUBSTITUTION },
-  ];
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GameEventsService,
+        { provide: EventCoreService, useValue: mockEventCoreService },
+        { provide: LineupService, useValue: mockLineupService },
+        { provide: GoalService, useValue: mockGoalService },
+        { provide: SubstitutionService, useValue: mockSubstitutionService },
+        { provide: StatsService, useValue: mockStatsService },
+        { provide: PeriodService, useValue: mockPeriodService },
         {
-          provide: getRepositoryToken(GameEvent),
-          useValue: mockGameEventsRepository,
+          provide: EventManagementService,
+          useValue: mockEventManagementService,
         },
-        {
-          provide: getRepositoryToken(EventType),
-          useValue: mockEventTypesRepository,
-        },
-        {
-          provide: getRepositoryToken(GameTeam),
-          useValue: mockGameTeamsRepository,
-        },
-        { provide: getRepositoryToken(Game), useValue: mockGamesRepository },
-        { provide: getRepositoryToken(Team), useValue: mockTeamsRepository },
-        { provide: 'PUB_SUB', useValue: mockPubSub },
-        { provide: GameTimingService, useValue: mockGameTimingService },
       ],
     }).compile();
 
     service = module.get<GameEventsService>(GameEventsService);
-    gameEventsRepository = module.get(getRepositoryToken(GameEvent));
-    gameTeamsRepository = module.get(getRepositoryToken(GameTeam));
-
-    // Initialize event type cache by simulating onModuleInit
-    mockEventTypesRepository.find.mockResolvedValue(
-      mockEventTypes as EventType[],
-    );
-    await service.onModuleInit();
+    periodService = module.get(PeriodService);
+    lineupService = module.get(LineupService);
 
     jest.clearAllMocks();
   });
 
   describe('setSecondHalfLineup', () => {
     const mockGameTeamId = 'game-team-1';
-    const mockGameId = 'game-1';
     const mockUserId = 'user-1';
-
-    const mockGame: Partial<Game> = {
-      id: mockGameId,
-      status: GameStatus.HALFTIME,
-      durationMinutes: 60,
-      gameFormat: { id: 'format-1', durationMinutes: 60 } as any,
-    };
-
-    const mockGameTeam: Partial<GameTeam> = {
-      id: mockGameTeamId,
-      gameId: mockGameId,
-      game: mockGame as Game,
-    };
-
-    // Current players on field (from first half)
-    const mockCurrentOnField = [
-      {
-        playerId: 'player-1',
-        externalPlayerName: null,
-        externalPlayerNumber: null,
-        position: 'ST',
-      },
-      {
-        playerId: 'player-2',
-        externalPlayerName: null,
-        externalPlayerNumber: null,
-        position: 'CM',
-      },
-      {
-        playerId: 'player-3',
-        externalPlayerName: null,
-        externalPlayerNumber: null,
-        position: 'GK',
-      },
-    ];
 
     // New lineup for second half
     const mockSecondHalfLineup = [
-      { playerId: 'player-1', position: 'CM' }, // Same player, different position
-      { playerId: 'player-4', position: 'ST' }, // New player from bench
-      { playerId: 'player-3', position: 'GK' }, // Same player, same position
+      { playerId: 'player-1', position: 'CM' },
+      { playerId: 'player-4', position: 'ST' },
+      { playerId: 'player-3', position: 'GK' },
     ];
 
+    const mockResult = {
+      substitutionsOut: 0,
+      substitutionsIn: 3,
+      events: [] as GameEvent[],
+    };
+
     beforeEach(() => {
-      // Reset event type cache for each test
-      mockEventTypesRepository.find.mockResolvedValue(
-        mockEventTypes as EventType[],
-      );
-
-      // Default mocks
-      mockGameTeamsRepository.findOne.mockResolvedValue(
-        mockGameTeam as GameTeam,
-      );
-      mockGameTimingService.getGameDurationSeconds.mockResolvedValue(1832); // 30:32 (30 min, 32 sec)
-      mockPubSub.publish.mockResolvedValue(undefined);
-
-      // Mock getGameLineup by mocking the find call it uses
-      mockGameEventsRepository.find
-        .mockResolvedValueOnce([]) // First call for getGameLineup events
-        .mockResolvedValue([]); // Subsequent calls for loading relations
-
-      // Mock create and save to return events with IDs
-      let eventCounter = 0;
-      mockGameEventsRepository.create.mockImplementation((data) => ({
-        id: `event-${++eventCounter}`,
-        ...data,
-      }));
-      mockGameEventsRepository.save.mockImplementation((event) =>
-        Promise.resolve(event as GameEvent),
-      );
+      mockPeriodService.setSecondHalfLineup.mockResolvedValue(mockResult);
     });
 
-    it('should throw BadRequestException if game is not in HALFTIME status', async () => {
-      const gameNotInHalftime = {
-        ...mockGameTeam,
-        game: { ...mockGame, status: GameStatus.IN_PROGRESS },
+    it('should delegate to periodService.setSecondHalfLineup', async () => {
+      const input = {
+        gameTeamId: mockGameTeamId,
+        lineup: mockSecondHalfLineup,
       };
-      mockGameTeamsRepository.findOne.mockResolvedValue(
-        gameNotInHalftime as GameTeam,
+
+      const result = await service.setSecondHalfLineup(input, mockUserId);
+
+      expect(periodService.setSecondHalfLineup).toHaveBeenCalledWith(
+        input,
+        mockUserId,
+      );
+      expect(result).toBe(mockResult);
+    });
+
+    it('should propagate BadRequestException from periodService', async () => {
+      mockPeriodService.setSecondHalfLineup.mockRejectedValue(
+        new BadRequestException('Game is not in HALFTIME status'),
       );
 
       await expect(
@@ -203,8 +161,10 @@ describe('GameEventsService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw NotFoundException if gameTeam does not exist', async () => {
-      mockGameTeamsRepository.findOne.mockResolvedValue(null);
+    it('should propagate NotFoundException from periodService', async () => {
+      mockPeriodService.setSecondHalfLineup.mockRejectedValue(
+        new NotFoundException('GameTeam not found'),
+      );
 
       await expect(
         service.setSecondHalfLineup(
@@ -214,186 +174,151 @@ describe('GameEventsService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should use actual game clock time for events', async () => {
-      // Actual halftime was at 30:32 (1832 seconds)
-      mockGameTimingService.getGameDurationSeconds.mockResolvedValue(1832);
-
-      // Mock getGameLineup to return empty (no players on field)
-      jest.spyOn(service, 'getGameLineup').mockResolvedValue({
-        gameTeamId: mockGameTeamId,
-        currentOnField: [],
-        bench: [],
-        starters: [],
-      });
-
-      await service.setSecondHalfLineup(
-        { gameTeamId: mockGameTeamId, lineup: mockSecondHalfLineup },
-        mockUserId,
-      );
-
-      // Verify gameTimingService was called with correct parameters
-      expect(mockGameTimingService.getGameDurationSeconds).toHaveBeenCalledWith(
-        mockGameId,
-        60, // game duration
-      );
-
-      // Verify SUBSTITUTION_IN events use minute 30, second 32
-      const createCalls = mockGameEventsRepository.create.mock.calls;
-      createCalls.forEach((call) => {
-        expect(call[0].gameMinute).toBe(30);
-        expect(call[0].gameSecond).toBe(32);
-      });
-    });
-
-    it('should create SUBSTITUTION_OUT events for all players currently on field', async () => {
-      mockGameTimingService.getGameDurationSeconds.mockResolvedValue(2700); // 45:00
-
-      jest.spyOn(service, 'getGameLineup').mockResolvedValue({
-        gameTeamId: mockGameTeamId,
-        currentOnField: mockCurrentOnField as any,
-        bench: [],
-        starters: [],
-      });
-
-      await service.setSecondHalfLineup(
-        { gameTeamId: mockGameTeamId, lineup: mockSecondHalfLineup },
-        mockUserId,
-      );
-
-      const createCalls = mockGameEventsRepository.create.mock.calls;
-
-      // First 3 calls should be SUBSTITUTION_OUT (one for each player on field)
-      const subOutCalls = createCalls.slice(0, 3);
-      subOutCalls.forEach((call, index) => {
-        expect(call[0].eventTypeId).toBe('et-sub-out');
-        expect(call[0].playerId).toBe(mockCurrentOnField[index].playerId);
-        expect(call[0].position).toBe(mockCurrentOnField[index].position);
-        expect(call[0].gameMinute).toBe(45);
-        expect(call[0].gameSecond).toBe(0);
-      });
-    });
-
-    it('should create SUBSTITUTION_IN events for all players in new lineup', async () => {
-      mockGameTimingService.getGameDurationSeconds.mockResolvedValue(2700); // 45:00
-
-      jest.spyOn(service, 'getGameLineup').mockResolvedValue({
-        gameTeamId: mockGameTeamId,
-        currentOnField: mockCurrentOnField as any,
-        bench: [],
-        starters: [],
-      });
-
-      await service.setSecondHalfLineup(
-        { gameTeamId: mockGameTeamId, lineup: mockSecondHalfLineup },
-        mockUserId,
-      );
-
-      const createCalls = mockGameEventsRepository.create.mock.calls;
-
-      // Last 3 calls should be SUBSTITUTION_IN (one for each player in new lineup)
-      const subInCalls = createCalls.slice(3, 6);
-      subInCalls.forEach((call, index) => {
-        expect(call[0].eventTypeId).toBe('et-sub-in');
-        expect(call[0].playerId).toBe(mockSecondHalfLineup[index].playerId);
-        expect(call[0].position).toBe(mockSecondHalfLineup[index].position);
-        expect(call[0].gameMinute).toBe(45);
-        expect(call[0].gameSecond).toBe(0);
-      });
-    });
-
     it('should return correct counts of substitutions', async () => {
-      mockGameTimingService.getGameDurationSeconds.mockResolvedValue(2700);
-
-      jest.spyOn(service, 'getGameLineup').mockResolvedValue({
-        gameTeamId: mockGameTeamId,
-        currentOnField: mockCurrentOnField as any,
-        bench: [],
-        starters: [],
-      });
-
-      // Mock find to return the created events with relations
-      mockGameEventsRepository.find.mockResolvedValue([]);
-
       const result = await service.setSecondHalfLineup(
         { gameTeamId: mockGameTeamId, lineup: mockSecondHalfLineup },
         mockUserId,
       );
 
-      expect(result.substitutionsOut).toBe(3); // 3 players were on field
-      expect(result.substitutionsIn).toBe(3); // 3 players in new lineup
+      expect(result.substitutionsOut).toBe(0);
+      expect(result.substitutionsIn).toBe(3);
+    });
+  });
+
+  describe('getGameLineup', () => {
+    const mockGameTeamId = 'game-team-1';
+    const mockLineup = {
+      gameTeamId: mockGameTeamId,
+      currentOnField: [{ playerId: 'player-1', position: 'ST' }],
+      bench: [{ playerId: 'player-2' }],
+      starters: [{ playerId: 'player-1', position: 'ST' }],
+    };
+
+    beforeEach(() => {
+      mockLineupService.getGameLineup.mockResolvedValue(mockLineup);
     });
 
-    it('should handle extended first half (e.g., 47:32 instead of 45:00)', async () => {
-      // First half ran long - 47 minutes and 32 seconds
-      mockGameTimingService.getGameDurationSeconds.mockResolvedValue(2852); // 47:32
+    it('should delegate to lineupService.getGameLineup', async () => {
+      const result = await service.getGameLineup(mockGameTeamId);
 
-      jest.spyOn(service, 'getGameLineup').mockResolvedValue({
-        gameTeamId: mockGameTeamId,
-        currentOnField: [mockCurrentOnField[0]] as any,
-        bench: [],
-        starters: [],
-      });
+      expect(lineupService.getGameLineup).toHaveBeenCalledWith(mockGameTeamId);
+      expect(result).toBe(mockLineup);
+    });
+  });
 
-      await service.setSecondHalfLineup(
-        { gameTeamId: mockGameTeamId, lineup: [mockSecondHalfLineup[0]] },
-        mockUserId,
+  describe('facade delegation', () => {
+    it('should delegate addPlayerToLineup to lineupService', async () => {
+      const input = {
+        gameTeamId: 'gt-1',
+        position: 'ST',
+        playerId: 'player-1',
+      };
+      const mockEvent = { id: 'event-1' } as GameEvent;
+      mockLineupService.addPlayerToLineup.mockResolvedValue(mockEvent);
+
+      const result = await service.addPlayerToLineup(input, 'user-1');
+
+      expect(mockLineupService.addPlayerToLineup).toHaveBeenCalledWith(
+        input,
+        'user-1',
       );
-
-      const createCalls = mockGameEventsRepository.create.mock.calls;
-
-      // All events should use the actual halftime clock: 47:32
-      createCalls.forEach((call) => {
-        expect(call[0].gameMinute).toBe(47);
-        expect(call[0].gameSecond).toBe(32);
-      });
+      expect(result).toBe(mockEvent);
     });
 
-    it('should handle external players in lineup', async () => {
-      mockGameTimingService.getGameDurationSeconds.mockResolvedValue(2700);
+    it('should delegate recordGoal to goalService', async () => {
+      const input = {
+        gameTeamId: 'gt-1',
+        scorerId: 'player-1',
+        gameMinute: 25,
+        gameSecond: 30,
+      };
+      const mockEvent = { id: 'goal-1' } as GameEvent;
+      mockGoalService.recordGoal.mockResolvedValue(mockEvent);
 
-      const lineupWithExternalPlayer = [
-        {
-          externalPlayerName: 'John Doe',
-          externalPlayerNumber: '10',
-          position: 'ST',
-        },
-      ];
+      const result = await service.recordGoal(input, 'user-1');
 
-      jest.spyOn(service, 'getGameLineup').mockResolvedValue({
-        gameTeamId: mockGameTeamId,
-        currentOnField: [],
-        bench: [],
-        starters: [],
-      });
-
-      await service.setSecondHalfLineup(
-        { gameTeamId: mockGameTeamId, lineup: lineupWithExternalPlayer },
-        mockUserId,
-      );
-
-      const createCalls = mockGameEventsRepository.create.mock.calls;
-      expect(createCalls[0][0].externalPlayerName).toBe('John Doe');
-      expect(createCalls[0][0].externalPlayerNumber).toBe('10');
-      expect(createCalls[0][0].playerId).toBeUndefined();
+      expect(mockGoalService.recordGoal).toHaveBeenCalledWith(input, 'user-1');
+      expect(result).toBe(mockEvent);
     });
 
-    it('should call repository.find to load events with relations', async () => {
-      mockGameTimingService.getGameDurationSeconds.mockResolvedValue(2700);
+    it('should delegate substitutePlayer to substitutionService', async () => {
+      const input = {
+        gameTeamId: 'gt-1',
+        playerOutEventId: 'event-1',
+        playerInId: 'player-2',
+        gameMinute: 60,
+        gameSecond: 0,
+      };
+      const mockEvents = [{ id: 'sub-out' }, { id: 'sub-in' }] as GameEvent[];
+      mockSubstitutionService.substitutePlayer.mockResolvedValue(mockEvents);
 
-      jest.spyOn(service, 'getGameLineup').mockResolvedValue({
-        gameTeamId: mockGameTeamId,
-        currentOnField: [mockCurrentOnField[0]] as any,
-        bench: [],
-        starters: [],
-      });
+      const result = await service.substitutePlayer(input, 'user-1');
 
-      await service.setSecondHalfLineup(
-        { gameTeamId: mockGameTeamId, lineup: [mockSecondHalfLineup[0]] },
-        mockUserId,
+      expect(mockSubstitutionService.substitutePlayer).toHaveBeenCalledWith(
+        input,
+        'user-1',
       );
+      expect(result).toBe(mockEvents);
+    });
 
-      // Verify find was called to load events with relations
-      expect(mockGameEventsRepository.find).toHaveBeenCalled();
+    it('should delegate startPeriod to periodService', async () => {
+      const input = {
+        gameTeamId: 'gt-1',
+        period: 1,
+        lineup: [{ playerId: 'player-1', position: 'ST' }],
+        gameMinute: 0,
+        gameSecond: 0,
+      };
+      const mockEvent = { id: 'period-start' } as GameEvent;
+      mockPeriodService.startPeriod.mockResolvedValue(mockEvent);
+
+      const result = await service.startPeriod(input, 'user-1');
+
+      expect(mockPeriodService.startPeriod).toHaveBeenCalledWith(
+        input,
+        'user-1',
+      );
+      expect(result).toBe(mockEvent);
+    });
+
+    it('should delegate getPlayerStats to statsService', async () => {
+      const input = { teamId: 'team-1' };
+      const mockStats = [{ playerId: 'player-1', totalMinutes: 45 }];
+      mockStatsService.getPlayerStats.mockResolvedValue(mockStats);
+
+      const result = await service.getPlayerStats(input);
+
+      expect(mockStatsService.getPlayerStats).toHaveBeenCalledWith(input);
+      expect(result).toBe(mockStats);
+    });
+
+    it('should delegate swapPositions to eventManagementService', async () => {
+      const input = {
+        gameTeamId: 'gt-1',
+        player1EventId: 'event-1',
+        player2EventId: 'event-2',
+        gameMinute: 30,
+        gameSecond: 0,
+      };
+      const mockEvents = [{ id: 'swap-1' }, { id: 'swap-2' }] as GameEvent[];
+      mockEventManagementService.swapPositions.mockResolvedValue(mockEvents);
+
+      const result = await service.swapPositions(input, 'user-1');
+
+      expect(mockEventManagementService.swapPositions).toHaveBeenCalledWith(
+        input,
+        'user-1',
+      );
+      expect(result).toBe(mockEvents);
+    });
+
+    it('should delegate deleteGoal to goalService', async () => {
+      mockGoalService.deleteGoal.mockResolvedValue(true);
+
+      const result = await service.deleteGoal('goal-1');
+
+      expect(mockGoalService.deleteGoal).toHaveBeenCalledWith('goal-1');
+      expect(result).toBe(true);
     });
   });
 });

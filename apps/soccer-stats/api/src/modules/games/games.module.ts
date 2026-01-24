@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { Game } from '../../entities/game.entity';
@@ -11,6 +11,7 @@ import { EventType } from '../../entities/event-type.entity';
 import { GameEvent } from '../../entities/game-event.entity';
 import { GameFormat } from '../../entities/game-format.entity';
 import { AuthModule } from '../auth/auth.module';
+import { GameEventsModule } from '../game-events/game-events.module';
 
 import { GamesResolver } from './games.resolver';
 import { GamesService } from './games.service';
@@ -32,6 +33,7 @@ import { GameTeamResolver } from './game-team.resolver';
       GameFormat,
     ]),
     AuthModule,
+    forwardRef(() => GameEventsModule), // Circular dependency with GameEventsModule
   ],
   providers: [
     GamesResolver,
