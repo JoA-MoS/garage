@@ -142,6 +142,7 @@ export const GameLineupTab = memo(function GameLineupTab({
     bench,
     currentOnField,
     availableRoster,
+    teamRoster,
     loading,
     mutating,
     error,
@@ -151,9 +152,31 @@ export const GameLineupTab = memo(function GameLineupTab({
     updatePosition,
     substitutePlayer,
     recordPositionChange,
+    bringPlayerOntoField,
     refetchLineup,
     formation: savedFormation,
   } = useLineup({ gameTeamId, gameId });
+
+  // Helper to get jersey number for a player (from roster for managed players, or externalPlayerNumber)
+  const getJerseyNumber = useCallback(
+    (player: LineupPlayer): string => {
+      // For external players, use externalPlayerNumber
+      if (player.externalPlayerNumber) {
+        return player.externalPlayerNumber;
+      }
+      // For managed roster players, look up jersey number from roster
+      if (player.playerId && teamRoster) {
+        const rosterPlayer = teamRoster.find(
+          (rp) => rp.oduserId === player.playerId,
+        );
+        if (rosterPlayer?.jerseyNumber) {
+          return rosterPlayer.jerseyNumber;
+        }
+      }
+      return '?';
+    },
+    [teamRoster],
+  );
 
   // Sync local formation state with backend formation
   useEffect(() => {
@@ -323,6 +346,58 @@ export const GameLineupTab = memo(function GameLineupTab({
       }
     },
     [addToLineup],
+  );
+
+  // Assign bench player to a position (move from bench to lineup)
+  const handleAssignBenchPlayerToPosition = useCallback(
+    async (player: LineupPlayer, position: string) => {
+      const isGameActive =
+        gameStatus === GameStatus.InProgress ||
+        gameStatus === GameStatus.FirstHalf ||
+        gameStatus === GameStatus.Halftime ||
+        gameStatus === GameStatus.SecondHalf;
+
+      try {
+        if (isGameActive) {
+          // During game: use bringPlayerOntoField which creates SUBSTITUTION_IN
+          // without trying to remove the existing event (which may be SUBSTITUTION_OUT)
+          await bringPlayerOntoField({
+            playerId: player.playerId || undefined,
+            externalPlayerName: player.externalPlayerName || undefined,
+            externalPlayerNumber: player.externalPlayerNumber || undefined,
+            position,
+            gameMinute: currentGameMinute,
+            gameSecond: 0,
+          });
+        } else {
+          // Pre-game: remove from bench, then add to lineup
+          await removeFromLineup(player.gameEventId);
+
+          if (player.playerId) {
+            await addToLineup({
+              playerId: player.playerId,
+              position,
+            });
+          } else {
+            await addToLineup({
+              externalPlayerName: player.externalPlayerName || undefined,
+              externalPlayerNumber: player.externalPlayerNumber || undefined,
+              position,
+            });
+          }
+        }
+        setModalMode({ type: 'closed' });
+      } catch (err) {
+        console.error('Failed to move bench player to lineup:', err);
+      }
+    },
+    [
+      gameStatus,
+      currentGameMinute,
+      bringPlayerOntoField,
+      addToLineup,
+      removeFromLineup,
+    ],
   );
 
   // Add external player
@@ -548,11 +623,50 @@ export const GameLineupTab = memo(function GameLineupTab({
                   Assign Player to {modalMode.position.position}
                 </h4>
 
-                {/* Roster selection for managed teams */}
+                {/* Bench players - these are the players marked available for the game */}
+                {bench.length > 0 && (
+                  <div className="mb-4">
+                    <p className="mb-2 text-sm font-medium text-gray-700">
+                      Available for Game:
+                    </p>
+                    <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto">
+                      {bench.map((player) => (
+                        <button
+                          key={player.gameEventId}
+                          onClick={() =>
+                            handleAssignBenchPlayerToPosition(
+                              player,
+                              modalMode.position.position,
+                            )
+                          }
+                          className="flex items-center gap-1 rounded-full px-3 py-1 text-sm hover:opacity-80"
+                          style={{
+                            backgroundColor: teamColor,
+                            color: 'white',
+                          }}
+                          type="button"
+                        >
+                          #{getJerseyNumber(player)}{' '}
+                          {player.externalPlayerName ||
+                            player.playerName ||
+                            'Unknown'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Roster selection for managed teams - add directly to position */}
                 {isManaged && (
                   <div className="mb-4">
                     <p className="mb-2 text-sm font-medium text-gray-700">
-                      Team Roster:
+                      {bench.length > 0
+                        ? 'Or add from roster:'
+                        : 'Team Roster:'}
+                    </p>
+                    <p className="mb-2 text-xs text-gray-500">
+                      Tip: Add players to bench first to mark them as available
+                      for this game
                     </p>
                     {availableRoster.length > 0 ? (
                       <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto">
@@ -746,7 +860,9 @@ export const GameLineupTab = memo(function GameLineupTab({
                         type="button"
                       >
                         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm">
-                          {player.externalPlayerNumber || 'B'}
+                          {getJerseyNumber(player) !== '?'
+                            ? getJerseyNumber(player)
+                            : 'B'}
                         </span>
                         <span>
                           {player.externalPlayerName ||
@@ -783,11 +899,11 @@ export const GameLineupTab = memo(function GameLineupTab({
                 <div className="mb-4 space-y-3">
                   {modalMode.playersToReassign.map(
                     ({ player, oldPosition }) => {
+                      const jerseyNum = getJerseyNumber(player);
                       const playerName =
                         player.externalPlayerName ||
                         player.playerName ||
-                        `#${player.externalPlayerNumber}` ||
-                        'Unknown';
+                        (jerseyNum !== '?' ? `#${jerseyNum}` : 'Unknown');
                       const selectedPosition = reassignments.get(
                         player.gameEventId,
                       );

@@ -161,7 +161,12 @@ export const SubstitutionModal = ({
       q.type === 'substitution',
   );
 
-  // Available players (excluding those already in queue)
+  // IDs of players currently on field (to prevent showing them in bench list)
+  const currentOnFieldPlayerIds = new Set(
+    currentOnField.map((p) => getPlayerId(p)),
+  );
+
+  // Available players (excluding those already in queue or on field)
   const availableOnField = currentOnField.filter(
     (p) =>
       !queuedOutIds.has(p.gameEventId) &&
@@ -170,7 +175,8 @@ export const SubstitutionModal = ({
   const availableBench = bench.filter((b) => {
     if (b.isOnField) return false;
     const id = getPlayerId(b);
-    return !queuedInIds.has(id);
+    // Exclude if already queued OR if currently on field
+    return !queuedInIds.has(id) && !currentOnFieldPlayerIds.has(id);
   });
 
   // For swaps, show field players not queued out + incoming players from queued subs

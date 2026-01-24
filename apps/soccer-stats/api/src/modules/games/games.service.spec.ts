@@ -12,8 +12,10 @@ import {
   TeamConfiguration,
   StatsTrackingLevel,
 } from '../../entities/team-configuration.entity';
+import { GameEventsService } from '../game-events/game-events.service';
 
 import { GamesService } from './games.service';
+import { GameTimingService } from './game-timing.service';
 
 describe('GamesService', () => {
   let service: GamesService;
@@ -49,6 +51,7 @@ describe('GamesService', () => {
 
   const mockGameEventRepository = {
     find: jest.fn(),
+    findOne: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
     createQueryBuilder: jest.fn(),
@@ -61,6 +64,23 @@ describe('GamesService', () => {
 
   const mockTeamConfigurationRepository = {
     findOne: jest.fn(),
+  };
+
+  const mockGameEventsService = {
+    createSubstitutionOutForAllOnField: jest.fn().mockResolvedValue([]),
+    ensureSecondHalfLineupExists: jest.fn().mockResolvedValue(undefined),
+    linkOrphanSubInsToSecondHalfPeriodStart: jest.fn().mockResolvedValue(0),
+    linkFirstHalfStartersToPeriodStart: jest.fn().mockResolvedValue(0),
+    getGameLineup: jest.fn().mockResolvedValue({ currentOnField: [] }),
+  };
+
+  const mockGameTimingService = {
+    getGameDurationSeconds: jest.fn().mockResolvedValue(0),
+    getGameTiming: jest.fn().mockResolvedValue({}),
+  };
+
+  const mockPubSub = {
+    publish: jest.fn().mockResolvedValue(undefined),
   };
 
   // Mock event types for timing
@@ -119,6 +139,18 @@ describe('GamesService', () => {
           provide: getRepositoryToken(TeamConfiguration),
           useValue: mockTeamConfigurationRepository,
         },
+        {
+          provide: GameEventsService,
+          useValue: mockGameEventsService,
+        },
+        {
+          provide: GameTimingService,
+          useValue: mockGameTimingService,
+        },
+        {
+          provide: 'PUB_SUB',
+          useValue: mockPubSub,
+        },
       ],
     }).compile();
 
@@ -152,6 +184,12 @@ describe('GamesService', () => {
         gameId: 'game-1',
         teamType: 'home',
       } as GameTeam);
+
+      // Default: return both game teams for substitution events
+      mockGameTeamRepository.find.mockResolvedValue([
+        { id: 'game-team-home', gameId: 'game-1', teamType: 'home' },
+        { id: 'game-team-away', gameId: 'game-1', teamType: 'away' },
+      ] as GameTeam[]);
 
       // Default: return all timing event types
       mockEventTypeRepository.find.mockResolvedValue(
@@ -191,20 +229,22 @@ describe('GamesService', () => {
 
         const createCalls = mockGameEventRepository.create.mock.calls;
 
-        // First event: GAME_START
+        // First event: GAME_START (parent of PERIOD_START)
         expect(createCalls[0][0]).toMatchObject({
           gameId: 'game-1',
           eventTypeId: 'et-game-start',
           recordedByUserId: 'user-123',
         });
 
-        // Second event: PERIOD_START with period 1
+        // Second event: PERIOD_START with period 1 as child of GAME_START
         expect(createCalls[1][0]).toMatchObject({
           gameId: 'game-1',
           eventTypeId: 'et-period-start',
           recordedByUserId: 'user-123',
           metadata: { period: '1' },
         });
+        // PERIOD_START should have GAME_START as parent
+        expect(createCalls[1][0].parentEventId).toBeDefined();
       });
 
       it('should create PERIOD_END event when status is HALFTIME', async () => {
@@ -241,7 +281,7 @@ describe('GamesService', () => {
         );
       });
 
-      it('should create PERIOD_END and GAME_END events when status is COMPLETED', async () => {
+      it('should create GAME_END and PERIOD_END events when status is COMPLETED', async () => {
         await service.update(
           'game-1',
           { status: GameStatus.COMPLETED },
@@ -252,18 +292,20 @@ describe('GamesService', () => {
 
         const createCalls = mockGameEventRepository.create.mock.calls;
 
-        // First event: PERIOD_END with period 2
+        // First event: GAME_END (parent of PERIOD_END)
         expect(createCalls[0][0]).toMatchObject({
+          gameId: 'game-1',
+          eventTypeId: 'et-game-end',
+        });
+
+        // Second event: PERIOD_END with period 2 as child of GAME_END
+        expect(createCalls[1][0]).toMatchObject({
           gameId: 'game-1',
           eventTypeId: 'et-period-end',
           metadata: { period: '2' },
         });
-
-        // Second event: GAME_END
-        expect(createCalls[1][0]).toMatchObject({
-          gameId: 'game-1',
-          eventTypeId: 'et-game-end',
-        });
+        // PERIOD_END should have GAME_END as parent (verified via parentEventId)
+        expect(createCalls[1][0].parentEventId).toBeDefined();
       });
 
       it('should not create events when status is not provided', async () => {

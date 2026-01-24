@@ -35,6 +35,9 @@ export const GameStats = memo(function GameStats({
   const [queryTimeElapsedSeconds, setQueryTimeElapsedSeconds] =
     useState<number>(0);
 
+  // Track previous elapsedSeconds to detect clock jumps (e.g., halftime to second half)
+  const prevElapsedSecondsRef = useRef<number>(0);
+
   const { data, loading, error } = useQuery(GET_PLAYER_STATS, {
     variables: {
       input: {
@@ -54,7 +57,7 @@ export const GameStats = memo(function GameStats({
         (s) =>
           `${s.playerId || s.externalPlayerName}:${s.totalMinutes}:${
             s.totalSeconds
-          }`
+          }`,
       )
       .join(',');
   }, [data]);
@@ -73,6 +76,23 @@ export const GameStats = memo(function GameStats({
       prevFingerprintRef.current = dataFingerprint;
     }
   }, [dataFingerprint, elapsedSeconds]);
+
+  // Detect clock jumps (e.g., when transitioning from halftime to second half)
+  // If elapsedSeconds jumps by more than 60 seconds, reset queryTimeElapsedSeconds
+  // This fixes the bug where stats show inflated times after second half starts
+  useEffect(() => {
+    if (elapsedSeconds === undefined) return;
+
+    const jump = elapsedSeconds - prevElapsedSecondsRef.current;
+
+    // If clock jumped forward by more than 60 seconds, it's a period transition
+    // Reset queryTimeElapsedSeconds to current time to avoid inflated delta
+    if (jump > 60) {
+      setQueryTimeElapsedSeconds(elapsedSeconds);
+    }
+
+    prevElapsedSecondsRef.current = elapsedSeconds;
+  }, [elapsedSeconds]);
 
   if (error) {
     return (

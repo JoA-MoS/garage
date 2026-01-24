@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useParams, Navigate } from 'react-router';
+import { useParams, useNavigate, useLocation, Navigate } from 'react-router';
 import {
   useQuery,
   useMutation,
@@ -13,6 +13,7 @@ import {
   ConflictResolutionModal,
   EventCard,
   type EventType as EventCardType,
+  type ChildEventData,
 } from '@garage/soccer-stats/ui-components';
 import {
   GameStatus,
@@ -53,6 +54,7 @@ const GameEventFragmentDoc = gql`
     gameMinute
     gameSecond
     position
+    formation
     playerId
     externalPlayerName
     externalPlayerNumber
@@ -68,6 +70,22 @@ const GameEventFragmentDoc = gql`
       name
       category
     }
+    childEvents {
+      id
+      playerId
+      externalPlayerName
+      externalPlayerNumber
+      position
+      player {
+        id
+        firstName
+        lastName
+      }
+      eventType {
+        id
+        name
+      }
+    }
   }
 `;
 
@@ -78,7 +96,30 @@ type TabType = 'lineup' | 'stats' | 'events';
 
 export const GamePage = () => {
   const { gameId } = useParams<{ gameId: string }>();
-  const [activeTab, setActiveTab] = useState<TabType>('lineup');
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Derive active tab from URL path (e.g., /games/:gameId/lineup -> 'lineup')
+  const activeTab = useMemo<TabType>(() => {
+    const pathParts = location.pathname.split('/');
+    const tabFromUrl = pathParts[pathParts.length - 1];
+    if (
+      tabFromUrl === 'lineup' ||
+      tabFromUrl === 'stats' ||
+      tabFromUrl === 'events'
+    ) {
+      return tabFromUrl;
+    }
+    return 'lineup';
+  }, [location.pathname]);
+
+  // Navigate to tab (replaces setActiveTab)
+  const setActiveTab = useCallback(
+    (tab: TabType) => {
+      navigate(`/games/${gameId}/${tab}`);
+    },
+    [navigate, gameId],
+  );
   const [activeTeam, setActiveTeam] = useState<'home' | 'away'>('home');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
@@ -185,9 +226,11 @@ export const GamePage = () => {
     prevGameStatusRef.current = gameStatus;
   }, [data?.game?.status]);
 
-  const [updateGame, { loading: updatingGame }] = useMutation(UPDATE_GAME, {
-    refetchQueries: [{ query: GET_GAME_BY_ID, variables: { id: gameId } }],
-  });
+  // Note: We don't use refetchQueries for updateGame.
+  // Game status is updated via GameUpdated subscription (handleGameStateChanged).
+  // Timing events (PERIOD_START, etc.) are now published by GamesService via
+  // GameEventChanged subscription, enabling real-time updates for all viewers.
+  const [updateGame, { loading: updatingGame }] = useMutation(UPDATE_GAME);
 
   // Direct goal recording for GOALS_ONLY mode (skips modal)
   // Note: We intentionally don't use refetchQueries here.
@@ -391,9 +434,11 @@ export const GamePage = () => {
   );
 
   // Record formation change event
-  const [recordFormationChange] = useMutation(RECORD_FORMATION_CHANGE, {
-    refetchQueries: [{ query: GET_GAME_BY_ID, variables: { id: gameId } }],
-  });
+  // Note: No refetchQueries - the event is handled by GameEventChanged subscription
+  const [recordFormationChange] = useMutation(RECORD_FORMATION_CHANGE);
+
+  // Note: startPeriod and endPeriod mutations are NOT used here.
+  // The backend's updateGame automatically handles period events via createTimingEventsForStatusChange.
 
   // Memoize team lookups to prevent unnecessary recalculations
   const homeTeamData = useMemo(
@@ -473,10 +518,22 @@ export const GamePage = () => {
       gameMinute: number;
       gameSecond: number;
       position?: string | null;
+      period?: string | null;
       playerId?: string | null;
       externalPlayerName?: string | null;
       externalPlayerNumber?: string | null;
       eventType: { id: string; name: string; category: string };
+      childEvents?: Array<{
+        id: string;
+        gameMinute: number;
+        gameSecond: number;
+        playerId?: string | null;
+        externalPlayerName?: string | null;
+        externalPlayerNumber?: string | null;
+        position?: string | null;
+        player?: { id: string; firstName: string; lastName: string } | null;
+        eventType: { id: string; name: string; category: string };
+      }>;
     }) => {
       // Update cache by adding the new event to the appropriate gameTeam
       apolloClient.cache.modify({
@@ -500,7 +557,9 @@ export const GamePage = () => {
                 createdAt: new Date().toISOString(),
                 gameMinute: event.gameMinute,
                 gameSecond: event.gameSecond,
-                position: event.position,
+                position: event.position ?? null,
+                formation: null,
+                period: event.period ?? null,
                 playerId: event.playerId,
                 externalPlayerName: event.externalPlayerName,
                 externalPlayerNumber: event.externalPlayerNumber,
@@ -509,6 +568,26 @@ export const GamePage = () => {
                   __typename: 'EventType',
                   ...event.eventType,
                 },
+                childEvents: (event.childEvents || []).map((child) => ({
+                  __typename: 'GameEvent',
+                  id: child.id,
+                  playerId: child.playerId,
+                  externalPlayerName: child.externalPlayerName,
+                  externalPlayerNumber: child.externalPlayerNumber,
+                  position: child.position ?? null,
+                  player: child.player
+                    ? {
+                        __typename: 'User',
+                        id: child.player.id,
+                        firstName: child.player.firstName,
+                        lastName: child.player.lastName,
+                      }
+                    : null,
+                  eventType: {
+                    __typename: 'EventType',
+                    ...child.eventType,
+                  },
+                })),
               },
               fragment: GameEventFragmentDoc,
             });
@@ -517,6 +596,20 @@ export const GamePage = () => {
           },
         },
       });
+
+      // Refetch lineup when lineup-affecting events are received
+      // These events change who is on the field, so the computed lineup must be recalculated
+      const lineupAffectingEvents = [
+        'SUBSTITUTION_IN',
+        'SUBSTITUTION_OUT',
+        'PERIOD_START',
+        'PERIOD_END',
+      ];
+      if (lineupAffectingEvents.includes(event.eventType.name)) {
+        apolloClient.refetchQueries({
+          include: [GET_GAME_LINEUP],
+        });
+      }
 
       // Note: Score highlight animations are now triggered by useEffect watching
       // homeScore/awayScore changes, ensuring animation is synchronized with
@@ -625,6 +718,8 @@ export const GamePage = () => {
   });
 
   // Start first half
+  // Note: The backend's updateGame automatically creates PERIOD_START and SUB_IN events
+  // via createTimingEventsForStatusChange when status changes to FIRST_HALF
   const handleStartFirstHalf = async () => {
     try {
       await updateGame({
@@ -642,14 +737,22 @@ export const GamePage = () => {
   };
 
   // End first half and go to halftime
+  // Note: The backend's updateGame automatically creates PERIOD_END and SUB_OUT events
+  // via createTimingEventsForStatusChange when status changes to HALFTIME
   const handleEndFirstHalf = async () => {
     try {
+      // Send the current game time from the frontend timer for accurate event timing
+      const gameMinute = Math.floor(elapsedSeconds / 60);
+      const gameSecond = elapsedSeconds % 60;
+
       await updateGame({
         variables: {
           id: gameId!,
           updateGameInput: {
             status: GameStatus.Halftime,
             firstHalfEnd: new Date().toISOString(),
+            gameMinute,
+            gameSecond,
           },
         },
       });
@@ -659,6 +762,9 @@ export const GamePage = () => {
   };
 
   // Start second half
+  // Note: The backend's updateGame automatically creates PERIOD_START and SUB_IN events
+  // via createTimingEventsForStatusChange when status changes to SECOND_HALF.
+  // It also auto-copies the first half lineup if setSecondHalfLineup wasn't called.
   const handleStartSecondHalf = async () => {
     try {
       await updateGame({
@@ -676,14 +782,22 @@ export const GamePage = () => {
   };
 
   // End game
+  // Note: The backend's updateGame automatically creates PERIOD_END, SUB_OUT, and GAME_END events
+  // via createTimingEventsForStatusChange when status changes to COMPLETED
   const handleEndGame = async () => {
     try {
+      // Send the current game time from the frontend timer for accurate event timing
+      const gameMinute = Math.floor(elapsedSeconds / 60);
+      const gameSecond = elapsedSeconds % 60;
+
       await updateGame({
         variables: {
           id: gameId!,
           updateGameInput: {
             status: GameStatus.Completed,
             actualEnd: new Date().toISOString(),
+            gameMinute,
+            gameSecond,
           },
         },
       });
@@ -1132,8 +1246,16 @@ export const GamePage = () => {
     game.status === GameStatus.InProgress;
 
   // Get current game time in minutes and seconds for goal recording
-  const gameMinute = Math.floor(elapsedSeconds / 60);
-  const gameSecond = elapsedSeconds % 60;
+  // During HALFTIME, use the end-of-first-half time (half of total duration)
+  const halftimeDurationMinutes = Math.floor(
+    (game.gameFormat?.durationMinutes || 60) / 2,
+  );
+  const gameMinute =
+    game.status === GameStatus.Halftime
+      ? halftimeDurationMinutes
+      : Math.floor(elapsedSeconds / 60);
+  const gameSecond =
+    game.status === GameStatus.Halftime ? 0 : elapsedSeconds % 60;
 
   // Compute compact half indicator for sticky header
   const halfIndicator =
@@ -1479,6 +1601,8 @@ export const GamePage = () => {
                   };
                   // Formation change-specific
                   newFormation?: string | null;
+                  // Period event child events (players entering/exiting)
+                  childEvents?: ChildEventData[];
                 };
 
                 const matchEvents: MatchEvent[] = [];
@@ -1495,8 +1619,28 @@ export const GamePage = () => {
                   const processedSubIns = new Set<string>();
                   // Track POSITION_SWAP events we've already paired
                   const processedSwaps = new Set<string>();
+                  // Track child events of period events (should not be shown separately)
+                  const periodChildEventIds = new Set<string>();
+
+                  // First pass: collect all child event IDs from period and game end events
+                  gameTeam.gameEvents.forEach((event) => {
+                    if (
+                      (event.eventType?.name === 'PERIOD_START' ||
+                        event.eventType?.name === 'PERIOD_END' ||
+                        event.eventType?.name === 'GAME_END') &&
+                      event.childEvents
+                    ) {
+                      event.childEvents.forEach((child) => {
+                        periodChildEventIds.add(child.id);
+                      });
+                    }
+                  });
 
                   gameTeam.gameEvents.forEach((event) => {
+                    // Skip events that are children of period events
+                    if (periodChildEventIds.has(event.id)) {
+                      return;
+                    }
                     // Process GOAL events
                     if (event.eventType?.name === 'GOAL') {
                       const assistEvent = gameTeam.gameEvents?.find(
@@ -1669,6 +1813,26 @@ export const GamePage = () => {
 
                     // Note: GAME_START events are not displayed - PERIOD_START period 1 serves as the game start indicator
 
+                    // Helper to build child event data from childEvents array
+                    const buildChildEvents = (
+                      children: typeof event.childEvents,
+                    ): ChildEventData[] => {
+                      if (!children) return [];
+                      return children.map((child) => ({
+                        id: child.id,
+                        playerName:
+                          child.externalPlayerName ||
+                          (child.externalPlayerNumber
+                            ? `#${child.externalPlayerNumber}`
+                            : null) ||
+                          (child.player
+                            ? `${child.player.firstName || ''} ${child.player.lastName || ''}`.trim() ||
+                              'Unknown'
+                            : 'Unknown'),
+                        position: (child as { position?: string }).position,
+                      }));
+                    };
+
                     // Process PERIOD_START events (show all - period 1 implies game started)
                     if (event.eventType?.name === 'PERIOD_START') {
                       matchEvents.push({
@@ -1682,6 +1846,7 @@ export const GamePage = () => {
                         teamColor:
                           gameTeam.team.homePrimaryColor || defaultColor,
                         period: event.period,
+                        childEvents: buildChildEvents(event.childEvents),
                       });
                     }
 
@@ -1707,11 +1872,12 @@ export const GamePage = () => {
                           teamColor:
                             gameTeam.team.homePrimaryColor || defaultColor,
                           period: event.period,
+                          childEvents: buildChildEvents(event.childEvents),
                         });
                       }
                     }
 
-                    // Process GAME_END events
+                    // Process GAME_END events (with child SUB_OUT events)
                     if (event.eventType?.name === 'GAME_END') {
                       matchEvents.push({
                         id: event.id,
@@ -1724,6 +1890,7 @@ export const GamePage = () => {
                         teamColor:
                           gameTeam.team.homePrimaryColor || defaultColor,
                         period: event.period,
+                        childEvents: buildChildEvents(event.childEvents),
                       });
                     }
                   });
@@ -1898,6 +2065,7 @@ export const GamePage = () => {
                           player2Position={event.swapPlayer2?.position}
                           newFormation={event.newFormation}
                           period={event.period}
+                          childEvents={event.childEvents}
                           onDeleteClick={handleDeleteClick}
                           onEdit={
                             event.eventType === 'goal'
