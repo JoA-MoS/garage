@@ -54,6 +54,7 @@ const GameEventFragmentDoc = gql`
     gameMinute
     gameSecond
     position
+    formation
     playerId
     externalPlayerName
     externalPlayerNumber
@@ -68,6 +69,22 @@ const GameEventFragmentDoc = gql`
       id
       name
       category
+    }
+    childEvents {
+      id
+      playerId
+      externalPlayerName
+      externalPlayerNumber
+      position
+      player {
+        id
+        firstName
+        lastName
+      }
+      eventType {
+        id
+        name
+      }
     }
   }
 `;
@@ -209,9 +226,10 @@ export const GamePage = () => {
     prevGameStatusRef.current = gameStatus;
   }, [data?.game?.status]);
 
-  const [updateGame, { loading: updatingGame }] = useMutation(UPDATE_GAME, {
-    refetchQueries: [{ query: GET_GAME_BY_ID, variables: { id: gameId } }],
-  });
+  // Note: We don't use refetchQueries for updateGame.
+  // Game state changes are handled by GameUpdated subscription (handleGameStateChanged).
+  // Timing events (PERIOD_START, etc.) are handled by GameEventChanged subscription.
+  const [updateGame, { loading: updatingGame }] = useMutation(UPDATE_GAME);
 
   // Direct goal recording for GOALS_ONLY mode (skips modal)
   // Note: We intentionally don't use refetchQueries here.
@@ -415,9 +433,8 @@ export const GamePage = () => {
   );
 
   // Record formation change event
-  const [recordFormationChange] = useMutation(RECORD_FORMATION_CHANGE, {
-    refetchQueries: [{ query: GET_GAME_BY_ID, variables: { id: gameId } }],
-  });
+  // Note: No refetchQueries - the event is handled by GameEventChanged subscription
+  const [recordFormationChange] = useMutation(RECORD_FORMATION_CHANGE);
 
   // Note: startPeriod and endPeriod mutations are NOT used here.
   // The backend's updateGame automatically handles period events via createTimingEventsForStatusChange.
@@ -505,6 +522,15 @@ export const GamePage = () => {
       externalPlayerName?: string | null;
       externalPlayerNumber?: string | null;
       eventType: { id: string; name: string; category: string };
+      childEvents?: Array<{
+        id: string;
+        gameMinute: number;
+        gameSecond: number;
+        playerId?: string | null;
+        externalPlayerName?: string | null;
+        externalPlayerNumber?: string | null;
+        eventType: { id: string; name: string; category: string };
+      }>;
     }) => {
       // Update cache by adding the new event to the appropriate gameTeam
       apolloClient.cache.modify({
@@ -528,7 +554,8 @@ export const GamePage = () => {
                 createdAt: new Date().toISOString(),
                 gameMinute: event.gameMinute,
                 gameSecond: event.gameSecond,
-                position: event.position,
+                position: event.position ?? null,
+                formation: null,
                 period: event.period ?? null,
                 playerId: event.playerId,
                 externalPlayerName: event.externalPlayerName,
@@ -538,6 +565,19 @@ export const GamePage = () => {
                   __typename: 'EventType',
                   ...event.eventType,
                 },
+                childEvents: (event.childEvents || []).map((child) => ({
+                  __typename: 'GameEvent',
+                  id: child.id,
+                  playerId: child.playerId,
+                  externalPlayerName: child.externalPlayerName,
+                  externalPlayerNumber: child.externalPlayerNumber,
+                  position: null,
+                  player: null,
+                  eventType: {
+                    __typename: 'EventType',
+                    ...child.eventType,
+                  },
+                })),
               },
               fragment: GameEventFragmentDoc,
             });
