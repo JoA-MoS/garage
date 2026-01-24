@@ -477,6 +477,7 @@ export const GamePage = () => {
       gameMinute: number;
       gameSecond: number;
       position?: string | null;
+      period?: string | null;
       playerId?: string | null;
       externalPlayerName?: string | null;
       externalPlayerNumber?: string | null;
@@ -505,6 +506,7 @@ export const GamePage = () => {
                 gameMinute: event.gameMinute,
                 gameSecond: event.gameSecond,
                 position: event.position,
+                period: event.period ?? null,
                 playerId: event.playerId,
                 externalPlayerName: event.externalPlayerName,
                 externalPlayerNumber: event.externalPlayerNumber,
