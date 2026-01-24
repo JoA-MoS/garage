@@ -530,6 +530,8 @@ export const GamePage = () => {
         playerId?: string | null;
         externalPlayerName?: string | null;
         externalPlayerNumber?: string | null;
+        position?: string | null;
+        player?: { id: string; firstName: string; lastName: string } | null;
         eventType: { id: string; name: string; category: string };
       }>;
     }) => {
@@ -572,8 +574,15 @@ export const GamePage = () => {
                   playerId: child.playerId,
                   externalPlayerName: child.externalPlayerName,
                   externalPlayerNumber: child.externalPlayerNumber,
-                  position: null,
-                  player: null,
+                  position: child.position ?? null,
+                  player: child.player
+                    ? {
+                        __typename: 'User',
+                        id: child.player.id,
+                        firstName: child.player.firstName,
+                        lastName: child.player.lastName,
+                      }
+                    : null,
                   eventType: {
                     __typename: 'EventType',
                     ...child.eventType,
@@ -587,6 +596,20 @@ export const GamePage = () => {
           },
         },
       });
+
+      // Refetch lineup when lineup-affecting events are received
+      // These events change who is on the field, so the computed lineup must be recalculated
+      const lineupAffectingEvents = [
+        'SUBSTITUTION_IN',
+        'SUBSTITUTION_OUT',
+        'PERIOD_START',
+        'PERIOD_END',
+      ];
+      if (lineupAffectingEvents.includes(event.eventType.name)) {
+        apolloClient.refetchQueries({
+          include: [GET_GAME_LINEUP],
+        });
+      }
 
       // Note: Score highlight animations are now triggered by useEffect watching
       // homeScore/awayScore changes, ensuring animation is synchronized with

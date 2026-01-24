@@ -304,6 +304,8 @@ export type GameFormat = {
   id: Scalars['ID']['output'];
   maxSubstitutions?: Maybe<Scalars['Int']['output']>;
   name: Scalars['String']['output'];
+  numberOfPeriods: Scalars['Int']['output'];
+  periodDurationMinutes: Scalars['Int']['output'];
   playersPerTeam: Scalars['Int']['output'];
   teamConfigurations: Array<TeamConfiguration>;
   updatedAt: Scalars['DateTime']['output'];
@@ -1229,6 +1231,10 @@ export type UpdateGameInput = {
   duration?: InputMaybe<Scalars['Int']['input']>;
   firstHalfEnd?: InputMaybe<Scalars['DateTime']['input']>;
   gameFormatId?: InputMaybe<Scalars['ID']['input']>;
+  /** Current game minute when status changes (used for timing events) */
+  gameMinute?: InputMaybe<Scalars['Int']['input']>;
+  /** Current game second when status changes (used for timing events) */
+  gameSecond?: InputMaybe<Scalars['Int']['input']>;
   homeTeamId?: InputMaybe<Scalars['ID']['input']>;
   /** When the game clock was paused (null to unpause) */
   pausedAt?: InputMaybe<Scalars['DateTime']['input']>;
@@ -1560,6 +1566,7 @@ export type GameEventFragmentFragment = {
   gameMinute: number;
   gameSecond: number;
   position?: string | null;
+  formation?: string | null;
   playerId?: string | null;
   externalPlayerName?: string | null;
   externalPlayerNumber?: string | null;
@@ -1577,6 +1584,21 @@ export type GameEventFragmentFragment = {
     name: string;
     category: string;
   };
+  childEvents: Array<{
+    __typename?: 'GameEvent';
+    id: string;
+    playerId?: string | null;
+    externalPlayerName?: string | null;
+    externalPlayerNumber?: string | null;
+    position?: string | null;
+    player?: {
+      __typename?: 'User';
+      id: string;
+      firstName: string;
+      lastName: string;
+    } | null;
+    eventType: { __typename?: 'EventType'; id: string; name: string };
+  }>;
 } & { ' $fragmentName'?: 'GameEventFragmentFragment' };
 
 export type GetGameFormatsQueryVariables = Exact<{ [key: string]: never }>;
@@ -2270,6 +2292,13 @@ export type GameEventChangedSubscription = {
         playerId?: string | null;
         externalPlayerName?: string | null;
         externalPlayerNumber?: string | null;
+        position?: string | null;
+        player?: {
+          __typename?: 'User';
+          id: string;
+          firstName: string;
+          lastName: string;
+        } | null;
         eventType: {
           __typename?: 'EventType';
           id: string;
@@ -3759,6 +3788,7 @@ export const GameEventFragmentFragmentDoc = {
           { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
           { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
           { kind: 'Field', name: { kind: 'Name', value: 'position' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'formation' } },
           { kind: 'Field', name: { kind: 'Name', value: 'playerId' } },
           {
             kind: 'Field',
@@ -3791,6 +3821,55 @@ export const GameEventFragmentFragmentDoc = {
                 { kind: 'Field', name: { kind: 'Name', value: 'id' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'name' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'category' } },
+              ],
+            },
+          },
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'childEvents' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'playerId' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'externalPlayerName' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'externalPlayerNumber' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'position' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'player' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'firstName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'lastName' },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'eventType' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    ],
+                  },
+                },
               ],
             },
           },
@@ -7037,6 +7116,31 @@ export const GameEventChangedDocument = {
                               name: {
                                 kind: 'Name',
                                 value: 'externalPlayerNumber',
+                              },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'position' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'player' },
+                              selectionSet: {
+                                kind: 'SelectionSet',
+                                selections: [
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'id' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'firstName' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'lastName' },
+                                  },
+                                ],
                               },
                             },
                             {
