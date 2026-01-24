@@ -245,7 +245,7 @@ describe('GameEventsService', () => {
       });
     });
 
-    it('should create SUBSTITUTION_OUT events for all players currently on field', async () => {
+    it('should NOT create SUBSTITUTION_OUT events (those are created during HALFTIME transition)', async () => {
       mockGameTimingService.getGameDurationSeconds.mockResolvedValue(2700); // 45:00
 
       jest.spyOn(service, 'getGameLineup').mockResolvedValue({
@@ -262,14 +262,9 @@ describe('GameEventsService', () => {
 
       const createCalls = mockGameEventsRepository.create.mock.calls;
 
-      // First 3 calls should be SUBSTITUTION_OUT (one for each player on field)
-      const subOutCalls = createCalls.slice(0, 3);
-      subOutCalls.forEach((call, index) => {
-        expect(call[0].eventTypeId).toBe('et-sub-out');
-        expect(call[0].playerId).toBe(mockCurrentOnField[index].playerId);
-        expect(call[0].position).toBe(mockCurrentOnField[index].position);
-        expect(call[0].gameMinute).toBe(45);
-        expect(call[0].gameSecond).toBe(0);
+      // All calls should be SUBSTITUTION_IN only (SUB_OUT is now handled by HALFTIME transition)
+      createCalls.forEach((call) => {
+        expect(call[0].eventTypeId).toBe('et-sub-in');
       });
     });
 
@@ -290,9 +285,9 @@ describe('GameEventsService', () => {
 
       const createCalls = mockGameEventsRepository.create.mock.calls;
 
-      // Last 3 calls should be SUBSTITUTION_IN (one for each player in new lineup)
-      const subInCalls = createCalls.slice(3, 6);
-      subInCalls.forEach((call, index) => {
+      // All calls should be SUBSTITUTION_IN (one for each player in new lineup)
+      expect(createCalls.length).toBe(3);
+      createCalls.forEach((call, index) => {
         expect(call[0].eventTypeId).toBe('et-sub-in');
         expect(call[0].playerId).toBe(mockSecondHalfLineup[index].playerId);
         expect(call[0].position).toBe(mockSecondHalfLineup[index].position);
@@ -319,7 +314,8 @@ describe('GameEventsService', () => {
         mockUserId,
       );
 
-      expect(result.substitutionsOut).toBe(3); // 3 players were on field
+      // SUB_OUT events are now created during HALFTIME transition, not in setSecondHalfLineup
+      expect(result.substitutionsOut).toBe(0);
       expect(result.substitutionsIn).toBe(3); // 3 players in new lineup
     });
 

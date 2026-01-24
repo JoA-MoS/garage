@@ -12,8 +12,10 @@ import {
   TeamConfiguration,
   StatsTrackingLevel,
 } from '../../entities/team-configuration.entity';
+import { GameEventsService } from '../game-events/game-events.service';
 
 import { GamesService } from './games.service';
+import { GameTimingService } from './game-timing.service';
 
 describe('GamesService', () => {
   let service: GamesService;
@@ -61,6 +63,19 @@ describe('GamesService', () => {
 
   const mockTeamConfigurationRepository = {
     findOne: jest.fn(),
+  };
+
+  const mockGameEventsService = {
+    createSubstitutionOutForAllOnField: jest.fn().mockResolvedValue([]),
+    ensureSecondHalfLineupExists: jest.fn().mockResolvedValue(undefined),
+    linkOrphanSubInsToSecondHalfPeriodStart: jest.fn().mockResolvedValue(0),
+    linkFirstHalfStartersToPeriodStart: jest.fn().mockResolvedValue(0),
+    getGameLineup: jest.fn().mockResolvedValue({ currentOnField: [] }),
+  };
+
+  const mockGameTimingService = {
+    getGameDurationSeconds: jest.fn().mockResolvedValue(0),
+    getGameTiming: jest.fn().mockResolvedValue({}),
   };
 
   // Mock event types for timing
@@ -119,6 +134,14 @@ describe('GamesService', () => {
           provide: getRepositoryToken(TeamConfiguration),
           useValue: mockTeamConfigurationRepository,
         },
+        {
+          provide: GameEventsService,
+          useValue: mockGameEventsService,
+        },
+        {
+          provide: GameTimingService,
+          useValue: mockGameTimingService,
+        },
       ],
     }).compile();
 
@@ -152,6 +175,12 @@ describe('GamesService', () => {
         gameId: 'game-1',
         teamType: 'home',
       } as GameTeam);
+
+      // Default: return both game teams for substitution events
+      mockGameTeamRepository.find.mockResolvedValue([
+        { id: 'game-team-home', gameId: 'game-1', teamType: 'home' },
+        { id: 'game-team-away', gameId: 'game-1', teamType: 'away' },
+      ] as GameTeam[]);
 
       // Default: return all timing event types
       mockEventTypeRepository.find.mockResolvedValue(

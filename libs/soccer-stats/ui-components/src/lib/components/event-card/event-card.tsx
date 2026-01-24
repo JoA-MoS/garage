@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 
 export type EventType =
   | 'goal'
@@ -10,6 +10,13 @@ export type EventType =
   | 'period_start'
   | 'period_end'
   | 'game_end';
+
+/** Child event for period events (SUB_IN for period_start, SUB_OUT for period_end) */
+export interface ChildEventData {
+  id: string;
+  playerName: string;
+  position?: string | null;
+}
 
 export interface EventCardProps {
   id: string;
@@ -33,6 +40,8 @@ export interface EventCardProps {
   newFormation?: string | null;
   // Timing event-specific
   period?: string | null;
+  /** Child events for period_start/period_end (players entering/exiting) */
+  childEvents?: ChildEventData[];
   // Actions
   onDeleteClick?: (id: string, eventType: EventType) => void;
   onEdit?: () => void;
@@ -59,12 +68,16 @@ export const EventCard = memo(function EventCard({
   player2Position,
   newFormation,
   period,
+  childEvents,
   onDeleteClick,
   onEdit,
   isDeleting = false,
   isCheckingDependents = false,
   isHighlighted = false,
 }: EventCardProps) {
+  // State for expanding/collapsing child events (period events only)
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasChildren = childEvents && childEvents.length > 0;
   const formattedTime = `${String(gameMinute).padStart(2, '0')}:${String(
     gameSecond,
   ).padStart(2, '0')}`;
@@ -512,25 +525,101 @@ export const EventCard = memo(function EventCard({
     );
   };
 
+  const isPeriodEvent =
+    eventType === 'period_start' ||
+    eventType === 'period_end' ||
+    eventType === 'game_end';
+
   return (
     <div
-      className={`flex items-center gap-4 rounded-lg border border-gray-200 bg-white p-4 ${
+      className={`rounded-lg border border-gray-200 bg-white ${
         isHighlighted ? 'event-highlight' : ''
       }`}
     >
-      {/* Time */}
-      <div className="w-16 font-mono text-lg font-semibold text-gray-700">
-        {formattedTime}
+      {/* Main event row */}
+      <div className="flex items-center gap-4 p-4">
+        {/* Time */}
+        <div className="w-16 font-mono text-lg font-semibold text-gray-700">
+          {formattedTime}
+        </div>
+
+        {/* Icon */}
+        {renderIcon()}
+
+        {/* Details */}
+        <div className="flex-1">{renderDetails()}</div>
+
+        {/* Expand/collapse for period events with children */}
+        {isPeriodEvent && hasChildren && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-gray-500 transition-colors hover:bg-gray-100"
+            type="button"
+          >
+            <span>{childEvents.length} players</span>
+            <svg
+              className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+        )}
+
+        {/* Actions */}
+        {(onDeleteClick || onEdit) && renderActions()}
       </div>
 
-      {/* Icon */}
-      {renderIcon()}
-
-      {/* Details */}
-      <div className="flex-1">{renderDetails()}</div>
-
-      {/* Actions */}
-      {(onDeleteClick || onEdit) && renderActions()}
+      {/* Collapsible child events for period events */}
+      {isPeriodEvent && hasChildren && isExpanded && (
+        <div className="border-t border-gray-100 bg-gray-50 px-4 py-2">
+          <div className="ml-20 space-y-1">
+            {childEvents.map((child) => (
+              <div
+                key={child.id}
+                className="flex items-center gap-2 text-sm text-gray-600"
+              >
+                {eventType === 'period_start' ? (
+                  <svg
+                    className="h-3 w-3 text-green-500"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className="h-3 w-3 text-red-500"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm.707-10.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L9.414 11H13a1 1 0 100-2H9.414l1.293-1.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                )}
+                <span>{child.playerName}</span>
+                {child.position && (
+                  <span className="text-gray-400">({child.position})</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 });
