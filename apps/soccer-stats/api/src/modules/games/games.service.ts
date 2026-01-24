@@ -775,11 +775,10 @@ export class GamesService {
         // Second half starting:
         // Get halftime timing for lineup check
         const timing = await this.gameTimingService.getGameTiming(gameId);
-        console.log('[SECOND_HALF] timing:', {
-          actualStart: timing.actualStart,
-          firstHalfEnd: timing.firstHalfEnd,
-          secondHalfStart: timing.secondHalfStart,
-        });
+        this.logger.debug(
+          `[SECOND_HALF] timing: actualStart=${timing.actualStart}, ` +
+            `firstHalfEnd=${timing.firstHalfEnd}, secondHalfStart=${timing.secondHalfStart}`,
+        );
 
         // Use the configured period duration for second half start time
         // This ensures second half always starts at the correct nominal time
@@ -788,7 +787,7 @@ export class GamesService {
           game.gameFormat?.periodDurationMinutes ??
           Math.floor(totalDuration / 2);
 
-        console.log(
+        this.logger.debug(
           `[SECOND_HALF] halftimeMinute=${halftimeMinute} (totalDuration=${totalDuration})`,
         );
 
