@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
+import type { PubSub } from 'graphql-subscriptions';
 
 import { Game, GameStatus } from '../../entities/game.entity';
 import { Team } from '../../entities/team.entity';
@@ -16,6 +17,10 @@ import { GameEvent } from '../../entities/game-event.entity';
 import { EventType } from '../../entities/event-type.entity';
 import { TeamConfiguration } from '../../entities/team-configuration.entity';
 import { GameEventsService } from '../game-events/game-events.service';
+import {
+  GameEventAction,
+  GameEventSubscriptionPayload,
+} from '../game-events/dto/game-event-subscription.output';
 
 import { CreateGameInput } from './dto/create-game.input';
 import { UpdateGameInput } from './dto/update-game.input';
@@ -44,6 +49,7 @@ export class GamesService {
     @Inject(forwardRef(() => GameEventsService))
     private readonly gameEventsService: GameEventsService,
     private readonly gameTimingService: GameTimingService,
+    @Inject('PUB_SUB') private readonly pubSub: PubSub,
   ) {}
 
   async findAll(): Promise<Game[]> {
@@ -556,7 +562,24 @@ export class GamesService {
         gameSecond,
         metadata,
       });
-      return this.gameEventRepository.save(event);
+      const savedEvent = await this.gameEventRepository.save(event);
+
+      // Fetch the event with relations needed for subscription payload
+      const eventWithRelations = await this.gameEventRepository.findOne({
+        where: { id: savedEvent.id },
+        relations: ['eventType', 'player', 'recordedByUser', 'gameTeam'],
+      });
+
+      // Publish the timing event so all viewers see it in real-time
+      if (eventWithRelations) {
+        await this.publishGameEvent(
+          gameId,
+          GameEventAction.CREATED,
+          eventWithRelations,
+        );
+      }
+
+      return savedEvent;
     };
 
     // Get all game teams for substitution events
@@ -765,5 +788,25 @@ export class GamesService {
       gameSecond: 0,
     });
     await this.gameEventRepository.save(event);
+  }
+
+  /**
+   * Publish a game event change to all subscribers.
+   * Used for timing events (GAME_START, PERIOD_START, etc.) created by GamesService.
+   */
+  private async publishGameEvent(
+    gameId: string,
+    action: GameEventAction,
+    event: GameEvent,
+  ): Promise<void> {
+    const payload: GameEventSubscriptionPayload = {
+      action,
+      gameId,
+      event,
+    };
+
+    await this.pubSub.publish(`gameEvent:${gameId}`, {
+      gameEventChanged: payload,
+    });
   }
 }
