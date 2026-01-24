@@ -171,19 +171,23 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       }));
   }, [gameData, gameTeamId]);
 
-  // Get players not yet assigned to lineup or bench
+  // Get players not yet assigned to lineup, bench, or currently on field
   const availableRoster = useMemo((): RosterPlayer[] => {
     const lineup = lineupData?.gameLineup;
     if (!lineup) return teamRoster;
 
     const assignedPlayerIds = new Set<string>();
 
-    // Collect all assigned player IDs
-    [...lineup.starters, ...lineup.bench].forEach((player) => {
-      if (player.playerId) {
-        assignedPlayerIds.add(player.playerId);
-      }
-    });
+    // Collect all assigned player IDs from starters, bench, AND currentOnField
+    // currentOnField may contain players who came on via substitutions or period starts
+    // and may not be in the original starters list
+    [...lineup.starters, ...lineup.bench, ...lineup.currentOnField].forEach(
+      (player) => {
+        if (player.playerId) {
+          assignedPlayerIds.add(player.playerId);
+        }
+      },
+    );
 
     return teamRoster.filter(
       (player) => !assignedPlayerIds.has(player.oduserId),

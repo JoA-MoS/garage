@@ -229,20 +229,22 @@ describe('GamesService', () => {
 
         const createCalls = mockGameEventRepository.create.mock.calls;
 
-        // First event: GAME_START
+        // First event: GAME_START (parent of PERIOD_START)
         expect(createCalls[0][0]).toMatchObject({
           gameId: 'game-1',
           eventTypeId: 'et-game-start',
           recordedByUserId: 'user-123',
         });
 
-        // Second event: PERIOD_START with period 1
+        // Second event: PERIOD_START with period 1 as child of GAME_START
         expect(createCalls[1][0]).toMatchObject({
           gameId: 'game-1',
           eventTypeId: 'et-period-start',
           recordedByUserId: 'user-123',
           metadata: { period: '1' },
         });
+        // PERIOD_START should have GAME_START as parent
+        expect(createCalls[1][0].parentEventId).toBeDefined();
       });
 
       it('should create PERIOD_END event when status is HALFTIME', async () => {
@@ -279,7 +281,7 @@ describe('GamesService', () => {
         );
       });
 
-      it('should create PERIOD_END and GAME_END events when status is COMPLETED', async () => {
+      it('should create GAME_END and PERIOD_END events when status is COMPLETED', async () => {
         await service.update(
           'game-1',
           { status: GameStatus.COMPLETED },
@@ -290,18 +292,20 @@ describe('GamesService', () => {
 
         const createCalls = mockGameEventRepository.create.mock.calls;
 
-        // First event: PERIOD_END with period 2
+        // First event: GAME_END (parent of PERIOD_END)
         expect(createCalls[0][0]).toMatchObject({
+          gameId: 'game-1',
+          eventTypeId: 'et-game-end',
+        });
+
+        // Second event: PERIOD_END with period 2 as child of GAME_END
+        expect(createCalls[1][0]).toMatchObject({
           gameId: 'game-1',
           eventTypeId: 'et-period-end',
           metadata: { period: '2' },
         });
-
-        // Second event: GAME_END
-        expect(createCalls[1][0]).toMatchObject({
-          gameId: 'game-1',
-          eventTypeId: 'et-game-end',
-        });
+        // PERIOD_END should have GAME_END as parent (verified via parentEventId)
+        expect(createCalls[1][0].parentEventId).toBeDefined();
       });
 
       it('should not create events when status is not provided', async () => {

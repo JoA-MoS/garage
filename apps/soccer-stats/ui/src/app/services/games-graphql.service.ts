@@ -688,6 +688,12 @@ export const GAME_EVENT_CHANGED = graphql(/* GraphQL */ `
           playerId
           externalPlayerName
           externalPlayerNumber
+          position
+          player {
+            id
+            firstName
+            lastName
+          }
           eventType {
             id
             name
