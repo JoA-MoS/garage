@@ -226,10 +226,13 @@ export const GamePage = () => {
     prevGameStatusRef.current = gameStatus;
   }, [data?.game?.status]);
 
-  // Note: We don't use refetchQueries for updateGame.
-  // Game state changes are handled by GameUpdated subscription (handleGameStateChanged).
-  // Timing events (PERIOD_START, etc.) are handled by GameEventChanged subscription.
-  const [updateGame, { loading: updatingGame }] = useMutation(UPDATE_GAME);
+  // Note: We use refetchQueries for updateGame because status changes create
+  // timing events (PERIOD_START, SUB_IN/OUT, etc.) in the backend that are not
+  // published via the gameEventChanged subscription. A future optimization would
+  // be to have the backend publish these events.
+  const [updateGame, { loading: updatingGame }] = useMutation(UPDATE_GAME, {
+    refetchQueries: [{ query: GET_GAME_BY_ID, variables: { id: gameId } }],
+  });
 
   // Direct goal recording for GOALS_ONLY mode (skips modal)
   // Note: We intentionally don't use refetchQueries here.
