@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useParams, Navigate } from 'react-router';
+import { useParams, useNavigate, useLocation, Navigate } from 'react-router';
 import {
   useQuery,
   useMutation,
@@ -79,7 +79,30 @@ type TabType = 'lineup' | 'stats' | 'events';
 
 export const GamePage = () => {
   const { gameId } = useParams<{ gameId: string }>();
-  const [activeTab, setActiveTab] = useState<TabType>('lineup');
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Derive active tab from URL path (e.g., /games/:gameId/lineup -> 'lineup')
+  const activeTab = useMemo<TabType>(() => {
+    const pathParts = location.pathname.split('/');
+    const tabFromUrl = pathParts[pathParts.length - 1];
+    if (
+      tabFromUrl === 'lineup' ||
+      tabFromUrl === 'stats' ||
+      tabFromUrl === 'events'
+    ) {
+      return tabFromUrl;
+    }
+    return 'lineup';
+  }, [location.pathname]);
+
+  // Navigate to tab (replaces setActiveTab)
+  const setActiveTab = useCallback(
+    (tab: TabType) => {
+      navigate(`/games/${gameId}/${tab}`);
+    },
+    [navigate, gameId],
+  );
   const [activeTeam, setActiveTeam] = useState<'home' | 'away'>('home');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
