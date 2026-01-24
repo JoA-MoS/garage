@@ -1,5 +1,5 @@
-import { InputType, PartialType, Field } from '@nestjs/graphql';
-import { IsOptional, IsEnum, IsBoolean } from 'class-validator';
+import { InputType, PartialType, Field, Int } from '@nestjs/graphql';
+import { IsOptional, IsEnum, IsBoolean, IsInt, Min } from 'class-validator';
 
 import { GameStatus } from '../../../entities/game.entity';
 import { StatsTrackingLevel } from '../../../entities/team-configuration.entity';
@@ -12,6 +12,26 @@ export class UpdateGameInput extends PartialType(CreateGameInput) {
   @IsOptional()
   @IsEnum(GameStatus)
   status?: GameStatus;
+
+  @Field(() => Int, {
+    nullable: true,
+    description:
+      'Current game minute when status changes (used for timing events)',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  gameMinute?: number;
+
+  @Field(() => Int, {
+    nullable: true,
+    description:
+      'Current game second when status changes (used for timing events)',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  gameSecond?: number;
 
   @Field({ nullable: true })
   @IsOptional()
