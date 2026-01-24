@@ -51,6 +51,7 @@ describe('GamesService', () => {
 
   const mockGameEventRepository = {
     find: jest.fn(),
+    findOne: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
     createQueryBuilder: jest.fn(),
@@ -76,6 +77,10 @@ describe('GamesService', () => {
   const mockGameTimingService = {
     getGameDurationSeconds: jest.fn().mockResolvedValue(0),
     getGameTiming: jest.fn().mockResolvedValue({}),
+  };
+
+  const mockPubSub = {
+    publish: jest.fn().mockResolvedValue(undefined),
   };
 
   // Mock event types for timing
@@ -141,6 +146,10 @@ describe('GamesService', () => {
         {
           provide: GameTimingService,
           useValue: mockGameTimingService,
+        },
+        {
+          provide: 'PUB_SUB',
+          useValue: mockPubSub,
         },
       ],
     }).compile();
