@@ -3,6 +3,7 @@ import { Resolver, ResolveField, Parent, Context } from '@nestjs/graphql';
 import { Game } from '../../entities/game.entity';
 import { GameFormat } from '../../entities/game-format.entity';
 import { GameTeam } from '../../entities/game-team.entity';
+import { GameEvent } from '../../entities/game-event.entity';
 import { GraphQLContext } from '../dataloaders';
 
 /**
@@ -55,6 +56,30 @@ export class GameFieldsResolver {
     }
     // Otherwise, use DataLoader to batch the query
     return context.loaders.gameTeamsByGameLoader.load(game.id);
+  }
+
+  /**
+   * Resolves the 'gameEvents' field on Game.
+   * Uses DataLoader to batch multiple gameEvents lookups into a single query.
+   *
+   * This resolver is critical for memory efficiency - it loads events only when
+   * specifically requested by the GraphQL query, preventing the massive memory
+   * usage that occurred with eager loading all events for every game.
+   */
+  @ResolveField(() => [GameEvent], {
+    nullable: true,
+    description: 'All events that occurred during this game',
+  })
+  async gameEvents(
+    @Parent() game: Game,
+    @Context() context: GraphQLContext,
+  ): Promise<GameEvent[]> {
+    // If gameEvents was already loaded (e.g., via eager loading), return it
+    if (game.gameEvents !== undefined) {
+      return game.gameEvents;
+    }
+    // Otherwise, use DataLoader to batch the query
+    return context.loaders.gameEventsByGameLoader.load(game.id);
   }
 
   // ============================================================
