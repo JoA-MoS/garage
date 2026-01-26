@@ -28,6 +28,11 @@ export interface GameHeaderProps {
   onShowResetConfirm: (show: boolean) => void;
   onClearEventsChange: (clear: boolean) => void;
   onResetGame: () => void;
+  // Reopen game (for completed games)
+  showReopenConfirm: boolean;
+  reopeningGame: boolean;
+  onShowReopenConfirm: (show: boolean) => void;
+  onReopenGame: () => void;
   // Per-team stats tracking props
   homeTeamName?: string;
   awayTeamName?: string;
@@ -62,6 +67,11 @@ export function GameHeader({
   onShowResetConfirm,
   onClearEventsChange,
   onResetGame,
+  // Reopen game props
+  showReopenConfirm,
+  reopeningGame,
+  onShowReopenConfirm,
+  onReopenGame,
   // Per-team props
   homeTeamName,
   awayTeamName,
@@ -236,6 +246,60 @@ export function GameHeader({
                         }
                         disabled={updatingTeamStats || updatingGame || false}
                       />
+                    </div>
+                  )}
+
+                  {/* Reopen Game - only for completed games */}
+                  {status === GameStatus.Completed && (
+                    <div className="border-t border-gray-100">
+                      {!showReopenConfirm ? (
+                        <button
+                          onClick={() => onShowReopenConfirm(true)}
+                          className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-blue-600 hover:bg-blue-50"
+                          type="button"
+                        >
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z"
+                            />
+                          </svg>
+                          Reopen Game
+                        </button>
+                      ) : (
+                        <div className="space-y-2 px-4 py-2">
+                          <p className="text-xs font-medium text-blue-600">
+                            Reopen to add missed events?
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Returns game to 2nd half status
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={onReopenGame}
+                              disabled={reopeningGame}
+                              className="flex-1 rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                              type="button"
+                            >
+                              {reopeningGame ? '...' : 'Reopen'}
+                            </button>
+                            <button
+                              onClick={() => onShowReopenConfirm(false)}
+                              className="flex-1 rounded bg-gray-200 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-300"
+                              type="button"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 

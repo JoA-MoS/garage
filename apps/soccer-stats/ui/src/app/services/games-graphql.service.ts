@@ -186,6 +186,16 @@ export const REMOVE_GAME = graphql(/* GraphQL */ `
   }
 `);
 
+export const REOPEN_GAME = graphql(/* GraphQL */ `
+  mutation ReopenGame($id: ID!) {
+    reopenGame(id: $id) {
+      id
+      status
+      actualEnd
+    }
+  }
+`);
+
 export const UPDATE_GAME_TEAM = graphql(/* GraphQL */ `
   mutation UpdateGameTeam(
     $gameTeamId: ID!

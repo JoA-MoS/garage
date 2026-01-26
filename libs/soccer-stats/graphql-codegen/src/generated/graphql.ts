@@ -412,6 +412,8 @@ export type Mutation = {
   removeTeam: Scalars['Boolean']['output'];
   removeTeamMember: Scalars['Boolean']['output'];
   removeUser: Scalars['Boolean']['output'];
+  /** Reopen a completed game to allow adding missed events. Deletes GAME_END and child events, sets status to SECOND_HALF. */
+  reopenGame: Game;
   resolveEventConflict: GameEvent;
   seedGameFormats: Scalars['Boolean']['output'];
   /** Set the second half lineup during halftime. Subs everyone out and in with new positions. */
@@ -588,6 +590,10 @@ export type MutationRemoveTeamMemberArgs = {
 };
 
 export type MutationRemoveUserArgs = {
+  id: Scalars['ID']['input'];
+};
+
+export type MutationReopenGameArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -1815,6 +1821,20 @@ export type RemoveGameMutationVariables = Exact<{
 export type RemoveGameMutation = {
   __typename?: 'Mutation';
   removeGame: boolean;
+};
+
+export type ReopenGameMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+export type ReopenGameMutation = {
+  __typename?: 'Mutation';
+  reopenGame: {
+    __typename?: 'Game';
+    id: string;
+    status: GameStatus;
+    actualEnd?: any | null;
+  };
 };
 
 export type UpdateGameTeamMutationVariables = Exact<{
@@ -5134,6 +5154,53 @@ export const RemoveGameDocument = {
     },
   ],
 } as unknown as DocumentNode<RemoveGameMutation, RemoveGameMutationVariables>;
+export const ReopenGameDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'mutation',
+      name: { kind: 'Name', value: 'ReopenGame' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: { kind: 'Variable', name: { kind: 'Name', value: 'id' } },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'reopenGame' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'id' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'id' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'actualEnd' } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ReopenGameMutation, ReopenGameMutationVariables>;
 export const UpdateGameTeamDocument = {
   kind: 'Document',
   definitions: [
