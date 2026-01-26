@@ -41,6 +41,9 @@
         },
         "production": {
           "buildTarget": "soccer-stats-api:build:production"
+        },
+        "dev": {
+          "buildTarget": "soccer-stats-api:build:development"
         }
       }
     },

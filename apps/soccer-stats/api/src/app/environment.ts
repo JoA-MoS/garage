@@ -95,6 +95,19 @@ export const getDbSynchronize = (): boolean =>
   getEnv('DB_SYNCHRONIZE') === 'true';
 export const getDbLogging = (): boolean =>
   getEnv('DB_LOGGING') === 'true' || !isProduction();
+/**
+ * Database SSL setting.
+ * Required for external connections to RDS.
+ * Defaults to true in production, false in development (local Docker).
+ * Set DB_SSL=true when connecting to RDS from local machine.
+ */
+export const getDbSsl = (): boolean => {
+  const sslEnv = getEnv('DB_SSL');
+  if (sslEnv !== undefined) {
+    return sslEnv === 'true';
+  }
+  return isProduction();
+};
 
 /**
  * GraphQL configuration
