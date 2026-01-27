@@ -32,6 +32,7 @@ type Documents = {
   '\n  mutation CreateGame($createGameInput: CreateGameInput!) {\n    createGame(createGameInput: $createGameInput) {\n      id\n      name\n      scheduledStart\n      notes\n      venue\n      weatherConditions\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.CreateGameDocument;
   '\n  mutation UpdateGame($id: ID!, $updateGameInput: UpdateGameInput!) {\n    updateGame(id: $id, updateGameInput: $updateGameInput) {\n      id\n      name\n      scheduledStart\n      status\n      actualStart\n      firstHalfEnd\n      secondHalfStart\n      actualEnd\n      notes\n      venue\n      weatherConditions\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.UpdateGameDocument;
   '\n  mutation RemoveGame($id: ID!) {\n    removeGame(id: $id)\n  }\n': typeof types.RemoveGameDocument;
+  '\n  mutation ReopenGame($id: ID!) {\n    reopenGame(id: $id) {\n      id\n      status\n      actualEnd\n    }\n  }\n': typeof types.ReopenGameDocument;
   '\n  mutation UpdateGameTeam(\n    $gameTeamId: ID!\n    $updateGameTeamInput: UpdateGameTeamInput!\n  ) {\n    updateGameTeam(\n      gameTeamId: $gameTeamId\n      updateGameTeamInput: $updateGameTeamInput\n    ) {\n      id\n      teamType\n      formation\n      statsTrackingLevel\n      tacticalNotes\n      team {\n        id\n        name\n      }\n    }\n  }\n': typeof types.UpdateGameTeamDocument;
   '\n  query GetGameLineup($gameTeamId: ID!) {\n    gameLineup(gameTeamId: $gameTeamId) {\n      gameTeamId\n      formation\n      starters {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      bench {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      currentOnField {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n    }\n  }\n': typeof types.GetGameLineupDocument;
   '\n  query GetEventTypes {\n    eventTypes {\n      id\n      name\n      category\n      description\n      requiresPosition\n      allowsParent\n    }\n  }\n': typeof types.GetEventTypesDocument;
@@ -138,6 +139,8 @@ const documents: Documents = {
     types.UpdateGameDocument,
   '\n  mutation RemoveGame($id: ID!) {\n    removeGame(id: $id)\n  }\n':
     types.RemoveGameDocument,
+  '\n  mutation ReopenGame($id: ID!) {\n    reopenGame(id: $id) {\n      id\n      status\n      actualEnd\n    }\n  }\n':
+    types.ReopenGameDocument,
   '\n  mutation UpdateGameTeam(\n    $gameTeamId: ID!\n    $updateGameTeamInput: UpdateGameTeamInput!\n  ) {\n    updateGameTeam(\n      gameTeamId: $gameTeamId\n      updateGameTeamInput: $updateGameTeamInput\n    ) {\n      id\n      teamType\n      formation\n      statsTrackingLevel\n      tacticalNotes\n      team {\n        id\n        name\n      }\n    }\n  }\n':
     types.UpdateGameTeamDocument,
   '\n  query GetGameLineup($gameTeamId: ID!) {\n    gameLineup(gameTeamId: $gameTeamId) {\n      gameTeamId\n      formation\n      starters {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      bench {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      currentOnField {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n    }\n  }\n':
@@ -398,6 +401,12 @@ export function graphql(
 export function graphql(
   source: '\n  mutation RemoveGame($id: ID!) {\n    removeGame(id: $id)\n  }\n',
 ): (typeof documents)['\n  mutation RemoveGame($id: ID!) {\n    removeGame(id: $id)\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation ReopenGame($id: ID!) {\n    reopenGame(id: $id) {\n      id\n      status\n      actualEnd\n    }\n  }\n',
+): (typeof documents)['\n  mutation ReopenGame($id: ID!) {\n    reopenGame(id: $id) {\n      id\n      status\n      actualEnd\n    }\n  }\n'];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

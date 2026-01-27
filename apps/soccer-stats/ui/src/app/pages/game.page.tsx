@@ -35,9 +35,11 @@ import {
   RESOLVE_EVENT_CONFLICT,
   RECORD_GOAL,
   RECORD_FORMATION_CHANGE,
+  REOPEN_GAME,
 } from '../services/games-graphql.service';
 import { GameLineupTab } from '../components/smart/game-lineup-tab.smart';
 import { GoalModal, EditGoalData } from '../components/smart/goal-modal.smart';
+import { ManualGoalModal } from '../components/smart/manual-goal-modal.smart';
 import { SubstitutionModal } from '../components/smart/substitution-modal.smart';
 import { GameStats } from '../components/smart/game-stats.smart';
 import { GameSummaryPresentation } from '../components/presentation/game-summary.presentation';
@@ -136,6 +138,8 @@ export const GamePage = () => {
   const [showGameMenu, setShowGameMenu] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [clearEventsOnReset, setClearEventsOnReset] = useState(false);
+  const [showReopenConfirm, setShowReopenConfirm] = useState(false);
+  const [showManualGoalModal, setShowManualGoalModal] = useState(false);
 
   // Cascade delete state
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -231,6 +235,7 @@ export const GamePage = () => {
   // Timing events (PERIOD_START, etc.) are now published by GamesService via
   // GameEventChanged subscription, enabling real-time updates for all viewers.
   const [updateGame, { loading: updatingGame }] = useMutation(UPDATE_GAME);
+  const [reopenGame, { loading: reopeningGame }] = useMutation(REOPEN_GAME);
 
   // Direct goal recording for GOALS_ONLY mode (skips modal)
   // Note: We intentionally don't use refetchQueries here.
@@ -975,6 +980,21 @@ export const GamePage = () => {
     }
   };
 
+  // Reopen completed game to add missed events
+  const handleReopenGame = async () => {
+    try {
+      await reopenGame({
+        variables: {
+          id: gameId!,
+        },
+      });
+      setShowReopenConfirm(false);
+      setShowGameMenu(false);
+    } catch (err) {
+      console.error('Failed to reopen game:', err);
+    }
+  };
+
   // Change stats tracking level for this game
   const handleStatsTrackingChange = async (level: StatsTrackingLevel) => {
     try {
@@ -1292,6 +1312,11 @@ export const GamePage = () => {
         onShowResetConfirm={setShowResetConfirm}
         onClearEventsChange={setClearEventsOnReset}
         onResetGame={handleResetGame}
+        // Reopen game (for completed games)
+        showReopenConfirm={showReopenConfirm}
+        reopeningGame={reopeningGame}
+        onShowReopenConfirm={setShowReopenConfirm}
+        onReopenGame={handleReopenGame}
         // Per-team stats tracking
         homeTeamName={homeTeam?.team.name}
         awayTeamName={awayTeam?.team.name}
@@ -1529,9 +1554,31 @@ export const GamePage = () => {
           {/* Events Tab */}
           {activeTab === 'events' && (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Match Events
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Match Events
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowManualGoalModal(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  Add Goal
+                </button>
+              </div>
               {(() => {
                 // Player info type for resolved names
                 type PlayerInfo = {
@@ -2177,6 +2224,34 @@ export const GamePage = () => {
           onClose={() => setEditGoalData(null)}
           editGoal={editGoalData.goal}
           statsTrackingLevel={getEffectiveTrackingLevel(editGoalData.team)}
+        />
+      )}
+
+      {/* Manual Goal Modal - Add missed goals at any time */}
+      {showManualGoalModal && homeTeam && awayTeam && (
+        <ManualGoalModal
+          gameId={gameId!}
+          homeTeam={{
+            gameTeamId: homeTeam.id,
+            teamId: homeTeam.team.id,
+            teamName: homeTeam.team.name,
+            teamColor: homeTeam.team.homePrimaryColor || '#3B82F6',
+            teamType: 'home',
+            currentOnField: homeLineupData?.gameLineup?.currentOnField ?? [],
+            bench: homeLineupData?.gameLineup?.bench ?? [],
+            statsTrackingLevel: getEffectiveTrackingLevel('home'),
+          }}
+          awayTeam={{
+            gameTeamId: awayTeam.id,
+            teamId: awayTeam.team.id,
+            teamName: awayTeam.team.name,
+            teamColor: awayTeam.team.homePrimaryColor || '#EF4444',
+            teamType: 'away',
+            currentOnField: awayLineupData?.gameLineup?.currentOnField ?? [],
+            bench: awayLineupData?.gameLineup?.bench ?? [],
+            statsTrackingLevel: getEffectiveTrackingLevel('away'),
+          }}
+          onClose={() => setShowManualGoalModal(false)}
         />
       )}
 
