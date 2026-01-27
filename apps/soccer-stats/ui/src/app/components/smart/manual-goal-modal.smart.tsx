@@ -73,8 +73,7 @@ export const ManualGoalModal = ({
   );
   const selectedTeam = selectedTeamType === 'home' ? homeTeam : awayTeam;
 
-  // Time fields
-  const [period, setPeriod] = useState<'1' | '2'>('1');
+  // Time fields (game minute from start, not period-relative)
   const [minute, setMinute] = useState(0);
   const [second, setSecond] = useState(0);
 
@@ -188,11 +187,24 @@ export const ManualGoalModal = ({
 
   return (
     <ModalPortal isOpen={true}>
-      <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="manual-goal-title"
+        aria-describedby="manual-goal-description"
+        className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+      >
         {/* Header */}
         <div className="mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Add Goal</h3>
-          <p className="text-sm text-gray-500">Manually record a missed goal</p>
+          <h3
+            id="manual-goal-title"
+            className="text-lg font-semibold text-gray-900"
+          >
+            Add Goal
+          </h3>
+          <p id="manual-goal-description" className="text-sm text-gray-500">
+            Manually record a missed goal
+          </p>
         </div>
 
         {/* Team Selection */}
@@ -234,52 +246,46 @@ export const ManualGoalModal = ({
           </div>
         </div>
 
-        {/* Period & Time */}
-        <div className="mb-4 flex gap-4">
-          <div className="flex-1">
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              Period <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={period}
-              onChange={(e) => setPeriod(e.target.value as '1' | '2')}
-              className="w-full rounded-lg border border-gray-300 p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="1">1st Half</option>
-              <option value="2">2nd Half</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              Time <span className="text-red-500">*</span>
-            </label>
-            <div className="flex items-center gap-1">
-              <input
-                type="number"
-                min="0"
-                max="999"
-                value={minute}
-                onChange={(e) =>
-                  setMinute(Math.max(0, parseInt(e.target.value) || 0))
-                }
-                className="w-16 rounded-lg border border-gray-300 p-2.5 text-center focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                placeholder="Min"
-              />
-              <span className="text-gray-500">:</span>
-              <input
-                type="number"
-                min="0"
-                max="59"
-                value={second}
-                onChange={(e) =>
-                  setSecond(
-                    Math.min(59, Math.max(0, parseInt(e.target.value) || 0)),
-                  )
-                }
-                className="w-16 rounded-lg border border-gray-300 p-2.5 text-center focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                placeholder="Sec"
-              />
-            </div>
+        {/* Time */}
+        <div className="mb-4">
+          <label
+            id="time-label"
+            className="mb-2 block text-sm font-medium text-gray-700"
+          >
+            Game Time <span className="text-red-500">*</span>
+          </label>
+          <div className="flex items-center gap-1" aria-labelledby="time-label">
+            <input
+              type="number"
+              min="0"
+              max="999"
+              value={minute}
+              onChange={(e) =>
+                setMinute(
+                  Math.min(999, Math.max(0, parseInt(e.target.value) || 0)),
+                )
+              }
+              className="w-16 rounded-lg border border-gray-300 p-2.5 text-center focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+              placeholder="Min"
+              aria-label="Minutes"
+            />
+            <span className="text-gray-500" aria-hidden="true">
+              :
+            </span>
+            <input
+              type="number"
+              min="0"
+              max="59"
+              value={second}
+              onChange={(e) =>
+                setSecond(
+                  Math.min(59, Math.max(0, parseInt(e.target.value) || 0)),
+                )
+              }
+              className="w-16 rounded-lg border border-gray-300 p-2.5 text-center focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+              placeholder="Sec"
+              aria-label="Seconds"
+            />
           </div>
         </div>
 
