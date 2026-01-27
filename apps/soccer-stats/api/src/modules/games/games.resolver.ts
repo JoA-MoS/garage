@@ -95,6 +95,32 @@ export class GamesResolver {
     return this.gamesService.remove(id);
   }
 
+  @Mutation(() => Game, {
+    description:
+      'Reopen a completed game to allow adding missed events. ' +
+      'Deletes GAME_END and child events, sets status to SECOND_HALF.',
+  })
+  async reopenGame(
+    @Args('id', { type: () => ID }) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    this.logger.log(`Reopening game ${id} for user: ${user.id}`);
+    const game = await this.gamesService.reopenGame(id);
+    try {
+      await this.pubSub.publish('gameUpdated', { gameUpdated: game });
+    } catch (error) {
+      this.logger.warn(
+        'Real-time notification failed - subscribers may have stale data',
+        {
+          error: error instanceof Error ? error.message : String(error),
+          gameId: game.id,
+          eventType: 'gameUpdated',
+        },
+      );
+    }
+    return game;
+  }
+
   @Mutation(() => GameTeam, {
     description: 'Update game team settings (formation, stats tracking level)',
   })

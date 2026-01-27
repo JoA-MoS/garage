@@ -52,50 +52,33 @@ export class GamesService {
     @Inject('PUB_SUB') private readonly pubSub: PubSub,
   ) {}
 
+  /**
+   * Find all games.
+   *
+   * IMPORTANT: This method intentionally does NOT eager-load relations.
+   * Relations are loaded on-demand via GraphQL field resolvers + DataLoaders.
+   * This prevents memory issues when loading games with many events.
+   *
+   * @see game-fields.resolver.ts for field resolvers
+   * @see dataloaders.service.ts for DataLoader implementations
+   */
   async findAll(): Promise<Game[]> {
-    return this.gameRepository.find({
-      relations: [
-        'gameFormat',
-        'gameTeams',
-        'gameTeams.team',
-        'gameTeams.team.teamPlayers',
-        'gameTeams.team.teamPlayers.user',
-        'gameTeams.gameEvents',
-        'gameTeams.gameEvents.eventType',
-        'gameTeams.gameEvents.player',
-        'gameTeams.gameEvents.childEvents',
-        'gameTeams.gameEvents.childEvents.player',
-        'gameTeams.gameEvents.childEvents.eventType',
-        'gameEvents',
-        'gameEvents.eventType',
-        'gameEvents.player',
-        'gameEvents.recordedByUser',
-        'gameEvents.gameTeam',
-      ],
-    });
+    return this.gameRepository.find();
   }
 
+  /**
+   * Find a game by ID.
+   *
+   * IMPORTANT: This method intentionally does NOT eager-load relations.
+   * Relations are loaded on-demand via GraphQL field resolvers + DataLoaders.
+   * This prevents memory issues when loading games with many events.
+   *
+   * @see game-fields.resolver.ts for field resolvers
+   * @see dataloaders.service.ts for DataLoader implementations
+   */
   async findOne(id: string): Promise<Game> {
     const game = await this.gameRepository.findOne({
       where: { id },
-      relations: [
-        'gameFormat',
-        'gameTeams',
-        'gameTeams.team',
-        'gameTeams.team.teamPlayers',
-        'gameTeams.team.teamPlayers.user',
-        'gameTeams.gameEvents',
-        'gameTeams.gameEvents.eventType',
-        'gameTeams.gameEvents.player',
-        'gameTeams.gameEvents.childEvents',
-        'gameTeams.gameEvents.childEvents.player',
-        'gameTeams.gameEvents.childEvents.eventType',
-        'gameEvents',
-        'gameEvents.eventType',
-        'gameEvents.player',
-        'gameEvents.recordedByUser',
-        'gameEvents.gameTeam',
-      ],
     });
 
     if (!game) {
@@ -974,6 +957,72 @@ export class GamesService {
       gameSecond: 0,
     });
     await this.gameEventRepository.save(event);
+  }
+
+  /**
+   * Reopens a completed game by deleting the GAME_END event and its children,
+   * then setting the status back to SECOND_HALF.
+   *
+   * This allows adding missed events (goals, substitutions) to a game that was
+   * accidentally completed too early.
+   *
+   * @param id - The ID of the game to reopen
+   * @returns The updated game with status SECOND_HALF
+   * @throws NotFoundException if game not found
+   * @throws Error if game is not in COMPLETED status
+   */
+  async reopenGame(id: string): Promise<Game> {
+    const game = await this.findOne(id);
+
+    if (game.status !== GameStatus.COMPLETED) {
+      throw new Error(
+        `Cannot reopen game: game is in ${game.status} status, not COMPLETED`,
+      );
+    }
+
+    // Find the GAME_END event for this game
+    const gameEndEventType = await this.eventTypeRepository.findOne({
+      where: { name: 'GAME_END' },
+    });
+
+    if (!gameEndEventType) {
+      throw new Error('GAME_END event type not found in database');
+    }
+
+    const gameEndEvent = await this.gameEventRepository.findOne({
+      where: {
+        gameId: id,
+        eventTypeId: gameEndEventType.id,
+      },
+      relations: ['childEvents', 'childEvents.eventType', 'childEvents.player'],
+    });
+
+    if (gameEndEvent) {
+      // Publish deletion event before deleting
+      await this.publishGameEvent(id, GameEventAction.DELETED, gameEndEvent);
+
+      // Delete GAME_END - children (PERIOD_END, SUBSTITUTION_OUT) cascade automatically
+      await this.gameEventRepository.remove(gameEndEvent);
+
+      this.logger.log(
+        `Deleted GAME_END event ${gameEndEvent.id} and ${gameEndEvent.childEvents?.length ?? 0} child events for game ${id}`,
+      );
+    }
+
+    // Update game status to SECOND_HALF and clear actualEnd
+    await this.gameRepository
+      .createQueryBuilder()
+      .update(Game)
+      .set({
+        status: GameStatus.SECOND_HALF,
+        actualEnd: () => 'NULL',
+      })
+      .where('id = :id', { id })
+      .execute();
+
+    this.logger.log(`Reopened game ${id} - status changed to SECOND_HALF`);
+
+    return this.findOne(id);
   }
 
   /**
