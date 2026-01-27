@@ -7,6 +7,7 @@ import { Game } from '../../entities/game.entity';
 import { GameFormat } from '../../entities/game-format.entity';
 import { Team } from '../../entities/team.entity';
 import { GameTeam } from '../../entities/game-team.entity';
+import { GameEvent } from '../../entities/game-event.entity';
 import { GameTimingService, GameTiming } from '../games/game-timing.service';
 
 /**
@@ -18,6 +19,8 @@ export interface IDataLoaders {
   gameFormatLoader: DataLoader<string, GameFormat>;
   teamLoader: DataLoader<string, Team>;
   gameTeamsByGameLoader: DataLoader<string, GameTeam[]>;
+  gameEventsByGameLoader: DataLoader<string, GameEvent[]>;
+  gameEventsByGameTeamLoader: DataLoader<string, GameEvent[]>;
   gameTimingLoader: DataLoader<string, GameTiming>;
 }
 
@@ -40,6 +43,8 @@ export class DataLoadersService {
     private readonly teamRepository: Repository<Team>,
     @InjectRepository(GameTeam)
     private readonly gameTeamRepository: Repository<GameTeam>,
+    @InjectRepository(GameEvent)
+    private readonly gameEventRepository: Repository<GameEvent>,
     private readonly gameTimingService: GameTimingService,
   ) {}
 
@@ -53,6 +58,8 @@ export class DataLoadersService {
       gameFormatLoader: this.createGameFormatLoader(),
       teamLoader: this.createTeamLoader(),
       gameTeamsByGameLoader: this.createGameTeamsByGameLoader(),
+      gameEventsByGameLoader: this.createGameEventsByGameLoader(),
+      gameEventsByGameTeamLoader: this.createGameEventsByGameTeamLoader(),
       gameTimingLoader: this.createGameTimingLoader(),
     };
   }
@@ -126,6 +133,77 @@ export class DataLoadersService {
       }
 
       return gameIds.map((id) => gameTeamsMap.get(id) || []);
+    });
+  }
+
+  /**
+   * Batch loads GameEvents by gameId.
+   * Returns an array of GameEvents for each game, with related entities.
+   *
+   * Includes childEvents for consistency with gameEventsByGameTeamLoader.
+   */
+  private createGameEventsByGameLoader(): DataLoader<string, GameEvent[]> {
+    return new DataLoader<string, GameEvent[]>(async (gameIds) => {
+      const gameEvents = await this.gameEventRepository.find({
+        where: { gameId: In([...gameIds]) },
+        relations: [
+          'eventType',
+          'player',
+          'gameTeam',
+          'childEvents',
+          'childEvents.eventType',
+          'childEvents.player',
+        ],
+        order: { gameMinute: 'ASC', gameSecond: 'ASC', createdAt: 'ASC' },
+      });
+
+      // Group by gameId
+      const eventsMap = new Map<string, GameEvent[]>();
+      for (const event of gameEvents) {
+        const existing = eventsMap.get(event.gameId) || [];
+        existing.push(event);
+        eventsMap.set(event.gameId, existing);
+      }
+
+      return gameIds.map((id) => eventsMap.get(id) || []);
+    });
+  }
+
+  /**
+   * Batch loads GameEvents by gameTeamId.
+   * Returns an array of GameEvents for each gameTeam, with related entities.
+   *
+   * This loader is used when events are accessed through GameTeam.gameEvents,
+   * which is the primary access path in the frontend.
+   *
+   * Relations are consistent with gameEventsByGameLoader for predictable behavior.
+   */
+  private createGameEventsByGameTeamLoader(): DataLoader<string, GameEvent[]> {
+    return new DataLoader<string, GameEvent[]>(async (gameTeamIds) => {
+      const gameEvents = await this.gameEventRepository.find({
+        where: { gameTeamId: In([...gameTeamIds]) },
+        relations: [
+          'eventType',
+          'player',
+          'gameTeam',
+          'childEvents',
+          'childEvents.eventType',
+          'childEvents.player',
+        ],
+        order: { gameMinute: 'ASC', gameSecond: 'ASC', createdAt: 'ASC' },
+      });
+
+      // Group by gameTeamId
+      const eventsMap = new Map<string, GameEvent[]>();
+      for (const event of gameEvents) {
+        if (event.gameTeamId) {
+          const existing = eventsMap.get(event.gameTeamId) || [];
+          existing.push(event);
+          eventsMap.set(event.gameTeamId, existing);
+        }
+      }
+
+      return gameTeamIds.map((id) => eventsMap.get(id) || []);
     });
   }
 
