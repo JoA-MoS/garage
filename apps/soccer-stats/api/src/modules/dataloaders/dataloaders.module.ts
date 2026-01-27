@@ -6,6 +6,9 @@ import { GameFormat } from '../../entities/game-format.entity';
 import { Team } from '../../entities/team.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { GameEvent } from '../../entities/game-event.entity';
+import { User } from '../../entities/user.entity';
+import { TeamPlayer } from '../../entities/team-player.entity';
+import { TeamCoach } from '../../entities/team-coach.entity';
 import { GamesModule } from '../games/games.module';
 
 import { DataLoadersService } from './dataloaders.service';
@@ -21,7 +24,16 @@ import { DataLoadersService } from './dataloaders.service';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Game, GameFormat, Team, GameTeam, GameEvent]),
+    TypeOrmModule.forFeature([
+      Game,
+      GameFormat,
+      Team,
+      GameTeam,
+      GameEvent,
+      User,
+      TeamPlayer,
+      TeamCoach,
+    ]),
     forwardRef(() => GamesModule), // For GameTimingService
   ],
   providers: [DataLoadersService],

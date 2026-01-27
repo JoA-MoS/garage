@@ -8,6 +8,9 @@ import { GameFormat } from '../../entities/game-format.entity';
 import { Team } from '../../entities/team.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { GameEvent } from '../../entities/game-event.entity';
+import { User } from '../../entities/user.entity';
+import { TeamPlayer } from '../../entities/team-player.entity';
+import { TeamCoach } from '../../entities/team-coach.entity';
 import { GameTimingService, GameTiming } from '../games/game-timing.service';
 
 /**
@@ -15,6 +18,7 @@ import { GameTimingService, GameTiming } from '../games/game-timing.service';
  * Each request gets a fresh set of loaders (request-scoped caching).
  */
 export interface IDataLoaders {
+  // Game-related loaders
   gameLoader: DataLoader<string, Game>;
   gameFormatLoader: DataLoader<string, GameFormat>;
   teamLoader: DataLoader<string, Team>;
@@ -22,6 +26,15 @@ export interface IDataLoaders {
   gameEventsByGameLoader: DataLoader<string, GameEvent[]>;
   gameEventsByGameTeamLoader: DataLoader<string, GameEvent[]>;
   gameTimingLoader: DataLoader<string, GameTiming>;
+
+  // User/Player/Coach loaders
+  userLoader: DataLoader<string, User>;
+  teamPlayersByUserIdLoader: DataLoader<string, TeamPlayer[]>;
+  teamCoachesByUserIdLoader: DataLoader<string, TeamCoach[]>;
+
+  // Team roster loaders
+  teamPlayersByTeamIdLoader: DataLoader<string, TeamPlayer[]>;
+  teamCoachesByTeamIdLoader: DataLoader<string, TeamCoach[]>;
 }
 
 /**
@@ -45,6 +58,12 @@ export class DataLoadersService {
     private readonly gameTeamRepository: Repository<GameTeam>,
     @InjectRepository(GameEvent)
     private readonly gameEventRepository: Repository<GameEvent>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(TeamPlayer)
+    private readonly teamPlayerRepository: Repository<TeamPlayer>,
+    @InjectRepository(TeamCoach)
+    private readonly teamCoachRepository: Repository<TeamCoach>,
     private readonly gameTimingService: GameTimingService,
   ) {}
 
@@ -54,6 +73,7 @@ export class DataLoadersService {
    */
   createLoaders(): IDataLoaders {
     return {
+      // Game-related loaders
       gameLoader: this.createGameLoader(),
       gameFormatLoader: this.createGameFormatLoader(),
       teamLoader: this.createTeamLoader(),
@@ -61,6 +81,15 @@ export class DataLoadersService {
       gameEventsByGameLoader: this.createGameEventsByGameLoader(),
       gameEventsByGameTeamLoader: this.createGameEventsByGameTeamLoader(),
       gameTimingLoader: this.createGameTimingLoader(),
+
+      // User/Player/Coach loaders
+      userLoader: this.createUserLoader(),
+      teamPlayersByUserIdLoader: this.createTeamPlayersByUserIdLoader(),
+      teamCoachesByUserIdLoader: this.createTeamCoachesByUserIdLoader(),
+
+      // Team roster loaders
+      teamPlayersByTeamIdLoader: this.createTeamPlayersByTeamIdLoader(),
+      teamCoachesByTeamIdLoader: this.createTeamCoachesByTeamIdLoader(),
     };
   }
 
@@ -219,6 +248,126 @@ export class DataLoadersService {
 
       // Return timing for each game, defaulting to empty object if not found
       return gameIds.map((id) => timingMap.get(id) || {});
+    });
+  }
+
+  // ============================================================
+  // User/Player/Coach DataLoaders
+  // ============================================================
+
+  /**
+   * Batch loads Users by their IDs.
+   */
+  private createUserLoader(): DataLoader<string, User> {
+    return new DataLoader<string, User>(async (userIds) => {
+      const users = await this.userRepository.find({
+        where: { id: In([...userIds]) },
+      });
+
+      const userMap = new Map(users.map((user) => [user.id, user]));
+      return userIds.map(
+        (id) => userMap.get(id) || new Error(`User not found: ${id}`),
+      );
+    });
+  }
+
+  /**
+   * Batch loads TeamPlayers by userId.
+   * Returns an array of TeamPlayers for each user (their team memberships as player).
+   * Includes team relation for display purposes.
+   */
+  private createTeamPlayersByUserIdLoader(): DataLoader<string, TeamPlayer[]> {
+    return new DataLoader<string, TeamPlayer[]>(async (userIds) => {
+      const teamPlayers = await this.teamPlayerRepository.find({
+        where: { userId: In([...userIds]), isActive: true },
+        relations: ['team'],
+      });
+
+      // Group by userId
+      const teamPlayersMap = new Map<string, TeamPlayer[]>();
+      for (const tp of teamPlayers) {
+        const existing = teamPlayersMap.get(tp.userId) || [];
+        existing.push(tp);
+        teamPlayersMap.set(tp.userId, existing);
+      }
+
+      return userIds.map((id) => teamPlayersMap.get(id) || []);
+    });
+  }
+
+  /**
+   * Batch loads TeamCoaches by userId.
+   * Returns an array of TeamCoaches for each user (their team memberships as coach).
+   * Includes team relation for display purposes.
+   */
+  private createTeamCoachesByUserIdLoader(): DataLoader<string, TeamCoach[]> {
+    return new DataLoader<string, TeamCoach[]>(async (userIds) => {
+      const teamCoaches = await this.teamCoachRepository.find({
+        where: { userId: In([...userIds]), isActive: true },
+        relations: ['team'],
+      });
+
+      // Group by userId
+      const teamCoachesMap = new Map<string, TeamCoach[]>();
+      for (const tc of teamCoaches) {
+        const existing = teamCoachesMap.get(tc.userId) || [];
+        existing.push(tc);
+        teamCoachesMap.set(tc.userId, existing);
+      }
+
+      return userIds.map((id) => teamCoachesMap.get(id) || []);
+    });
+  }
+
+  // ============================================================
+  // Team Roster DataLoaders
+  // ============================================================
+
+  /**
+   * Batch loads TeamPlayers by teamId.
+   * Returns an array of TeamPlayers for each team (the team's roster).
+   * Includes user relation for display purposes.
+   */
+  private createTeamPlayersByTeamIdLoader(): DataLoader<string, TeamPlayer[]> {
+    return new DataLoader<string, TeamPlayer[]>(async (teamIds) => {
+      const teamPlayers = await this.teamPlayerRepository.find({
+        where: { teamId: In([...teamIds]), isActive: true },
+        relations: ['user'],
+      });
+
+      // Group by teamId
+      const teamPlayersMap = new Map<string, TeamPlayer[]>();
+      for (const tp of teamPlayers) {
+        const existing = teamPlayersMap.get(tp.teamId) || [];
+        existing.push(tp);
+        teamPlayersMap.set(tp.teamId, existing);
+      }
+
+      return teamIds.map((id) => teamPlayersMap.get(id) || []);
+    });
+  }
+
+  /**
+   * Batch loads TeamCoaches by teamId.
+   * Returns an array of TeamCoaches for each team (the team's coaching staff).
+   * Includes user relation for display purposes.
+   */
+  private createTeamCoachesByTeamIdLoader(): DataLoader<string, TeamCoach[]> {
+    return new DataLoader<string, TeamCoach[]>(async (teamIds) => {
+      const teamCoaches = await this.teamCoachRepository.find({
+        where: { teamId: In([...teamIds]), isActive: true },
+        relations: ['user'],
+      });
+
+      // Group by teamId
+      const teamCoachesMap = new Map<string, TeamCoach[]>();
+      for (const tc of teamCoaches) {
+        const existing = teamCoachesMap.get(tc.teamId) || [];
+        existing.push(tc);
+        teamCoachesMap.set(tc.teamId, existing);
+      }
+
+      return teamIds.map((id) => teamCoachesMap.get(id) || []);
     });
   }
 }

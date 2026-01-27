@@ -10,6 +10,7 @@ import { AuthModule } from '../auth/auth.module';
 import { UsersService } from './users.service';
 import { UsersResolver } from './users.resolver';
 import { TeamPlayerResolver } from './team-player.resolver';
+import { UserFieldsResolver } from './user-fields.resolver';
 
 @Module({
   imports: [
@@ -17,7 +18,12 @@ import { TeamPlayerResolver } from './team-player.resolver';
     forwardRef(() => TeamsModule), // Import to access TeamsService
     forwardRef(() => AuthModule), // Import to access ClerkAuthGuard
   ],
-  providers: [UsersResolver, TeamPlayerResolver, UsersService],
+  providers: [
+    UsersResolver,
+    TeamPlayerResolver,
+    UserFieldsResolver,
+    UsersService,
+  ],
   exports: [UsersService],
 })
 export class UsersModule {}
