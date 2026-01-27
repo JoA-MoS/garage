@@ -101,7 +101,7 @@ export class GameEvent extends BaseEntity {
   }
 
   @Field(() => Game)
-  @ManyToOne(() => Game, (game) => game.gameEvents, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Game, (game) => game.events, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'gameId' })
   game: Game;
 
@@ -126,7 +126,7 @@ export class GameEvent extends BaseEntity {
   recordedByUser: User;
 
   @Field(() => GameTeam)
-  @ManyToOne(() => GameTeam, (gameTeam) => gameTeam.gameEvents, {
+  @ManyToOne(() => GameTeam, (gameTeam) => gameTeam.events, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'gameTeamId' })

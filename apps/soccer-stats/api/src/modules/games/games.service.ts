@@ -335,8 +335,9 @@ export class GamesService {
       where: { id: gameTeamId },
       relations: [
         'team',
-        'team.teamPlayers',
-        'team.teamPlayers.user',
+        'team.teamMembers',
+        'team.teamMembers.user',
+        'team.teamMembers.roles',
         'game',
         'gameEvents',
         'gameEvents.eventType',
@@ -388,8 +389,8 @@ export class GamesService {
     // Build query
     const queryBuilder = this.gameRepository
       .createQueryBuilder('game')
-      .leftJoinAndSelect('game.gameFormat', 'gameFormat')
-      .leftJoinAndSelect('game.gameTeams', 'gameTeams')
+      .leftJoinAndSelect('game.format', 'gameFormat')
+      .leftJoinAndSelect('game.teams', 'gameTeams')
       .leftJoinAndSelect('gameTeams.team', 'team')
       .where('game.id IN (:...gameIds)', { gameIds })
       .andWhere('game.status IN (:...statuses)', { statuses });
@@ -609,7 +610,7 @@ export class GamesService {
     }
 
     const totalDuration =
-      game.durationMinutes ?? game.gameFormat?.durationMinutes ?? 90;
+      game.durationMinutes ?? game.format?.durationMinutes ?? 90;
 
     switch (status) {
       case GameStatus.FIRST_HALF: {
@@ -767,8 +768,7 @@ export class GamesService {
         // This ensures second half always starts at the correct nominal time
         // (e.g., 45:00 for standard 45-minute halves) regardless of when first half actually ended
         const halftimeMinute =
-          game.gameFormat?.periodDurationMinutes ??
-          Math.floor(totalDuration / 2);
+          game.format?.periodDurationMinutes ?? Math.floor(totalDuration / 2);
 
         this.logger.debug(
           `[SECOND_HALF] halftimeMinute=${halftimeMinute} (totalDuration=${totalDuration})`,

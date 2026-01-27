@@ -41,7 +41,35 @@ export const TeamRosterComposition = ({
   const [isLoading] = useState(false);
 
   // =================================
-  // ENHANCED MOCK DATA FOR TEAM ROSTER
+  // HELPER FUNCTIONS FOR NEW SCHEMA
+  // =================================
+
+  const hasRole = (user: Partial<User>, role: string) => {
+    return user.teamMemberships?.some((tm) =>
+      tm.roles?.some((r) => r.role === role),
+    );
+  };
+
+  const getPlayerRole = (user: Partial<User>) => {
+    for (const tm of user.teamMemberships || []) {
+      const playerRole = tm.roles?.find((r) => r.role === 'PLAYER');
+      if (playerRole) return { membership: tm, role: playerRole };
+    }
+    return null;
+  };
+
+  const getCoachRole = (user: Partial<User>) => {
+    for (const tm of user.teamMemberships || []) {
+      const coachRole = tm.roles?.find(
+        (r) => r.role === 'COACH' || r.role === 'GUEST_COACH',
+      );
+      if (coachRole) return { membership: tm, role: coachRole };
+    }
+    return null;
+  };
+
+  // =================================
+  // ENHANCED MOCK DATA FOR TEAM ROSTER (New Schema)
   // =================================
 
   const mockTeamMembers: Partial<User>[] = [
@@ -51,57 +79,69 @@ export const TeamRosterComposition = ({
       firstName: 'John',
       lastName: 'Doe',
       email: 'john.doe@example.com',
-      teamPlayers: [
+      teamMemberships: [
         {
-          id: 'tp1',
-          jerseyNumber: '10',
-          primaryPosition: 'Forward',
-          joinedDate: new Date('2023-01-15'),
+          id: 'tm1',
           isActive: true,
+          joinedDate: new Date('2023-01-15'),
           team: { id: teamId, name: teamName, shortName: 'TFC' },
+          roles: [
+            {
+              id: 'tmr1',
+              role: 'PLAYER',
+              jerseyNumber: '10',
+              primaryPosition: 'Forward',
+            },
+          ],
         },
       ],
-      teamCoaches: [],
     },
     {
       id: '2',
       firstName: 'Sarah',
       lastName: 'Wilson',
       email: 'sarah.wilson@example.com',
-      teamPlayers: [
+      teamMemberships: [
         {
-          id: 'tp2',
-          jerseyNumber: '1',
-          primaryPosition: 'Goalkeeper',
-          joinedDate: new Date('2023-01-15'),
+          id: 'tm2',
           isActive: true,
+          joinedDate: new Date('2023-01-15'),
           team: { id: teamId, name: teamName, shortName: 'TFC' },
+          roles: [
+            {
+              id: 'tmr2',
+              role: 'PLAYER',
+              jerseyNumber: '1',
+              primaryPosition: 'Goalkeeper',
+            },
+          ],
         },
       ],
-      teamCoaches: [],
     },
     {
       id: '3',
       firstName: 'Mike',
       lastName: 'Johnson',
       email: 'mike.johnson@example.com',
-      teamPlayers: [
+      teamMemberships: [
         {
-          id: 'tp3',
-          jerseyNumber: '8',
-          primaryPosition: 'Midfielder',
+          id: 'tm3',
+          isActive: true,
           joinedDate: new Date('2023-02-01'),
-          isActive: true,
           team: { id: teamId, name: teamName, shortName: 'TFC' },
-        },
-      ],
-      teamCoaches: [
-        {
-          id: 'tc1',
-          role: 'Player-Coach',
-          startDate: new Date('2023-06-01'),
-          isActive: true,
-          team: { id: teamId, name: teamName, shortName: 'TFC' },
+          roles: [
+            {
+              id: 'tmr3a',
+              role: 'PLAYER',
+              jerseyNumber: '8',
+              primaryPosition: 'Midfielder',
+            },
+            {
+              id: 'tmr3b',
+              role: 'COACH',
+              coachTitle: 'Player-Coach',
+            },
+          ],
         },
       ],
     },
@@ -112,14 +152,19 @@ export const TeamRosterComposition = ({
       firstName: 'Jane',
       lastName: 'Smith',
       email: 'jane.smith@example.com',
-      teamPlayers: [],
-      teamCoaches: [
+      teamMemberships: [
         {
-          id: 'tc2',
-          role: 'Head Coach',
-          startDate: new Date('2022-08-01'),
+          id: 'tm4',
           isActive: true,
+          joinedDate: new Date('2022-08-01'),
           team: { id: teamId, name: teamName, shortName: 'TFC' },
+          roles: [
+            {
+              id: 'tmr4',
+              role: 'COACH',
+              coachTitle: 'Head Coach',
+            },
+          ],
         },
       ],
     },
@@ -128,14 +173,19 @@ export const TeamRosterComposition = ({
       firstName: 'Robert',
       lastName: 'Brown',
       email: 'robert.brown@example.com',
-      teamPlayers: [],
-      teamCoaches: [
+      teamMemberships: [
         {
-          id: 'tc3',
-          role: 'Assistant Coach',
-          startDate: new Date('2023-01-01'),
+          id: 'tm5',
           isActive: true,
+          joinedDate: new Date('2023-01-01'),
           team: { id: teamId, name: teamName, shortName: 'TFC' },
+          roles: [
+            {
+              id: 'tmr5',
+              role: 'COACH',
+              coachTitle: 'Assistant Coach',
+            },
+          ],
         },
       ],
     },
@@ -145,28 +195,22 @@ export const TeamRosterComposition = ({
   // DATA PROCESSING
   // =================================
 
-  const players = mockTeamMembers.filter(
-    (user) => user.teamPlayers && user.teamPlayers.length > 0
-  );
+  const players = mockTeamMembers.filter((user) => hasRole(user, 'PLAYER'));
 
   const coaches = mockTeamMembers.filter(
-    (user) => user.teamCoaches && user.teamCoaches.length > 0
+    (user) => hasRole(user, 'COACH') || hasRole(user, 'GUEST_COACH'),
   );
 
   const playersOnly = players.filter(
-    (user) => !user.teamCoaches || user.teamCoaches.length === 0
+    (user) => !hasRole(user, 'COACH') && !hasRole(user, 'GUEST_COACH'),
   );
 
-  const coachesOnly = coaches.filter(
-    (user) => !user.teamPlayers || user.teamPlayers.length === 0
-  );
+  const coachesOnly = coaches.filter((user) => !hasRole(user, 'PLAYER'));
 
   const playerCoaches = mockTeamMembers.filter(
     (user) =>
-      user.teamPlayers &&
-      user.teamPlayers.length > 0 &&
-      user.teamCoaches &&
-      user.teamCoaches.length > 0
+      hasRole(user, 'PLAYER') &&
+      (hasRole(user, 'COACH') || hasRole(user, 'GUEST_COACH')),
   );
 
   // =================================
@@ -182,7 +226,7 @@ export const TeamRosterComposition = ({
       console.log('Remove from team:', userId, 'as', role);
       // TODO: Call removePlayerFromTeam or removeCoachFromTeam mutation
     },
-    []
+    [],
   );
 
   const handleChangeJerseyNumber = useCallback(
@@ -190,7 +234,7 @@ export const TeamRosterComposition = ({
       console.log('Change jersey number for:', userId, 'to:', newNumber);
       // TODO: Call mutation to update jersey number
     },
-    []
+    [],
   );
 
   // =================================
@@ -198,7 +242,10 @@ export const TeamRosterComposition = ({
   // =================================
 
   const renderPlayerCard = (user: Partial<User>) => {
-    const playerInfo = user.teamPlayers![0]; // We know it exists from filter
+    const playerData = getPlayerRole(user);
+    if (!playerData) return null;
+
+    const coachData = getCoachRole(user);
 
     return (
       <div
@@ -213,11 +260,11 @@ export const TeamRosterComposition = ({
             {/* Jersey Number */}
             <div
               className="
-              flex h-12 w-12 items-center justify-center 
+              flex h-12 w-12 items-center justify-center
               rounded-full bg-blue-600 text-lg font-bold text-white
             "
             >
-              {playerInfo.jerseyNumber || '?'}
+              {playerData.role.jerseyNumber || '?'}
             </div>
 
             {/* Player Info */}
@@ -226,10 +273,13 @@ export const TeamRosterComposition = ({
                 {user.firstName} {user.lastName}
               </h3>
               <p className="text-sm text-gray-600">
-                {playerInfo.primaryPosition}
+                {playerData.role.primaryPosition}
               </p>
               <p className="text-xs text-gray-500">
-                Joined: {playerInfo.joinedDate?.toLocaleDateString()}
+                Joined:{' '}
+                {playerData.membership.joinedDate instanceof Date
+                  ? playerData.membership.joinedDate.toLocaleDateString()
+                  : 'Unknown'}
               </p>
             </div>
           </div>
@@ -252,10 +302,10 @@ export const TeamRosterComposition = ({
         </div>
 
         {/* Show if player is also a coach */}
-        {user.teamCoaches && user.teamCoaches.length > 0 && (
+        {coachData && (
           <div className="mt-2 border-t border-gray-100 pt-2">
             <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-              Also: {user.teamCoaches[0].role}
+              Also: {coachData.role.coachTitle || coachData.role.role}
             </span>
           </div>
         )}
@@ -264,7 +314,10 @@ export const TeamRosterComposition = ({
   };
 
   const renderCoachCard = (user: Partial<User>) => {
-    const coachInfo = user.teamCoaches![0]; // We know it exists from filter
+    const coachData = getCoachRole(user);
+    if (!coachData) return null;
+
+    const playerData = getPlayerRole(user);
 
     return (
       <div
@@ -279,7 +332,7 @@ export const TeamRosterComposition = ({
             {/* Coach Icon */}
             <div
               className="
-              flex h-12 w-12 items-center justify-center 
+              flex h-12 w-12 items-center justify-center
               rounded-full bg-green-600 text-xs font-bold text-white
             "
             >
@@ -293,9 +346,14 @@ export const TeamRosterComposition = ({
               <h3 className="font-semibold text-gray-900">
                 {user.firstName} {user.lastName}
               </h3>
-              <p className="text-sm text-gray-600">{coachInfo.role}</p>
+              <p className="text-sm text-gray-600">
+                {coachData.role.coachTitle || coachData.role.role}
+              </p>
               <p className="text-xs text-gray-500">
-                Started: {coachInfo.startDate.toLocaleDateString()}
+                Started:{' '}
+                {coachData.membership.joinedDate instanceof Date
+                  ? coachData.membership.joinedDate.toLocaleDateString()
+                  : 'Unknown'}
               </p>
             </div>
           </div>
@@ -318,10 +376,10 @@ export const TeamRosterComposition = ({
         </div>
 
         {/* Show if coach is also a player */}
-        {user.teamPlayers && user.teamPlayers.length > 0 && (
+        {playerData && (
           <div className="mt-2 border-t border-gray-100 pt-2">
             <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
-              Also: Player #{user.teamPlayers[0].jerseyNumber}
+              Also: Player #{playerData.role.jerseyNumber}
             </span>
           </div>
         )}
@@ -472,10 +530,10 @@ export const TeamRosterComposition = ({
 <TeamRosterComposition teamId="team-123" teamName="Thunder FC" />
 
 // Example 2: Separated players and coaches sections
-<TeamRosterComposition 
-  teamId="team-123" 
-  teamName="Thunder FC" 
-  showSeparateSections={true} 
+<TeamRosterComposition
+  teamId="team-123"
+  teamName="Thunder FC"
+  showSeparateSections={true}
 />
 
 // Example 3: In a team management page
@@ -483,7 +541,7 @@ function TeamManagePage({ teamId }: { teamId: string }) {
   return (
     <div className="space-y-8">
       <TeamRosterComposition teamId={teamId} teamName="Thunder FC" />
-      
+
       // Other team management components...
     </div>
   );

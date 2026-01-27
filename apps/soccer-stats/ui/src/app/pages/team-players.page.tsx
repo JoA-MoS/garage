@@ -16,18 +16,27 @@ import {
   REMOVE_PLAYER_FROM_TEAM,
 } from '../services/users-graphql.service';
 
+/**
+ * TeamPlayer now represents a TeamMemberRole (PLAYER role) with its parent TeamMember.
+ * The new schema: TeamMemberRole { role, jerseyNumber, primaryPosition, teamMember { user, isActive, joinedDate } }
+ */
 interface TeamPlayer {
   id: string;
+  role: string;
   jerseyNumber?: string | null;
   primaryPosition?: string | null;
-  isActive: boolean;
-  joinedDate?: string | null;
-  leftDate?: string | null;
-  user: {
+  teamMember: {
     id: string;
-    firstName?: string | null;
-    lastName?: string | null;
-    email?: string | null;
+    userId?: string | null;
+    isActive: boolean;
+    joinedDate?: string | null;
+    leftDate?: string | null;
+    user: {
+      id: string;
+      firstName?: string | null;
+      lastName?: string | null;
+      email?: string | null;
+    };
   };
 }
 
@@ -62,7 +71,7 @@ export const TeamPlayersPage = () => {
     });
 
   const team = data?.team;
-  const teamPlayers = (team?.teamPlayers || []) as TeamPlayer[];
+  const teamPlayers = (team?.roster || []) as TeamPlayer[];
 
   const handleCreatePlayer = async (playerData: {
     firstName: string;
@@ -92,14 +101,15 @@ export const TeamPlayersPage = () => {
         throw new Error('Failed to create user');
       }
 
-      // Step 2: Add user to team
+      // Step 2: Add user to team using input object
       await addPlayerToTeam({
         variables: {
-          userId: newUserId,
-          teamId: teamId!,
-          jerseyNumber: playerData.jerseyNumber,
-          primaryPosition: playerData.primaryPosition,
-          joinedDate: new Date().toISOString(),
+          addPlayerToTeamInput: {
+            teamId: teamId!,
+            playerId: newUserId,
+            jerseyNumber: playerData.jerseyNumber,
+            primaryPosition: playerData.primaryPosition,
+          },
         },
       });
 
@@ -135,14 +145,14 @@ export const TeamPlayersPage = () => {
       if (Object.keys(userUpdates).length > 0) {
         await updateUser({
           variables: {
-            id: player.user.id,
+            id: player.teamMember.user.id,
             updateUserInput: userUpdates,
           },
         });
       }
 
       // Note: For team player specific fields (jersey, position, active status),
-      // we would need an UPDATE_TEAM_PLAYER mutation. For now, we'll handle
+      // we would need an UPDATE_TEAM_MEMBER_ROLE mutation. For now, we'll handle
       // what we can with the existing mutations.
 
       setEditingPlayer(null);
@@ -156,9 +166,8 @@ export const TeamPlayersPage = () => {
     try {
       await removePlayerFromTeam({
         variables: {
-          userId: player.user.id,
           teamId: teamId!,
-          leftDate: new Date().toISOString(),
+          playerId: player.teamMember.user.id,
         },
       });
 
@@ -170,12 +179,11 @@ export const TeamPlayersPage = () => {
   };
 
   const getPlayerDisplayName = (player: TeamPlayer) => {
-    if (player.user.firstName || player.user.lastName) {
-      return `${player.user.firstName || ''} ${
-        player.user.lastName || ''
-      }`.trim();
+    const user = player.teamMember.user;
+    if (user.firstName || user.lastName) {
+      return `${user.firstName || ''} ${user.lastName || ''}`.trim();
     }
-    return player.user.email || 'Unknown Player';
+    return user.email || 'Unknown Player';
   };
 
   if (loading) {
@@ -202,8 +210,8 @@ export const TeamPlayersPage = () => {
     );
   }
 
-  const activePlayers = teamPlayers.filter((p) => p.isActive);
-  const inactivePlayers = teamPlayers.filter((p) => !p.isActive);
+  const activePlayers = teamPlayers.filter((p) => p.teamMember.isActive);
+  const inactivePlayers = teamPlayers.filter((p) => !p.teamMember.isActive);
   const displayedPlayers = showInactive ? teamPlayers : activePlayers;
 
   return (
@@ -312,7 +320,7 @@ export const TeamPlayersPage = () => {
               <div
                 key={player.id}
                 className={`rounded-lg border p-4 transition-shadow hover:shadow-md ${
-                  player.isActive
+                  player.teamMember.isActive
                     ? 'border-gray-200 bg-white'
                     : 'border-gray-200 bg-gray-50'
                 }`}
@@ -323,7 +331,7 @@ export const TeamPlayersPage = () => {
                     <div
                       className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-lg font-bold text-white"
                       style={{
-                        backgroundColor: player.isActive
+                        backgroundColor: player.teamMember.isActive
                           ? team.homePrimaryColor || '#3B82F6'
                           : '#9CA3AF',
                       }}
@@ -338,7 +346,7 @@ export const TeamPlayersPage = () => {
                       <p className="text-sm text-gray-500">
                         {player.primaryPosition || 'No position'}
                       </p>
-                      {!player.isActive && (
+                      {!player.teamMember.isActive && (
                         <span className="mt-1 inline-block rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">
                           Inactive
                         </span>
@@ -381,10 +389,13 @@ export const TeamPlayersPage = () => {
                 </div>
                 {/* Additional Info */}
                 <div className="mt-3 border-t border-gray-100 pt-3 text-xs text-gray-500">
-                  <p>{player.user.email}</p>
-                  {player.joinedDate && (
+                  <p>{player.teamMember.user.email}</p>
+                  {player.teamMember.joinedDate && (
                     <p>
-                      Joined: {new Date(player.joinedDate).toLocaleDateString()}
+                      Joined:{' '}
+                      {new Date(
+                        player.teamMember.joinedDate,
+                      ).toLocaleDateString()}
                     </p>
                   )}
                 </div>
@@ -407,7 +418,15 @@ export const TeamPlayersPage = () => {
       {/* Edit Player Modal */}
       {editingPlayer && (
         <EditPlayerModal
-          player={editingPlayer}
+          player={{
+            id: editingPlayer.id,
+            jerseyNumber: editingPlayer.jerseyNumber,
+            primaryPosition: editingPlayer.primaryPosition,
+            isActive: editingPlayer.teamMember.isActive,
+            joinedDate: editingPlayer.teamMember.joinedDate,
+            leftDate: editingPlayer.teamMember.leftDate,
+            user: editingPlayer.teamMember.user,
+          }}
           onClose={() => setEditingPlayer(null)}
           onSubmit={(updates) => handleUpdatePlayer(editingPlayer, updates)}
           loading={updatingUser}

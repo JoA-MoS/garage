@@ -47,12 +47,12 @@ export class GameTeam extends BaseEntity {
   statsTrackingLevel?: StatsTrackingLevel;
 
   @Field(() => Game)
-  @ManyToOne(() => Game, (game) => game.gameTeams, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Game, (game) => game.teams, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'gameId' })
   game: Game;
 
   @Field(() => Team)
-  @ManyToOne(() => Team, (team) => team.gameTeams, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Team, (team) => team.games, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'teamId' })
   team: Team;
 
@@ -60,5 +60,5 @@ export class GameTeam extends BaseEntity {
   @OneToMany(() => GameEvent, (gameEvent) => gameEvent.gameTeam, {
     cascade: true,
   })
-  gameEvents: GameEvent[];
+  events: GameEvent[];
 }

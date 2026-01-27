@@ -59,7 +59,7 @@ export class PeriodService {
     // 1. Validate game team exists and get game
     const gameTeam = await this.gameTeamsRepository.findOne({
       where: { id: input.gameTeamId },
-      relations: ['game', 'game.gameFormat'],
+      relations: ['game', 'game.format'],
     });
 
     if (!gameTeam) {
@@ -182,7 +182,7 @@ export class PeriodService {
     // 1. Validate game team exists and get game
     const gameTeam = await this.gameTeamsRepository.findOne({
       where: { id: input.gameTeamId },
-      relations: ['game', 'game.gameFormat'],
+      relations: ['game', 'game.format'],
     });
 
     if (!gameTeam) {
@@ -193,7 +193,7 @@ export class PeriodService {
 
     // 2. Determine game time for period end
     const totalDuration =
-      game.durationMinutes ?? game.gameFormat?.durationMinutes ?? 90;
+      game.durationMinutes ?? game.format?.durationMinutes ?? 90;
     const elapsedSeconds = await this.gameTimingService.getGameDurationSeconds(
       game.id,
       totalDuration,
@@ -306,7 +306,7 @@ export class PeriodService {
     // 1. Validate game team exists and get game
     const gameTeam = await this.gameTeamsRepository.findOne({
       where: { id: input.gameTeamId },
-      relations: ['game', 'game.gameFormat'],
+      relations: ['game', 'game.format'],
     });
 
     if (!gameTeam) {
@@ -333,7 +333,7 @@ export class PeriodService {
 
     // 4. Get actual game clock time at halftime (when first half ended)
     const totalDuration =
-      game.durationMinutes ?? game.gameFormat?.durationMinutes ?? 90;
+      game.durationMinutes ?? game.format?.durationMinutes ?? 90;
     const actualHalftimeSeconds =
       await this.gameTimingService.getGameDurationSeconds(
         game.id,
@@ -445,7 +445,7 @@ export class PeriodService {
    */
   private async calculateHalftimeMinute(game: Game): Promise<number> {
     const totalDuration =
-      game.durationMinutes ?? game.gameFormat?.durationMinutes ?? 90;
+      game.durationMinutes ?? game.format?.durationMinutes ?? 90;
     const timing = await this.gameTimingService.getGameTiming(game.id);
 
     if (timing.firstHalfEnd && timing.actualStart) {

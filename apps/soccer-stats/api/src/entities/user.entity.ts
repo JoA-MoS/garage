@@ -2,8 +2,6 @@ import { Entity, Column, OneToMany } from 'typeorm';
 import { ObjectType, Field, registerEnumType } from '@nestjs/graphql';
 
 import { BaseEntity } from './base.entity';
-import { TeamPlayer } from './team-player.entity';
-import { TeamCoach } from './team-coach.entity';
 import { GameEvent } from './game-event.entity';
 import { TeamMember } from './team-member.entity';
 
@@ -74,14 +72,6 @@ export class User extends BaseEntity {
     default: LastNameVisibility.TEAM_ONLY,
   })
   lastNameVisibility: LastNameVisibility;
-
-  @Field(() => [TeamPlayer])
-  @OneToMany(() => TeamPlayer, (teamPlayer) => teamPlayer.user)
-  teamPlayers: TeamPlayer[];
-
-  @Field(() => [TeamCoach])
-  @OneToMany(() => TeamCoach, (teamCoach) => teamCoach.user)
-  teamCoaches: TeamCoach[];
 
   @Field(() => [GameEvent])
   @OneToMany(() => GameEvent, (gameEvent) => gameEvent.player)

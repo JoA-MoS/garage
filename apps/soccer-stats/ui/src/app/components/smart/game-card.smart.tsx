@@ -26,13 +26,13 @@ export const GameCardFragment = graphql(/* GraphQL */ `
       scheduledStart
       venue
       createdAt
-      gameFormat {
+      format {
         id
         name
         playersPerTeam
         durationMinutes
       }
-      gameTeams {
+      teams {
         id
         teamType
         finalScore
@@ -62,13 +62,13 @@ export interface GameCardInfo {
   scheduledStart?: string | null;
   venue?: string | null;
   createdAt: string;
-  gameFormat: {
+  format: {
     id: string;
     name: string;
     playersPerTeam: number;
     durationMinutes: number;
   };
-  gameTeams: readonly {
+  teams: readonly {
     id: string;
     teamType: string;
     finalScore?: number | null;
@@ -104,8 +104,8 @@ export function useGameCardData(gameTeamFragment: GameCardData): GameCardInfo {
       scheduledStart: gameTeam.game.scheduledStart,
       venue: gameTeam.game.venue,
       createdAt: gameTeam.game.createdAt,
-      gameFormat: gameTeam.game.gameFormat,
-      gameTeams: gameTeam.game.gameTeams ?? [],
+      format: gameTeam.game.format,
+      teams: gameTeam.game.teams ?? [],
       currentTeamType: gameTeam.teamType,
       currentTeamScore: gameTeam.finalScore,
     }),
@@ -131,8 +131,8 @@ export function useGameCardsData(
         scheduledStart: gameTeam.game.scheduledStart,
         venue: gameTeam.game.venue,
         createdAt: gameTeam.game.createdAt,
-        gameFormat: gameTeam.game.gameFormat,
-        gameTeams: gameTeam.game.gameTeams ?? [],
+        format: gameTeam.game.format,
+        teams: gameTeam.game.teams ?? [],
         currentTeamType: gameTeam.teamType,
         currentTeamScore: gameTeam.finalScore,
       })),

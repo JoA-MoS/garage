@@ -117,13 +117,13 @@ export class Game extends BaseEntity {
     nullable: false,
   })
   @JoinColumn({ name: 'gameFormatId' })
-  gameFormat: GameFormat;
+  format: GameFormat;
 
   @Field(() => [GameTeam], { nullable: true })
   @OneToMany(() => GameTeam, (gameTeam) => gameTeam.game, { cascade: true })
-  gameTeams: GameTeam[];
+  teams: GameTeam[];
 
   @Field(() => [GameEvent], { nullable: true })
   @OneToMany(() => GameEvent, (gameTeam) => gameTeam.game, { cascade: true })
-  gameEvents: GameEvent[];
+  events: GameEvent[];
 }

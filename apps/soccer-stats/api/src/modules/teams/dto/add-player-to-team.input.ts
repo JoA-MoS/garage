@@ -1,5 +1,5 @@
-import { InputType, Field, ID, Int } from '@nestjs/graphql';
-import { IsUUID, IsInt, IsOptional, IsBoolean } from 'class-validator';
+import { InputType, Field, ID } from '@nestjs/graphql';
+import { IsUUID, IsOptional, IsString, MaxLength } from 'class-validator';
 
 @InputType()
 export class AddPlayerToTeamInput {
@@ -11,17 +11,15 @@ export class AddPlayerToTeamInput {
   @IsUUID()
   playerId: string;
 
-  @Field(() => Int)
-  @IsInt()
-  jersey: number;
-
-  @Field(() => Int, { defaultValue: 1 })
+  @Field({ nullable: true })
   @IsOptional()
-  @IsInt()
-  depthRank?: number;
+  @IsString()
+  @MaxLength(10)
+  jerseyNumber?: string;
 
-  @Field({ defaultValue: true })
+  @Field({ nullable: true })
   @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  @IsString()
+  @MaxLength(50)
+  primaryPosition?: string;
 }

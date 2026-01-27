@@ -28,16 +28,16 @@ export const GamesListSmart = ({
   // Transform data to presentation props - temporary implementation
   const games = gameData.map((game: any) => {
     // Business logic: Extract team information
-    const homeTeam = game.gameTeams?.find((gt: any) => gt.teamType === 'HOME')
+    const homeTeam = game.teams?.find((gt: any) => gt.teamType === 'HOME')
       ?.team || { id: '', name: 'TBD' };
-    const awayTeam = game.gameTeams?.find((gt: any) => gt.teamType === 'AWAY')
+    const awayTeam = game.teams?.find((gt: any) => gt.teamType === 'AWAY')
       ?.team || { id: '', name: 'TBD' };
 
     // Business logic: Extract scores
-    const homeScore = game.gameTeams?.find(
+    const homeScore = game.teams?.find(
       (gt: any) => gt.teamType === 'HOME',
     )?.finalScore;
-    const awayScore = game.gameTeams?.find(
+    const awayScore = game.teams?.find(
       (gt: any) => gt.teamType === 'AWAY',
     )?.finalScore;
 
@@ -61,7 +61,7 @@ export const GamesListSmart = ({
       },
       homeScore,
       awayScore,
-      gameFormatName: game.gameFormat?.name,
+      gameFormatName: game.format?.name,
     };
   });
 

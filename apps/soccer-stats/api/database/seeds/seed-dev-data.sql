@@ -26,14 +26,19 @@ VALUES
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 
 -- ============================================
--- TEAM MEMBERSHIP (Link user to team)
+-- TEAM MEMBERSHIP (Link user to team with new schema)
 -- ============================================
 
--- Add joamos.dev@gmail.com as manager of Thunder FC
-INSERT INTO team_members (id, "teamId", "userId", role, "acceptedAt", "createdAt", "updatedAt")
-SELECT 'd4e5f6a7-b8c9-0123-defa-234567890123', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', id, 'MANAGER', NOW(), NOW(), NOW()
+-- Add joamos.dev@gmail.com as member of Thunder FC
+INSERT INTO team_members (id, "teamId", "userId", "joinedDate", "isActive", "acceptedAt", "createdAt", "updatedAt")
+SELECT 'd4e5f6a7-b8c9-0123-defa-234567890123', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', id, NOW(), true, NOW(), NOW(), NOW()
 FROM users WHERE email = 'joamos.dev@gmail.com'
 ON CONFLICT (id) DO NOTHING;
+
+-- Add MANAGER role to joamos.dev@gmail.com
+INSERT INTO team_member_roles (id, "teamMemberId", role, "roleData", "createdAt", "updatedAt")
+VALUES ('d4e5f6a7-b8c9-0123-defa-234567890124', 'd4e5f6a7-b8c9-0123-defa-234567890123', 'MANAGER', '{}', NOW(), NOW())
+ON CONFLICT ("teamMemberId", role) DO NOTHING;
 
 -- ============================================
 -- TEAM CONFIGURATION
@@ -44,7 +49,7 @@ VALUES ('e5f6a7b8-c9d0-1234-efab-345678901234', 'a1b2c3d4-e5f6-7890-abcd-ef12345
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================
--- PLAYERS (Create users first, then link to team)
+-- PLAYERS (Create users first, then link to team using new schema)
 -- ============================================
 
 -- Create player users
@@ -60,18 +65,31 @@ VALUES
   ('11000001-0000-0000-0000-000000000008', 'player8@example.com', 'Jamie', 'Taylor', NOW(), NOW())
 ON CONFLICT (email) DO UPDATE SET "firstName" = EXCLUDED."firstName", "lastName" = EXCLUDED."lastName";
 
--- Link players to Thunder FC
-INSERT INTO team_players (id, "teamId", "userId", "jerseyNumber", "primaryPosition", "createdAt", "updatedAt")
+-- Create team_members records for players
+INSERT INTO team_members (id, "teamId", "userId", "joinedDate", "isActive", "createdAt", "updatedAt")
 VALUES
-  ('22000001-0000-0000-0000-000000000001', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '11000001-0000-0000-0000-000000000001', '1', 'GK', NOW(), NOW()),
-  ('22000001-0000-0000-0000-000000000002', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '11000001-0000-0000-0000-000000000002', '7', 'LW', NOW(), NOW()),
-  ('22000001-0000-0000-0000-000000000003', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '11000001-0000-0000-0000-000000000003', '10', 'CM', NOW(), NOW()),
-  ('22000001-0000-0000-0000-000000000004', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '11000001-0000-0000-0000-000000000004', '4', 'CB', NOW(), NOW()),
-  ('22000001-0000-0000-0000-000000000005', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '11000001-0000-0000-0000-000000000005', '9', 'ST', NOW(), NOW()),
-  ('22000001-0000-0000-0000-000000000006', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '11000001-0000-0000-0000-000000000006', '11', 'RW', NOW(), NOW()),
-  ('22000001-0000-0000-0000-000000000007', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '11000001-0000-0000-0000-000000000007', '5', 'CDM', NOW(), NOW()),
-  ('22000001-0000-0000-0000-000000000008', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '11000001-0000-0000-0000-000000000008', '3', 'LB', NOW(), NOW())
-ON CONFLICT (id) DO UPDATE SET "jerseyNumber" = EXCLUDED."jerseyNumber", "primaryPosition" = EXCLUDED."primaryPosition";
+  ('22000001-0000-0000-0000-000000000001', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '11000001-0000-0000-0000-000000000001', NOW(), true, NOW(), NOW()),
+  ('22000001-0000-0000-0000-000000000002', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '11000001-0000-0000-0000-000000000002', NOW(), true, NOW(), NOW()),
+  ('22000001-0000-0000-0000-000000000003', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '11000001-0000-0000-0000-000000000003', NOW(), true, NOW(), NOW()),
+  ('22000001-0000-0000-0000-000000000004', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '11000001-0000-0000-0000-000000000004', NOW(), true, NOW(), NOW()),
+  ('22000001-0000-0000-0000-000000000005', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '11000001-0000-0000-0000-000000000005', NOW(), true, NOW(), NOW()),
+  ('22000001-0000-0000-0000-000000000006', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '11000001-0000-0000-0000-000000000006', NOW(), true, NOW(), NOW()),
+  ('22000001-0000-0000-0000-000000000007', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '11000001-0000-0000-0000-000000000007', NOW(), true, NOW(), NOW()),
+  ('22000001-0000-0000-0000-000000000008', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '11000001-0000-0000-0000-000000000008', NOW(), true, NOW(), NOW())
+ON CONFLICT (id) DO NOTHING;
+
+-- Create PLAYER roles with jerseyNumber and primaryPosition in roleData
+INSERT INTO team_member_roles (id, "teamMemberId", role, "roleData", "createdAt", "updatedAt")
+VALUES
+  ('23000001-0000-0000-0000-000000000001', '22000001-0000-0000-0000-000000000001', 'PLAYER', '{"jerseyNumber": "1", "primaryPosition": "GK"}', NOW(), NOW()),
+  ('23000001-0000-0000-0000-000000000002', '22000001-0000-0000-0000-000000000002', 'PLAYER', '{"jerseyNumber": "7", "primaryPosition": "LW"}', NOW(), NOW()),
+  ('23000001-0000-0000-0000-000000000003', '22000001-0000-0000-0000-000000000003', 'PLAYER', '{"jerseyNumber": "10", "primaryPosition": "CM"}', NOW(), NOW()),
+  ('23000001-0000-0000-0000-000000000004', '22000001-0000-0000-0000-000000000004', 'PLAYER', '{"jerseyNumber": "4", "primaryPosition": "CB"}', NOW(), NOW()),
+  ('23000001-0000-0000-0000-000000000005', '22000001-0000-0000-0000-000000000005', 'PLAYER', '{"jerseyNumber": "9", "primaryPosition": "ST"}', NOW(), NOW()),
+  ('23000001-0000-0000-0000-000000000006', '22000001-0000-0000-0000-000000000006', 'PLAYER', '{"jerseyNumber": "11", "primaryPosition": "RW"}', NOW(), NOW()),
+  ('23000001-0000-0000-0000-000000000007', '22000001-0000-0000-0000-000000000007', 'PLAYER', '{"jerseyNumber": "5", "primaryPosition": "CDM"}', NOW(), NOW()),
+  ('23000001-0000-0000-0000-000000000008', '22000001-0000-0000-0000-000000000008', 'PLAYER', '{"jerseyNumber": "3", "primaryPosition": "LB"}', NOW(), NOW())
+ON CONFLICT ("teamMemberId", role) DO UPDATE SET "roleData" = EXCLUDED."roleData";
 
 -- ============================================
 -- GAME 1: Completed (Thunder FC 3-0 Lightning United, 7 days ago)
@@ -101,6 +119,7 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- Game 1 goals (Thunder FC scores 3)
+-- Note: playerId now references users table directly (player users)
 INSERT INTO game_events (id, "gameId", "gameTeamId", "eventTypeId", "playerId", "recordedByUserId", "gameMinute", "gameSecond", "createdAt", "updatedAt")
 VALUES
   ('55000001-0000-0000-0000-000000000010', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'GOAL'), '11000001-0000-0000-0000-000000000005', (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 12, 30, NOW() - INTERVAL '7 days' + INTERVAL '12 minutes', NOW()),
@@ -201,6 +220,7 @@ COMMIT;
 -- ============================================
 SELECT 'Seed completed!' as status;
 SELECT 'Teams: ' || COUNT(*) FROM teams WHERE id IN ('a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'b2c3d4e5-f6a7-8901-bcde-f12345678901', 'c3d4e5f6-a7b8-9012-cdef-123456789012');
-SELECT 'Players: ' || COUNT(*) FROM team_players WHERE "teamId" = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+SELECT 'Team Members: ' || COUNT(*) FROM team_members WHERE "teamId" = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+SELECT 'Team Member Roles: ' || COUNT(*) FROM team_member_roles WHERE "teamMemberId" IN (SELECT id FROM team_members WHERE "teamId" = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890');
 SELECT 'Games: ' || COUNT(*) FROM games WHERE id::text LIKE '33000001%';
 SELECT 'Events: ' || COUNT(*) FROM game_events WHERE "gameId"::text LIKE '33000001%';
