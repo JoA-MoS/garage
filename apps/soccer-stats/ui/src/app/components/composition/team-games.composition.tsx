@@ -36,7 +36,7 @@ const TeamGamesPageQuery = graphql(/* GraphQL */ `
       id
       name
       shortName
-      gameTeams {
+      games {
         ...GameCard
       }
     }
@@ -128,7 +128,7 @@ export const TeamGamesComposition = ({ teamId }: TeamGamesCompositionProps) => {
   }
 
   // Extract data for smart component
-  const gameTeams = pageData?.team?.gameTeams ?? [];
+  const gameTeams = pageData?.team?.games ?? [];
   const opponents = modalData?.teams ?? [];
   const gameFormats = modalData?.gameFormats ?? [];
 

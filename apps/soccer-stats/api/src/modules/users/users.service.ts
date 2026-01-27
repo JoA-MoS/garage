@@ -42,7 +42,7 @@ export class UsersService {
     switch (userType) {
       case UserType.PLAYER:
         queryBuilder
-          .leftJoinAndSelect('user.teamPlayers', 'teamPlayer')
+          .leftJoinAndSelect('user.playerTeams', 'teamPlayer')
           .andWhere('teamPlayer.isActive = :teamPlayerActive', {
             teamPlayerActive: true,
           });
@@ -50,7 +50,7 @@ export class UsersService {
 
       case UserType.COACH:
         queryBuilder
-          .leftJoinAndSelect('user.teamCoaches', 'teamCoach')
+          .leftJoinAndSelect('user.coachTeams', 'teamCoach')
           .andWhere('teamCoach.isActive = :teamCoachActive', {
             teamCoachActive: true,
           });
@@ -58,8 +58,8 @@ export class UsersService {
 
       case UserType.ALL:
         queryBuilder
-          .leftJoinAndSelect('user.teamPlayers', 'teamPlayer')
-          .leftJoinAndSelect('user.teamCoaches', 'teamCoach');
+          .leftJoinAndSelect('user.playerTeams', 'teamPlayer')
+          .leftJoinAndSelect('user.coachTeams', 'teamCoach');
         break;
     }
 
@@ -70,9 +70,9 @@ export class UsersService {
     const user = await this.userRepository.findOne({
       where: { id },
       relations: [
-        'teamPlayers',
+        'playerTeams',
         'teamPlayers.team',
-        'teamCoaches',
+        'coachTeams',
         'teamCoaches.team',
       ],
     });
@@ -275,7 +275,7 @@ export class UsersService {
     switch (userType) {
       case UserType.PLAYER:
         queryBuilder
-          .leftJoinAndSelect('user.teamPlayers', 'teamPlayer')
+          .leftJoinAndSelect('user.playerTeams', 'teamPlayer')
           .andWhere('teamPlayer.isActive = :teamPlayerActive', {
             teamPlayerActive: true,
           });
@@ -283,7 +283,7 @@ export class UsersService {
 
       case UserType.COACH:
         queryBuilder
-          .leftJoinAndSelect('user.teamCoaches', 'teamCoach')
+          .leftJoinAndSelect('user.coachTeams', 'teamCoach')
           .andWhere('teamCoach.isActive = :teamCoachActive', {
             teamCoachActive: true,
           });
@@ -291,8 +291,8 @@ export class UsersService {
 
       case UserType.ALL:
         queryBuilder
-          .leftJoinAndSelect('user.teamPlayers', 'teamPlayer')
-          .leftJoinAndSelect('user.teamCoaches', 'teamCoach');
+          .leftJoinAndSelect('user.playerTeams', 'teamPlayer')
+          .leftJoinAndSelect('user.coachTeams', 'teamCoach');
         break;
     }
 
@@ -302,10 +302,10 @@ export class UsersService {
   // Player-specific queries
   async findByPosition(position: string): Promise<User[]> {
     return this.userRepository.find({
-      relations: ['teamPlayers'],
+      relations: ['playerTeams'],
       where: {
         isActive: true,
-        teamPlayers: {
+        playerTeams: {
           primaryPosition: position,
           isActive: true,
         },
@@ -316,10 +316,10 @@ export class UsersService {
   // Coach-specific queries
   async findByCoachRole(role: string): Promise<User[]> {
     return this.userRepository.find({
-      relations: ['teamCoaches'],
+      relations: ['coachTeams'],
       where: {
         isActive: true,
-        teamCoaches: {
+        coachTeams: {
           role,
           isActive: true,
         },
@@ -338,7 +338,7 @@ export class UsersService {
     switch (userType) {
       case UserType.PLAYER:
         queryBuilder
-          .leftJoinAndSelect('user.teamPlayers', 'teamPlayer')
+          .leftJoinAndSelect('user.playerTeams', 'teamPlayer')
           .andWhere('teamPlayer.teamId = :teamId', { teamId })
           .andWhere('teamPlayer.isActive = :teamPlayerActive', {
             teamPlayerActive: true,
@@ -347,7 +347,7 @@ export class UsersService {
 
       case UserType.COACH:
         queryBuilder
-          .leftJoinAndSelect('user.teamCoaches', 'teamCoach')
+          .leftJoinAndSelect('user.coachTeams', 'teamCoach')
           .andWhere('teamCoach.teamId = :teamId', { teamId })
           .andWhere('teamCoach.isActive = :teamCoachActive', {
             teamCoachActive: true,
@@ -356,8 +356,8 @@ export class UsersService {
 
       case UserType.ALL:
         queryBuilder
-          .leftJoinAndSelect('user.teamPlayers', 'teamPlayer')
-          .leftJoinAndSelect('user.teamCoaches', 'teamCoach')
+          .leftJoinAndSelect('user.playerTeams', 'teamPlayer')
+          .leftJoinAndSelect('user.coachTeams', 'teamCoach')
           .andWhere(
             '(teamPlayer.teamId = :teamId AND teamPlayer.isActive = :teamPlayerActive) OR (teamCoach.teamId = :teamId AND teamCoach.isActive = :teamCoachActive)',
             { teamId, teamPlayerActive: true, teamCoachActive: true },

@@ -21,10 +21,10 @@ import { RECORD_POSITION_CHANGE } from '../services/games-graphql.service';
 
 // Extract TeamPlayer type from query result
 type GameTeamFromQuery = NonNullable<
-  NonNullable<GetGameByIdQuery['game']['gameTeams']>[number]
+  NonNullable<GetGameByIdQuery['game']['teams']>[number]
 >;
 type TeamPlayerFromQuery = NonNullable<
-  NonNullable<GameTeamFromQuery['team']['teamPlayers']>[number]
+  NonNullable<GameTeamFromQuery['team']['roster']>[number]
 >;
 
 export interface UseLineupOptions {
@@ -150,15 +150,15 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
 
   // Get the team roster from game data
   const teamRoster = useMemo((): RosterPlayer[] => {
-    if (!gameData?.game?.gameTeams) return [];
+    if (!gameData?.game?.teams) return [];
 
-    const gameTeam = gameData.game.gameTeams.find(
+    const gameTeam = gameData.game.teams.find(
       (gt: GameTeamFromQuery) => gt.id === gameTeamId,
     );
 
-    if (!gameTeam?.team?.teamPlayers) return [];
+    if (!gameTeam?.team?.roster) return [];
 
-    return gameTeam.team.teamPlayers
+    return gameTeam.team.roster
       .filter((tp: TeamPlayerFromQuery) => tp.isActive && !!tp.user)
       .map((tp: TeamPlayerFromQuery) => ({
         id: tp.id,

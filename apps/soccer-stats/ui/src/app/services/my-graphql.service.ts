@@ -44,7 +44,7 @@ export const GET_MY_DASHBOARD = graphql(/* GraphQL */ `
         scheduledStart
         status
         venue
-        gameTeams {
+        teams {
           id
           teamType
           team {
@@ -60,7 +60,7 @@ export const GET_MY_DASHBOARD = graphql(/* GraphQL */ `
         name
         status
         actualEnd
-        gameTeams {
+        teams {
           id
           teamType
           finalScore
@@ -77,7 +77,7 @@ export const GET_MY_DASHBOARD = graphql(/* GraphQL */ `
         name
         status
         actualStart
-        gameTeams {
+        teams {
           id
           teamType
           finalScore
@@ -127,7 +127,7 @@ export const GET_MY_LIVE_GAMES = graphql(/* GraphQL */ `
         status
         actualStart
         pausedAt
-        gameTeams {
+        teams {
           id
           teamType
           finalScore

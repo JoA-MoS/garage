@@ -36,8 +36,8 @@ interface GameInfo {
   scheduledStart?: string | null;
   venue?: string | null;
   createdAt: string;
-  gameFormat: GameFormatInfo;
-  gameTeams: readonly GameTeamInfo[];
+  format: GameFormatInfo;
+  teams: readonly GameTeamInfo[];
   /** Which side the current team is on */
   currentTeamType: string;
   currentTeamScore?: number | null;
@@ -114,7 +114,7 @@ export const TeamGamesPresentation = ({
   };
 
   const getOpponentTeam = (game: GameInfo) => {
-    return game.gameTeams.find((gt) => gt.team.id !== teamId)?.team;
+    return game.teams.find((gt) => gt.team.id !== teamId)?.team;
   };
 
   const isHomeTeam = (game: GameInfo) => {
@@ -291,7 +291,7 @@ export const TeamGamesPresentation = ({
                     {statusInfo.text}
                   </span>
                   <span className="text-sm text-gray-500">
-                    {game.gameFormat?.name || 'Unknown Format'}
+                    {game.format?.name || 'Unknown Format'}
                   </span>
                 </div>
 

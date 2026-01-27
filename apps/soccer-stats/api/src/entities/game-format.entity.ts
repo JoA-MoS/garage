@@ -41,7 +41,7 @@ export class GameFormat extends BaseEntity {
   maxSubstitutions?: number; // Maximum substitutions allowed
 
   @Field(() => [Game])
-  @OneToMany(() => Game, (game) => game.gameFormat)
+  @OneToMany(() => Game, (game) => game.format)
   games: Game[];
 
   @Field(() => [TeamConfiguration])

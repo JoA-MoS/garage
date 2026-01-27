@@ -17,7 +17,7 @@ export const UserCardFragment = graphql(/* GraphQL */ `
     email
     phone
     isActive
-    teamPlayers {
+    playerTeams {
       id
       jerseyNumber
       primaryPosition
@@ -58,7 +58,7 @@ export const UserCardSmartComponent = ({
     onToggleActive(user.id, !user.isActive);
   }, [user.id, user.isActive, onToggleActive]);
 
-  const primaryTeam = user.teamPlayers?.[0]?.team;
+  const primaryTeam = user.playerTeams?.[0]?.team;
 
   return (
     <UserCard
@@ -68,10 +68,10 @@ export const UserCardSmartComponent = ({
       email={user.email || ''}
       phone={user.phone || ''}
       isActive={user.isActive}
-      teamCount={user.teamPlayers?.length || 0}
+      teamCount={user.playerTeams?.length || 0}
       primaryTeam={primaryTeam?.name || ''}
-      primaryPosition={user.teamPlayers?.[0]?.primaryPosition || ''}
-      primaryJersey={user.teamPlayers?.[0]?.jerseyNumber?.toString() || ''}
+      primaryPosition={user.playerTeams?.[0]?.primaryPosition || ''}
+      primaryJersey={user.playerTeams?.[0]?.jerseyNumber?.toString() || ''}
       onEditClick={handleEdit}
       onViewClick={handleView}
       onToggleActiveClick={handleToggleActive}

@@ -25,13 +25,13 @@ export const GET_GAMES = graphql(/* GraphQL */ `
       notes
       venue
       weatherConditions
-      gameFormat {
+      format {
         id
         name
         playersPerTeam
         durationMinutes
       }
-      gameTeams {
+      teams {
         id
         teamType
         finalScore
@@ -66,13 +66,13 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
       notes
       venue
       weatherConditions
-      gameFormat {
+      format {
         id
         name
         playersPerTeam
         durationMinutes
       }
-      gameTeams {
+      teams {
         id
         teamType
         finalScore
@@ -85,7 +85,7 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
           homePrimaryColor
           homeSecondaryColor
           isManaged
-          teamPlayers {
+          roster {
             id
             userId
             jerseyNumber
@@ -99,7 +99,7 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
             }
           }
         }
-        gameEvents {
+        events {
           id
           createdAt
           gameMinute
@@ -226,8 +226,8 @@ export interface Game {
   notes?: string;
   venue?: string;
   weatherConditions?: string;
-  gameFormat?: GameFormat;
-  gameTeams?: GameTeam[];
+  format?: GameFormat;
+  teams?: GameTeam[];
   createdAt: string;
   updatedAt: string;
 }

@@ -37,12 +37,12 @@ export class TeamPlayer extends BaseEntity {
   isActive: boolean;
 
   @Field(() => Team)
-  @ManyToOne(() => Team, (team) => team.teamPlayers, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Team, (team) => team.roster, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'teamId' })
   team: Team;
 
   @Field(() => User)
-  @ManyToOne(() => User, (user) => user.teamPlayers, {
+  @ManyToOne(() => User, (user) => user.playerTeams, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'userId' })

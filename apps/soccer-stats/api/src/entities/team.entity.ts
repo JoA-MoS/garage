@@ -83,19 +83,19 @@ export class Team extends BaseEntity {
 
   @Field(() => [GameTeam], { nullable: true })
   @OneToMany(() => GameTeam, (gameTeam) => gameTeam.team, { cascade: true })
-  gameTeams: GameTeam[];
+  games: GameTeam[];
 
   @Field(() => [TeamPlayer], { nullable: true })
   @OneToMany(() => TeamPlayer, (teamPlayer) => teamPlayer.team, {
     cascade: true,
   })
-  teamPlayers: TeamPlayer[];
+  roster: TeamPlayer[];
 
   @Field(() => [TeamCoach], { nullable: true })
   @OneToMany(() => TeamCoach, (teamCoach) => teamCoach.team, {
     cascade: true,
   })
-  teamCoaches: TeamCoach[];
+  coaches: TeamCoach[];
 
   @Field(() => TeamConfiguration, { nullable: true })
   @OneToOne(
@@ -103,7 +103,7 @@ export class Team extends BaseEntity {
     (teamConfiguration) => teamConfiguration.team,
     {
       cascade: true,
-    }
+    },
   )
   teamConfiguration?: TeamConfiguration;
 

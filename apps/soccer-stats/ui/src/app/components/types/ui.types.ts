@@ -92,7 +92,7 @@ export interface UITeamPlayer {
 
 export interface UITeamWithPlayers extends UITeam {
   players: UIPlayer[];
-  teamPlayers: UITeamPlayer[];
+  roster: UITeamPlayer[];
   playersWithJersey: UITeamPlayerWithJersey[];
 }
 

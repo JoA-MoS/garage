@@ -25,7 +25,7 @@ export const GET_ALL_USERS = graphql(`
         name
         shortName
       }
-      teamPlayers {
+      playerTeams {
         id
         jerseyNumber
         primaryPosition
@@ -38,7 +38,7 @@ export const GET_ALL_USERS = graphql(`
           shortName
         }
       }
-      teamCoaches {
+      coachTeams {
         id
         role
         startDate
@@ -67,14 +67,14 @@ export const GET_USERS_BY_TEAM = graphql(`
       email
       phone
       isActive
-      teamPlayers {
+      playerTeams {
         id
         jerseyNumber
         primaryPosition
         joinedDate
         isActive
       }
-      teamCoaches {
+      coachTeams {
         id
         role
         startDate
@@ -94,13 +94,13 @@ export const SEARCH_USERS_BY_NAME = graphql(`
       firstName
       lastName
       email
-      teamPlayers {
+      playerTeams {
         team {
           name
         }
         primaryPosition
       }
-      teamCoaches {
+      coachTeams {
         team {
           name
         }
@@ -135,7 +135,7 @@ export const GET_PLAYERS = graphql(`
         name
         shortName
       }
-      teamPlayers {
+      playerTeams {
         id
         jerseyNumber
         primaryPosition
@@ -161,7 +161,7 @@ export const GET_PLAYERS_BY_TEAM = graphql(`
       id
       firstName
       lastName
-      teamPlayers {
+      playerTeams {
         id
         jerseyNumber
         primaryPosition
@@ -181,7 +181,7 @@ export const GET_PLAYERS_BY_POSITION = graphql(`
       id
       firstName
       lastName
-      teamPlayers {
+      playerTeams {
         id
         jerseyNumber
         team {
@@ -201,7 +201,7 @@ export const SEARCH_PLAYERS_BY_NAME = graphql(`
       id
       firstName
       lastName
-      teamPlayers {
+      playerTeams {
         team {
           name
         }
@@ -236,7 +236,7 @@ export const GET_COACHES = graphql(`
         name
         shortName
       }
-      teamCoaches {
+      coachTeams {
         id
         role
         startDate
@@ -261,7 +261,7 @@ export const GET_COACHES_BY_TEAM = graphql(`
       id
       firstName
       lastName
-      teamCoaches {
+      coachTeams {
         id
         role
         startDate
@@ -280,7 +280,7 @@ export const GET_COACHES_BY_ROLE = graphql(`
       id
       firstName
       lastName
-      teamCoaches {
+      coachTeams {
         id
         startDate
         team {
@@ -300,7 +300,7 @@ export const SEARCH_COACHES_BY_NAME = graphql(`
       id
       firstName
       lastName
-      teamCoaches {
+      coachTeams {
         team {
           name
         }
@@ -334,7 +334,7 @@ export const GET_USER_BY_ID = graphql(`
         name
         shortName
       }
-      teamPlayers {
+      playerTeams {
         id
         jerseyNumber
         primaryPosition
@@ -347,7 +347,7 @@ export const GET_USER_BY_ID = graphql(`
           shortName
         }
       }
-      teamCoaches {
+      coachTeams {
         id
         role
         startDate
@@ -627,8 +627,8 @@ export type User = {
   createdAt: Date;
   updatedAt: Date;
   teams?: Team[];
-  teamPlayers?: TeamPlayer[];
-  teamCoaches?: TeamCoach[];
+  playerTeams?: TeamPlayer[];
+  coachTeams?: TeamCoach[];
 };
 
 export type Team = {

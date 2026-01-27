@@ -56,8 +56,8 @@ export const DashboardPage = () => {
                 liveGames.length > 1 ? 's' : ''
               } in progress!`
             : hasUpcomingGames
-            ? 'Check out your upcoming games below.'
-            : "Ready to track some soccer stats? Let's get started!"}
+              ? 'Check out your upcoming games below.'
+              : "Ready to track some soccer stats? Let's get started!"}
         </p>
       </div>
 
@@ -70,12 +70,8 @@ export const DashboardPage = () => {
           </h2>
           <div className="space-y-2">
             {liveGames.map((game) => {
-              const homeTeam = game.gameTeams?.find(
-                (gt) => gt.teamType === 'HOME'
-              );
-              const awayTeam = game.gameTeams?.find(
-                (gt) => gt.teamType === 'AWAY'
-              );
+              const homeTeam = game.teams?.find((gt) => gt.teamType === 'HOME');
+              const awayTeam = game.teams?.find((gt) => gt.teamType === 'AWAY');
               return (
                 <Link
                   key={game.id}
@@ -149,11 +145,11 @@ export const DashboardPage = () => {
           {hasUpcomingGames ? (
             <div className="space-y-3">
               {upcomingGames.map((game) => {
-                const homeTeam = game.gameTeams?.find(
-                  (gt) => gt.teamType === 'HOME'
+                const homeTeam = game.teams?.find(
+                  (gt) => gt.teamType === 'HOME',
                 );
-                const awayTeam = game.gameTeams?.find(
-                  (gt) => gt.teamType === 'AWAY'
+                const awayTeam = game.teams?.find(
+                  (gt) => gt.teamType === 'AWAY',
                 );
                 return (
                   <Link
@@ -175,7 +171,7 @@ export const DashboardPage = () => {
                               day: 'numeric',
                               hour: 'numeric',
                               minute: '2-digit',
-                            }
+                            },
                           )
                         : 'Time TBD'}
                       {game.venue && ` • ${game.venue}`}
@@ -205,11 +201,11 @@ export const DashboardPage = () => {
           {hasRecentGames ? (
             <div className="space-y-3">
               {recentGames.map((game) => {
-                const homeTeam = game.gameTeams?.find(
-                  (gt) => gt.teamType === 'HOME'
+                const homeTeam = game.teams?.find(
+                  (gt) => gt.teamType === 'HOME',
                 );
-                const awayTeam = game.gameTeams?.find(
-                  (gt) => gt.teamType === 'AWAY'
+                const awayTeam = game.teams?.find(
+                  (gt) => gt.teamType === 'AWAY',
                 );
                 return (
                   <Link

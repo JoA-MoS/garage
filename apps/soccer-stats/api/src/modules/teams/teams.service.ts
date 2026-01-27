@@ -96,9 +96,9 @@ export class TeamsService {
 
   async findByPlayerId(playerId: string): Promise<Team[]> {
     return this.teamRepository.find({
-      relations: ['teamPlayers'],
+      relations: ['roster'],
       where: {
-        teamPlayers: {
+        roster: {
           user: { id: playerId },
           isActive: true,
         },
@@ -108,9 +108,9 @@ export class TeamsService {
 
   async findByCoachId(coachId: string): Promise<Team[]> {
     return this.teamRepository.find({
-      relations: ['teamCoaches'],
+      relations: ['coaches'],
       where: {
-        teamCoaches: {
+        coaches: {
           user: { id: coachId },
           isActive: true,
         },
@@ -171,7 +171,7 @@ export class TeamsService {
     // For now, use query builder
     const coachCount = await this.teamRepository
       .createQueryBuilder('team')
-      .leftJoin('team.teamCoaches', 'teamCoach')
+      .leftJoin('team.coaches', 'teamCoach')
       .leftJoin('teamCoach.user', 'coachUser')
       .where('team.id = :teamId', { teamId })
       .andWhere('coachUser.id = :userId', { userId })

@@ -53,23 +53,23 @@ export class GameTeamResolver {
   }
 
   /**
-   * Resolves the 'gameEvents' field on GameTeam.
-   * Uses DataLoader to batch multiple gameEvents lookups into a single query.
+   * Resolves the 'events' field on GameTeam.
+   * Uses DataLoader to batch multiple events lookups into a single query.
    *
    * This is the primary access path for game events in the frontend,
-   * which queries events through gameTeams[].gameEvents.
+   * which queries events through teams[].events.
    */
   @ResolveField(() => [GameEvent], {
     nullable: true,
     description: 'All events for this team in this game',
   })
-  async gameEvents(
+  async events(
     @Parent() gameTeam: GameTeam,
     @Context() context: GraphQLContext,
   ): Promise<GameEvent[]> {
-    // If gameEvents was already loaded (e.g., via eager loading), return it
-    if (gameTeam.gameEvents !== undefined) {
-      return gameTeam.gameEvents;
+    // If events was already loaded (e.g., via eager loading), return it
+    if (gameTeam.events !== undefined) {
+      return gameTeam.events;
     }
     // Otherwise, use DataLoader to batch the query
     return context.loaders.gameEventsByGameTeamLoader.load(gameTeam.id);
