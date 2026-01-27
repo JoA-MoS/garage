@@ -5,7 +5,12 @@ import {
   GraphQLRequestContext,
   BaseContext,
 } from '@apollo/server';
-import { GraphQLError, DocumentNode, OperationDefinitionNode } from 'graphql';
+import { DocumentNode, GraphQLError, GraphQLSchema } from 'graphql';
+import {
+  getComplexity,
+  fieldExtensionsEstimator,
+  simpleEstimator,
+} from 'graphql-query-complexity';
 
 import {
   getObservabilityLogLevel,
@@ -17,81 +22,23 @@ import {
 import { ObservabilityService } from './observability.service';
 
 /**
- * Calculate a simple depth-based complexity score for a GraphQL document.
- * This is a heuristic - not a full query complexity analysis.
- *
- * @param document - The parsed GraphQL document
- * @returns Complexity score based on field depth and count
- */
-function calculateQueryComplexity(document: DocumentNode): number {
-  let complexity = 0;
-
-  function visitNode(
-    node: unknown,
-    depth: number,
-    visited: WeakSet<object>,
-  ): void {
-    if (!node || typeof node !== 'object') {
-      return;
-    }
-
-    // Prevent cycles
-    if (visited.has(node)) {
-      return;
-    }
-    visited.add(node);
-
-    const typedNode = node as { kind?: string; selectionSet?: unknown };
-
-    // Count each field selection, weighted by depth
-    if (typedNode.kind === 'Field') {
-      complexity += depth;
-    }
-
-    // Recurse into selection sets
-    if (typedNode.selectionSet) {
-      const selectionSet = typedNode.selectionSet as {
-        selections?: unknown[];
-      };
-      if (Array.isArray(selectionSet.selections)) {
-        for (const selection of selectionSet.selections) {
-          visitNode(selection, depth + 1, visited);
-        }
-      }
-    }
-
-    // Handle operation definitions
-    if (typedNode.kind === 'OperationDefinition') {
-      const opNode = node as OperationDefinitionNode;
-      if (opNode.selectionSet?.selections) {
-        for (const selection of opNode.selectionSet.selections) {
-          visitNode(selection, 1, visited);
-        }
-      }
-    }
-  }
-
-  const visited = new WeakSet<object>();
-  for (const definition of document.definitions) {
-    visitNode(definition, 0, visited);
-  }
-
-  return complexity;
-}
-
-/**
  * Apollo Server plugin for GraphQL observability.
  *
  * Features:
- * - Calculate and log query complexity
+ * - Calculate query complexity using graphql-query-complexity library
+ * - Support for @Complexity decorators on TypeGraphQL fields
  * - Detect and warn on slow queries
  * - Log GraphQL errors with context
  *
+ * Complexity calculation uses two estimators:
+ * 1. fieldExtensionsEstimator - reads complexity from TypeGraphQL @Complexity decorators
+ * 2. simpleEstimator - fallback with default cost of 1 per field
+ *
  * Controlled by environment variables:
  * - OBSERVABILITY_LOG_LEVEL: none | basic | verbose
- * - QUERY_COMPLEXITY_LOGGING: override for query logging
+ * - QUERY_COMPLEXITY_LOGGING: enables/disables complexity logging
  * - SLOW_QUERY_THRESHOLD_MS: warn threshold (default 1000)
- * - QUERY_COMPLEXITY_LIMIT: warn threshold (default 100)
+ * - QUERY_COMPLEXITY_LIMIT: warn threshold (default 250)
  */
 @Injectable()
 export class ApolloObservabilityPlugin
@@ -120,21 +67,30 @@ export class ApolloObservabilityPlugin
     // Capture service reference for use in nested callbacks
     const observabilityService = this.observabilityService;
 
+    // Store complexity for use in willSendResponse
+    let queryComplexity = 0;
+
     return {
       async didResolveOperation(
         context: GraphQLRequestContext<BaseContext>,
       ): Promise<void> {
-        if (!context.document) {
+        if (!context.document || !context.schema) {
           return;
         }
 
-        const complexity = calculateQueryComplexity(context.document);
+        // Calculate complexity using the library
+        queryComplexity = calculateComplexity(
+          context.schema,
+          context.document,
+          context.request.variables || {},
+        );
+
         const complexityLimit = getQueryComplexityLimit();
 
-        if (complexity > complexityLimit && observabilityService) {
+        if (queryComplexity > complexityLimit && observabilityService) {
           observabilityService.logHighComplexityWarning(
             operationName,
-            complexity,
+            queryComplexity,
             complexityLimit,
           );
         }
@@ -157,9 +113,6 @@ export class ApolloObservabilityPlugin
 
         // Log query metrics in verbose mode
         if (getObservabilityLogLevel() === 'verbose' && observabilityService) {
-          const complexity = context.document
-            ? calculateQueryComplexity(context.document)
-            : 0;
           const hasErrors = (context.response?.body as { errors?: unknown[] })
             ?.errors
             ? true
@@ -167,7 +120,7 @@ export class ApolloObservabilityPlugin
 
           observabilityService.logQueryMetrics({
             operationName,
-            complexity,
+            complexity: queryComplexity,
             durationMs,
             hasErrors,
           });
@@ -211,5 +164,45 @@ export class ApolloObservabilityPlugin
     }
 
     return getQueryComplexityLogging();
+  }
+}
+
+/**
+ * Calculate query complexity using graphql-query-complexity library.
+ *
+ * Uses two estimators in order:
+ * 1. fieldExtensionsEstimator - reads complexity from TypeGraphQL @Complexity decorators
+ * 2. simpleEstimator - fallback with default cost of 1 per field
+ *
+ * @param schema - The GraphQL schema
+ * @param document - The parsed query document
+ * @param variables - Query variables (used for dynamic complexity calculation)
+ * @returns Complexity score
+ */
+function calculateComplexity(
+  schema: GraphQLSchema,
+  document: DocumentNode,
+  variables: Record<string, unknown>,
+): number {
+  try {
+    return getComplexity({
+      schema,
+      query: document,
+      variables,
+      estimators: [
+        // First, try to get complexity from TypeGraphQL @Complexity decorators
+        fieldExtensionsEstimator(),
+        // Fallback: each field has complexity of 1
+        simpleEstimator({ defaultComplexity: 1 }),
+      ],
+    });
+  } catch (error) {
+    // If complexity calculation fails, log and return 0
+    // This shouldn't happen with valid queries, but we don't want to crash
+    console.warn(
+      '[ApolloObservabilityPlugin] Failed to calculate complexity:',
+      error instanceof Error ? error.message : error,
+    );
+    return 0;
   }
 }
