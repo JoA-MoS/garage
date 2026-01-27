@@ -12,9 +12,9 @@ import { GraphQLContext } from '../dataloaders';
  * Uses DataLoaders to batch database queries and solve the N+1 problem.
  * Each field resolver only triggers when that field is actually queried.
  *
- * Note: Some fields like 'gameTeams', 'owner', and 'teamConfiguration' are
- * still resolved in teams.resolver.ts as they have different access patterns
- * or require authorization checks.
+ * Note: Some fields like 'gameTeams', 'owner', 'teamConfiguration', and
+ * 'playersWithJersey' are still resolved in teams.resolver.ts as they have
+ * different access patterns or require authorization checks.
  */
 @Resolver(() => Team)
 export class TeamFieldsResolver {
@@ -63,7 +63,8 @@ export class TeamFieldsResolver {
 
   /**
    * Resolves the 'players' field on Team (computed from teamPlayers).
-   * Uses DataLoader to batch multiple player lookups into a single query.
+   * Uses DataLoader to batch teamPlayers lookups into a single query,
+   * then extracts the associated users.
    *
    * This is a convenience field that extracts users from the team's
    * teamPlayers relationships.
@@ -76,13 +77,14 @@ export class TeamFieldsResolver {
     @Context() context: GraphQLContext,
   ): Promise<User[]> {
     // If teamPlayers is already loaded with users, extract them
+    // (filter isActive since pre-loaded data may include inactive)
     if (team.teamPlayers !== undefined) {
       return team.teamPlayers
         .filter((tp) => tp.isActive && tp.user)
         .map((tp) => tp.user);
     }
 
-    // Otherwise, load teamPlayers via DataLoader (includes user relation)
+    // DataLoader already filters isActive=true in the query
     const teamPlayers = await context.loaders.teamPlayersByTeamIdLoader.load(
       team.id,
     );

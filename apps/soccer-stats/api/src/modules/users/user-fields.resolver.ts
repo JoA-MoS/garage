@@ -61,7 +61,8 @@ export class UserFieldsResolver {
 
   /**
    * Resolves the 'teams' field on User (computed from teamPlayers).
-   * Uses DataLoader to batch multiple team lookups into a single query.
+   * Uses DataLoader to batch teamPlayers lookups into a single query,
+   * then extracts the associated teams.
    *
    * This is a convenience field that extracts teams from the user's
    * teamPlayers relationships.
@@ -74,13 +75,14 @@ export class UserFieldsResolver {
     @Context() context: GraphQLContext,
   ): Promise<Team[]> {
     // If teamPlayers is already loaded with teams, extract them
+    // (filter isActive since pre-loaded data may include inactive)
     if (user.teamPlayers !== undefined) {
       return user.teamPlayers
         .filter((tp) => tp.isActive && tp.team)
         .map((tp) => tp.team);
     }
 
-    // Otherwise, load teamPlayers via DataLoader (includes team relation)
+    // DataLoader already filters isActive=true in the query
     const teamPlayers = await context.loaders.teamPlayersByUserIdLoader.load(
       user.id,
     );
