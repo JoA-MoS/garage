@@ -13,6 +13,7 @@ import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
 
 import { TeamsResolver } from './teams.resolver';
+import { TeamFieldsResolver } from './team-fields.resolver';
 import { TeamsService } from './teams.service';
 
 @Module({
@@ -30,7 +31,7 @@ import { TeamsService } from './teams.service';
     forwardRef(() => UsersModule),
     forwardRef(() => AuthModule),
   ],
-  providers: [TeamsResolver, TeamsService],
+  providers: [TeamsResolver, TeamFieldsResolver, TeamsService],
   exports: [TeamsService],
 })
 export class TeamsModule {}

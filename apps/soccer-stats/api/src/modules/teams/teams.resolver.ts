@@ -19,9 +19,7 @@ import { TeamAccessGuard } from '../auth/team-access.guard';
 import { RequireTeamRole } from '../auth/require-team-role.decorator';
 import { CurrentUser } from '../auth/user.decorator';
 import { AuthenticatedUser } from '../auth/authenticated-user.type';
-import { TeamPlayer } from '../../entities/team-player.entity';
 import { GameTeam } from '../../entities/game-team.entity';
-import { User } from '../../entities/user.entity';
 import { PlayersService } from '../players/players.service';
 import { TeamMembersService } from '../team-members/team-members.service';
 
@@ -82,15 +80,8 @@ export class TeamsResolver {
     return this.teamMembersService.findTeamsForUser(user.id);
   }
 
-  @ResolveField(() => [User])
-  players(@Parent() team: Team): Promise<User[]> {
-    return this.teamsService.getPlayersForTeam(team.id);
-  }
-
-  @ResolveField(() => [TeamPlayer])
-  teamPlayers(@Parent() team: Team): Promise<TeamPlayer[]> {
-    return this.teamsService.getTeamPlayers(team.id);
-  }
+  // Note: 'players' and 'teamPlayers' fields are resolved by TeamFieldsResolver
+  // using DataLoaders for batched queries.
 
   @ResolveField(() => [TeamPlayerWithJersey])
   playersWithJersey(@Parent() team: Team): Promise<TeamPlayerWithJersey[]> {
