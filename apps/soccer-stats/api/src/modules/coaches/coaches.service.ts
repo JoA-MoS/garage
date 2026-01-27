@@ -14,15 +14,15 @@ export class CoachesService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(TeamCoach)
-    private readonly teamCoachRepository: Repository<TeamCoach>
+    private readonly teamCoachRepository: Repository<TeamCoach>,
   ) {}
 
   async findAll(): Promise<User[]> {
     // Find users who are coaches (have TeamCoach relationships)
     return this.userRepository.find({
-      relations: ['teamCoaches'],
+      relations: ['coachTeams'],
       where: {
-        teamCoaches: {
+        coachTeams: {
           isActive: true,
         },
       },
@@ -32,7 +32,7 @@ export class CoachesService {
   async findOne(id: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id },
-      relations: ['teamCoaches', 'teamCoaches.team'],
+      relations: ['coachTeams', 'coachTeams.team'],
     });
 
     if (!user) {
@@ -44,9 +44,9 @@ export class CoachesService {
 
   async findByRole(role: string): Promise<User[]> {
     return this.userRepository.find({
-      relations: ['teamCoaches'],
+      relations: ['coachTeams'],
       where: {
-        teamCoaches: {
+        coachTeams: {
           role,
           isActive: true,
         },
@@ -57,11 +57,11 @@ export class CoachesService {
   async findByName(name: string): Promise<User[]> {
     return this.userRepository
       .createQueryBuilder('user')
-      .leftJoinAndSelect('user.teamCoaches', 'teamCoach')
+      .leftJoinAndSelect('user.coachTeams', 'teamCoach')
       .where('teamCoach.isActive = :isActive', { isActive: true })
       .andWhere(
         "(LOWER(user.firstName) LIKE LOWER(:name) OR LOWER(user.lastName) LIKE LOWER(:name) OR LOWER(CONCAT(user.firstName, ' ', user.lastName)) LIKE LOWER(:name))",
-        { name: `%${name}%` }
+        { name: `%${name}%` },
       )
       .getMany();
   }
@@ -102,7 +102,7 @@ export class CoachesService {
     userId: string,
     teamId: string,
     role: string,
-    startDate: Date
+    startDate: Date,
   ): Promise<TeamCoach> {
     const teamCoach = this.teamCoachRepository.create({
       userId,
@@ -118,14 +118,14 @@ export class CoachesService {
   async removeCoachFromTeam(
     userId: string,
     teamId: string,
-    endDate?: Date
+    endDate?: Date,
   ): Promise<boolean> {
     const result = await this.teamCoachRepository.update(
       { userId, teamId, isActive: true },
       {
         isActive: false,
         endDate: endDate || new Date(),
-      }
+      },
     );
 
     return (result.affected ?? 0) > 0;

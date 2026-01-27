@@ -89,7 +89,7 @@ export const UsersListComposition = ({
       firstName: 'John',
       lastName: 'Doe',
       email: 'john.doe@example.com',
-      teamPlayers: [
+      playerTeams: [
         {
           id: 'tp1',
           jerseyNumber: '10',
@@ -98,15 +98,15 @@ export const UsersListComposition = ({
           team: { id: 'team1', name: 'Thunder FC', shortName: 'TFC' },
         },
       ],
-      teamCoaches: [], // Not a coach
+      coachTeams: [], // Not a coach
     },
     {
       id: '2',
       firstName: 'Jane',
       lastName: 'Smith',
       email: 'jane.smith@example.com',
-      teamPlayers: [], // Not a player
-      teamCoaches: [
+      playerTeams: [], // Not a player
+      coachTeams: [
         {
           id: 'tc1',
           role: 'Head Coach',
@@ -121,7 +121,7 @@ export const UsersListComposition = ({
       firstName: 'Mike',
       lastName: 'Johnson',
       email: 'mike.johnson@example.com',
-      teamPlayers: [
+      playerTeams: [
         {
           id: 'tp2',
           jerseyNumber: '8',
@@ -130,7 +130,7 @@ export const UsersListComposition = ({
           team: { id: 'team1', name: 'Thunder FC', shortName: 'TFC' },
         },
       ],
-      teamCoaches: [
+      coachTeams: [
         {
           id: 'tc2',
           role: 'Assistant Coach',
@@ -145,7 +145,7 @@ export const UsersListComposition = ({
       firstName: 'Sarah',
       lastName: 'Wilson',
       email: 'sarah.wilson@example.com',
-      teamPlayers: [
+      playerTeams: [
         {
           id: 'tp3',
           jerseyNumber: '1',
@@ -154,7 +154,7 @@ export const UsersListComposition = ({
           team: { id: 'team2', name: 'Lightning United', shortName: 'LU' },
         },
       ],
-      teamCoaches: [],
+      coachTeams: [],
     },
   ];
 
@@ -163,11 +163,11 @@ export const UsersListComposition = ({
     switch (userType) {
       case 'players':
         return mockUsers.filter(
-          (user) => user.teamPlayers && user.teamPlayers.length > 0
+          (user) => user.playerTeams && user.playerTeams.length > 0,
         );
       case 'coaches':
         return mockUsers.filter(
-          (user) => user.teamCoaches && user.teamCoaches.length > 0
+          (user) => user.coachTeams && user.coachTeams.length > 0,
         );
       default:
         return mockUsers; // Return all users
@@ -195,7 +195,7 @@ export const UsersListComposition = ({
       console.log('Toggle active for user:', userId, 'to:', isActive);
       // TODO: Call UPDATE_USER mutation to update user active status
     },
-    []
+    [],
   );
 
   // =================================
@@ -209,8 +209,8 @@ export const UsersListComposition = ({
       userType === 'players'
         ? 'Players'
         : userType === 'coaches'
-        ? 'Coaches'
-        : 'Team Members';
+          ? 'Coaches'
+          : 'Team Members';
 
     if (teamId) {
       return `${baseTitle} - Team`;
@@ -220,8 +220,8 @@ export const UsersListComposition = ({
   };
 
   const getUserTypeLabel = (user: Partial<User>) => {
-    const isPlayer = user.teamPlayers && user.teamPlayers.length > 0;
-    const isCoach = user.teamCoaches && user.teamCoaches.length > 0;
+    const isPlayer = user.playerTeams && user.playerTeams.length > 0;
+    const isCoach = user.coachTeams && user.coachTeams.length > 0;
 
     if (isPlayer && isCoach) return 'Player/Coach';
     if (isPlayer) return 'Player';
@@ -282,8 +282,8 @@ export const UsersListComposition = ({
           <span>Total: {filteredUsers.length}</span>
           {userType === 'all' && (
             <span>
-              Players: {mockUsers.filter((u) => u.teamPlayers?.length).length} |
-              Coaches: {mockUsers.filter((u) => u.teamCoaches?.length).length}
+              Players: {mockUsers.filter((u) => u.playerTeams?.length).length} |
+              Coaches: {mockUsers.filter((u) => u.coachTeams?.length).length}
             </span>
           )}
         </div>
@@ -332,12 +332,12 @@ export const UsersListComposition = ({
               </div>
 
               {/* Player Information */}
-              {user.teamPlayers && user.teamPlayers.length > 0 && (
+              {user.playerTeams && user.playerTeams.length > 0 && (
                 <div className="mt-3 border-t border-gray-100 pt-3">
                   <h4 className="mb-2 text-sm font-medium text-gray-700">
                     Player Info
                   </h4>
-                  {user.teamPlayers.map((tp) => (
+                  {user.playerTeams.map((tp) => (
                     <div key={tp.id} className="text-xs text-gray-600">
                       <p>
                         #{tp.jerseyNumber} - {tp.primaryPosition}
@@ -349,12 +349,12 @@ export const UsersListComposition = ({
               )}
 
               {/* Coach Information */}
-              {user.teamCoaches && user.teamCoaches.length > 0 && (
+              {user.coachTeams && user.coachTeams.length > 0 && (
                 <div className="mt-3 border-t border-gray-100 pt-3">
                   <h4 className="mb-2 text-sm font-medium text-gray-700">
                     Coach Info
                   </h4>
-                  {user.teamCoaches.map((tc) => (
+                  {user.coachTeams.map((tc) => (
                     <div key={tc.id} className="text-xs text-gray-600">
                       <p>{tc.role}</p>
                       <p>{tc.team.name}</p>
@@ -417,8 +417,8 @@ export const UsersListComposition = ({
               {userType === 'players'
                 ? 'Player'
                 : userType === 'coaches'
-                ? 'Coach'
-                : 'User'}
+                  ? 'Coach'
+                  : 'User'}
             </button>
           </div>
         </div>

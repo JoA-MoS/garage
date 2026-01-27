@@ -391,10 +391,10 @@ export class EventManagementService {
       if (team) {
         const fullTeam = await this.teamsRepository.findOne({
           where: { id: team.id },
-          relations: ['teamPlayers', 'teamPlayers.user'],
+          relations: ['roster', 'roster.user'],
         });
-        const teamPlayer = fullTeam?.teamPlayers?.find(
-          (tp) => tp.userId === playerId,
+        const teamPlayer = fullTeam?.roster?.find(
+          (tp: { userId: string }) => tp.userId === playerId,
         );
         if (teamPlayer?.user) {
           const fullName = `${teamPlayer.user.firstName || ''} ${

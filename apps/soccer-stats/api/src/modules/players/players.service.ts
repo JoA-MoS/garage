@@ -14,15 +14,15 @@ export class PlayersService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(TeamPlayer)
-    private readonly teamPlayerRepository: Repository<TeamPlayer>
+    private readonly teamPlayerRepository: Repository<TeamPlayer>,
   ) {}
 
   async findAll(): Promise<User[]> {
     // Find users who are players (have TeamPlayer relationships)
     return this.userRepository.find({
-      relations: ['teamPlayers'],
+      relations: ['playerTeams'],
       where: {
-        teamPlayers: {
+        playerTeams: {
           isActive: true,
         },
       },
@@ -32,7 +32,7 @@ export class PlayersService {
   async findOne(id: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id },
-      relations: ['teamPlayers', 'teamPlayers.team'],
+      relations: ['playerTeams', 'teamPlayers.team'],
     });
 
     if (!user) {
@@ -49,7 +49,7 @@ export class PlayersService {
 
   async update(
     id: string,
-    updatePlayerInput: UpdatePlayerInput
+    updatePlayerInput: UpdatePlayerInput,
   ): Promise<User> {
     const user = await this.findOne(id);
     Object.assign(user, updatePlayerInput);
@@ -71,9 +71,9 @@ export class PlayersService {
 
   async findByPosition(position: string): Promise<User[]> {
     return this.userRepository.find({
-      relations: ['teamPlayers'],
+      relations: ['playerTeams'],
       where: {
-        teamPlayers: {
+        playerTeams: {
           primaryPosition: position,
           isActive: true,
         },
@@ -84,20 +84,20 @@ export class PlayersService {
   async findByName(name: string): Promise<User[]> {
     return this.userRepository
       .createQueryBuilder('user')
-      .leftJoinAndSelect('user.teamPlayers', 'teamPlayer')
+      .leftJoinAndSelect('user.playerTeams', 'teamPlayer')
       .where('teamPlayer.isActive = :isActive', { isActive: true })
       .andWhere(
         "(LOWER(user.firstName) LIKE LOWER(:name) OR LOWER(user.lastName) LIKE LOWER(:name) OR LOWER(CONCAT(user.firstName, ' ', user.lastName)) LIKE LOWER(:name))",
-        { name: `%${name}%` }
+        { name: `%${name}%` },
       )
       .getMany();
   }
 
   async findByTeamId(teamId: string): Promise<User[]> {
     return this.userRepository.find({
-      relations: ['teamPlayers'],
+      relations: ['playerTeams'],
       where: {
-        teamPlayers: {
+        playerTeams: {
           team: { id: teamId },
           isActive: true,
         },
@@ -117,7 +117,7 @@ export class PlayersService {
     teamId: string,
     jerseyNumber?: string,
     primaryPosition?: string,
-    joinedDate?: Date
+    joinedDate?: Date,
   ): Promise<TeamPlayer> {
     const teamPlayer = this.teamPlayerRepository.create({
       userId,
@@ -134,14 +134,14 @@ export class PlayersService {
   async removePlayerFromTeam(
     userId: string,
     teamId: string,
-    leftDate?: Date
+    leftDate?: Date,
   ): Promise<boolean> {
     const result = await this.teamPlayerRepository.update(
       { userId, teamId, isActive: true },
       {
         isActive: false,
         leftDate: leftDate || new Date(),
-      }
+      },
     );
 
     return (result.affected ?? 0) > 0;

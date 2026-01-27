@@ -33,12 +33,12 @@ export class TeamCoach extends BaseEntity {
   isActive: boolean;
 
   @Field(() => Team)
-  @ManyToOne(() => Team, (team) => team.teamCoaches)
+  @ManyToOne(() => Team, (team) => team.coaches)
   @JoinColumn({ name: 'teamId' })
   team: Team;
 
   @Field(() => User)
-  @ManyToOne(() => User, (user) => user.teamCoaches)
+  @ManyToOne(() => User, (user) => user.coachTeams)
   @JoinColumn({ name: 'userId' })
   user: User;
 }

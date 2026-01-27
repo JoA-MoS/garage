@@ -48,7 +48,7 @@ interface TeamData {
     name: string;
     homePrimaryColor?: string | null;
   };
-  gameEvents?: GameEvent[] | null;
+  events?: GameEvent[] | null;
 }
 
 export interface GameSummaryProps {
@@ -118,7 +118,7 @@ export function isHalftimeEvent(event: GameEvent): boolean {
 
 // Extract timeline items from a team's game events
 function extractTimelineItems(teamData: TeamData): TimelineItem[] {
-  const events = teamData.gameEvents || [];
+  const events = teamData.events || [];
   const teamName = teamData.team.name;
   const teamColor =
     teamData.team.homePrimaryColor ||

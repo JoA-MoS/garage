@@ -51,7 +51,7 @@ export const TeamRosterComposition = ({
       firstName: 'John',
       lastName: 'Doe',
       email: 'john.doe@example.com',
-      teamPlayers: [
+      playerTeams: [
         {
           id: 'tp1',
           jerseyNumber: '10',
@@ -61,14 +61,14 @@ export const TeamRosterComposition = ({
           team: { id: teamId, name: teamName, shortName: 'TFC' },
         },
       ],
-      teamCoaches: [],
+      coachTeams: [],
     },
     {
       id: '2',
       firstName: 'Sarah',
       lastName: 'Wilson',
       email: 'sarah.wilson@example.com',
-      teamPlayers: [
+      playerTeams: [
         {
           id: 'tp2',
           jerseyNumber: '1',
@@ -78,14 +78,14 @@ export const TeamRosterComposition = ({
           team: { id: teamId, name: teamName, shortName: 'TFC' },
         },
       ],
-      teamCoaches: [],
+      coachTeams: [],
     },
     {
       id: '3',
       firstName: 'Mike',
       lastName: 'Johnson',
       email: 'mike.johnson@example.com',
-      teamPlayers: [
+      playerTeams: [
         {
           id: 'tp3',
           jerseyNumber: '8',
@@ -95,7 +95,7 @@ export const TeamRosterComposition = ({
           team: { id: teamId, name: teamName, shortName: 'TFC' },
         },
       ],
-      teamCoaches: [
+      coachTeams: [
         {
           id: 'tc1',
           role: 'Player-Coach',
@@ -112,8 +112,8 @@ export const TeamRosterComposition = ({
       firstName: 'Jane',
       lastName: 'Smith',
       email: 'jane.smith@example.com',
-      teamPlayers: [],
-      teamCoaches: [
+      playerTeams: [],
+      coachTeams: [
         {
           id: 'tc2',
           role: 'Head Coach',
@@ -128,8 +128,8 @@ export const TeamRosterComposition = ({
       firstName: 'Robert',
       lastName: 'Brown',
       email: 'robert.brown@example.com',
-      teamPlayers: [],
-      teamCoaches: [
+      playerTeams: [],
+      coachTeams: [
         {
           id: 'tc3',
           role: 'Assistant Coach',
@@ -146,27 +146,27 @@ export const TeamRosterComposition = ({
   // =================================
 
   const players = mockTeamMembers.filter(
-    (user) => user.teamPlayers && user.teamPlayers.length > 0
+    (user) => user.playerTeams && user.playerTeams.length > 0,
   );
 
   const coaches = mockTeamMembers.filter(
-    (user) => user.teamCoaches && user.teamCoaches.length > 0
+    (user) => user.coachTeams && user.coachTeams.length > 0,
   );
 
   const playersOnly = players.filter(
-    (user) => !user.teamCoaches || user.teamCoaches.length === 0
+    (user) => !user.coachTeams || user.coachTeams.length === 0,
   );
 
   const coachesOnly = coaches.filter(
-    (user) => !user.teamPlayers || user.teamPlayers.length === 0
+    (user) => !user.playerTeams || user.playerTeams.length === 0,
   );
 
   const playerCoaches = mockTeamMembers.filter(
     (user) =>
-      user.teamPlayers &&
-      user.teamPlayers.length > 0 &&
-      user.teamCoaches &&
-      user.teamCoaches.length > 0
+      user.playerTeams &&
+      user.playerTeams.length > 0 &&
+      user.coachTeams &&
+      user.coachTeams.length > 0,
   );
 
   // =================================
@@ -182,7 +182,7 @@ export const TeamRosterComposition = ({
       console.log('Remove from team:', userId, 'as', role);
       // TODO: Call removePlayerFromTeam or removeCoachFromTeam mutation
     },
-    []
+    [],
   );
 
   const handleChangeJerseyNumber = useCallback(
@@ -190,7 +190,7 @@ export const TeamRosterComposition = ({
       console.log('Change jersey number for:', userId, 'to:', newNumber);
       // TODO: Call mutation to update jersey number
     },
-    []
+    [],
   );
 
   // =================================
@@ -198,7 +198,7 @@ export const TeamRosterComposition = ({
   // =================================
 
   const renderPlayerCard = (user: Partial<User>) => {
-    const playerInfo = user.teamPlayers![0]; // We know it exists from filter
+    const playerInfo = user.playerTeams![0]; // We know it exists from filter
 
     return (
       <div
@@ -252,10 +252,10 @@ export const TeamRosterComposition = ({
         </div>
 
         {/* Show if player is also a coach */}
-        {user.teamCoaches && user.teamCoaches.length > 0 && (
+        {user.coachTeams && user.coachTeams.length > 0 && (
           <div className="mt-2 border-t border-gray-100 pt-2">
             <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-              Also: {user.teamCoaches[0].role}
+              Also: {user.coachTeams[0].role}
             </span>
           </div>
         )}
@@ -264,7 +264,7 @@ export const TeamRosterComposition = ({
   };
 
   const renderCoachCard = (user: Partial<User>) => {
-    const coachInfo = user.teamCoaches![0]; // We know it exists from filter
+    const coachInfo = user.coachTeams![0]; // We know it exists from filter
 
     return (
       <div
@@ -318,10 +318,10 @@ export const TeamRosterComposition = ({
         </div>
 
         {/* Show if coach is also a player */}
-        {user.teamPlayers && user.teamPlayers.length > 0 && (
+        {user.playerTeams && user.playerTeams.length > 0 && (
           <div className="mt-2 border-t border-gray-100 pt-2">
             <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
-              Also: Player #{user.teamPlayers[0].jerseyNumber}
+              Also: Player #{user.playerTeams[0].jerseyNumber}
             </span>
           </div>
         )}

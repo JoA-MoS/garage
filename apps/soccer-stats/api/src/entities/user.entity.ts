@@ -77,11 +77,11 @@ export class User extends BaseEntity {
 
   @Field(() => [TeamPlayer])
   @OneToMany(() => TeamPlayer, (teamPlayer) => teamPlayer.user)
-  teamPlayers: TeamPlayer[];
+  playerTeams: TeamPlayer[];
 
   @Field(() => [TeamCoach])
   @OneToMany(() => TeamCoach, (teamCoach) => teamCoach.user)
-  teamCoaches: TeamCoach[];
+  coachTeams: TeamCoach[];
 
   @Field(() => [GameEvent])
   @OneToMany(() => GameEvent, (gameEvent) => gameEvent.player)

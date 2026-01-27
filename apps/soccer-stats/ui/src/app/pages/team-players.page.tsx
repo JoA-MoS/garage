@@ -62,7 +62,7 @@ export const TeamPlayersPage = () => {
     });
 
   const team = data?.team;
-  const teamPlayers = (team?.teamPlayers || []) as TeamPlayer[];
+  const teamPlayers = (team?.roster || []) as TeamPlayer[];
 
   const handleCreatePlayer = async (playerData: {
     firstName: string;

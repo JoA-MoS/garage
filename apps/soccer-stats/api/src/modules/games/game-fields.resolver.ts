@@ -19,48 +19,48 @@ import { GraphQLContext } from '../dataloaders';
 @Resolver(() => Game)
 export class GameFieldsResolver {
   /**
-   * Resolves the 'gameFormat' field on Game.
-   * Uses DataLoader to batch multiple gameFormat lookups into a single query.
+   * Resolves the 'format' field on Game.
+   * Uses DataLoader to batch multiple format lookups into a single query.
    */
   @ResolveField(() => GameFormat, {
     description: 'The format/rules for this game',
   })
-  async gameFormat(
+  async format(
     @Parent() game: Game,
     @Context() context: GraphQLContext,
   ): Promise<GameFormat> {
-    // If gameFormat was already loaded (e.g., via eager loading), return it
-    if (game.gameFormat) {
-      return game.gameFormat;
+    // If format was already loaded (e.g., via eager loading), return it
+    if (game.format) {
+      return game.format;
     }
     // Otherwise, use DataLoader to batch the query
     return context.loaders.gameFormatLoader.load(game.gameFormatId);
   }
 
   /**
-   * Resolves the 'gameTeams' field on Game.
-   * Uses DataLoader to batch multiple gameTeams lookups into a single query.
+   * Resolves the 'teams' field on Game.
+   * Uses DataLoader to batch multiple teams lookups into a single query.
    */
   @ResolveField(() => [GameTeam], {
     nullable: true,
     description: 'The teams participating in this game',
   })
-  async gameTeams(
+  async teams(
     @Parent() game: Game,
     @Context() context: GraphQLContext,
   ): Promise<GameTeam[]> {
-    // If gameTeams was already loaded (e.g., via eager loading), return it
+    // If teams was already loaded (e.g., via eager loading), return it
     // Check for defined (not just truthy) to handle empty arrays correctly
-    if (game.gameTeams !== undefined) {
-      return game.gameTeams;
+    if (game.teams !== undefined) {
+      return game.teams;
     }
     // Otherwise, use DataLoader to batch the query
     return context.loaders.gameTeamsByGameLoader.load(game.id);
   }
 
   /**
-   * Resolves the 'gameEvents' field on Game.
-   * Uses DataLoader to batch multiple gameEvents lookups into a single query.
+   * Resolves the 'events' field on Game.
+   * Uses DataLoader to batch multiple events lookups into a single query.
    *
    * This resolver is critical for memory efficiency - it loads events only when
    * specifically requested by the GraphQL query, preventing the massive memory
@@ -70,13 +70,13 @@ export class GameFieldsResolver {
     nullable: true,
     description: 'All events that occurred during this game',
   })
-  async gameEvents(
+  async events(
     @Parent() game: Game,
     @Context() context: GraphQLContext,
   ): Promise<GameEvent[]> {
-    // If gameEvents was already loaded (e.g., via eager loading), return it
-    if (game.gameEvents !== undefined) {
-      return game.gameEvents;
+    // If events was already loaded (e.g., via eager loading), return it
+    if (game.events !== undefined) {
+      return game.events;
     }
     // Otherwise, use DataLoader to batch the query
     return context.loaders.gameEventsByGameLoader.load(game.id);
@@ -192,9 +192,9 @@ export class GameFieldsResolver {
       return game.durationMinutes;
     }
     // Otherwise, get the format's default duration
-    const format = game.gameFormat
-      ? game.gameFormat
+    const gameFormat = game.format
+      ? game.format
       : await context.loaders.gameFormatLoader.load(game.gameFormatId);
-    return format.durationMinutes;
+    return gameFormat.durationMinutes;
   }
 }

@@ -226,11 +226,10 @@ export type Game = {
   durationMinutes?: Maybe<Scalars['Float']['output']>;
   /** Effective game duration in minutes (game override or format default) */
   effectiveDuration: Scalars['Float']['output'];
+  events?: Maybe<Array<GameEvent>>;
   firstHalfEnd?: Maybe<Scalars['DateTime']['output']>;
-  gameEvents?: Maybe<Array<GameEvent>>;
-  gameFormat: GameFormat;
+  format: GameFormat;
   gameFormatId: Scalars['ID']['output'];
-  gameTeams?: Maybe<Array<GameTeam>>;
   id: Scalars['ID']['output'];
   name?: Maybe<Scalars['String']['output']>;
   notes?: Maybe<Scalars['String']['output']>;
@@ -241,6 +240,7 @@ export type Game = {
   /** Override for stats tracking level (null = use team default) */
   statsTrackingLevel?: Maybe<StatsTrackingLevel>;
   status: GameStatus;
+  teams?: Maybe<Array<GameTeam>>;
   updatedAt: Scalars['DateTime']['output'];
   venue?: Maybe<Scalars['String']['output']>;
   weatherConditions?: Maybe<Scalars['String']['output']>;
@@ -334,10 +334,10 @@ export enum GameStatus {
 export type GameTeam = {
   __typename?: 'GameTeam';
   createdAt: Scalars['DateTime']['output'];
+  events?: Maybe<Array<GameEvent>>;
   finalScore?: Maybe<Scalars['Int']['output']>;
   formation?: Maybe<Scalars['String']['output']>;
   game: Game;
-  gameEvents?: Maybe<Array<GameEvent>>;
   gameId: Scalars['ID']['output'];
   id: Scalars['ID']['output'];
   /** Override stats tracking level for this team in this game (null = use game or team default) */
@@ -1110,12 +1110,14 @@ export type Team = {
   __typename?: 'Team';
   awayPrimaryColor?: Maybe<Scalars['String']['output']>;
   awaySecondaryColor?: Maybe<Scalars['String']['output']>;
+  coaches?: Maybe<Array<TeamCoach>>;
   createdAt: Scalars['DateTime']['output'];
   /** Clerk user ID of the team creator/owner */
   createdById?: Maybe<Scalars['String']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   externalReference?: Maybe<Scalars['String']['output']>;
-  gameTeams?: Maybe<Array<GameTeam>>;
+  gameTeams: Array<GameTeam>;
+  games?: Maybe<Array<GameTeam>>;
   homePrimaryColor?: Maybe<Scalars['String']['output']>;
   homeSecondaryColor?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
@@ -1128,12 +1130,11 @@ export type Team = {
   /** Players on the team (users) */
   players: Array<User>;
   playersWithJersey: Array<TeamPlayerWithJersey>;
+  roster?: Maybe<Array<TeamPlayer>>;
   shortName?: Maybe<Scalars['String']['output']>;
   sourceType: SourceType;
-  teamCoaches?: Maybe<Array<TeamCoach>>;
   teamConfiguration?: Maybe<TeamConfiguration>;
   teamMembers?: Maybe<Array<TeamMember>>;
-  teamPlayers?: Maybe<Array<TeamPlayer>>;
   updatedAt: Scalars['DateTime']['output'];
 };
 
@@ -1344,6 +1345,7 @@ export type UpgradeTeamInput = {
 export type User = {
   __typename?: 'User';
   clerkId?: Maybe<Scalars['String']['output']>;
+  coachTeams: Array<TeamCoach>;
   createdAt: Scalars['DateTime']['output'];
   dateOfBirth?: Maybe<Scalars['DateTime']['output']>;
   email?: Maybe<Scalars['String']['output']>;
@@ -1354,6 +1356,7 @@ export type User = {
   lastNameVisibility: LastNameVisibility;
   performedEvents: Array<GameEvent>;
   phone?: Maybe<Scalars['String']['output']>;
+  playerTeams: Array<TeamPlayer>;
   recordedEvents: Array<GameEvent>;
   teamCoaches: Array<TeamCoach>;
   teamMemberships: Array<TeamMember>;
@@ -1373,7 +1376,7 @@ export type TeamGamesPageQuery = {
     id: string;
     name: string;
     shortName?: string | null;
-    gameTeams?: Array<
+    games?: Array<
       { __typename?: 'GameTeam' } & {
         ' $fragmentRefs'?: { GameCardFragment: GameCardFragment };
       }
@@ -1421,14 +1424,14 @@ export type GameCardFragment = {
     scheduledStart?: any | null;
     venue?: string | null;
     createdAt: any;
-    gameFormat: {
+    format: {
       __typename?: 'GameFormat';
       id: string;
       name: string;
       playersPerTeam: number;
       durationMinutes: number;
     };
-    gameTeams?: Array<{
+    teams?: Array<{
       __typename?: 'GameTeam';
       id: string;
       teamType: string;
@@ -1534,7 +1537,7 @@ export type UserCardFragment = {
   email?: string | null;
   phone?: string | null;
   isActive: boolean;
-  teamPlayers: Array<{
+  playerTeams: Array<{
     __typename?: 'TeamPlayer';
     id: string;
     jerseyNumber?: string | null;
@@ -1640,14 +1643,14 @@ export type GetGamesQuery = {
     weatherConditions?: string | null;
     createdAt: any;
     updatedAt: any;
-    gameFormat: {
+    format: {
       __typename?: 'GameFormat';
       id: string;
       name: string;
       playersPerTeam: number;
       durationMinutes: number;
     };
-    gameTeams?: Array<{
+    teams?: Array<{
       __typename?: 'GameTeam';
       id: string;
       teamType: string;
@@ -1688,14 +1691,14 @@ export type GetGameByIdQuery = {
     weatherConditions?: string | null;
     createdAt: any;
     updatedAt: any;
-    gameFormat: {
+    format: {
       __typename?: 'GameFormat';
       id: string;
       name: string;
       playersPerTeam: number;
       durationMinutes: number;
     };
-    gameTeams?: Array<{
+    teams?: Array<{
       __typename?: 'GameTeam';
       id: string;
       teamType: string;
@@ -1710,7 +1713,7 @@ export type GetGameByIdQuery = {
         homePrimaryColor?: string | null;
         homeSecondaryColor?: string | null;
         isManaged: boolean;
-        teamPlayers?: Array<{
+        roster?: Array<{
           __typename?: 'TeamPlayer';
           id: string;
           userId: string;
@@ -1726,7 +1729,7 @@ export type GetGameByIdQuery = {
           };
         }> | null;
       };
-      gameEvents?: Array<{
+      events?: Array<{
         __typename?: 'GameEvent';
         id: string;
         createdAt: any;
@@ -2525,7 +2528,7 @@ export type GetMyDashboardQuery = {
       scheduledStart?: any | null;
       status: GameStatus;
       venue?: string | null;
-      gameTeams?: Array<{
+      teams?: Array<{
         __typename?: 'GameTeam';
         id: string;
         teamType: string;
@@ -2544,7 +2547,7 @@ export type GetMyDashboardQuery = {
       name?: string | null;
       status: GameStatus;
       actualEnd?: any | null;
-      gameTeams?: Array<{
+      teams?: Array<{
         __typename?: 'GameTeam';
         id: string;
         teamType: string;
@@ -2564,7 +2567,7 @@ export type GetMyDashboardQuery = {
       name?: string | null;
       status: GameStatus;
       actualStart?: any | null;
-      gameTeams?: Array<{
+      teams?: Array<{
         __typename?: 'GameTeam';
         id: string;
         teamType: string;
@@ -2613,7 +2616,7 @@ export type GetMyLiveGamesQuery = {
       status: GameStatus;
       actualStart?: any | null;
       pausedAt?: any | null;
-      gameTeams?: Array<{
+      teams?: Array<{
         __typename?: 'GameTeam';
         id: string;
         teamType: string;
@@ -2696,7 +2699,7 @@ export type GetTeamByIdQuery = {
       depthRank?: number | null;
       isActive: boolean;
     }>;
-    teamPlayers?: Array<{
+    roster?: Array<{
       __typename?: 'TeamPlayer';
       id: string;
       jerseyNumber?: string | null;
@@ -2727,7 +2730,7 @@ export type GetTeamByIdQuery = {
         durationMinutes: number;
       } | null;
     } | null;
-    gameTeams?: Array<{
+    games?: Array<{
       __typename?: 'GameTeam';
       id: string;
       teamType: string;
@@ -2964,7 +2967,7 @@ export type GetAllUsersQuery = {
       name: string;
       shortName?: string | null;
     }>;
-    teamPlayers: Array<{
+    playerTeams: Array<{
       __typename?: 'TeamPlayer';
       id: string;
       jerseyNumber?: string | null;
@@ -2979,7 +2982,7 @@ export type GetAllUsersQuery = {
         shortName?: string | null;
       };
     }>;
-    teamCoaches: Array<{
+    coachTeams: Array<{
       __typename?: 'TeamCoach';
       id: string;
       role: string;
@@ -3010,7 +3013,7 @@ export type GetUsersByTeamQuery = {
     email?: string | null;
     phone?: string | null;
     isActive: boolean;
-    teamPlayers: Array<{
+    playerTeams: Array<{
       __typename?: 'TeamPlayer';
       id: string;
       jerseyNumber?: string | null;
@@ -3018,7 +3021,7 @@ export type GetUsersByTeamQuery = {
       joinedDate?: any | null;
       isActive: boolean;
     }>;
-    teamCoaches: Array<{
+    coachTeams: Array<{
       __typename?: 'TeamCoach';
       id: string;
       role: string;
@@ -3040,12 +3043,12 @@ export type SearchUsersByNameQuery = {
     firstName: string;
     lastName: string;
     email?: string | null;
-    teamPlayers: Array<{
+    playerTeams: Array<{
       __typename?: 'TeamPlayer';
       primaryPosition?: string | null;
       team: { __typename?: 'Team'; name: string };
     }>;
-    teamCoaches: Array<{
+    coachTeams: Array<{
       __typename?: 'TeamCoach';
       role: string;
       team: { __typename?: 'Team'; name: string };
@@ -3074,7 +3077,7 @@ export type GetUsersCompleteQuery = {
       name: string;
       shortName?: string | null;
     }>;
-    teamPlayers: Array<{
+    playerTeams: Array<{
       __typename?: 'TeamPlayer';
       id: string;
       jerseyNumber?: string | null;
@@ -3103,7 +3106,7 @@ export type GetPlayersByTeamQuery = {
     id: string;
     firstName: string;
     lastName: string;
-    teamPlayers: Array<{
+    playerTeams: Array<{
       __typename?: 'TeamPlayer';
       id: string;
       jerseyNumber?: string | null;
@@ -3125,7 +3128,7 @@ export type GetPlayersByPositionQuery = {
     id: string;
     firstName: string;
     lastName: string;
-    teamPlayers: Array<{
+    playerTeams: Array<{
       __typename?: 'TeamPlayer';
       id: string;
       jerseyNumber?: string | null;
@@ -3145,7 +3148,7 @@ export type SearchPlayersByNameQuery = {
     id: string;
     firstName: string;
     lastName: string;
-    teamPlayers: Array<{
+    playerTeams: Array<{
       __typename?: 'TeamPlayer';
       primaryPosition?: string | null;
       jerseyNumber?: string | null;
@@ -3175,7 +3178,7 @@ export type GetCoachesQuery = {
       name: string;
       shortName?: string | null;
     }>;
-    teamCoaches: Array<{
+    coachTeams: Array<{
       __typename?: 'TeamCoach';
       id: string;
       role: string;
@@ -3203,7 +3206,7 @@ export type GetCoachesByTeamQuery = {
     id: string;
     firstName: string;
     lastName: string;
-    teamCoaches: Array<{
+    coachTeams: Array<{
       __typename?: 'TeamCoach';
       id: string;
       role: string;
@@ -3224,7 +3227,7 @@ export type GetCoachesByRoleQuery = {
     id: string;
     firstName: string;
     lastName: string;
-    teamCoaches: Array<{
+    coachTeams: Array<{
       __typename?: 'TeamCoach';
       id: string;
       startDate: any;
@@ -3244,7 +3247,7 @@ export type SearchCoachesByNameQuery = {
     id: string;
     firstName: string;
     lastName: string;
-    teamCoaches: Array<{
+    coachTeams: Array<{
       __typename?: 'TeamCoach';
       role: string;
       team: { __typename?: 'Team'; name: string };
@@ -3275,7 +3278,7 @@ export type GetUserByIdQuery = {
       name: string;
       shortName?: string | null;
     }>;
-    teamPlayers: Array<{
+    playerTeams: Array<{
       __typename?: 'TeamPlayer';
       id: string;
       jerseyNumber?: string | null;
@@ -3290,7 +3293,7 @@ export type GetUserByIdQuery = {
         shortName?: string | null;
       };
     }>;
-    teamCoaches: Array<{
+    coachTeams: Array<{
       __typename?: 'TeamCoach';
       id: string;
       role: string;
@@ -3561,7 +3564,7 @@ export const GameCardFragmentDoc = {
                 { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'gameFormat' },
+                  name: { kind: 'Name', value: 'format' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -3580,7 +3583,7 @@ export const GameCardFragmentDoc = {
                 },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'gameTeams' },
+                  name: { kind: 'Name', value: 'teams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -3755,7 +3758,7 @@ export const UserCardFragmentDoc = {
           { kind: 'Field', name: { kind: 'Name', value: 'isActive' } },
           {
             kind: 'Field',
-            name: { kind: 'Name', value: 'teamPlayers' },
+            name: { kind: 'Name', value: 'playerTeams' },
             selectionSet: {
               kind: 'SelectionSet',
               selections: [
@@ -3943,7 +3946,7 @@ export const TeamGamesPageDocument = {
                 { kind: 'Field', name: { kind: 'Name', value: 'shortName' } },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'gameTeams' },
+                  name: { kind: 'Name', value: 'games' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -3990,7 +3993,7 @@ export const TeamGamesPageDocument = {
                 { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'gameFormat' },
+                  name: { kind: 'Name', value: 'format' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -4009,7 +4012,7 @@ export const TeamGamesPageDocument = {
                 },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'gameTeams' },
+                  name: { kind: 'Name', value: 'teams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -4186,7 +4189,7 @@ export const GetUsersForListDocument = {
           { kind: 'Field', name: { kind: 'Name', value: 'isActive' } },
           {
             kind: 'Field',
-            name: { kind: 'Name', value: 'teamPlayers' },
+            name: { kind: 'Name', value: 'playerTeams' },
             selectionSet: {
               kind: 'SelectionSet',
               selections: [
@@ -4476,7 +4479,7 @@ export const GetGamesDocument = {
                 },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'gameFormat' },
+                  name: { kind: 'Name', value: 'format' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -4495,7 +4498,7 @@ export const GetGamesDocument = {
                 },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'gameTeams' },
+                  name: { kind: 'Name', value: 'teams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -4623,7 +4626,7 @@ export const GetGameByIdDocument = {
                 },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'gameFormat' },
+                  name: { kind: 'Name', value: 'format' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -4642,7 +4645,7 @@ export const GetGameByIdDocument = {
                 },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'gameTeams' },
+                  name: { kind: 'Name', value: 'teams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -4698,7 +4701,7 @@ export const GetGameByIdDocument = {
                             },
                             {
                               kind: 'Field',
-                              name: { kind: 'Name', value: 'teamPlayers' },
+                              name: { kind: 'Name', value: 'roster' },
                               selectionSet: {
                                 kind: 'SelectionSet',
                                 selections: [
@@ -4770,7 +4773,7 @@ export const GetGameByIdDocument = {
                       },
                       {
                         kind: 'Field',
-                        name: { kind: 'Name', value: 'gameEvents' },
+                        name: { kind: 'Name', value: 'events' },
                         selectionSet: {
                           kind: 'SelectionSet',
                           selections: [
@@ -8092,7 +8095,7 @@ export const GetMyDashboardDocument = {
                       { kind: 'Field', name: { kind: 'Name', value: 'venue' } },
                       {
                         kind: 'Field',
-                        name: { kind: 'Name', value: 'gameTeams' },
+                        name: { kind: 'Name', value: 'teams' },
                         selectionSet: {
                           kind: 'SelectionSet',
                           selections: [
@@ -8166,7 +8169,7 @@ export const GetMyDashboardDocument = {
                       },
                       {
                         kind: 'Field',
-                        name: { kind: 'Name', value: 'gameTeams' },
+                        name: { kind: 'Name', value: 'teams' },
                         selectionSet: {
                           kind: 'SelectionSet',
                           selections: [
@@ -8234,7 +8237,7 @@ export const GetMyDashboardDocument = {
                       },
                       {
                         kind: 'Field',
-                        name: { kind: 'Name', value: 'gameTeams' },
+                        name: { kind: 'Name', value: 'teams' },
                         selectionSet: {
                           kind: 'SelectionSet',
                           selections: [
@@ -8395,7 +8398,7 @@ export const GetMyLiveGamesDocument = {
                       },
                       {
                         kind: 'Field',
-                        name: { kind: 'Name', value: 'gameTeams' },
+                        name: { kind: 'Name', value: 'teams' },
                         selectionSet: {
                           kind: 'SelectionSet',
                           selections: [
@@ -8630,7 +8633,7 @@ export const GetTeamByIdDocument = {
                 },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'teamPlayers' },
+                  name: { kind: 'Name', value: 'roster' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -8736,7 +8739,7 @@ export const GetTeamByIdDocument = {
                 },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'gameTeams' },
+                  name: { kind: 'Name', value: 'games' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -9465,7 +9468,7 @@ export const GetAllUsersDocument = {
                 },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'teamPlayers' },
+                  name: { kind: 'Name', value: 'playerTeams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -9516,7 +9519,7 @@ export const GetAllUsersDocument = {
                 },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'teamCoaches' },
+                  name: { kind: 'Name', value: 'coachTeams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -9613,7 +9616,7 @@ export const GetUsersByTeamDocument = {
                 { kind: 'Field', name: { kind: 'Name', value: 'isActive' } },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'teamPlayers' },
+                  name: { kind: 'Name', value: 'playerTeams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -9639,7 +9642,7 @@ export const GetUsersByTeamDocument = {
                 },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'teamCoaches' },
+                  name: { kind: 'Name', value: 'coachTeams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -9709,7 +9712,7 @@ export const SearchUsersByNameDocument = {
                 { kind: 'Field', name: { kind: 'Name', value: 'email' } },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'teamPlayers' },
+                  name: { kind: 'Name', value: 'playerTeams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -9735,7 +9738,7 @@ export const SearchUsersByNameDocument = {
                 },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'teamCoaches' },
+                  name: { kind: 'Name', value: 'coachTeams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -9809,7 +9812,7 @@ export const GetUsersCompleteDocument = {
                 },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'teamPlayers' },
+                  name: { kind: 'Name', value: 'playerTeams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -9913,7 +9916,7 @@ export const GetPlayersByTeamDocument = {
                 { kind: 'Field', name: { kind: 'Name', value: 'lastName' } },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'teamPlayers' },
+                  name: { kind: 'Name', value: 'playerTeams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -9995,7 +9998,7 @@ export const GetPlayersByPositionDocument = {
                 { kind: 'Field', name: { kind: 'Name', value: 'lastName' } },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'teamPlayers' },
+                  name: { kind: 'Name', value: 'playerTeams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -10075,7 +10078,7 @@ export const SearchPlayersByNameDocument = {
                 { kind: 'Field', name: { kind: 'Name', value: 'lastName' } },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'teamPlayers' },
+                  name: { kind: 'Name', value: 'playerTeams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -10156,7 +10159,7 @@ export const GetCoachesDocument = {
                 },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'teamCoaches' },
+                  name: { kind: 'Name', value: 'coachTeams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -10250,7 +10253,7 @@ export const GetCoachesByTeamDocument = {
                 { kind: 'Field', name: { kind: 'Name', value: 'lastName' } },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'teamCoaches' },
+                  name: { kind: 'Name', value: 'coachTeams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -10322,7 +10325,7 @@ export const GetCoachesByRoleDocument = {
                 { kind: 'Field', name: { kind: 'Name', value: 'lastName' } },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'teamCoaches' },
+                  name: { kind: 'Name', value: 'coachTeams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -10402,7 +10405,7 @@ export const SearchCoachesByNameDocument = {
                 { kind: 'Field', name: { kind: 'Name', value: 'lastName' } },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'teamCoaches' },
+                  name: { kind: 'Name', value: 'coachTeams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -10496,7 +10499,7 @@ export const GetUserByIdDocument = {
                 },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'teamPlayers' },
+                  name: { kind: 'Name', value: 'playerTeams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
@@ -10547,7 +10550,7 @@ export const GetUserByIdDocument = {
                 },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'teamCoaches' },
+                  name: { kind: 'Name', value: 'coachTeams' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [

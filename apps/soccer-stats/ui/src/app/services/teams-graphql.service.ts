@@ -59,7 +59,7 @@ export const GET_TEAM_BY_ID = graphql(/* GraphQL */ `
         depthRank
         isActive
       }
-      teamPlayers {
+      roster {
         id
         jerseyNumber
         primaryPosition
@@ -86,7 +86,7 @@ export const GET_TEAM_BY_ID = graphql(/* GraphQL */ `
           durationMinutes
         }
       }
-      gameTeams {
+      games {
         id
         teamType
         finalScore
@@ -321,13 +321,13 @@ export interface Team {
   createdAt: string;
   updatedAt: string;
   playersWithJersey?: PlayerWithJersey[];
-  teamPlayers?: TeamPlayer[];
+  roster?: TeamPlayer[];
   teamConfiguration?: TeamConfiguration;
-  gameTeams?: GameTeam[];
+  games?: GameTeam[];
 }
 
 export interface TeamWithGames extends Team {
-  gameTeams: GameTeam[];
+  games: GameTeam[];
 }
 
 export interface PlayerWithJersey {

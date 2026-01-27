@@ -87,7 +87,7 @@ export class StatsService {
     const currentGameSeconds =
       await this.gameTimingService.getGameDurationSeconds(
         game.id,
-        game.gameFormat?.durationMinutes,
+        game.format?.durationMinutes,
       );
 
     // Track player position time spans
@@ -372,7 +372,7 @@ export class StatsService {
       const currentGameSeconds =
         await this.gameTimingService.getGameDurationSeconds(
           game.id,
-          game.gameFormat?.durationMinutes,
+          game.format?.durationMinutes,
         );
 
       // Track open spans for this game
