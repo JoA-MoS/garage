@@ -68,12 +68,14 @@ export function createSharedInfrastructure(
   });
 
   // Security groups for ALB, ECS, and RDS
+  // In dev, allow public access to RDS for local development
   const securityGroups = createSecurityGroups({
     namePrefix,
     stack,
     vpcId: vpc.vpcId,
     containerPort,
     awsProvider,
+    allowPublicRdsAccess: stack !== 'prod',
   });
 
   // ECS cluster with Fargate capacity providers
@@ -116,10 +118,12 @@ export function createSharedInfrastructure(
   });
 
   // Database (Aurora Serverless v2 for prod, Standard RDS for dev)
+  // In dev, make publicly accessible for local development (requires public subnets)
   const database = createDatabase({
     namePrefix,
     stack,
     privateSubnetIds: vpc.privateSubnetIds,
+    publicSubnetIds: vpc.publicSubnetIds,
     rdsSecurityGroupId: securityGroups.rdsSecurityGroup.id,
     dbName,
     dbUsername,
@@ -128,6 +132,7 @@ export function createSharedInfrastructure(
     dbMinCapacity,
     dbMaxCapacity,
     awsProvider,
+    publiclyAccessible: stack !== 'prod', // Allow direct access in dev for local development
   });
 
   // Grant ECS task execution role permission to read the database secret
