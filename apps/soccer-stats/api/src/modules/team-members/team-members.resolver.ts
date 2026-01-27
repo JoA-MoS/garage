@@ -6,6 +6,7 @@ import {
   ID,
   ResolveField,
   Parent,
+  Context,
 } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 
@@ -16,6 +17,7 @@ import { User } from '../../entities/user.entity';
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
 import { CurrentUser } from '../auth/user.decorator';
 import { AuthenticatedUser } from '../auth/authenticated-user.type';
+import { GraphQLContext } from '../dataloaders/graphql-context';
 
 import { TeamMembersService } from './team-members.service';
 
@@ -171,22 +173,58 @@ export class TeamMembersResolver {
   // Field Resolvers
 
   @ResolveField(() => Team)
-  async team(@Parent() teamMember: TeamMember): Promise<Team> {
-    return teamMember.team;
+  async team(
+    @Parent() teamMember: TeamMember,
+    @Context() context: GraphQLContext,
+  ): Promise<Team> {
+    // Check if already loaded (eager loading optimization)
+    if (teamMember.team) {
+      return teamMember.team;
+    }
+    // Otherwise, use DataLoader to batch the query
+    return context.loaders.teamLoader.load(teamMember.teamId);
   }
 
   @ResolveField(() => User)
-  async user(@Parent() teamMember: TeamMember): Promise<User> {
-    return teamMember.user;
+  async user(
+    @Parent() teamMember: TeamMember,
+    @Context() context: GraphQLContext,
+  ): Promise<User> {
+    // Check if already loaded (eager loading optimization)
+    if (teamMember.user) {
+      return teamMember.user;
+    }
+    // Otherwise, use DataLoader to batch the query
+    return context.loaders.userLoader.load(teamMember.userId);
   }
 
   @ResolveField(() => [TeamMemberRole])
-  async roles(@Parent() teamMember: TeamMember): Promise<TeamMemberRole[]> {
-    return teamMember.roles ?? [];
+  async roles(
+    @Parent() teamMember: TeamMember,
+    @Context() context: GraphQLContext,
+  ): Promise<TeamMemberRole[]> {
+    // Check if already loaded (eager loading optimization)
+    if (teamMember.roles) {
+      return teamMember.roles;
+    }
+    // Otherwise, use DataLoader to batch the query
+    return context.loaders.teamMemberRolesByMemberIdLoader.load(teamMember.id);
   }
 
   @ResolveField(() => User, { nullable: true })
-  async invitedBy(@Parent() teamMember: TeamMember): Promise<User | null> {
-    return teamMember.invitedBy ?? null;
+  async invitedBy(
+    @Parent() teamMember: TeamMember,
+    @Context() context: GraphQLContext,
+  ): Promise<User | null> {
+    // Check if already loaded (eager loading optimization)
+    if (teamMember.invitedBy !== undefined) {
+      return teamMember.invitedBy;
+    }
+    // If no invitedById, return null
+    if (!teamMember.invitedById) {
+      return null;
+    }
+    // Otherwise, use DataLoader to batch the query
+    return context.loaders.userLoader.load(teamMember.invitedById);
   }
 }

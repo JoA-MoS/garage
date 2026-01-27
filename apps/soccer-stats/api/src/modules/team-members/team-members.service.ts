@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -297,7 +298,13 @@ export class TeamMembersService {
     await this.teamMemberRoleRepository.save(teamMemberRole);
 
     // Return with relations
-    return this.findOne(savedMember.id) as Promise<TeamMember>;
+    const result = await this.findOne(savedMember.id);
+    if (!result) {
+      throw new InternalServerErrorException(
+        `Failed to retrieve newly created membership ${savedMember.id}. This may indicate a database consistency issue.`,
+      );
+    }
+    return result;
   }
 
   /**
@@ -343,7 +350,13 @@ export class TeamMembersService {
     });
     await this.teamMemberRoleRepository.save(teamMemberRole);
 
-    return this.findOne(membershipId) as Promise<TeamMember>;
+    const result = await this.findOne(membershipId);
+    if (!result) {
+      throw new InternalServerErrorException(
+        `Failed to retrieve membership ${membershipId} after adding role. This may indicate a database consistency issue.`,
+      );
+    }
+    return result;
   }
 
   /**
@@ -376,8 +389,15 @@ export class TeamMembersService {
 
     // If no roles left, remove the membership
     const updatedMembership = await this.findOne(membershipId);
-    if (!updatedMembership?.roles?.length) {
-      await this.teamMemberRepository.remove(updatedMembership!);
+
+    // Handle case where membership was already removed (race condition)
+    if (!updatedMembership) {
+      return null;
+    }
+
+    // If no roles remain, remove the membership entirely
+    if (!updatedMembership.roles?.length) {
+      await this.teamMemberRepository.remove(updatedMembership);
       return null;
     }
 
@@ -457,9 +477,12 @@ export class TeamMembersService {
       TeamRole.OWNER,
     );
 
-    const previousOwner = (await this.findOne(
-      currentOwnerMembership.id,
-    )) as TeamMember;
+    const previousOwner = await this.findOne(currentOwnerMembership.id);
+    if (!previousOwner) {
+      throw new InternalServerErrorException(
+        `Failed to retrieve previous owner membership after ownership transfer. This may indicate a database consistency issue.`,
+      );
+    }
 
     return { previousOwner, newOwner: newOwnerMembership };
   }
@@ -511,7 +534,13 @@ export class TeamMembersService {
     guestCoachRole.role = TeamRole.COACH;
     await this.teamMemberRoleRepository.save(guestCoachRole);
 
-    return this.findOne(membershipId) as Promise<TeamMember>;
+    const result = await this.findOne(membershipId);
+    if (!result) {
+      throw new InternalServerErrorException(
+        `Failed to retrieve membership ${membershipId} after promoting guest coach. This may indicate a database consistency issue.`,
+      );
+    }
+    return result;
   }
 
   // ============================================================

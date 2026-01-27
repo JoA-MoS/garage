@@ -4,6 +4,7 @@ import {
   ConflictException,
   Inject,
   forwardRef,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -23,6 +24,8 @@ import { UpdateTeamConfigurationInput } from './dto/update-team-configuration.in
 
 @Injectable()
 export class TeamsService {
+  private readonly logger = new Logger(TeamsService.name);
+
   constructor(
     @InjectRepository(Team)
     private readonly teamRepository: Repository<Team>,
@@ -422,6 +425,12 @@ export class TeamsService {
     });
 
     const updatedTeams: Team[] = [];
+    const failedTeams: Array<{
+      teamId: string;
+      teamName: string;
+      reason: string;
+      isExpected: boolean;
+    }> = [];
 
     for (const team of teamsCreatedByUser) {
       // Check if team already has an owner
@@ -438,12 +447,54 @@ export class TeamsService {
             TeamRole.OWNER,
           );
           updatedTeams.push(team);
-        } catch {
-          // Skip if there's an error (e.g., user already has another role)
-          console.warn(
-            `Could not add owner to team ${team.id}: user may already have a role`,
-          );
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          const errorStack =
+            error instanceof Error ? error.stack : 'No stack trace';
+
+          // Determine if this is an expected failure (user already has role)
+          // or an unexpected failure (database error, etc.)
+          const isExpectedFailure =
+            errorMessage.includes('already') ||
+            errorMessage.includes('conflict') ||
+            errorMessage.includes('duplicate');
+
+          if (isExpectedFailure) {
+            this.logger.debug(
+              `Skipping owner assignment for team ${team.id} (${team.name}): ${errorMessage}`,
+            );
+          } else {
+            // Log unexpected errors with full stack trace for debugging
+            this.logger.error(
+              `Failed to add owner to team ${team.id} (${team.name}) for user ${internalUserId}: ${errorMessage}`,
+              errorStack,
+            );
+          }
+
+          failedTeams.push({
+            teamId: team.id,
+            teamName: team.name,
+            reason: errorMessage,
+            isExpected: isExpectedFailure,
+          });
         }
+      }
+    }
+
+    // Log summary if there were failures
+    if (failedTeams.length > 0) {
+      const unexpectedFailures = failedTeams.filter((f) => !f.isExpected);
+      if (unexpectedFailures.length > 0) {
+        this.logger.warn(
+          `Backfill completed with ${unexpectedFailures.length} unexpected failure(s) out of ${failedTeams.length} total failure(s). ` +
+            `Successfully updated ${updatedTeams.length} team(s). ` +
+            `Unexpected failures: ${JSON.stringify(unexpectedFailures)}`,
+        );
+      } else {
+        this.logger.debug(
+          `Backfill completed: ${updatedTeams.length} team(s) updated, ${failedTeams.length} skipped (expected)`,
+        );
       }
     }
 
