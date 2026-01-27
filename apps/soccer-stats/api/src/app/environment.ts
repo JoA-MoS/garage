@@ -231,7 +231,14 @@ export const getSlowQueryThresholdMs = (): number => {
 /**
  * Threshold for query complexity warnings.
  * Queries exceeding this complexity score will be logged as warnings.
- * Default: 100
+ *
+ * Uses graphql-query-complexity with simpleEstimator (1 per field by default).
+ * Fields can define custom complexity via TypeGraphQL @Complexity decorator.
+ *
+ * Typical queries: 30-80 complexity
+ * Complex queries (full game with events): 100-150 complexity
+ *
+ * Default: 150
  */
 export const getQueryComplexityLimit = (): number => {
   const value = getEnv('QUERY_COMPLEXITY_LIMIT');
@@ -241,7 +248,7 @@ export const getQueryComplexityLimit = (): number => {
       return parsed;
     }
   }
-  return 100;
+  return 150;
 };
 
 /**
