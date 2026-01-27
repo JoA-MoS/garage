@@ -1125,6 +1125,7 @@ export type Team = {
   name: Scalars['String']['output'];
   /** The owner of the team (TeamMember with OWNER role) */
   owner?: Maybe<TeamMember>;
+  /** Players on the team (users) */
   players: Array<User>;
   playersWithJersey: Array<TeamPlayerWithJersey>;
   shortName?: Maybe<Scalars['String']['output']>;
