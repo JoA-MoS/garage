@@ -140,14 +140,20 @@ export class DataLoadersService {
    * Batch loads GameEvents by gameId.
    * Returns an array of GameEvents for each game, with related entities.
    *
-   * NOTE: This loads events with their eventType and player relations.
-   * For deeply nested data (childEvents), use separate field resolvers.
+   * Includes childEvents for consistency with gameEventsByGameTeamLoader.
    */
   private createGameEventsByGameLoader(): DataLoader<string, GameEvent[]> {
     return new DataLoader<string, GameEvent[]>(async (gameIds) => {
       const gameEvents = await this.gameEventRepository.find({
         where: { gameId: In([...gameIds]) },
-        relations: ['eventType', 'player', 'gameTeam'],
+        relations: [
+          'eventType',
+          'player',
+          'gameTeam',
+          'childEvents',
+          'childEvents.eventType',
+          'childEvents.player',
+        ],
         order: { gameMinute: 'ASC', gameSecond: 'ASC', createdAt: 'ASC' },
       });
 
@@ -169,6 +175,8 @@ export class DataLoadersService {
    *
    * This loader is used when events are accessed through GameTeam.gameEvents,
    * which is the primary access path in the frontend.
+   *
+   * Relations are consistent with gameEventsByGameLoader for predictable behavior.
    */
   private createGameEventsByGameTeamLoader(): DataLoader<string, GameEvent[]> {
     return new DataLoader<string, GameEvent[]>(async (gameTeamIds) => {
@@ -177,6 +185,7 @@ export class DataLoadersService {
         relations: [
           'eventType',
           'player',
+          'gameTeam',
           'childEvents',
           'childEvents.eventType',
           'childEvents.player',
