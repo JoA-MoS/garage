@@ -148,3 +148,128 @@ export const getClerkSecretKey = (): string | undefined =>
   getEnv('CLERK_SECRET_KEY');
 export const getClerkPublishableKey = (): string | undefined =>
   getEnv('CLERK_PUBLISHABLE_KEY');
+
+// ============================================================
+// Observability Configuration
+// ============================================================
+
+/**
+ * Observability log levels:
+ * - 'none': No observability logging (safe for production rollout)
+ * - 'basic': Log warnings only (slow queries, large batches, high memory)
+ * - 'verbose': Log all metrics including normal request/query metrics
+ */
+export type ObservabilityLogLevel = 'none' | 'basic' | 'verbose';
+
+/**
+ * Get the observability log level.
+ * Defaults to 'none' for safe production rollout.
+ */
+export const getObservabilityLogLevel = (): ObservabilityLogLevel => {
+  const level = getEnv('OBSERVABILITY_LOG_LEVEL', 'none');
+  if (level === 'basic' || level === 'verbose') {
+    return level;
+  }
+  return 'none';
+};
+
+/**
+ * Override for DataLoader-specific logging.
+ * When OBSERVABILITY_LOG_LEVEL is 'basic' or 'verbose', this allows
+ * disabling DataLoader logging independently.
+ * Defaults to true when observability is enabled.
+ */
+export const getDataLoaderLogging = (): boolean => {
+  const override = getEnv('DATALOADER_LOGGING');
+  if (override !== undefined) {
+    return override === 'true';
+  }
+  // Default to enabled when observability is on
+  return getObservabilityLogLevel() !== 'none';
+};
+
+/**
+ * Override for query complexity logging.
+ * Defaults to true when observability is enabled.
+ */
+export const getQueryComplexityLogging = (): boolean => {
+  const override = getEnv('QUERY_COMPLEXITY_LOGGING');
+  if (override !== undefined) {
+    return override === 'true';
+  }
+  return getObservabilityLogLevel() !== 'none';
+};
+
+/**
+ * Override for memory logging.
+ * Defaults to true when observability is enabled.
+ */
+export const getMemoryLogging = (): boolean => {
+  const override = getEnv('MEMORY_LOGGING');
+  if (override !== undefined) {
+    return override === 'true';
+  }
+  return getObservabilityLogLevel() !== 'none';
+};
+
+/**
+ * Threshold for slow query warnings (in milliseconds).
+ * Queries exceeding this duration will be logged as warnings.
+ * Default: 1000ms (1 second)
+ */
+export const getSlowQueryThresholdMs = (): number => {
+  const value = getEnv('SLOW_QUERY_THRESHOLD_MS');
+  if (value) {
+    const parsed = parseInt(value, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return 1000;
+};
+
+/**
+ * Threshold for query complexity warnings.
+ * Queries exceeding this complexity score will be logged as warnings.
+ * Default: 100
+ */
+export const getQueryComplexityLimit = (): number => {
+  const value = getEnv('QUERY_COMPLEXITY_LIMIT');
+  if (value) {
+    const parsed = parseInt(value, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return 100;
+};
+
+/**
+ * Threshold for DataLoader batch size warnings.
+ * Batches exceeding this size will be logged as warnings.
+ * Default: 100
+ */
+export const getDataLoaderBatchSizeWarningThreshold = (): number => {
+  const value = getEnv('DATALOADER_BATCH_SIZE_WARNING');
+  if (value) {
+    const parsed = parseInt(value, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return 100;
+};
+
+/**
+ * Whether to use JSON format for logs.
+ * JSON logs are easier to parse in CloudWatch and other log aggregation tools.
+ * Defaults to true in production, false in development (for readability).
+ * Set LOG_FORMAT=json to enable, LOG_FORMAT=text to disable.
+ */
+export const useJsonLogging = (): boolean => {
+  const format = getEnv('LOG_FORMAT');
+  if (format !== undefined) {
+    return format.toLowerCase() === 'json';
+  }
+  return isProduction();
+};
