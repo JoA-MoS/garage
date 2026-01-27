@@ -12,7 +12,6 @@ import { Inject } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
 
 import { User } from '../../entities/user.entity';
-import { TeamCoach } from '../../entities/team-coach.entity';
 import { Team } from '../../entities/team.entity';
 import { TeamsService } from '../teams/teams.service';
 
@@ -20,12 +19,16 @@ import { CoachesService } from './coaches.service';
 import { CreateCoachInput } from './dto/create-coach.input';
 import { UpdateCoachInput } from './dto/update-coach.input';
 
+/**
+ * Resolver for coach-related queries and mutations.
+ * For team membership operations, use TeamMembersResolver.
+ */
 @Resolver(() => User)
 export class CoachesResolver {
   constructor(
     private readonly coachesService: CoachesService,
     private readonly teamsService: TeamsService,
-    @Inject('PUB_SUB') private pubSub: PubSub
+    @Inject('PUB_SUB') private pubSub: PubSub,
   ) {}
 
   @Query(() => [User], { name: 'coaches' })
@@ -53,14 +56,9 @@ export class CoachesResolver {
     return this.teamsService.findByCoachId(coach.id);
   }
 
-  @ResolveField(() => [TeamCoach])
-  teamCoaches(@Parent() coach: User): Promise<TeamCoach[]> {
-    return this.coachesService.getTeamCoaches(coach.id);
-  }
-
   @Mutation(() => User)
   async createCoach(
-    @Args('createCoachInput') createCoachInput: CreateCoachInput
+    @Args('createCoachInput') createCoachInput: CreateCoachInput,
   ) {
     const coach = await this.coachesService.create(createCoachInput);
     this.pubSub.publish('coachCreated', { coachCreated: coach });
@@ -70,7 +68,7 @@ export class CoachesResolver {
   @Mutation(() => User)
   async updateCoach(
     @Args('id', { type: () => ID }) id: string,
-    @Args('updateCoachInput') updateCoachInput: UpdateCoachInput
+    @Args('updateCoachInput') updateCoachInput: UpdateCoachInput,
   ) {
     const coach = await this.coachesService.update(id, updateCoachInput);
     this.pubSub.publish('coachUpdated', { coachUpdated: coach });
@@ -80,25 +78,6 @@ export class CoachesResolver {
   @Mutation(() => Boolean)
   removeCoach(@Args('id', { type: () => ID }) id: string) {
     return this.coachesService.remove(id);
-  }
-
-  @Mutation(() => TeamCoach)
-  addCoachToTeam(
-    @Args('userId', { type: () => ID }) userId: string,
-    @Args('teamId', { type: () => ID }) teamId: string,
-    @Args('role') role: string,
-    @Args('startDate') startDate: Date
-  ) {
-    return this.coachesService.addCoachToTeam(userId, teamId, role, startDate);
-  }
-
-  @Mutation(() => Boolean)
-  removeCoachFromTeam(
-    @Args('userId', { type: () => ID }) userId: string,
-    @Args('teamId', { type: () => ID }) teamId: string,
-    @Args('endDate', { nullable: true }) endDate?: Date
-  ) {
-    return this.coachesService.removeCoachFromTeam(userId, teamId, endDate);
   }
 
   @Subscription(() => User, {

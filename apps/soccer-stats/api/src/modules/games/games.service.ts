@@ -335,8 +335,9 @@ export class GamesService {
       where: { id: gameTeamId },
       relations: [
         'team',
-        'team.teamPlayers',
-        'team.teamPlayers.user',
+        'team.teamMembers',
+        'team.teamMembers.user',
+        'team.teamMembers.roles',
         'game',
         'gameEvents',
         'gameEvents.eventType',
@@ -389,7 +390,7 @@ export class GamesService {
     const queryBuilder = this.gameRepository
       .createQueryBuilder('game')
       .leftJoinAndSelect('game.format', 'gameFormat')
-      .leftJoinAndSelect('game.gameTeams', 'gameTeams')
+      .leftJoinAndSelect('game.teams', 'gameTeams')
       .leftJoinAndSelect('gameTeams.team', 'team')
       .where('game.id IN (:...gameIds)', { gameIds })
       .andWhere('game.status IN (:...statuses)', { statuses });

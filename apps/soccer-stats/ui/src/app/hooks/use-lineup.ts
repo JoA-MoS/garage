@@ -159,15 +159,18 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     if (!gameTeam?.team?.roster) return [];
 
     return gameTeam.team.roster
-      .filter((tp: TeamPlayerFromQuery) => tp.isActive && !!tp.user)
+      .filter(
+        (tp: TeamPlayerFromQuery) =>
+          tp.teamMember.isActive && !!tp.teamMember.user,
+      )
       .map((tp: TeamPlayerFromQuery) => ({
         id: tp.id,
-        oduserId: tp.userId,
+        oduserId: tp.teamMember.user.id,
         jerseyNumber: tp.jerseyNumber,
         primaryPosition: tp.primaryPosition,
-        firstName: tp.user.firstName,
-        lastName: tp.user.lastName,
-        email: tp.user.email,
+        firstName: tp.teamMember.user.firstName,
+        lastName: tp.teamMember.user.lastName,
+        email: tp.teamMember.user.email,
       }));
   }, [gameData, gameTeamId]);
 

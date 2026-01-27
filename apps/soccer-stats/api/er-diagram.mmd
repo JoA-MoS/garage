@@ -1,14 +1,13 @@
 erDiagram
-    %% User Management Layer
-    USER ||--o{ TEAM_PLAYER : "plays for teams"
-    USER ||--o{ TEAM_COACH : "coaches teams"
-    TEAM ||--o{ TEAM_PLAYER : "has players"
-    TEAM ||--o{ TEAM_COACH : "has coaches"
+    %% User Management Layer (Unified Team Membership Model)
+    USER ||--o{ TEAM_MEMBER : "belongs to teams"
+    TEAM ||--o{ TEAM_MEMBER : "has members"
+    TEAM_MEMBER ||--o{ TEAM_MEMBER_ROLE : "has roles"
     TEAM ||--|| TEAM_CONFIGURATION : "has default settings"
-    
+
     %% Team Configuration
     TEAM_CONFIGURATION ||--|| GAME_FORMAT : "default format"
-    
+
     %% Existing Game Structure
     GAME_FORMAT ||--o{ GAME : "defines format"
     GAME ||--o{ GAME_TEAM : "participates"
@@ -22,11 +21,16 @@ erDiagram
     GAME_TEAM ||--o{ GAME_EVENT : "performs"
 
     USER ||--o{ GAME_EVENT : "performs"
-    
+
+    %% Team Membership Notes:
+    %% - TeamMember: One record per (user, team) - stores membership-level data
+    %% - TeamMemberRole: One record per role - stores role + JSONB roleData
+    %% - Roles: OWNER, MANAGER, COACH, GUEST_COACH, PLAYER, GUARDIAN, FAN
+    %% - roleData contains role-specific fields (jerseyNumber, primaryPosition, title)
+
     %% Position Tracking Notes:
     %% - Game start: SUBSTITUTION_IN events for all starting players (no parent)
     %% - Regular subs: SUBSTITUTION_OUT -> SUBSTITUTION_IN (with parent relationship)
     %% - Position changes: New SUBSTITUTION_IN event (same player, new position)
     %% - Each GAME_EVENT includes position information when relevant
 
-    

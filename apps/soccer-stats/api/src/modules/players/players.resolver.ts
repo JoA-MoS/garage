@@ -10,12 +10,15 @@ import { Inject } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
 
 import { User } from '../../entities/user.entity';
-import { TeamPlayer } from '../../entities/team-player.entity';
 
 import { PlayersService } from './players.service';
 import { CreatePlayerInput } from './dto/create-player.input';
 import { UpdatePlayerInput } from './dto/update-player.input';
 
+/**
+ * Resolver for player-related queries and mutations.
+ * For team membership operations, use TeamMembersResolver.
+ */
 @Resolver(() => User)
 export class PlayersResolver {
   constructor(
@@ -43,7 +46,7 @@ export class PlayersResolver {
     return this.playersService.findByName(name);
   }
 
-  // Note: 'teams' and 'teamPlayers' fields are resolved by UserFieldsResolver
+  // Note: 'teams' and 'teamMemberships' fields are resolved by UserFieldsResolver
   // using DataLoaders for batched queries.
 
   @Mutation(() => User)
@@ -68,32 +71,6 @@ export class PlayersResolver {
   @Mutation(() => Boolean)
   removePlayer(@Args('id', { type: () => ID }) id: string) {
     return this.playersService.remove(id);
-  }
-
-  @Mutation(() => TeamPlayer)
-  addPlayerToTeam(
-    @Args('userId', { type: () => ID }) userId: string,
-    @Args('teamId', { type: () => ID }) teamId: string,
-    @Args('jerseyNumber', { nullable: true }) jerseyNumber?: string,
-    @Args('primaryPosition', { nullable: true }) primaryPosition?: string,
-    @Args('joinedDate', { nullable: true }) joinedDate?: Date,
-  ) {
-    return this.playersService.addPlayerToTeam(
-      userId,
-      teamId,
-      jerseyNumber,
-      primaryPosition,
-      joinedDate,
-    );
-  }
-
-  @Mutation(() => Boolean)
-  removePlayerFromTeam(
-    @Args('userId', { type: () => ID }) userId: string,
-    @Args('teamId', { type: () => ID }) teamId: string,
-    @Args('leftDate', { nullable: true }) leftDate?: Date,
-  ) {
-    return this.playersService.removePlayerFromTeam(userId, teamId, leftDate);
   }
 
   @Subscription(() => User, {

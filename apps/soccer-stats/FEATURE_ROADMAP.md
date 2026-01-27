@@ -239,8 +239,8 @@ When impersonating, Clerk adds an `act` claim to the JWT containing the imperson
     id: ID
     userId: ID
     teamId: ID
-    role: TeamRole  // OWNER, MANAGER, COACH, PLAYER, PARENT_FAN
-    linkedPlayerId?: ID  // For parent/fan - which player grants access
+    role: TeamRole  // OWNER, MANAGER, COACH, GUEST_COACH, PLAYER, GUARDIAN, FAN
+    linkedPlayerId?: ID  // For GUARDIAN (required) or FAN (optional)
     isGuest: boolean  // For guest coaches
     invitedBy?: ID
     invitedAt?: DateTime
@@ -249,7 +249,7 @@ When impersonating, Clerk adds an `act` claim to the JWT containing the imperson
     updatedAt: DateTime
   }
   ```
-- [x] Create `TeamRole` enum: `OWNER`, `MANAGER`, `COACH`, `PLAYER`, `PARENT_FAN`
+- [x] Create `TeamRole` enum: `OWNER`, `MANAGER`, `COACH`, `GUEST_COACH`, `PLAYER`, `GUARDIAN`, `FAN`
 
 #### API Implementation
 
@@ -546,7 +546,7 @@ mutation inviteTeamMember(
   teamId: ID!
   email: String!
   role: TeamRole!
-  linkedPlayerId: ID  # Required for PARENT_FAN role
+  linkedPlayerId: ID  # Required for GUARDIAN role, optional for FAN
   isGuest: Boolean  # For guest coaches
   message: String  # Optional personal message
 ): TeamInvitation!

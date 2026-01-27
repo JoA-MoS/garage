@@ -21,7 +21,7 @@ export interface TeamRoleMetadata {
  * Used with TeamAccessGuard to enforce role-based access control.
  *
  * @param roles - Array of required roles. User must have at least one of these roles.
- *                Role hierarchy is respected (OWNER > MANAGER > COACH > PLAYER > PARENT_FAN).
+ *                Role ordering: OWNER > MANAGER > COACH > GUEST_COACH > PLAYER > GUARDIAN > FAN
  * @param options - Optional configuration for teamId extraction
  *
  * @example
@@ -38,7 +38,7 @@ export interface TeamRoleMetadata {
  */
 export const RequireTeamRole = (
   roles: TeamRole[],
-  options?: { teamIdArg?: string; teamIdPath?: string }
+  options?: { teamIdArg?: string; teamIdPath?: string },
 ) =>
   SetMetadata<string, TeamRoleMetadata>(TEAM_ROLES_KEY, {
     roles,

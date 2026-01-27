@@ -9,8 +9,8 @@ import { Team } from '../../entities/team.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { GameEvent } from '../../entities/game-event.entity';
 import { User } from '../../entities/user.entity';
-import { TeamPlayer } from '../../entities/team-player.entity';
-import { TeamCoach } from '../../entities/team-coach.entity';
+import { TeamMember } from '../../entities/team-member.entity';
+import { TeamMemberRole } from '../../entities/team-member-role.entity';
 import { GameTimingService, GameTiming } from '../games/game-timing.service';
 import { ObservabilityService } from '../observability/observability.service';
 
@@ -30,14 +30,14 @@ export interface IDataLoaders {
   gameEventsByGameTeamLoader: DataLoader<string, GameEvent[]>;
   gameTimingLoader: DataLoader<string, GameTiming>;
 
-  // User/Player/Coach loaders
+  // User loader
   userLoader: DataLoader<string, User>;
-  teamPlayersByUserIdLoader: DataLoader<string, TeamPlayer[]>;
-  teamCoachesByUserIdLoader: DataLoader<string, TeamCoach[]>;
 
-  // Team roster loaders
-  teamPlayersByTeamIdLoader: DataLoader<string, TeamPlayer[]>;
-  teamCoachesByTeamIdLoader: DataLoader<string, TeamCoach[]>;
+  // Team membership loaders (new unified model)
+  teamMembersByTeamIdLoader: DataLoader<string, TeamMember[]>;
+  teamMembersByUserIdLoader: DataLoader<string, TeamMember[]>;
+  teamMemberRolesByMemberIdLoader: DataLoader<string, TeamMemberRole[]>;
+  teamMemberLoader: DataLoader<string, TeamMember>;
 }
 
 /**
@@ -63,10 +63,10 @@ export class DataLoadersService {
     private readonly gameEventRepository: Repository<GameEvent>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    @InjectRepository(TeamPlayer)
-    private readonly teamPlayerRepository: Repository<TeamPlayer>,
-    @InjectRepository(TeamCoach)
-    private readonly teamCoachRepository: Repository<TeamCoach>,
+    @InjectRepository(TeamMember)
+    private readonly teamMemberRepository: Repository<TeamMember>,
+    @InjectRepository(TeamMemberRole)
+    private readonly teamMemberRoleRepository: Repository<TeamMemberRole>,
     private readonly gameTimingService: GameTimingService,
     @Optional()
     private readonly observabilityService?: ObservabilityService,
@@ -104,14 +104,15 @@ export class DataLoadersService {
       gameEventsByGameTeamLoader: this.createGameEventsByGameTeamLoader(),
       gameTimingLoader: this.createGameTimingLoader(),
 
-      // User/Player/Coach loaders
+      // User loader
       userLoader: this.createUserLoader(),
-      teamPlayersByUserIdLoader: this.createTeamPlayersByUserIdLoader(),
-      teamCoachesByUserIdLoader: this.createTeamCoachesByUserIdLoader(),
 
-      // Team roster loaders
-      teamPlayersByTeamIdLoader: this.createTeamPlayersByTeamIdLoader(),
-      teamCoachesByTeamIdLoader: this.createTeamCoachesByTeamIdLoader(),
+      // Team membership loaders (new unified model)
+      teamMembersByTeamIdLoader: this.createTeamMembersByTeamIdLoader(),
+      teamMembersByUserIdLoader: this.createTeamMembersByUserIdLoader(),
+      teamMemberRolesByMemberIdLoader:
+        this.createTeamMemberRolesByMemberIdLoader(),
+      teamMemberLoader: this.createTeamMemberLoader(),
     };
   }
 
@@ -289,7 +290,7 @@ export class DataLoadersService {
   }
 
   // ============================================================
-  // User/Player/Coach DataLoaders
+  // User DataLoader
   // ============================================================
 
   /**
@@ -308,114 +309,111 @@ export class DataLoadersService {
     });
   }
 
-  /**
-   * Batch loads TeamPlayers by userId.
-   * Returns an array of TeamPlayers for each user (their team memberships as player).
-   * Includes team relation for display purposes.
-   */
-  private createTeamPlayersByUserIdLoader(): DataLoader<string, TeamPlayer[]> {
-    return this.createLoader<string, TeamPlayer[]>(
-      'teamPlayersByUserIdLoader',
-      async (userIds) => {
-        const teamPlayers = await this.teamPlayerRepository.find({
-          where: { userId: In([...userIds]), isActive: true },
-          relations: ['team'],
-        });
-
-        // Group by userId
-        const teamPlayersMap = new Map<string, TeamPlayer[]>();
-        for (const tp of teamPlayers) {
-          const existing = teamPlayersMap.get(tp.userId) || [];
-          existing.push(tp);
-          teamPlayersMap.set(tp.userId, existing);
-        }
-
-        return userIds.map((id) => teamPlayersMap.get(id) || []);
-      },
-    );
-  }
-
-  /**
-   * Batch loads TeamCoaches by userId.
-   * Returns an array of TeamCoaches for each user (their team memberships as coach).
-   * Includes team relation for display purposes.
-   */
-  private createTeamCoachesByUserIdLoader(): DataLoader<string, TeamCoach[]> {
-    return this.createLoader<string, TeamCoach[]>(
-      'teamCoachesByUserIdLoader',
-      async (userIds) => {
-        const teamCoaches = await this.teamCoachRepository.find({
-          where: { userId: In([...userIds]), isActive: true },
-          relations: ['team'],
-        });
-
-        // Group by userId
-        const teamCoachesMap = new Map<string, TeamCoach[]>();
-        for (const tc of teamCoaches) {
-          const existing = teamCoachesMap.get(tc.userId) || [];
-          existing.push(tc);
-          teamCoachesMap.set(tc.userId, existing);
-        }
-
-        return userIds.map((id) => teamCoachesMap.get(id) || []);
-      },
-    );
-  }
-
   // ============================================================
-  // Team Roster DataLoaders
+  // Team Membership DataLoaders (New Unified Model)
   // ============================================================
 
   /**
-   * Batch loads TeamPlayers by teamId.
-   * Returns an array of TeamPlayers for each team (the team's roster).
-   * Includes user relation for display purposes.
+   * Batch loads TeamMembers by their IDs.
+   * Includes user and roles relations for complete membership data.
    */
-  private createTeamPlayersByTeamIdLoader(): DataLoader<string, TeamPlayer[]> {
-    return this.createLoader<string, TeamPlayer[]>(
-      'teamPlayersByTeamIdLoader',
-      async (teamIds) => {
-        const teamPlayers = await this.teamPlayerRepository.find({
-          where: { teamId: In([...teamIds]), isActive: true },
-          relations: ['user'],
+  private createTeamMemberLoader(): DataLoader<string, TeamMember> {
+    return this.createLoader<string, TeamMember>(
+      'teamMemberLoader',
+      async (memberIds) => {
+        const members = await this.teamMemberRepository.find({
+          where: { id: In([...memberIds]) },
+          relations: ['user', 'team', 'roles'],
         });
 
-        // Group by teamId
-        const teamPlayersMap = new Map<string, TeamPlayer[]>();
-        for (const tp of teamPlayers) {
-          const existing = teamPlayersMap.get(tp.teamId) || [];
-          existing.push(tp);
-          teamPlayersMap.set(tp.teamId, existing);
-        }
-
-        return teamIds.map((id) => teamPlayersMap.get(id) || []);
+        const memberMap = new Map(members.map((m) => [m.id, m]));
+        return memberIds.map(
+          (id) => memberMap.get(id) || new Error(`TeamMember not found: ${id}`),
+        );
       },
     );
   }
 
   /**
-   * Batch loads TeamCoaches by teamId.
-   * Returns an array of TeamCoaches for each team (the team's coaching staff).
-   * Includes user relation for display purposes.
+   * Batch loads TeamMembers by teamId.
+   * Returns all active members for each team with their roles and user data.
+   *
+   * This replaces the old teamPlayersByTeamIdLoader and teamCoachesByTeamIdLoader.
    */
-  private createTeamCoachesByTeamIdLoader(): DataLoader<string, TeamCoach[]> {
-    return this.createLoader<string, TeamCoach[]>(
-      'teamCoachesByTeamIdLoader',
+  private createTeamMembersByTeamIdLoader(): DataLoader<string, TeamMember[]> {
+    return this.createLoader<string, TeamMember[]>(
+      'teamMembersByTeamIdLoader',
       async (teamIds) => {
-        const teamCoaches = await this.teamCoachRepository.find({
+        const members = await this.teamMemberRepository.find({
           where: { teamId: In([...teamIds]), isActive: true },
-          relations: ['user'],
+          relations: ['user', 'roles'],
         });
 
         // Group by teamId
-        const teamCoachesMap = new Map<string, TeamCoach[]>();
-        for (const tc of teamCoaches) {
-          const existing = teamCoachesMap.get(tc.teamId) || [];
-          existing.push(tc);
-          teamCoachesMap.set(tc.teamId, existing);
+        const membersMap = new Map<string, TeamMember[]>();
+        for (const member of members) {
+          const existing = membersMap.get(member.teamId) || [];
+          existing.push(member);
+          membersMap.set(member.teamId, existing);
         }
 
-        return teamIds.map((id) => teamCoachesMap.get(id) || []);
+        return teamIds.map((id) => membersMap.get(id) || []);
+      },
+    );
+  }
+
+  /**
+   * Batch loads TeamMembers by userId.
+   * Returns all active memberships for each user with their roles and team data.
+   *
+   * This replaces the old teamPlayersByUserIdLoader and teamCoachesByUserIdLoader.
+   */
+  private createTeamMembersByUserIdLoader(): DataLoader<string, TeamMember[]> {
+    return this.createLoader<string, TeamMember[]>(
+      'teamMembersByUserIdLoader',
+      async (userIds) => {
+        const members = await this.teamMemberRepository.find({
+          where: { userId: In([...userIds]), isActive: true },
+          relations: ['team', 'roles'],
+        });
+
+        // Group by userId
+        const membersMap = new Map<string, TeamMember[]>();
+        for (const member of members) {
+          const existing = membersMap.get(member.userId) || [];
+          existing.push(member);
+          membersMap.set(member.userId, existing);
+        }
+
+        return userIds.map((id) => membersMap.get(id) || []);
+      },
+    );
+  }
+
+  /**
+   * Batch loads TeamMemberRoles by teamMemberId.
+   * Returns all roles for each team membership.
+   */
+  private createTeamMemberRolesByMemberIdLoader(): DataLoader<
+    string,
+    TeamMemberRole[]
+  > {
+    return this.createLoader<string, TeamMemberRole[]>(
+      'teamMemberRolesByMemberIdLoader',
+      async (memberIds) => {
+        const roles = await this.teamMemberRoleRepository.find({
+          where: { teamMemberId: In([...memberIds]) },
+        });
+
+        // Group by teamMemberId
+        const rolesMap = new Map<string, TeamMemberRole[]>();
+        for (const role of roles) {
+          const existing = rolesMap.get(role.teamMemberId) || [];
+          existing.push(role);
+          rolesMap.set(role.teamMemberId, existing);
+        }
+
+        return memberIds.map((id) => rolesMap.get(id) || []);
       },
     );
   }

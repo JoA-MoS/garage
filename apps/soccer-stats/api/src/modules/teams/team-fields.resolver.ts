@@ -2,8 +2,8 @@ import { Resolver, ResolveField, Parent, Context } from '@nestjs/graphql';
 
 import { Team } from '../../entities/team.entity';
 import { User } from '../../entities/user.entity';
-import { TeamPlayer } from '../../entities/team-player.entity';
-import { TeamCoach } from '../../entities/team-coach.entity';
+import { TeamMember, TeamRole } from '../../entities/team-member.entity';
+import { TeamMemberRole } from '../../entities/team-member-role.entity';
 import { GraphQLContext } from '../dataloaders';
 
 /**
@@ -12,53 +12,99 @@ import { GraphQLContext } from '../dataloaders';
  * Uses DataLoaders to batch database queries and solve the N+1 problem.
  * Each field resolver only triggers when that field is actually queried.
  *
- * Note: Some fields like 'games', 'owner', 'teamConfiguration', and
- * 'playersWithJersey' are still resolved in teams.resolver.ts as they have
- * different access patterns or require authorization checks.
+ * Note: Some fields like 'games', 'owner', 'teamConfiguration' are still
+ * resolved in teams.resolver.ts as they have different access patterns
+ * or require authorization checks.
  */
 @Resolver(() => Team)
 export class TeamFieldsResolver {
   /**
-   * Resolves the 'roster' field on Team.
-   * Uses DataLoader to batch multiple roster lookups into a single query.
+   * Resolves the 'teamMembers' field on Team.
+   * Uses DataLoader to batch multiple membership lookups into a single query.
    *
-   * Returns the team's player roster (with user data included).
+   * Returns all active team members with their roles and user data.
    */
-  @ResolveField(() => [TeamPlayer], {
-    description: "Team's player roster",
+  @ResolveField(() => [TeamMember], {
+    description: 'All team members with their roles',
+  })
+  async teamMembers(
+    @Parent() team: Team,
+    @Context() context: GraphQLContext,
+  ): Promise<TeamMember[]> {
+    // If teamMembers was already loaded, return it
+    if (team.teamMembers !== undefined) {
+      return team.teamMembers;
+    }
+    // Use DataLoader to batch the query
+    return context.loaders.teamMembersByTeamIdLoader.load(team.id);
+  }
+
+  /**
+   * Resolves the 'roster' field on Team.
+   * Returns members who have the PLAYER role.
+   *
+   * This is a convenience field for accessing the team's player roster.
+   */
+  @ResolveField(() => [TeamMemberRole], {
+    description: "Team's player roster (PLAYER roles only)",
   })
   async roster(
     @Parent() team: Team,
     @Context() context: GraphQLContext,
-  ): Promise<TeamPlayer[]> {
-    // If roster was already loaded (e.g., via eager loading), return it
-    if (team.roster !== undefined) {
-      return team.roster;
+  ): Promise<TeamMemberRole[]> {
+    const members = await context.loaders.teamMembersByTeamIdLoader.load(
+      team.id,
+    );
+
+    // Extract PLAYER roles from all memberships
+    // Attach the parent teamMember so the relation can be resolved
+    const playerRoles: TeamMemberRole[] = [];
+    for (const member of members) {
+      const roles = member.roles || [];
+      for (const role of roles) {
+        if (role.role === TeamRole.PLAYER) {
+          role.teamMember = member;
+          playerRoles.push(role);
+        }
+      }
     }
-    // Use DataLoader to batch the query
-    return context.loaders.teamPlayersByTeamIdLoader.load(team.id);
+    return playerRoles;
   }
 
   /**
    * Resolves the 'coaches' field on Team.
-   * Uses DataLoader to batch multiple coaches lookups into a single query.
+   * Returns members who have COACH or GUEST_COACH roles.
    *
-   * Returns the team's coaching staff (with user data included).
+   * This is a convenience field for accessing the team's coaching staff.
    */
-  @ResolveField(() => [TeamCoach], {
+  @ResolveField(() => [TeamMemberRole], {
     nullable: true,
-    description: "Team's coaching staff",
+    description: "Team's coaching staff (COACH and GUEST_COACH roles)",
   })
   async coaches(
     @Parent() team: Team,
     @Context() context: GraphQLContext,
-  ): Promise<TeamCoach[]> {
-    // If coaches was already loaded (e.g., via eager loading), return it
-    if (team.coaches !== undefined) {
-      return team.coaches;
+  ): Promise<TeamMemberRole[]> {
+    const members = await context.loaders.teamMembersByTeamIdLoader.load(
+      team.id,
+    );
+
+    // Extract COACH and GUEST_COACH roles from all memberships
+    // Attach the parent teamMember so the relation can be resolved
+    const coachRoles: TeamMemberRole[] = [];
+    for (const member of members) {
+      const roles = member.roles || [];
+      for (const role of roles) {
+        if (
+          role.role === TeamRole.COACH ||
+          role.role === TeamRole.GUEST_COACH
+        ) {
+          role.teamMember = member;
+          coachRoles.push(role);
+        }
+      }
     }
-    // Use DataLoader to batch the query
-    return context.loaders.teamCoachesByTeamIdLoader.load(team.id);
+    return coachRoles;
   }
 
   /**
@@ -67,27 +113,29 @@ export class TeamFieldsResolver {
    * then extracts the associated users.
    *
    * This is a convenience field that extracts users from the team's
-   * roster relationships.
+   * PLAYER role memberships.
    */
   @ResolveField(() => [User], {
-    description: 'Players on the team (users)',
+    description: 'Players on the team (users with PLAYER role)',
   })
   async players(
     @Parent() team: Team,
     @Context() context: GraphQLContext,
   ): Promise<User[]> {
-    // If roster is already loaded with users, extract them
-    // (filter isActive since pre-loaded data may include inactive)
-    if (team.roster !== undefined) {
-      return team.roster
-        .filter((tp) => tp.isActive && tp.user)
-        .map((tp) => tp.user);
-    }
-
-    // DataLoader already filters isActive=true in the query
-    const roster = await context.loaders.teamPlayersByTeamIdLoader.load(
+    const members = await context.loaders.teamMembersByTeamIdLoader.load(
       team.id,
     );
-    return roster.filter((tp) => tp.user).map((tp) => tp.user);
+
+    // Extract users who have PLAYER role
+    const players: User[] = [];
+    for (const member of members) {
+      const hasPlayerRole = (member.roles || []).some(
+        (role) => role.role === TeamRole.PLAYER,
+      );
+      if (hasPlayerRole && member.user) {
+        players.push(member.user);
+      }
+    }
+    return players;
   }
 }

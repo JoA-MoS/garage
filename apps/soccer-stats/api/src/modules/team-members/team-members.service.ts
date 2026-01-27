@@ -7,6 +7,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { TeamMember, TeamRole } from '../../entities/team-member.entity';
+import {
+  TeamMemberRole,
+  PlayerRoleData,
+  CoachRoleData,
+  GuardianRoleData,
+  FanRoleData,
+  RoleData,
+} from '../../entities/team-member-role.entity';
 import { Team } from '../../entities/team.entity';
 import { User } from '../../entities/user.entity';
 
@@ -14,12 +22,18 @@ import { User } from '../../entities/user.entity';
  * Role hierarchy for team access control.
  * Higher values indicate more permissions.
  */
-const ROLE_HIERARCHY: Record<TeamRole, number> = {
-  [TeamRole.OWNER]: 5,
-  [TeamRole.MANAGER]: 4,
-  [TeamRole.COACH]: 3,
-  [TeamRole.PLAYER]: 2,
-  [TeamRole.PARENT_FAN]: 1,
+/**
+ * Role ordering for display purposes.
+ * Note: Actual permissions are handled by role guards at the resolver level.
+ */
+const ROLE_ORDER: Record<TeamRole, number> = {
+  [TeamRole.OWNER]: 7,
+  [TeamRole.MANAGER]: 6,
+  [TeamRole.COACH]: 5,
+  [TeamRole.GUEST_COACH]: 4,
+  [TeamRole.PLAYER]: 3,
+  [TeamRole.GUARDIAN]: 2,
+  [TeamRole.FAN]: 1,
 };
 
 @Injectable()
@@ -27,36 +41,28 @@ export class TeamMembersService {
   constructor(
     @InjectRepository(TeamMember)
     private teamMemberRepository: Repository<TeamMember>,
+    @InjectRepository(TeamMemberRole)
+    private teamMemberRoleRepository: Repository<TeamMemberRole>,
     @InjectRepository(Team)
     private teamRepository: Repository<Team>,
     @InjectRepository(User)
-    private userRepository: Repository<User>
+    private userRepository: Repository<User>,
   ) {}
 
+  // ============================================================
+  // Query Methods
+  // ============================================================
+
   /**
-   * Find all members of a team, ordered by role hierarchy (OWNER first, then MANAGER, etc.)
+   * Find all members of a team with their roles.
+   * Ordered by highest role first.
    */
   async findByTeam(teamId: string): Promise<TeamMember[]> {
-    // Use query builder to order by role hierarchy instead of alphabetical
-    return this.teamMemberRepository
-      .createQueryBuilder('teamMember')
-      .leftJoinAndSelect('teamMember.user', 'user')
-      .leftJoinAndSelect('teamMember.linkedPlayer', 'linkedPlayer')
-      .leftJoinAndSelect('teamMember.invitedBy', 'invitedBy')
-      .where('teamMember.teamId = :teamId', { teamId })
-      .orderBy(
-        `CASE teamMember.role
-          WHEN 'OWNER' THEN 1
-          WHEN 'MANAGER' THEN 2
-          WHEN 'COACH' THEN 3
-          WHEN 'PLAYER' THEN 4
-          WHEN 'PARENT_FAN' THEN 5
-          ELSE 6
-        END`,
-        'ASC'
-      )
-      .addOrderBy('teamMember.createdAt', 'ASC')
-      .getMany();
+    return this.teamMemberRepository.find({
+      where: { teamId, isActive: true },
+      relations: ['user', 'roles', 'invitedBy'],
+      order: { createdAt: 'ASC' },
+    });
   }
 
   /**
@@ -64,27 +70,27 @@ export class TeamMembersService {
    */
   async findByUser(userId: string): Promise<TeamMember[]> {
     return this.teamMemberRepository.find({
-      where: { user: { id: userId } },
-      relations: ['team', 'linkedPlayer'],
+      where: { userId, isActive: true },
+      relations: ['team', 'roles'],
     });
   }
 
   /**
-   * Find all teams a user belongs to, optionally filtered by roles.
-   * Returns Team[] sorted by name.
-   *
-   * @param userId - The user ID
-   * @param roles - Optional array of roles to filter by (e.g., [OWNER, MANAGER])
+   * Find all teams a user belongs to.
+   * @param roles If provided, filter to teams where user has at least one of these roles
    */
   async findTeamsForUser(userId: string, roles?: TeamRole[]): Promise<Team[]> {
-    let memberships = await this.findByUser(userId);
+    const memberships = await this.findByUser(userId);
+
+    let filtered = memberships.filter((m) => m.team);
 
     if (roles && roles.length > 0) {
-      memberships = memberships.filter((m) => roles.includes(m.role));
+      filtered = filtered.filter((m) =>
+        m.roles?.some((r) => roles.includes(r.role)),
+      );
     }
 
-    return memberships
-      .filter((m) => m.team)
+    return filtered
       .map((m) => m.team)
       .sort((a, b) => a.name.localeCompare(b.name));
   }
@@ -94,58 +100,78 @@ export class TeamMembersService {
    */
   async findTeamIdsForUser(userId: string): Promise<string[]> {
     const memberships = await this.teamMemberRepository.find({
-      where: { userId },
+      where: { userId, isActive: true },
       select: ['teamId'],
     });
     return memberships.map((m) => m.teamId);
   }
 
   /**
-   * Find a specific team membership
+   * Find a specific team membership by ID
    */
   async findOne(id: string): Promise<TeamMember | null> {
     return this.teamMemberRepository.findOne({
       where: { id },
-      relations: ['team', 'user', 'linkedPlayer', 'invitedBy'],
+      relations: ['team', 'user', 'roles', 'invitedBy'],
     });
   }
 
   /**
-   * Find a user's role in a specific team
+   * Find a user's membership in a specific team
    */
-  async findUserRoleInTeam(
+  async findMembership(
     userId: string,
-    teamId: string
+    teamId: string,
   ): Promise<TeamMember | null> {
     return this.teamMemberRepository.findOne({
       where: { userId, teamId },
-      relations: ['team', 'user'],
+      relations: ['team', 'user', 'roles'],
     });
   }
 
   /**
-   * Get the owner of a team
+   * Check if a user has a specific role in a team
+   */
+  async hasRole(
+    userId: string,
+    teamId: string,
+    role: TeamRole,
+  ): Promise<boolean> {
+    const membership = await this.findMembership(userId, teamId);
+    if (!membership || !membership.roles) return false;
+    return membership.roles.some((r) => r.role === role);
+  }
+
+  /**
+   * Get the owner membership of a team
    */
   async findTeamOwner(teamId: string): Promise<TeamMember | null> {
-    return this.teamMemberRepository.findOne({
-      where: { teamId, role: TeamRole.OWNER },
-      relations: ['user'],
+    const members = await this.teamMemberRepository.find({
+      where: { teamId, isActive: true },
+      relations: ['user', 'roles'],
     });
+
+    for (const member of members) {
+      if (member.roles?.some((r) => r.role === TeamRole.OWNER)) {
+        return member;
+      }
+    }
+    return null;
   }
 
   /**
    * Check if a user has a specific role (or higher) in a team.
-   * Role hierarchy: OWNER > MANAGER > COACH > PLAYER > PARENT_FAN
    */
   async hasRoleOrHigher(
     userId: string,
     teamId: string,
-    minimumRole: TeamRole
+    minimumRole: TeamRole,
   ): Promise<boolean> {
-    const membership = await this.findUserRoleInTeam(userId, teamId);
-    if (!membership) return false;
+    const membership = await this.findMembership(userId, teamId);
+    if (!membership || !membership.roles) return false;
 
-    return ROLE_HIERARCHY[membership.role] >= ROLE_HIERARCHY[minimumRole];
+    const minLevel = ROLE_ORDER[minimumRole];
+    return membership.roles.some((r) => ROLE_ORDER[r.role] >= minLevel);
   }
 
   /**
@@ -153,21 +179,55 @@ export class TeamMembersService {
    */
   async isTeamMember(userId: string, teamId: string): Promise<boolean> {
     const count = await this.teamMemberRepository.count({
-      where: { userId, teamId },
+      where: { userId, teamId, isActive: true },
     });
     return count > 0;
   }
 
   /**
-   * Add a member to a team
+   * Get the highest role a user has in a team
+   */
+  async getHighestRole(
+    userId: string,
+    teamId: string,
+  ): Promise<TeamRole | null> {
+    const membership = await this.findMembership(userId, teamId);
+    if (!membership || !membership.roles || membership.roles.length === 0) {
+      return null;
+    }
+
+    let highestRole = membership.roles[0].role;
+    let highestLevel = ROLE_ORDER[highestRole];
+
+    for (const roleRecord of membership.roles) {
+      const level = ROLE_ORDER[roleRecord.role];
+      if (level > highestLevel) {
+        highestRole = roleRecord.role;
+        highestLevel = level;
+      }
+    }
+
+    return highestRole;
+  }
+
+  // ============================================================
+  // Membership Management
+  // ============================================================
+
+  /**
+   * Add a member to a team with a specific role.
+   * Creates both TeamMember and TeamMemberRole records.
    */
   async addMember(
     teamId: string,
     userId: string,
     role: TeamRole,
+    roleData:
+      | PlayerRoleData
+      | CoachRoleData
+      | GuardianRoleData
+      | FanRoleData = {},
     invitedById?: string,
-    linkedPlayerId?: string,
-    isGuest = false
   ): Promise<TeamMember> {
     // Verify team exists
     const team = await this.teamRepository.findOne({ where: { id: teamId } });
@@ -181,12 +241,17 @@ export class TeamMembersService {
       throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
-    // Check if user already has a membership in this team
-    const existingMembership = await this.findUserRoleInTeam(userId, teamId);
+    // Check if user already has this role in this team
+    const existingMembership = await this.findMembership(userId, teamId);
     if (existingMembership) {
-      throw new ForbiddenException(
-        `User already has role ${existingMembership.role} in this team`
-      );
+      const hasRole = existingMembership.roles?.some((r) => r.role === role);
+      if (hasRole) {
+        throw new ForbiddenException(
+          `User already has ${role} role in this team`,
+        );
+      }
+      // User exists but doesn't have this role - add the role
+      return this.addRoleToMember(existingMembership.id, role, roleData);
     }
 
     // Ensure only one owner per team
@@ -194,57 +259,155 @@ export class TeamMembersService {
       const existingOwner = await this.findTeamOwner(teamId);
       if (existingOwner) {
         throw new ForbiddenException(
-          'Team already has an owner. Use transferOwnership to change owners.'
+          'Team already has an owner. Use transferOwnership to change owners.',
         );
       }
     }
 
-    // Parent/fan must have a linked player
-    if (role === TeamRole.PARENT_FAN && !linkedPlayerId) {
-      throw new ForbiddenException(
-        'Parent/Fan role requires a linked player ID'
-      );
+    // Guardian must have a linked player (required)
+    if (role === TeamRole.GUARDIAN) {
+      const guardianData = roleData as GuardianRoleData;
+      if (!guardianData.linkedPlayerId) {
+        throw new ForbiddenException(
+          'Guardian role requires a linked player ID',
+        );
+      }
     }
+    // Fan linkedPlayerId is optional - they can just follow the team
 
+    // Create membership
     const teamMember = this.teamMemberRepository.create({
       teamId,
       userId,
-      role,
-      linkedPlayerId,
-      isGuest,
+      joinedDate: new Date(),
+      isActive: true,
       invitedById,
       invitedAt: invitedById ? new Date() : undefined,
-      // TODO: See FEATURE_ROADMAP.md section 1.6 - Invitation system will add an acceptInvitation() method.
-      // For now, only set acceptedAt for direct additions (not invitations).
       acceptedAt: !invitedById ? new Date() : undefined,
     });
 
-    return this.teamMemberRepository.save(teamMember);
+    const savedMember = await this.teamMemberRepository.save(teamMember);
+
+    // Create role
+    const teamMemberRole = this.teamMemberRoleRepository.create({
+      teamMemberId: savedMember.id,
+      role,
+      roleData,
+    });
+    await this.teamMemberRoleRepository.save(teamMemberRole);
+
+    // Return with relations
+    return this.findOne(savedMember.id) as Promise<TeamMember>;
   }
 
   /**
-   * Update a member's role
+   * Add a role to an existing membership
    */
-  async updateRole(
+  async addRoleToMember(
     membershipId: string,
-    newRole: TeamRole
+    role: TeamRole,
+    roleData:
+      | PlayerRoleData
+      | CoachRoleData
+      | GuardianRoleData
+      | FanRoleData = {},
   ): Promise<TeamMember> {
     const membership = await this.findOne(membershipId);
     if (!membership) {
       throw new NotFoundException(
-        `Team membership with ID ${membershipId} not found`
+        `Team membership with ID ${membershipId} not found`,
       );
     }
 
-    // Cannot change from/to owner role via this method
-    if (membership.role === TeamRole.OWNER || newRole === TeamRole.OWNER) {
+    // Check if role already exists
+    const existingRole = membership.roles?.find((r) => r.role === role);
+    if (existingRole) {
+      throw new ForbiddenException(`Member already has ${role} role`);
+    }
+
+    // Ensure only one owner per team
+    if (role === TeamRole.OWNER) {
+      const existingOwner = await this.findTeamOwner(membership.teamId);
+      if (existingOwner && existingOwner.id !== membershipId) {
+        throw new ForbiddenException(
+          'Team already has an owner. Use transferOwnership to change owners.',
+        );
+      }
+    }
+
+    // Create role
+    const teamMemberRole = this.teamMemberRoleRepository.create({
+      teamMemberId: membershipId,
+      role,
+      roleData,
+    });
+    await this.teamMemberRoleRepository.save(teamMemberRole);
+
+    return this.findOne(membershipId) as Promise<TeamMember>;
+  }
+
+  /**
+   * Remove a role from a membership
+   */
+  async removeRoleFromMember(
+    membershipId: string,
+    role: TeamRole,
+  ): Promise<TeamMember | null> {
+    const membership = await this.findOne(membershipId);
+    if (!membership) {
+      throw new NotFoundException(
+        `Team membership with ID ${membershipId} not found`,
+      );
+    }
+
+    // Cannot remove owner role
+    if (role === TeamRole.OWNER) {
       throw new ForbiddenException(
-        'Cannot change owner role. Use transferOwnership instead.'
+        'Cannot remove owner role. Transfer ownership first.',
       );
     }
 
-    membership.role = newRole;
-    return this.teamMemberRepository.save(membership);
+    const roleRecord = membership.roles?.find((r) => r.role === role);
+    if (!roleRecord) {
+      throw new NotFoundException(`Member does not have ${role} role`);
+    }
+
+    await this.teamMemberRoleRepository.remove(roleRecord);
+
+    // If no roles left, remove the membership
+    const updatedMembership = await this.findOne(membershipId);
+    if (!updatedMembership?.roles?.length) {
+      await this.teamMemberRepository.remove(updatedMembership!);
+      return null;
+    }
+
+    return updatedMembership;
+  }
+
+  /**
+   * Update role-specific data
+   */
+  async updateRoleData(
+    membershipId: string,
+    role: TeamRole,
+    roleData: Partial<
+      PlayerRoleData | CoachRoleData | GuardianRoleData | FanRoleData
+    >,
+  ): Promise<TeamMemberRole> {
+    const membership = await this.findOne(membershipId);
+    if (!membership) {
+      throw new NotFoundException(
+        `Team membership with ID ${membershipId} not found`,
+      );
+    }
+
+    const roleRecord = membership.roles?.find((r) => r.role === role);
+    if (!roleRecord) {
+      throw new NotFoundException(`Member does not have ${role} role`);
+    }
+
+    roleRecord.roleData = { ...roleRecord.roleData, ...roleData } as RoleData;
+    return this.teamMemberRoleRepository.save(roleRecord);
   }
 
   /**
@@ -253,58 +416,72 @@ export class TeamMembersService {
   async transferOwnership(
     teamId: string,
     currentOwnerId: string,
-    newOwnerId: string
+    newOwnerId: string,
   ): Promise<{ previousOwner: TeamMember; newOwner: TeamMember }> {
     // Verify current owner
-    const currentOwnerMembership = await this.findUserRoleInTeam(
+    const currentOwnerMembership = await this.findMembership(
       currentOwnerId,
-      teamId
+      teamId,
     );
-    if (
-      !currentOwnerMembership ||
-      currentOwnerMembership.role !== TeamRole.OWNER
-    ) {
+    if (!currentOwnerMembership) {
+      throw new NotFoundException('Current owner membership not found');
+    }
+
+    const hasOwnerRole = currentOwnerMembership.roles?.some(
+      (r) => r.role === TeamRole.OWNER,
+    );
+    if (!hasOwnerRole) {
       throw new ForbiddenException(
-        'Only the current owner can transfer ownership'
+        'Only the current owner can transfer ownership',
       );
     }
 
     // Find new owner's membership
-    const newOwnerMembership = await this.findUserRoleInTeam(
-      newOwnerId,
-      teamId
-    );
+    let newOwnerMembership = await this.findMembership(newOwnerId, teamId);
     if (!newOwnerMembership) {
       throw new NotFoundException('New owner must be an existing team member');
     }
 
-    // Transfer ownership
-    currentOwnerMembership.role = TeamRole.MANAGER; // Demote to manager
-    newOwnerMembership.role = TeamRole.OWNER;
+    // Remove OWNER from current owner, add MANAGER if they don't have it
+    await this.removeRoleFromMember(currentOwnerMembership.id, TeamRole.OWNER);
+    const hasManagerRole = currentOwnerMembership.roles?.some(
+      (r) => r.role === TeamRole.MANAGER,
+    );
+    if (!hasManagerRole) {
+      await this.addRoleToMember(currentOwnerMembership.id, TeamRole.MANAGER);
+    }
 
-    const [previousOwner, newOwner] = await Promise.all([
-      this.teamMemberRepository.save(currentOwnerMembership),
-      this.teamMemberRepository.save(newOwnerMembership),
-    ]);
+    // Add OWNER to new owner
+    newOwnerMembership = await this.addRoleToMember(
+      newOwnerMembership.id,
+      TeamRole.OWNER,
+    );
 
-    return { previousOwner, newOwner };
+    const previousOwner = (await this.findOne(
+      currentOwnerMembership.id,
+    )) as TeamMember;
+
+    return { previousOwner, newOwner: newOwnerMembership };
   }
 
   /**
-   * Remove a member from a team
+   * Remove a member from a team entirely
    */
   async removeMember(membershipId: string): Promise<boolean> {
     const membership = await this.findOne(membershipId);
     if (!membership) {
       throw new NotFoundException(
-        `Team membership with ID ${membershipId} not found`
+        `Team membership with ID ${membershipId} not found`,
       );
     }
 
     // Cannot remove owner
-    if (membership.role === TeamRole.OWNER) {
+    const hasOwnerRole = membership.roles?.some(
+      (r) => r.role === TeamRole.OWNER,
+    );
+    if (hasOwnerRole) {
       throw new ForbiddenException(
-        'Cannot remove team owner. Transfer ownership first.'
+        'Cannot remove team owner. Transfer ownership first.',
       );
     }
 
@@ -319,15 +496,79 @@ export class TeamMembersService {
     const membership = await this.findOne(membershipId);
     if (!membership) {
       throw new NotFoundException(
-        `Team membership with ID ${membershipId} not found`
+        `Team membership with ID ${membershipId} not found`,
       );
     }
 
-    if (membership.role !== TeamRole.COACH || !membership.isGuest) {
+    const guestCoachRole = membership.roles?.find(
+      (r) => r.role === TeamRole.GUEST_COACH,
+    );
+    if (!guestCoachRole) {
       throw new ForbiddenException('Can only promote guest coaches');
     }
 
-    membership.isGuest = false;
-    return this.teamMemberRepository.save(membership);
+    // Change role from GUEST_COACH to COACH
+    guestCoachRole.role = TeamRole.COACH;
+    await this.teamMemberRoleRepository.save(guestCoachRole);
+
+    return this.findOne(membershipId) as Promise<TeamMember>;
+  }
+
+  // ============================================================
+  // Convenience Methods for Player/Coach Operations
+  // ============================================================
+
+  /**
+   * Add a player to a team
+   */
+  async addPlayer(
+    teamId: string,
+    userId: string,
+    playerData: PlayerRoleData = {},
+    invitedById?: string,
+  ): Promise<TeamMember> {
+    return this.addMember(
+      teamId,
+      userId,
+      TeamRole.PLAYER,
+      playerData,
+      invitedById,
+    );
+  }
+
+  /**
+   * Add a coach to a team
+   */
+  async addCoach(
+    teamId: string,
+    userId: string,
+    coachData: CoachRoleData = {},
+    isGuest = false,
+    invitedById?: string,
+  ): Promise<TeamMember> {
+    const role = isGuest ? TeamRole.GUEST_COACH : TeamRole.COACH;
+    return this.addMember(teamId, userId, role, coachData, invitedById);
+  }
+
+  /**
+   * Find members with PLAYER role for a team
+   */
+  async findPlayersForTeam(teamId: string): Promise<TeamMember[]> {
+    const members = await this.findByTeam(teamId);
+    return members.filter((m) =>
+      m.roles?.some((r) => r.role === TeamRole.PLAYER),
+    );
+  }
+
+  /**
+   * Find members with COACH or GUEST_COACH role for a team
+   */
+  async findCoachesForTeam(teamId: string): Promise<TeamMember[]> {
+    const members = await this.findByTeam(teamId);
+    return members.filter((m) =>
+      m.roles?.some(
+        (r) => r.role === TeamRole.COACH || r.role === TeamRole.GUEST_COACH,
+      ),
+    );
   }
 }

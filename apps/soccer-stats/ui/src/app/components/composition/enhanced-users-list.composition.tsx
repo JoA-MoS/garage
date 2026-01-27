@@ -79,40 +79,76 @@ export const UsersListComposition = ({
   const [isLoading] = useState(false);
 
   // =================================
-  // ENHANCED MOCK DATA
+  // ENHANCED MOCK DATA (New Schema)
   // =================================
 
-  // Mock data that demonstrates the unified user structure
+  // Helper to check if user has a role
+  const hasRole = (user: Partial<User>, role: string) => {
+    return user.teamMemberships?.some((tm) =>
+      tm.roles?.some((r) => r.role === role),
+    );
+  };
+
+  const getPlayerRole = (user: Partial<User>) => {
+    for (const tm of user.teamMemberships || []) {
+      const playerRole = tm.roles?.find((r) => r.role === 'PLAYER');
+      if (playerRole) return { membership: tm, role: playerRole };
+    }
+    return null;
+  };
+
+  const getCoachRole = (user: Partial<User>) => {
+    for (const tm of user.teamMemberships || []) {
+      const coachRole = tm.roles?.find(
+        (r) => r.role === 'COACH' || r.role === 'GUEST_COACH',
+      );
+      if (coachRole) return { membership: tm, role: coachRole };
+    }
+    return null;
+  };
+
+  // Mock data that demonstrates the unified user structure with new schema
   const mockUsers: Partial<User>[] = [
     {
       id: '1',
       firstName: 'John',
       lastName: 'Doe',
       email: 'john.doe@example.com',
-      playerTeams: [
+      teamMemberships: [
         {
-          id: 'tp1',
-          jerseyNumber: '10',
-          primaryPosition: 'Forward',
+          id: 'tm1',
           isActive: true,
+          joinedDate: new Date('2023-01-15'),
           team: { id: 'team1', name: 'Thunder FC', shortName: 'TFC' },
+          roles: [
+            {
+              id: 'tmr1',
+              role: 'PLAYER',
+              jerseyNumber: '10',
+              primaryPosition: 'Forward',
+            },
+          ],
         },
       ],
-      coachTeams: [], // Not a coach
     },
     {
       id: '2',
       firstName: 'Jane',
       lastName: 'Smith',
       email: 'jane.smith@example.com',
-      playerTeams: [], // Not a player
-      coachTeams: [
+      teamMemberships: [
         {
-          id: 'tc1',
-          role: 'Head Coach',
-          startDate: new Date('2023-01-01'),
+          id: 'tm2',
           isActive: true,
+          joinedDate: new Date('2023-01-01'),
           team: { id: 'team1', name: 'Thunder FC', shortName: 'TFC' },
+          roles: [
+            {
+              id: 'tmr2',
+              role: 'COACH',
+              coachTitle: 'Head Coach',
+            },
+          ],
         },
       ],
     },
@@ -121,22 +157,25 @@ export const UsersListComposition = ({
       firstName: 'Mike',
       lastName: 'Johnson',
       email: 'mike.johnson@example.com',
-      playerTeams: [
+      teamMemberships: [
         {
-          id: 'tp2',
-          jerseyNumber: '8',
-          primaryPosition: 'Midfielder',
+          id: 'tm3',
           isActive: true,
+          joinedDate: new Date('2023-02-01'),
           team: { id: 'team1', name: 'Thunder FC', shortName: 'TFC' },
-        },
-      ],
-      coachTeams: [
-        {
-          id: 'tc2',
-          role: 'Assistant Coach',
-          startDate: new Date('2023-06-01'),
-          isActive: true,
-          team: { id: 'team1', name: 'Thunder FC', shortName: 'TFC' },
+          roles: [
+            {
+              id: 'tmr3a',
+              role: 'PLAYER',
+              jerseyNumber: '8',
+              primaryPosition: 'Midfielder',
+            },
+            {
+              id: 'tmr3b',
+              role: 'COACH',
+              coachTitle: 'Assistant Coach',
+            },
+          ],
         },
       ],
     }, // This user is BOTH a player AND coach
@@ -145,16 +184,22 @@ export const UsersListComposition = ({
       firstName: 'Sarah',
       lastName: 'Wilson',
       email: 'sarah.wilson@example.com',
-      playerTeams: [
+      teamMemberships: [
         {
-          id: 'tp3',
-          jerseyNumber: '1',
-          primaryPosition: 'Goalkeeper',
+          id: 'tm4',
           isActive: true,
+          joinedDate: new Date('2023-03-01'),
           team: { id: 'team2', name: 'Lightning United', shortName: 'LU' },
+          roles: [
+            {
+              id: 'tmr4',
+              role: 'PLAYER',
+              jerseyNumber: '1',
+              primaryPosition: 'Goalkeeper',
+            },
+          ],
         },
       ],
-      coachTeams: [],
     },
   ];
 
@@ -162,12 +207,10 @@ export const UsersListComposition = ({
   const getFilteredUsers = () => {
     switch (userType) {
       case 'players':
-        return mockUsers.filter(
-          (user) => user.playerTeams && user.playerTeams.length > 0,
-        );
+        return mockUsers.filter((user) => hasRole(user, 'PLAYER'));
       case 'coaches':
         return mockUsers.filter(
-          (user) => user.coachTeams && user.coachTeams.length > 0,
+          (user) => hasRole(user, 'COACH') || hasRole(user, 'GUEST_COACH'),
         );
       default:
         return mockUsers; // Return all users
@@ -220,8 +263,8 @@ export const UsersListComposition = ({
   };
 
   const getUserTypeLabel = (user: Partial<User>) => {
-    const isPlayer = user.playerTeams && user.playerTeams.length > 0;
-    const isCoach = user.coachTeams && user.coachTeams.length > 0;
+    const isPlayer = hasRole(user, 'PLAYER');
+    const isCoach = hasRole(user, 'COACH') || hasRole(user, 'GUEST_COACH');
 
     if (isPlayer && isCoach) return 'Player/Coach';
     if (isPlayer) return 'Player';
@@ -260,7 +303,7 @@ export const UsersListComposition = ({
       className="
       /* Mobile-first */ /*
       Progressive enhancement
-      
+
       */ container space-y-4 p-4
       sm:space-y-6 sm:p-6
       md:space-y-8 md:p-8
@@ -282,8 +325,13 @@ export const UsersListComposition = ({
           <span>Total: {filteredUsers.length}</span>
           {userType === 'all' && (
             <span>
-              Players: {mockUsers.filter((u) => u.playerTeams?.length).length} |
-              Coaches: {mockUsers.filter((u) => u.coachTeams?.length).length}
+              Players: {mockUsers.filter((u) => hasRole(u, 'PLAYER')).length} |
+              Coaches:{' '}
+              {
+                mockUsers.filter(
+                  (u) => hasRole(u, 'COACH') || hasRole(u, 'GUEST_COACH'),
+                ).length
+              }
             </span>
           )}
         </div>
@@ -295,99 +343,101 @@ export const UsersListComposition = ({
           className="
           /* Mobile: single column */
           /* Tablet: 2
-          
+
           columns */ /* Desktop: 3
           columns */
-          
+
           grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6
           lg:grid-cols-3 lg:gap-8
         "
         >
-          {filteredUsers.map((user) => (
-            <div
-              key={user.id}
-              className="
+          {filteredUsers.map((user) => {
+            const playerData = getPlayerRole(user);
+            const coachData = getCoachRole(user);
+
+            return (
+              <div
+                key={user.id}
+                className="
               rounded-lg border border-gray-200 bg-white p-4 shadow-md
               transition-shadow duration-200 hover:shadow-lg
             "
-            >
-              {/* User Basic Info */}
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {user.firstName} {user.lastName}
-                </h3>
+              >
+                {/* User Basic Info */}
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {user.firstName} {user.lastName}
+                  </h3>
 
-                <p className="text-sm text-gray-600">{user.email}</p>
+                  <p className="text-sm text-gray-600">{user.email}</p>
 
-                <div className="flex items-center justify-between">
-                  <span
-                    className="
+                  <div className="flex items-center justify-between">
+                    <span
+                      className="
                     inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs
                     font-medium text-blue-800
                   "
-                  >
-                    {getUserTypeLabel(user)}
-                  </span>
+                    >
+                      {getUserTypeLabel(user)}
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              {/* Player Information */}
-              {user.playerTeams && user.playerTeams.length > 0 && (
-                <div className="mt-3 border-t border-gray-100 pt-3">
-                  <h4 className="mb-2 text-sm font-medium text-gray-700">
-                    Player Info
-                  </h4>
-                  {user.playerTeams.map((tp) => (
-                    <div key={tp.id} className="text-xs text-gray-600">
+                {/* Player Information */}
+                {playerData && (
+                  <div className="mt-3 border-t border-gray-100 pt-3">
+                    <h4 className="mb-2 text-sm font-medium text-gray-700">
+                      Player Info
+                    </h4>
+                    <div className="text-xs text-gray-600">
                       <p>
-                        #{tp.jerseyNumber} - {tp.primaryPosition}
+                        #{playerData.role.jerseyNumber} -{' '}
+                        {playerData.role.primaryPosition}
                       </p>
-                      <p>{tp.team.name}</p>
+                      <p>{playerData.membership.team.name}</p>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                )}
 
-              {/* Coach Information */}
-              {user.coachTeams && user.coachTeams.length > 0 && (
-                <div className="mt-3 border-t border-gray-100 pt-3">
-                  <h4 className="mb-2 text-sm font-medium text-gray-700">
-                    Coach Info
-                  </h4>
-                  {user.coachTeams.map((tc) => (
-                    <div key={tc.id} className="text-xs text-gray-600">
-                      <p>{tc.role}</p>
-                      <p>{tc.team.name}</p>
+                {/* Coach Information */}
+                {coachData && (
+                  <div className="mt-3 border-t border-gray-100 pt-3">
+                    <h4 className="mb-2 text-sm font-medium text-gray-700">
+                      Coach Info
+                    </h4>
+                    <div className="text-xs text-gray-600">
+                      <p>{coachData.role.coachTitle || coachData.role.role}</p>
+                      <p>{coachData.membership.team.name}</p>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                )}
 
-              {/* Action Buttons */}
-              <div className="mt-4 flex space-x-2">
-                <button
-                  onClick={() => handleViewUser(user.id!)}
-                  className="
+                {/* Action Buttons */}
+                <div className="mt-4 flex space-x-2">
+                  <button
+                    onClick={() => handleViewUser(user.id!)}
+                    className="
                     flex-1 rounded-md bg-blue-100 px-3 py-2 text-sm
                     font-medium text-blue-700 transition-colors
                     duration-200 hover:bg-blue-200
                   "
-                >
-                  View
-                </button>
-                <button
-                  onClick={() => handleEditUser(user.id!)}
-                  className="
+                  >
+                    View
+                  </button>
+                  <button
+                    onClick={() => handleEditUser(user.id!)}
+                    className="
                     flex-1 rounded-md bg-gray-100 px-3 py-2 text-sm
                     font-medium text-gray-700 transition-colors
                     duration-200 hover:bg-gray-200
                   "
-                >
-                  Edit
-                </button>
+                  >
+                    Edit
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         /* Empty State */
@@ -438,7 +488,7 @@ export const UsersListComposition = ({
 // Example 2: Show only players
 <UsersListComposition userType="players" />
 
-// Example 3: Show only coaches  
+// Example 3: Show only coaches
 <UsersListComposition userType="coaches" />
 
 // Example 4: Show all team members for a specific team
