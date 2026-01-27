@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 
 import {
   ObservabilityService,
@@ -31,7 +31,8 @@ export interface HealthStatus {
 export interface ProcessMetrics {
   timestamp: string;
   uptime: number;
-  memory: MemorySnapshot;
+  memory: MemorySnapshot | null;
+  memoryAvailable: boolean;
   process: {
     pid: number;
     version: string;
@@ -48,6 +49,7 @@ export interface ProcessMetrics {
 @Injectable()
 export class AppService {
   private readonly startTime = Date.now();
+  private readonly logger = new Logger(AppService.name);
 
   constructor(
     @Optional()
@@ -107,19 +109,19 @@ export class AppService {
   /**
    * Get detailed process metrics for monitoring/debugging.
    * Includes full memory snapshot and process information.
+   *
+   * Note: If observability service is unavailable, memory will be null
+   * and memoryAvailable will be false.
    */
   getMetrics(): ProcessMetrics {
-    const memorySnapshot = this.observabilityService?.getMemorySnapshot() || {
-      heapUsedMB: 0,
-      heapTotalMB: 0,
-      rssMB: 0,
-      externalMB: 0,
-    };
+    const memorySnapshot =
+      this.observabilityService?.getMemorySnapshot() ?? null;
 
     const metrics: ProcessMetrics = {
       timestamp: new Date().toISOString(),
       uptime: Math.floor((Date.now() - this.startTime) / 1000),
       memory: memorySnapshot,
+      memoryAvailable: memorySnapshot !== null,
       process: {
         pid: process.pid,
         version: process.version,
@@ -136,8 +138,13 @@ export class AppService {
         systemCPUTime: resourceUsage.systemCPUTime,
         maxRSS: resourceUsage.maxRSS,
       };
-    } catch {
-      // resourceUsage not available on this platform
+    } catch (error) {
+      // Log platform incompatibility for debugging, but don't fail the request
+      this.logger.debug({
+        message: 'Resource usage unavailable',
+        reason: error instanceof Error ? error.message : String(error),
+        platform: process.platform,
+      });
     }
 
     return metrics;

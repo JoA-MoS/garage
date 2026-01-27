@@ -45,13 +45,17 @@ export function createInstrumentedDataLoader<K, V>(
 ): DataLoader<K, V> {
   const { name, batchFn, dataLoaderOptions, observabilityService } = options;
 
-  // Check if instrumentation should be enabled
-  const shouldInstrument = shouldEnableInstrumentation(observabilityService);
-
-  if (!shouldInstrument) {
+  // Check if instrumentation should be enabled and service is available
+  if (
+    !observabilityService ||
+    !shouldEnableInstrumentation(observabilityService)
+  ) {
     // Return standard DataLoader with no overhead
     return new DataLoader<K, V>(batchFn, dataLoaderOptions);
   }
+
+  // At this point, observabilityService is guaranteed to be defined
+  const service = observabilityService;
 
   // Wrap batch function with instrumentation
   const instrumentedBatchFn = async (
@@ -71,19 +75,14 @@ export function createInstrumentedDataLoader<K, V>(
       };
 
       // Log batch metrics
-      logBatchMetrics(observabilityService!, metrics);
+      logBatchMetrics(service, metrics);
 
       return results;
     } catch (error) {
       const durationMs = Date.now() - startTime;
 
-      // Log error case
-      observabilityService!.logDataLoaderBatch({
-        loader: name,
-        batchSize: keys.length,
-        resultCount: 0,
-        durationMs,
-      });
+      // Log error with proper severity
+      service.logDataLoaderError(name, keys.length, durationMs, error);
 
       throw error;
     }
@@ -114,7 +113,9 @@ function shouldEnableInstrumentation(
 }
 
 /**
- * Log batch metrics and warn on large batches
+ * Log batch metrics conditionally:
+ * - Always warn when batch size exceeds threshold
+ * - Log normal batches only in 'verbose' mode
  */
 function logBatchMetrics(
   service: ObservabilityService,
