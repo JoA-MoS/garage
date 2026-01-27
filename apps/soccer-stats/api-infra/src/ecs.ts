@@ -9,6 +9,10 @@ import {
   memory,
   desiredCount,
   frontendUrl,
+  observabilityLogLevel,
+  slowQueryThresholdMs,
+  queryComplexityLimit,
+  dataLoaderBatchSizeWarning,
 } from './config';
 import {
   clusterArn,
@@ -107,6 +111,21 @@ export const taskDefinition = new aws.ecs.TaskDefinition(`${namePrefix}-task`, {
             { name: 'DB_SYNCHRONIZE', value: 'false' },
             // Disable ANSI color codes for cleaner CloudWatch logs
             { name: 'NO_COLOR', value: 'true' },
+            // Observability configuration
+            { name: 'OBSERVABILITY_LOG_LEVEL', value: observabilityLogLevel },
+            {
+              name: 'SLOW_QUERY_THRESHOLD_MS',
+              value: slowQueryThresholdMs.toString(),
+            },
+            {
+              name: 'QUERY_COMPLEXITY_LIMIT',
+              value: queryComplexityLimit.toString(),
+            },
+            {
+              name: 'DATALOADER_BATCH_SIZE_WARNING',
+              value: dataLoaderBatchSizeWarning.toString(),
+            },
+            { name: 'LOG_FORMAT', value: 'json' }, // Always JSON for CloudWatch
             // CORS allowed origins (optional - if unset, allows all origins)
             ...(frontendUrl
               ? [{ name: 'FRONTEND_URL', value: frontendUrl }]

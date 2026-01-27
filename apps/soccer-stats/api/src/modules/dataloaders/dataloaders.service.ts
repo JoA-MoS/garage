@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
 import DataLoader from 'dataloader';
+import { Repository, In } from 'typeorm';
 
 import { Game } from '../../entities/game.entity';
 import { GameFormat } from '../../entities/game-format.entity';
@@ -12,6 +12,9 @@ import { User } from '../../entities/user.entity';
 import { TeamPlayer } from '../../entities/team-player.entity';
 import { TeamCoach } from '../../entities/team-coach.entity';
 import { GameTimingService, GameTiming } from '../games/game-timing.service';
+import { ObservabilityService } from '../observability/observability.service';
+
+import { createInstrumentedDataLoader } from './instrumented-dataloader';
 
 /**
  * Interface for all DataLoaders available in GraphQL context.
@@ -65,7 +68,26 @@ export class DataLoadersService {
     @InjectRepository(TeamCoach)
     private readonly teamCoachRepository: Repository<TeamCoach>,
     private readonly gameTimingService: GameTimingService,
+    @Optional()
+    private readonly observabilityService?: ObservabilityService,
   ) {}
+
+  /**
+   * Helper to create a DataLoader with optional instrumentation.
+   * Uses the ObservabilityService when available to log batch metrics.
+   */
+  private createLoader<K, V>(
+    name: string,
+    batchFn: (keys: readonly K[]) => Promise<(V | Error)[]>,
+    options?: DataLoader.Options<K, V>,
+  ): DataLoader<K, V> {
+    return createInstrumentedDataLoader({
+      name,
+      batchFn,
+      dataLoaderOptions: options,
+      observabilityService: this.observabilityService,
+    });
+  }
 
   /**
    * Creates a fresh set of DataLoaders for a request.
@@ -97,7 +119,7 @@ export class DataLoadersService {
    * Batch loads Games by their IDs.
    */
   private createGameLoader(): DataLoader<string, Game> {
-    return new DataLoader<string, Game>(async (gameIds) => {
+    return this.createLoader<string, Game>('gameLoader', async (gameIds) => {
       const games = await this.gameRepository.find({
         where: { id: In([...gameIds]) },
       });
@@ -114,23 +136,26 @@ export class DataLoadersService {
    * Batch loads GameFormats by their IDs.
    */
   private createGameFormatLoader(): DataLoader<string, GameFormat> {
-    return new DataLoader<string, GameFormat>(async (formatIds) => {
-      const formats = await this.gameFormatRepository.find({
-        where: { id: In([...formatIds]) },
-      });
+    return this.createLoader<string, GameFormat>(
+      'gameFormatLoader',
+      async (formatIds) => {
+        const formats = await this.gameFormatRepository.find({
+          where: { id: In([...formatIds]) },
+        });
 
-      const formatMap = new Map(formats.map((format) => [format.id, format]));
-      return formatIds.map(
-        (id) => formatMap.get(id) || new Error(`GameFormat not found: ${id}`),
-      );
-    });
+        const formatMap = new Map(formats.map((format) => [format.id, format]));
+        return formatIds.map(
+          (id) => formatMap.get(id) || new Error(`GameFormat not found: ${id}`),
+        );
+      },
+    );
   }
 
   /**
    * Batch loads Teams by their IDs.
    */
   private createTeamLoader(): DataLoader<string, Team> {
-    return new DataLoader<string, Team>(async (teamIds) => {
+    return this.createLoader<string, Team>('teamLoader', async (teamIds) => {
       const teams = await this.teamRepository.find({
         where: { id: In([...teamIds]) },
       });
@@ -147,22 +172,25 @@ export class DataLoadersService {
    * Returns an array of GameTeams for each game.
    */
   private createGameTeamsByGameLoader(): DataLoader<string, GameTeam[]> {
-    return new DataLoader<string, GameTeam[]>(async (gameIds) => {
-      const gameTeams = await this.gameTeamRepository.find({
-        where: { gameId: In([...gameIds]) },
-        relations: ['team'], // Include team for display
-      });
+    return this.createLoader<string, GameTeam[]>(
+      'gameTeamsByGameLoader',
+      async (gameIds) => {
+        const gameTeams = await this.gameTeamRepository.find({
+          where: { gameId: In([...gameIds]) },
+          relations: ['team'], // Include team for display
+        });
 
-      // Group by gameId
-      const gameTeamsMap = new Map<string, GameTeam[]>();
-      for (const gt of gameTeams) {
-        const existing = gameTeamsMap.get(gt.gameId) || [];
-        existing.push(gt);
-        gameTeamsMap.set(gt.gameId, existing);
-      }
+        // Group by gameId
+        const gameTeamsMap = new Map<string, GameTeam[]>();
+        for (const gt of gameTeams) {
+          const existing = gameTeamsMap.get(gt.gameId) || [];
+          existing.push(gt);
+          gameTeamsMap.set(gt.gameId, existing);
+        }
 
-      return gameIds.map((id) => gameTeamsMap.get(id) || []);
-    });
+        return gameIds.map((id) => gameTeamsMap.get(id) || []);
+      },
+    );
   }
 
   /**
@@ -172,30 +200,33 @@ export class DataLoadersService {
    * Includes childEvents for consistency with gameEventsByGameTeamLoader.
    */
   private createGameEventsByGameLoader(): DataLoader<string, GameEvent[]> {
-    return new DataLoader<string, GameEvent[]>(async (gameIds) => {
-      const gameEvents = await this.gameEventRepository.find({
-        where: { gameId: In([...gameIds]) },
-        relations: [
-          'eventType',
-          'player',
-          'gameTeam',
-          'childEvents',
-          'childEvents.eventType',
-          'childEvents.player',
-        ],
-        order: { gameMinute: 'ASC', gameSecond: 'ASC', createdAt: 'ASC' },
-      });
+    return this.createLoader<string, GameEvent[]>(
+      'gameEventsByGameLoader',
+      async (gameIds) => {
+        const gameEvents = await this.gameEventRepository.find({
+          where: { gameId: In([...gameIds]) },
+          relations: [
+            'eventType',
+            'player',
+            'gameTeam',
+            'childEvents',
+            'childEvents.eventType',
+            'childEvents.player',
+          ],
+          order: { gameMinute: 'ASC', gameSecond: 'ASC', createdAt: 'ASC' },
+        });
 
-      // Group by gameId
-      const eventsMap = new Map<string, GameEvent[]>();
-      for (const event of gameEvents) {
-        const existing = eventsMap.get(event.gameId) || [];
-        existing.push(event);
-        eventsMap.set(event.gameId, existing);
-      }
+        // Group by gameId
+        const eventsMap = new Map<string, GameEvent[]>();
+        for (const event of gameEvents) {
+          const existing = eventsMap.get(event.gameId) || [];
+          existing.push(event);
+          eventsMap.set(event.gameId, existing);
+        }
 
-      return gameIds.map((id) => eventsMap.get(id) || []);
-    });
+        return gameIds.map((id) => eventsMap.get(id) || []);
+      },
+    );
   }
 
   /**
@@ -208,32 +239,35 @@ export class DataLoadersService {
    * Relations are consistent with gameEventsByGameLoader for predictable behavior.
    */
   private createGameEventsByGameTeamLoader(): DataLoader<string, GameEvent[]> {
-    return new DataLoader<string, GameEvent[]>(async (gameTeamIds) => {
-      const gameEvents = await this.gameEventRepository.find({
-        where: { gameTeamId: In([...gameTeamIds]) },
-        relations: [
-          'eventType',
-          'player',
-          'gameTeam',
-          'childEvents',
-          'childEvents.eventType',
-          'childEvents.player',
-        ],
-        order: { gameMinute: 'ASC', gameSecond: 'ASC', createdAt: 'ASC' },
-      });
+    return this.createLoader<string, GameEvent[]>(
+      'gameEventsByGameTeamLoader',
+      async (gameTeamIds) => {
+        const gameEvents = await this.gameEventRepository.find({
+          where: { gameTeamId: In([...gameTeamIds]) },
+          relations: [
+            'eventType',
+            'player',
+            'gameTeam',
+            'childEvents',
+            'childEvents.eventType',
+            'childEvents.player',
+          ],
+          order: { gameMinute: 'ASC', gameSecond: 'ASC', createdAt: 'ASC' },
+        });
 
-      // Group by gameTeamId
-      const eventsMap = new Map<string, GameEvent[]>();
-      for (const event of gameEvents) {
-        if (event.gameTeamId) {
-          const existing = eventsMap.get(event.gameTeamId) || [];
-          existing.push(event);
-          eventsMap.set(event.gameTeamId, existing);
+        // Group by gameTeamId
+        const eventsMap = new Map<string, GameEvent[]>();
+        for (const event of gameEvents) {
+          if (event.gameTeamId) {
+            const existing = eventsMap.get(event.gameTeamId) || [];
+            existing.push(event);
+            eventsMap.set(event.gameTeamId, existing);
+          }
         }
-      }
 
-      return gameTeamIds.map((id) => eventsMap.get(id) || []);
-    });
+        return gameTeamIds.map((id) => eventsMap.get(id) || []);
+      },
+    );
   }
 
   /**
@@ -241,14 +275,17 @@ export class DataLoadersService {
    * Computes timing from timing events for multiple games in a single query.
    */
   private createGameTimingLoader(): DataLoader<string, GameTiming> {
-    return new DataLoader<string, GameTiming>(async (gameIds) => {
-      const timingMap = await this.gameTimingService.getGameTimingBatch([
-        ...gameIds,
-      ]);
+    return this.createLoader<string, GameTiming>(
+      'gameTimingLoader',
+      async (gameIds) => {
+        const timingMap = await this.gameTimingService.getGameTimingBatch([
+          ...gameIds,
+        ]);
 
-      // Return timing for each game, defaulting to empty object if not found
-      return gameIds.map((id) => timingMap.get(id) || {});
-    });
+        // Return timing for each game, defaulting to empty object if not found
+        return gameIds.map((id) => timingMap.get(id) || {});
+      },
+    );
   }
 
   // ============================================================
@@ -259,7 +296,7 @@ export class DataLoadersService {
    * Batch loads Users by their IDs.
    */
   private createUserLoader(): DataLoader<string, User> {
-    return new DataLoader<string, User>(async (userIds) => {
+    return this.createLoader<string, User>('userLoader', async (userIds) => {
       const users = await this.userRepository.find({
         where: { id: In([...userIds]) },
       });
@@ -277,22 +314,25 @@ export class DataLoadersService {
    * Includes team relation for display purposes.
    */
   private createTeamPlayersByUserIdLoader(): DataLoader<string, TeamPlayer[]> {
-    return new DataLoader<string, TeamPlayer[]>(async (userIds) => {
-      const teamPlayers = await this.teamPlayerRepository.find({
-        where: { userId: In([...userIds]), isActive: true },
-        relations: ['team'],
-      });
+    return this.createLoader<string, TeamPlayer[]>(
+      'teamPlayersByUserIdLoader',
+      async (userIds) => {
+        const teamPlayers = await this.teamPlayerRepository.find({
+          where: { userId: In([...userIds]), isActive: true },
+          relations: ['team'],
+        });
 
-      // Group by userId
-      const teamPlayersMap = new Map<string, TeamPlayer[]>();
-      for (const tp of teamPlayers) {
-        const existing = teamPlayersMap.get(tp.userId) || [];
-        existing.push(tp);
-        teamPlayersMap.set(tp.userId, existing);
-      }
+        // Group by userId
+        const teamPlayersMap = new Map<string, TeamPlayer[]>();
+        for (const tp of teamPlayers) {
+          const existing = teamPlayersMap.get(tp.userId) || [];
+          existing.push(tp);
+          teamPlayersMap.set(tp.userId, existing);
+        }
 
-      return userIds.map((id) => teamPlayersMap.get(id) || []);
-    });
+        return userIds.map((id) => teamPlayersMap.get(id) || []);
+      },
+    );
   }
 
   /**
@@ -301,22 +341,25 @@ export class DataLoadersService {
    * Includes team relation for display purposes.
    */
   private createTeamCoachesByUserIdLoader(): DataLoader<string, TeamCoach[]> {
-    return new DataLoader<string, TeamCoach[]>(async (userIds) => {
-      const teamCoaches = await this.teamCoachRepository.find({
-        where: { userId: In([...userIds]), isActive: true },
-        relations: ['team'],
-      });
+    return this.createLoader<string, TeamCoach[]>(
+      'teamCoachesByUserIdLoader',
+      async (userIds) => {
+        const teamCoaches = await this.teamCoachRepository.find({
+          where: { userId: In([...userIds]), isActive: true },
+          relations: ['team'],
+        });
 
-      // Group by userId
-      const teamCoachesMap = new Map<string, TeamCoach[]>();
-      for (const tc of teamCoaches) {
-        const existing = teamCoachesMap.get(tc.userId) || [];
-        existing.push(tc);
-        teamCoachesMap.set(tc.userId, existing);
-      }
+        // Group by userId
+        const teamCoachesMap = new Map<string, TeamCoach[]>();
+        for (const tc of teamCoaches) {
+          const existing = teamCoachesMap.get(tc.userId) || [];
+          existing.push(tc);
+          teamCoachesMap.set(tc.userId, existing);
+        }
 
-      return userIds.map((id) => teamCoachesMap.get(id) || []);
-    });
+        return userIds.map((id) => teamCoachesMap.get(id) || []);
+      },
+    );
   }
 
   // ============================================================
@@ -329,22 +372,25 @@ export class DataLoadersService {
    * Includes user relation for display purposes.
    */
   private createTeamPlayersByTeamIdLoader(): DataLoader<string, TeamPlayer[]> {
-    return new DataLoader<string, TeamPlayer[]>(async (teamIds) => {
-      const teamPlayers = await this.teamPlayerRepository.find({
-        where: { teamId: In([...teamIds]), isActive: true },
-        relations: ['user'],
-      });
+    return this.createLoader<string, TeamPlayer[]>(
+      'teamPlayersByTeamIdLoader',
+      async (teamIds) => {
+        const teamPlayers = await this.teamPlayerRepository.find({
+          where: { teamId: In([...teamIds]), isActive: true },
+          relations: ['user'],
+        });
 
-      // Group by teamId
-      const teamPlayersMap = new Map<string, TeamPlayer[]>();
-      for (const tp of teamPlayers) {
-        const existing = teamPlayersMap.get(tp.teamId) || [];
-        existing.push(tp);
-        teamPlayersMap.set(tp.teamId, existing);
-      }
+        // Group by teamId
+        const teamPlayersMap = new Map<string, TeamPlayer[]>();
+        for (const tp of teamPlayers) {
+          const existing = teamPlayersMap.get(tp.teamId) || [];
+          existing.push(tp);
+          teamPlayersMap.set(tp.teamId, existing);
+        }
 
-      return teamIds.map((id) => teamPlayersMap.get(id) || []);
-    });
+        return teamIds.map((id) => teamPlayersMap.get(id) || []);
+      },
+    );
   }
 
   /**
@@ -353,21 +399,24 @@ export class DataLoadersService {
    * Includes user relation for display purposes.
    */
   private createTeamCoachesByTeamIdLoader(): DataLoader<string, TeamCoach[]> {
-    return new DataLoader<string, TeamCoach[]>(async (teamIds) => {
-      const teamCoaches = await this.teamCoachRepository.find({
-        where: { teamId: In([...teamIds]), isActive: true },
-        relations: ['user'],
-      });
+    return this.createLoader<string, TeamCoach[]>(
+      'teamCoachesByTeamIdLoader',
+      async (teamIds) => {
+        const teamCoaches = await this.teamCoachRepository.find({
+          where: { teamId: In([...teamIds]), isActive: true },
+          relations: ['user'],
+        });
 
-      // Group by teamId
-      const teamCoachesMap = new Map<string, TeamCoach[]>();
-      for (const tc of teamCoaches) {
-        const existing = teamCoachesMap.get(tc.teamId) || [];
-        existing.push(tc);
-        teamCoachesMap.set(tc.teamId, existing);
-      }
+        // Group by teamId
+        const teamCoachesMap = new Map<string, TeamCoach[]>();
+        for (const tc of teamCoaches) {
+          const existing = teamCoachesMap.get(tc.teamId) || [];
+          existing.push(tc);
+          teamCoachesMap.set(tc.teamId, existing);
+        }
 
-      return teamIds.map((id) => teamCoachesMap.get(id) || []);
-    });
+        return teamIds.map((id) => teamCoachesMap.get(id) || []);
+      },
+    );
   }
 }
