@@ -87,15 +87,19 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
           isManaged
           roster {
             id
-            userId
+            role
             jerseyNumber
             primaryPosition
-            isActive
-            user {
+            teamMember {
               id
-              email
-              firstName
-              lastName
+              userId
+              isActive
+              user {
+                id
+                email
+                firstName
+                lastName
+              }
             }
           }
         }

@@ -7,8 +7,8 @@ import { Team } from '../../entities/team.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { GameEvent } from '../../entities/game-event.entity';
 import { User } from '../../entities/user.entity';
-import { TeamPlayer } from '../../entities/team-player.entity';
-import { TeamCoach } from '../../entities/team-coach.entity';
+import { TeamMember } from '../../entities/team-member.entity';
+import { TeamMemberRole } from '../../entities/team-member-role.entity';
 import { GamesModule } from '../games/games.module';
 
 import { DataLoadersService } from './dataloaders.service';
@@ -31,8 +31,8 @@ import { DataLoadersService } from './dataloaders.service';
       GameTeam,
       GameEvent,
       User,
-      TeamPlayer,
-      TeamCoach,
+      TeamMember,
+      TeamMemberRole,
     ]),
     forwardRef(() => GamesModule), // For GameTimingService
   ],

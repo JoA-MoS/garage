@@ -391,16 +391,19 @@ export class EventManagementService {
       if (team) {
         const fullTeam = await this.teamsRepository.findOne({
           where: { id: team.id },
-          relations: ['roster', 'roster.user'],
+          relations: ['teamMembers', 'teamMembers.user', 'teamMembers.roles'],
         });
-        const teamPlayer = fullTeam?.roster?.find(
-          (tp: { userId: string }) => tp.userId === playerId,
+        // Find the team member with PLAYER role matching the playerId
+        const teamMember = fullTeam?.teamMembers?.find(
+          (tm: { userId: string; roles?: { role: string }[] }) =>
+            tm.userId === playerId &&
+            tm.roles?.some((r) => r.role === 'PLAYER'),
         );
-        if (teamPlayer?.user) {
-          const fullName = `${teamPlayer.user.firstName || ''} ${
-            teamPlayer.user.lastName || ''
+        if (teamMember?.user) {
+          const fullName = `${teamMember.user.firstName || ''} ${
+            teamMember.user.lastName || ''
           }`.trim();
-          return fullName || teamPlayer.user.email || 'Unknown';
+          return fullName || teamMember.user.email || 'Unknown';
         }
       }
       return 'Unknown';

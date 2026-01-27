@@ -12,8 +12,7 @@ import { Inject, UseGuards } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
 
 import { User } from '../../entities/user.entity';
-import { TeamPlayer } from '../../entities/team-player.entity';
-import { TeamCoach } from '../../entities/team-coach.entity';
+import { TeamMember } from '../../entities/team-member.entity';
 import { Team } from '../../entities/team.entity';
 import { TeamsService } from '../teams/teams.service';
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
@@ -110,16 +109,6 @@ export class UsersResolver {
     return uniqueTeams;
   }
 
-  @ResolveField(() => [TeamPlayer])
-  teamPlayers(@Parent() user: User): Promise<TeamPlayer[]> {
-    return this.usersService.getTeamPlayers(user.id);
-  }
-
-  @ResolveField(() => [TeamCoach])
-  teamCoaches(@Parent() user: User): Promise<TeamCoach[]> {
-    return this.usersService.getTeamCoaches(user.id);
-  }
-
   // General user mutations
   @Mutation(() => User)
   async createUser(@Args('createUserInput') createUserInput: CreateUserInput) {
@@ -144,20 +133,18 @@ export class UsersResolver {
   }
 
   // Player relationship mutations
-  @Mutation(() => TeamPlayer)
+  @Mutation(() => TeamMember)
   addPlayerToTeam(
     @Args('userId', { type: () => ID }) userId: string,
     @Args('teamId', { type: () => ID }) teamId: string,
     @Args('jerseyNumber', { nullable: true }) jerseyNumber?: string,
     @Args('primaryPosition', { nullable: true }) primaryPosition?: string,
-    @Args('joinedDate', { nullable: true }) joinedDate?: Date,
-  ) {
+  ): Promise<TeamMember> {
     return this.usersService.addPlayerToTeam(
       userId,
       teamId,
       jerseyNumber,
       primaryPosition,
-      joinedDate,
     );
   }
 
@@ -165,29 +152,32 @@ export class UsersResolver {
   removePlayerFromTeam(
     @Args('userId', { type: () => ID }) userId: string,
     @Args('teamId', { type: () => ID }) teamId: string,
-    @Args('leftDate', { nullable: true }) leftDate?: Date,
-  ) {
-    return this.usersService.removePlayerFromTeam(userId, teamId, leftDate);
+  ): Promise<boolean> {
+    return this.usersService.removePlayerFromTeam(userId, teamId);
   }
 
   // Coach relationship mutations
-  @Mutation(() => TeamCoach)
+  @Mutation(() => TeamMember)
   addCoachToTeam(
     @Args('userId', { type: () => ID }) userId: string,
     @Args('teamId', { type: () => ID }) teamId: string,
-    @Args('role') role: string,
-    @Args('startDate') startDate: Date,
-  ) {
-    return this.usersService.addCoachToTeam(userId, teamId, role, startDate);
+    @Args('coachTitle') coachTitle: string,
+    @Args('isGuest', { nullable: true, defaultValue: false }) isGuest?: boolean,
+  ): Promise<TeamMember> {
+    return this.usersService.addCoachToTeam(
+      userId,
+      teamId,
+      coachTitle,
+      isGuest,
+    );
   }
 
   @Mutation(() => Boolean)
   removeCoachFromTeam(
     @Args('userId', { type: () => ID }) userId: string,
     @Args('teamId', { type: () => ID }) teamId: string,
-    @Args('endDate', { nullable: true }) endDate?: Date,
-  ) {
-    return this.usersService.removeCoachFromTeam(userId, teamId, endDate);
+  ): Promise<boolean> {
+    return this.usersService.removeCoachFromTeam(userId, teamId);
   }
 
   // Subscriptions
@@ -199,36 +189,5 @@ export class UsersResolver {
   @Subscription(() => User, { name: 'userCreated' })
   userCreated() {
     return this.pubSub.asyncIterableIterator('userCreated');
-  }
-
-  // Legacy aliases for backward compatibility
-  @Mutation(() => User)
-  async createPlayer(
-    @Args('createPlayerInput') createPlayerInput: CreateUserInput,
-  ) {
-    return this.createUser(createPlayerInput);
-  }
-
-  @Mutation(() => User)
-  async createCoach(
-    @Args('createCoachInput') createCoachInput: CreateUserInput,
-  ) {
-    return this.createUser(createCoachInput);
-  }
-
-  @Mutation(() => User)
-  async updatePlayer(
-    @Args('id', { type: () => ID }) id: string,
-    @Args('updatePlayerInput') updatePlayerInput: UpdateUserInput,
-  ) {
-    return this.updateUser(id, updatePlayerInput);
-  }
-
-  @Mutation(() => User)
-  async updateCoach(
-    @Args('id', { type: () => ID }) id: string,
-    @Args('updateCoachInput') updateCoachInput: UpdateUserInput,
-  ) {
-    return this.updateUser(id, updateCoachInput);
   }
 }

@@ -43,12 +43,14 @@ export const GET_TEAM_BY_ID = graphql(/* GraphQL */ `
       updatedAt
       owner {
         id
-        role
         user {
           id
           firstName
           lastName
           email
+        }
+        roles {
+          role
         }
       }
       playersWithJersey {
@@ -61,16 +63,20 @@ export const GET_TEAM_BY_ID = graphql(/* GraphQL */ `
       }
       roster {
         id
+        role
         jerseyNumber
         primaryPosition
-        isActive
-        joinedDate
-        leftDate
-        user {
+        teamMember {
           id
-          firstName
-          lastName
-          email
+          isActive
+          joinedDate
+          leftDate
+          user {
+            id
+            firstName
+            lastName
+            email
+          }
         }
       }
       teamConfiguration {
@@ -341,16 +347,20 @@ export interface PlayerWithJersey {
 
 export interface TeamPlayer {
   id: string;
+  role: string;
   jerseyNumber?: string;
-  primaryPosition: string;
-  isActive: boolean;
-  joinedDate: string;
-  leftDate?: string;
-  user: {
+  primaryPosition?: string;
+  teamMember: {
     id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
+    isActive: boolean;
+    joinedDate?: string;
+    leftDate?: string;
+    user: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
   };
 }
 

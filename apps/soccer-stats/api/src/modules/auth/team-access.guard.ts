@@ -18,16 +18,17 @@ import {
 import { AuthenticatedUser } from './authenticated-user.type';
 
 /**
- * Role hierarchy for team access control.
- * Higher values indicate more permissions.
- * A user with OWNER role can perform any action that MANAGER, COACH, etc. can perform.
+ * Role ordering for comparison purposes.
+ * Note: Actual permissions are handled by role guards at the resolver level.
  */
-const ROLE_HIERARCHY: Record<TeamRole, number> = {
-  [TeamRole.OWNER]: 5,
-  [TeamRole.MANAGER]: 4,
-  [TeamRole.COACH]: 3,
-  [TeamRole.PLAYER]: 2,
-  [TeamRole.PARENT_FAN]: 1,
+const ROLE_ORDER: Record<TeamRole, number> = {
+  [TeamRole.OWNER]: 7,
+  [TeamRole.MANAGER]: 6,
+  [TeamRole.COACH]: 5,
+  [TeamRole.GUEST_COACH]: 4,
+  [TeamRole.PLAYER]: 3,
+  [TeamRole.GUARDIAN]: 2,
+  [TeamRole.FAN]: 1,
 };
 
 /**
@@ -88,29 +89,38 @@ export class TeamAccessGuard implements CanActivate {
       throw new ForbiddenException('Team ID not found in request');
     }
 
-    // Get user's role in the team using internal user ID (directly from context)
-    const membership = await this.teamMembersService.findUserRoleInTeam(
+    // Get user's membership in the team
+    const membership = await this.teamMembersService.findMembership(
       user.id,
       teamId,
     );
 
-    if (!membership) {
+    if (!membership || !membership.isActive) {
       this.logger.debug(`User ${user.id} is not a member of team ${teamId}`);
       throw new ForbiddenException('You are not a member of this team');
     }
 
-    // Check if user has at least one of the required roles (or higher)
-    const userRoleLevel = ROLE_HIERARCHY[membership.role];
+    // Get user's highest role in the team
+    const highestRole = await this.teamMembersService.getHighestRole(
+      user.id,
+      teamId,
+    );
+
+    if (!highestRole) {
+      this.logger.debug(`User ${user.id} has no roles in team ${teamId}`);
+      throw new ForbiddenException('You have no roles in this team');
+    }
+
+    // Check if user's highest role meets any required role (or is higher)
+    const userRoleLevel = ROLE_ORDER[highestRole];
     const hasRequiredRole = metadata.roles.some((requiredRole) => {
-      const requiredLevel = ROLE_HIERARCHY[requiredRole];
+      const requiredLevel = ROLE_ORDER[requiredRole];
       return userRoleLevel >= requiredLevel;
     });
 
     if (!hasRequiredRole) {
       this.logger.debug(
-        `User ${user.id} with role ${
-          membership.role
-        } does not have required roles: ${metadata.roles.join(', ')}`,
+        `User ${user.id} with role ${highestRole} does not have required roles: ${metadata.roles.join(', ')}`,
       );
       throw new ForbiddenException(
         `Insufficient permissions. Required role: ${this.getLowestRequiredRole(
@@ -120,7 +130,7 @@ export class TeamAccessGuard implements CanActivate {
     }
 
     this.logger.debug(
-      `User ${user.id} with role ${membership.role} granted access to team ${teamId}`,
+      `User ${user.id} with role ${highestRole} granted access to team ${teamId}`,
     );
 
     return true;
@@ -171,10 +181,10 @@ export class TeamAccessGuard implements CanActivate {
    */
   private getLowestRequiredRole(roles: TeamRole[]): TeamRole {
     let lowestRole = roles[0];
-    let lowestLevel = ROLE_HIERARCHY[lowestRole];
+    let lowestLevel = ROLE_ORDER[lowestRole];
 
     for (const role of roles) {
-      const level = ROLE_HIERARCHY[role];
+      const level = ROLE_ORDER[role];
       if (level < lowestLevel) {
         lowestLevel = level;
         lowestRole = role;

@@ -10,6 +10,7 @@ import {
 import { UseGuards } from '@nestjs/common';
 
 import { TeamMember, TeamRole } from '../../entities/team-member.entity';
+import { TeamMemberRole } from '../../entities/team-member-role.entity';
 import { Team } from '../../entities/team.entity';
 import { User } from '../../entities/user.entity';
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
@@ -55,14 +56,14 @@ export class TeamMembersResolver {
   }
 
   /**
-   * Get current user's role in a specific team
+   * Get current user's membership in a specific team
    */
-  @Query(() => TeamMember, { name: 'myRoleInTeam', nullable: true })
-  async getMyRoleInTeam(
+  @Query(() => TeamMember, { name: 'myMembershipInTeam', nullable: true })
+  async getMyMembershipInTeam(
     @Args('teamId', { type: () => ID }) teamId: string,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<TeamMember | null> {
-    return this.teamMembersService.findUserRoleInTeam(user.id, teamId);
+    return this.teamMembersService.findMembership(user.id, teamId);
   }
 
   /**
@@ -77,39 +78,57 @@ export class TeamMembersResolver {
   }
 
   /**
-   * Add a new member to a team
-   * TODO: Add role-based authorization (only OWNER, MANAGER can add most roles)
+   * Get current user's highest role in a team
+   */
+  @Query(() => TeamRole, { name: 'myHighestRoleInTeam', nullable: true })
+  async getMyHighestRoleInTeam(
+    @Args('teamId', { type: () => ID }) teamId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<TeamRole | null> {
+    return this.teamMembersService.getHighestRole(user.id, teamId);
+  }
+
+  /**
+   * Add a new member to a team with a specific role.
+   * Creates both membership and role records.
    */
   @Mutation(() => TeamMember)
   async addTeamMember(
     @Args('teamId', { type: () => ID }) teamId: string,
     @Args('userId', { type: () => ID }) userId: string,
     @Args('role', { type: () => TeamRole }) role: TeamRole,
-    @Args('linkedPlayerId', { type: () => ID, nullable: true })
-    linkedPlayerId?: string,
-    @Args('isGuest', { nullable: true }) isGuest?: boolean,
     @CurrentUser() currentUser?: AuthenticatedUser,
   ): Promise<TeamMember> {
     return this.teamMembersService.addMember(
       teamId,
       userId,
       role,
+      {},
       currentUser?.id,
-      linkedPlayerId,
-      isGuest ?? false,
     );
   }
 
   /**
-   * Update a member's role
-   * TODO: Add role-based authorization
+   * Add an additional role to an existing member
    */
   @Mutation(() => TeamMember)
-  async updateTeamMemberRole(
+  async addRoleToMember(
     @Args('membershipId', { type: () => ID }) membershipId: string,
-    @Args('newRole', { type: () => TeamRole }) newRole: TeamRole,
+    @Args('role', { type: () => TeamRole }) role: TeamRole,
   ): Promise<TeamMember> {
-    return this.teamMembersService.updateRole(membershipId, newRole);
+    return this.teamMembersService.addRoleToMember(membershipId, role);
+  }
+
+  /**
+   * Remove a role from a member.
+   * Returns null if the membership was also removed (no roles left).
+   */
+  @Mutation(() => TeamMember, { nullable: true })
+  async removeRoleFromMember(
+    @Args('membershipId', { type: () => ID }) membershipId: string,
+    @Args('role', { type: () => TeamRole }) role: TeamRole,
+  ): Promise<TeamMember | null> {
+    return this.teamMembersService.removeRoleFromMember(membershipId, role);
   }
 
   /**
@@ -130,8 +149,7 @@ export class TeamMembersResolver {
   }
 
   /**
-   * Remove a member from a team
-   * TODO: Add role-based authorization
+   * Remove a member from a team entirely
    */
   @Mutation(() => Boolean)
   async removeTeamMember(
@@ -142,7 +160,6 @@ export class TeamMembersResolver {
 
   /**
    * Promote a guest coach to full coach
-   * TODO: Add role-based authorization (OWNER, MANAGER only)
    */
   @Mutation(() => TeamMember)
   async promoteGuestCoach(
@@ -155,19 +172,17 @@ export class TeamMembersResolver {
 
   @ResolveField(() => Team)
   async team(@Parent() teamMember: TeamMember): Promise<Team> {
-    // Team is loaded via relation
     return teamMember.team;
   }
 
   @ResolveField(() => User)
   async user(@Parent() teamMember: TeamMember): Promise<User> {
-    // User is loaded via relation
     return teamMember.user;
   }
 
-  @ResolveField(() => User, { nullable: true })
-  async linkedPlayer(@Parent() teamMember: TeamMember): Promise<User | null> {
-    return teamMember.linkedPlayer ?? null;
+  @ResolveField(() => [TeamMemberRole])
+  async roles(@Parent() teamMember: TeamMember): Promise<TeamMemberRole[]> {
+    return teamMember.roles ?? [];
   }
 
   @ResolveField(() => User, { nullable: true })

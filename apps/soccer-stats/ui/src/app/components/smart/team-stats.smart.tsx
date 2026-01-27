@@ -3,7 +3,7 @@ import { TeamStats } from '@garage/soccer-stats/ui-components';
 interface TeamStatsSmartProps {
   team: {
     name: string;
-    roster?: Array<{ isActive: boolean }>;
+    roster?: Array<{ teamMember: { isActive: boolean } }>;
     games?: Array<{ finalScore?: number }>;
   } | null;
   isLoading?: boolean;
@@ -39,10 +39,10 @@ export const TeamStatsSmart = ({
     );
   }
 
-  // Calculate player count from teamPlayers
+  // Calculate player count from roster (TeamMemberRole[])
   const playerCount = team.roster?.length || 0;
   const activePlayerCount =
-    team.roster?.filter((player) => player.isActive)?.length || 0;
+    team.roster?.filter((role) => role.teamMember.isActive)?.length || 0;
 
   // Calculate basic game statistics
   const gameStats = team.games?.reduce(

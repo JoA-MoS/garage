@@ -1,16 +1,19 @@
 import {
+  Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
 
 import { User } from '../../entities/user.entity';
-import { TeamPlayer } from '../../entities/team-player.entity';
-import { TeamCoach } from '../../entities/team-coach.entity';
+import { TeamMember, TeamRole } from '../../entities/team-member.entity';
+import { TeamMemberRole } from '../../entities/team-member-role.entity';
 import { ClerkUser } from '../auth/clerk.service';
+import { TeamMembersService } from '../team-members/team-members.service';
 
 import { CreateUserInput } from './dto/create-user.input';
 import { UpdateUserInput } from './dto/update-user.input';
@@ -28,38 +31,42 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    @InjectRepository(TeamPlayer)
-    private readonly teamPlayerRepository: Repository<TeamPlayer>,
-    @InjectRepository(TeamCoach)
-    private readonly teamCoachRepository: Repository<TeamCoach>,
+    @InjectRepository(TeamMember)
+    private readonly teamMemberRepository: Repository<TeamMember>,
+    @InjectRepository(TeamMemberRole)
+    private readonly teamMemberRoleRepository: Repository<TeamMemberRole>,
+    @Inject(forwardRef(() => TeamMembersService))
+    private readonly teamMembersService: TeamMembersService,
   ) {}
 
   async findAll(userType: UserType = UserType.ALL): Promise<User[]> {
     const queryBuilder = this.userRepository
       .createQueryBuilder('user')
+      .leftJoinAndSelect('user.teamMemberships', 'membership')
+      .leftJoinAndSelect('membership.roles', 'role')
       .where('user.isActive = :isActive', { isActive: true });
 
     switch (userType) {
       case UserType.PLAYER:
         queryBuilder
-          .leftJoinAndSelect('user.playerTeams', 'teamPlayer')
-          .andWhere('teamPlayer.isActive = :teamPlayerActive', {
-            teamPlayerActive: true,
-          });
+          .andWhere('membership.isActive = :membershipActive', {
+            membershipActive: true,
+          })
+          .andWhere('role.role = :playerRole', { playerRole: TeamRole.PLAYER });
         break;
 
       case UserType.COACH:
         queryBuilder
-          .leftJoinAndSelect('user.coachTeams', 'teamCoach')
-          .andWhere('teamCoach.isActive = :teamCoachActive', {
-            teamCoachActive: true,
+          .andWhere('membership.isActive = :membershipActive', {
+            membershipActive: true,
+          })
+          .andWhere('role.role IN (:...coachRoles)', {
+            coachRoles: [TeamRole.COACH, TeamRole.GUEST_COACH],
           });
         break;
 
       case UserType.ALL:
-        queryBuilder
-          .leftJoinAndSelect('user.playerTeams', 'teamPlayer')
-          .leftJoinAndSelect('user.coachTeams', 'teamCoach');
+        // No additional filtering for ALL
         break;
     }
 
@@ -70,10 +77,9 @@ export class UsersService {
     const user = await this.userRepository.findOne({
       where: { id },
       relations: [
-        'playerTeams',
-        'teamPlayers.team',
-        'coachTeams',
-        'teamCoaches.team',
+        'teamMemberships',
+        'teamMemberships.roles',
+        'teamMemberships.team',
       ],
     });
 
@@ -266,6 +272,8 @@ export class UsersService {
   ): Promise<User[]> {
     const queryBuilder = this.userRepository
       .createQueryBuilder('user')
+      .leftJoinAndSelect('user.teamMemberships', 'membership')
+      .leftJoinAndSelect('membership.roles', 'role')
       .where('user.isActive = :isActive', { isActive: true })
       .andWhere(
         "(LOWER(user.firstName) LIKE LOWER(:name) OR LOWER(user.lastName) LIKE LOWER(:name) OR LOWER(CONCAT(user.firstName, ' ', user.lastName)) LIKE LOWER(:name))",
@@ -275,56 +283,66 @@ export class UsersService {
     switch (userType) {
       case UserType.PLAYER:
         queryBuilder
-          .leftJoinAndSelect('user.playerTeams', 'teamPlayer')
-          .andWhere('teamPlayer.isActive = :teamPlayerActive', {
-            teamPlayerActive: true,
-          });
+          .andWhere('membership.isActive = :membershipActive', {
+            membershipActive: true,
+          })
+          .andWhere('role.role = :playerRole', { playerRole: TeamRole.PLAYER });
         break;
 
       case UserType.COACH:
         queryBuilder
-          .leftJoinAndSelect('user.coachTeams', 'teamCoach')
-          .andWhere('teamCoach.isActive = :teamCoachActive', {
-            teamCoachActive: true,
+          .andWhere('membership.isActive = :membershipActive', {
+            membershipActive: true,
+          })
+          .andWhere('role.role IN (:...coachRoles)', {
+            coachRoles: [TeamRole.COACH, TeamRole.GUEST_COACH],
           });
         break;
 
       case UserType.ALL:
-        queryBuilder
-          .leftJoinAndSelect('user.playerTeams', 'teamPlayer')
-          .leftJoinAndSelect('user.coachTeams', 'teamCoach');
+        // No additional filtering for ALL
         break;
     }
 
     return queryBuilder.getMany();
   }
 
-  // Player-specific queries
+  /**
+   * Find users with a specific player position.
+   * Searches the roleData JSONB for primaryPosition.
+   */
   async findByPosition(position: string): Promise<User[]> {
-    return this.userRepository.find({
-      relations: ['playerTeams'],
-      where: {
-        isActive: true,
-        playerTeams: {
-          primaryPosition: position,
-          isActive: true,
-        },
-      },
-    });
+    return this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.teamMemberships', 'membership')
+      .leftJoinAndSelect('membership.roles', 'role')
+      .where('user.isActive = :isActive', { isActive: true })
+      .andWhere('membership.isActive = :membershipActive', {
+        membershipActive: true,
+      })
+      .andWhere('role.role = :playerRole', { playerRole: TeamRole.PLAYER })
+      .andWhere("role.roleData->>'primaryPosition' = :position", { position })
+      .getMany();
   }
 
-  // Coach-specific queries
-  async findByCoachRole(role: string): Promise<User[]> {
-    return this.userRepository.find({
-      relations: ['coachTeams'],
-      where: {
-        isActive: true,
-        coachTeams: {
-          role,
-          isActive: true,
-        },
-      },
-    });
+  /**
+   * Find users with a specific coach title.
+   * Searches the roleData JSONB for title.
+   */
+  async findByCoachRole(title: string): Promise<User[]> {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.teamMemberships', 'membership')
+      .leftJoinAndSelect('membership.roles', 'role')
+      .where('user.isActive = :isActive', { isActive: true })
+      .andWhere('membership.isActive = :membershipActive', {
+        membershipActive: true,
+      })
+      .andWhere('role.role IN (:...coachRoles)', {
+        coachRoles: [TeamRole.COACH, TeamRole.GUEST_COACH],
+      })
+      .andWhere("role.roleData->>'title' = :title", { title })
+      .getMany();
   }
 
   async findByTeam(
@@ -333,35 +351,29 @@ export class UsersService {
   ): Promise<User[]> {
     const queryBuilder = this.userRepository
       .createQueryBuilder('user')
-      .where('user.isActive = :isActive', { isActive: true });
+      .leftJoinAndSelect('user.teamMemberships', 'membership')
+      .leftJoinAndSelect('membership.roles', 'role')
+      .where('user.isActive = :isActive', { isActive: true })
+      .andWhere('membership.teamId = :teamId', { teamId })
+      .andWhere('membership.isActive = :membershipActive', {
+        membershipActive: true,
+      });
 
     switch (userType) {
       case UserType.PLAYER:
-        queryBuilder
-          .leftJoinAndSelect('user.playerTeams', 'teamPlayer')
-          .andWhere('teamPlayer.teamId = :teamId', { teamId })
-          .andWhere('teamPlayer.isActive = :teamPlayerActive', {
-            teamPlayerActive: true,
-          });
+        queryBuilder.andWhere('role.role = :playerRole', {
+          playerRole: TeamRole.PLAYER,
+        });
         break;
 
       case UserType.COACH:
-        queryBuilder
-          .leftJoinAndSelect('user.coachTeams', 'teamCoach')
-          .andWhere('teamCoach.teamId = :teamId', { teamId })
-          .andWhere('teamCoach.isActive = :teamCoachActive', {
-            teamCoachActive: true,
-          });
+        queryBuilder.andWhere('role.role IN (:...coachRoles)', {
+          coachRoles: [TeamRole.COACH, TeamRole.GUEST_COACH],
+        });
         break;
 
       case UserType.ALL:
-        queryBuilder
-          .leftJoinAndSelect('user.playerTeams', 'teamPlayer')
-          .leftJoinAndSelect('user.coachTeams', 'teamCoach')
-          .andWhere(
-            '(teamPlayer.teamId = :teamId AND teamPlayer.isActive = :teamPlayerActive) OR (teamCoach.teamId = :teamId AND teamCoach.isActive = :teamCoachActive)',
-            { teamId, teamPlayerActive: true, teamCoachActive: true },
-          );
+        // No additional role filtering for ALL
         break;
     }
 
@@ -386,107 +398,110 @@ export class UsersService {
     user.isActive = false;
     await this.userRepository.save(user);
 
-    // Also deactivate all relationships
-    await this.teamPlayerRepository.update({ userId: id }, { isActive: false });
-    await this.teamCoachRepository.update({ userId: id }, { isActive: false });
+    // Also deactivate all team memberships
+    await this.teamMemberRepository.update({ userId: id }, { isActive: false });
 
     return true;
   }
 
   // Relationship management methods
-  async getTeamPlayers(userId: string): Promise<TeamPlayer[]> {
-    return this.teamPlayerRepository.find({
-      where: { userId, isActive: true },
-      relations: ['team'],
-    });
-  }
 
-  async getTeamCoaches(userId: string): Promise<TeamCoach[]> {
-    return this.teamCoachRepository.find({
-      where: { userId, isActive: true },
-      relations: ['team'],
-    });
-  }
-
-  // Player team management
+  /**
+   * Add a user to a team as a player
+   */
   async addPlayerToTeam(
     userId: string,
     teamId: string,
     jerseyNumber?: string,
     primaryPosition?: string,
-    joinedDate?: Date,
-  ): Promise<TeamPlayer> {
-    const teamPlayer = this.teamPlayerRepository.create({
-      userId,
-      teamId,
+  ): Promise<TeamMember> {
+    return this.teamMembersService.addPlayer(teamId, userId, {
       jerseyNumber,
       primaryPosition,
-      joinedDate: joinedDate || new Date(),
-      isActive: true,
-    });
-
-    const saved = await this.teamPlayerRepository.save(teamPlayer);
-
-    // Return with relations loaded
-    return this.teamPlayerRepository.findOneOrFail({
-      where: { id: saved.id },
-      relations: ['team', 'user'],
     });
   }
 
-  async removePlayerFromTeam(
-    userId: string,
-    teamId: string,
-    leftDate?: Date,
-  ): Promise<boolean> {
-    const result = await this.teamPlayerRepository.update(
-      { userId, teamId, isActive: true },
-      {
-        isActive: false,
-        leftDate: leftDate || new Date(),
-      },
+  /**
+   * Remove player role from a user's team membership
+   */
+  async removePlayerFromTeam(userId: string, teamId: string): Promise<boolean> {
+    const membership = await this.teamMembersService.findMembership(
+      userId,
+      teamId,
     );
 
-    return (result.affected ?? 0) > 0;
+    if (!membership) {
+      return false;
+    }
+
+    const result = await this.teamMembersService.removeRoleFromMember(
+      membership.id,
+      TeamRole.PLAYER,
+    );
+
+    return result !== null;
   }
 
-  // Coach team management
+  /**
+   * Add a user to a team as a coach
+   */
   async addCoachToTeam(
     userId: string,
     teamId: string,
-    role: string,
-    startDate: Date,
-  ): Promise<TeamCoach> {
-    const teamCoach = this.teamCoachRepository.create({
-      userId,
+    coachTitle: string,
+    isGuest = false,
+  ): Promise<TeamMember> {
+    return this.teamMembersService.addCoach(
       teamId,
-      role,
-      startDate,
-      isActive: true,
-    });
-
-    const saved = await this.teamCoachRepository.save(teamCoach);
-
-    // Return with relations loaded
-    return this.teamCoachRepository.findOneOrFail({
-      where: { id: saved.id },
-      relations: ['team', 'user'],
-    });
+      userId,
+      { title: coachTitle },
+      isGuest,
+    );
   }
 
-  async removeCoachFromTeam(
-    userId: string,
-    teamId: string,
-    endDate?: Date,
-  ): Promise<boolean> {
-    const result = await this.teamCoachRepository.update(
-      { userId, teamId, isActive: true },
-      {
-        isActive: false,
-        endDate: endDate || new Date(),
-      },
+  /**
+   * Remove coach role from a user's team membership
+   */
+  async removeCoachFromTeam(userId: string, teamId: string): Promise<boolean> {
+    const membership = await this.teamMembersService.findMembership(
+      userId,
+      teamId,
     );
 
-    return (result.affected ?? 0) > 0;
+    if (!membership) {
+      return false;
+    }
+
+    // Try to remove both COACH and GUEST_COACH roles
+    let removed = false;
+    const coachRole = membership.roles?.find((r) => r.role === TeamRole.COACH);
+    const guestCoachRole = membership.roles?.find(
+      (r) => r.role === TeamRole.GUEST_COACH,
+    );
+
+    if (coachRole) {
+      await this.teamMembersService.removeRoleFromMember(
+        membership.id,
+        TeamRole.COACH,
+      );
+      removed = true;
+    }
+
+    if (guestCoachRole) {
+      // Re-fetch membership in case it was modified
+      const updatedMembership = await this.teamMembersService.findMembership(
+        userId,
+        teamId,
+      );
+      if (updatedMembership) {
+        await this.teamMembersService.removeRoleFromMember(
+          updatedMembership.id,
+          TeamRole.GUEST_COACH,
+        );
+        removed = true;
+      }
+    }
+
+    return removed;
   }
 }

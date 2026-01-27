@@ -1975,13 +1975,14 @@ export const GamePage = () => {
                   // Priority 4: Fallback to team roster lookup
                   if (playerId && team?.team.roster) {
                     const rosterPlayer = team.team.roster.find(
-                      (tp) => tp.userId === playerId,
+                      (tp) => tp.teamMember.user.id === playerId,
                     );
-                    if (rosterPlayer?.user) {
-                      const name = `${rosterPlayer.user.firstName || ''} ${
-                        rosterPlayer.user.lastName || ''
-                      }`.trim();
-                      return name || rosterPlayer.user.email;
+                    if (rosterPlayer?.teamMember?.user) {
+                      const name =
+                        `${rosterPlayer.teamMember.user.firstName || ''} ${
+                          rosterPlayer.teamMember.user.lastName || ''
+                        }`.trim();
+                      return name || rosterPlayer.teamMember.user.email;
                     }
                   }
                   return 'Unknown';

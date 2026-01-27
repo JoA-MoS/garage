@@ -515,11 +515,12 @@ export const GameLineupTab = memo(function GameLineupTab({
         // Step 2: Add user to team roster
         await addPlayerToTeam({
           variables: {
-            userId: newUserId,
-            teamId: teamId,
-            jerseyNumber: playerData.jerseyNumber,
-            primaryPosition: playerData.primaryPosition,
-            joinedDate: new Date().toISOString(),
+            addPlayerToTeamInput: {
+              teamId: teamId,
+              playerId: newUserId,
+              jerseyNumber: playerData.jerseyNumber,
+              primaryPosition: playerData.primaryPosition,
+            },
           },
         });
 
