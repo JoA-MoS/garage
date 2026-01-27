@@ -24,5 +24,16 @@ export const clerkPublishableKey = config.require('clerkPublishableKey');
 // If not set, API allows all origins (safe when behind CloudFront)
 export const frontendUrl = config.get('frontendUrl');
 
+// Observability configuration
+// Log level: 'none' (safe rollout), 'basic' (warnings only), 'verbose' (all metrics)
+export const observabilityLogLevel =
+  config.get('observabilityLogLevel') || 'none';
+export const slowQueryThresholdMs =
+  config.getNumber('slowQueryThresholdMs') || 1000;
+export const queryComplexityLimit =
+  config.getNumber('queryComplexityLimit') || 100;
+export const dataLoaderBatchSizeWarning =
+  config.getNumber('dataLoaderBatchSizeWarning') || 100;
+
 // Naming convention
 export const namePrefix = `soccer-stats-api-${stack}`;
