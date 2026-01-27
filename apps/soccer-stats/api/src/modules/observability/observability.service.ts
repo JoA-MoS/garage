@@ -4,10 +4,10 @@ import { Injectable, Logger } from '@nestjs/common';
  * Memory snapshot from process.memoryUsage()
  */
 export interface MemorySnapshot {
-  heapUsedMB: number;
-  heapTotalMB: number;
-  rssMB: number;
-  externalMB: number;
+  readonly heapUsedMB: number;
+  readonly heapTotalMB: number;
+  readonly rssMB: number;
+  readonly externalMB: number;
 }
 
 /**
@@ -31,23 +31,15 @@ export interface QueryMetrics {
 }
 
 /**
- * Log levels for observability
- */
-export type ObservabilityLogLevel = 'none' | 'basic' | 'verbose';
-
-/**
  * Service providing observability utilities for memory monitoring,
  * DataLoader instrumentation, and GraphQL query tracking.
  *
- * All logging is in CloudWatch-compatible JSON format.
+ * Log format depends on LOG_FORMAT env var (defaults to JSON in production,
+ * text in development). JSON logs are CloudWatch-compatible.
  */
 @Injectable()
 export class ObservabilityService {
   private readonly logger = new Logger('Observability');
-
-  constructor() {
-    // Configuration is read dynamically from environment to allow runtime changes
-  }
 
   /**
    * Get current memory usage snapshot in MB
@@ -218,6 +210,24 @@ export class ObservabilityService {
       operationName,
       error: error.message,
       path: error.path?.join('.'),
+    });
+  }
+
+  /**
+   * Log DataLoader batch error with proper error severity
+   */
+  logDataLoaderError(
+    loader: string,
+    batchSize: number,
+    durationMs: number,
+    error: unknown,
+  ): void {
+    this.logger.error({
+      message: 'DataLoader batch error',
+      loader,
+      batchSize,
+      durationMs,
+      error: error instanceof Error ? error.message : String(error),
     });
   }
 }
