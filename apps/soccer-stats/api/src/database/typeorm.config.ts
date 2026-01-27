@@ -8,7 +8,6 @@
 import { DataSourceOptions } from 'typeorm';
 
 import {
-  isProduction,
   getDbHost,
   getDbPort,
   getDbUsername,
@@ -16,6 +15,7 @@ import {
   getDbName,
   getDbSynchronize,
   getDbLogging,
+  getDbSsl,
 } from '../app/environment';
 
 /**
@@ -36,7 +36,7 @@ export const baseTypeOrmConfig = {
   database: getDbName(),
   synchronize: getDbSynchronize(),
   logging: getDbLogging(),
-  ssl: isProduction() ? { rejectUnauthorized: false } : false,
+  ssl: getDbSsl() ? { rejectUnauthorized: false } : false,
   migrationsTableName: MIGRATIONS_TABLE_NAME,
 };
 

@@ -95,6 +95,45 @@ export const getDbSynchronize = (): boolean =>
   getEnv('DB_SYNCHRONIZE') === 'true';
 export const getDbLogging = (): boolean =>
   getEnv('DB_LOGGING') === 'true' || !isProduction();
+/**
+ * Database SSL setting.
+ * Enables SSL for PostgreSQL connections (recommended for RDS).
+ * Defaults to true in production, false in development (local Docker).
+ * Set DB_SSL=true when connecting to RDS from local machine.
+ *
+ * Accepts common boolean formats: true/false, 1/0, yes/no (case-insensitive).
+ * Note: Uses { rejectUnauthorized: false } in typeorm.config.ts to avoid
+ * certificate verification issues with RDS.
+ */
+export const getDbSsl = (): boolean => {
+  const sslEnv = getEnv('DB_SSL');
+  if (sslEnv !== undefined) {
+    const normalized = sslEnv.toLowerCase().trim();
+
+    // Explicit true values
+    if (normalized === 'true' || normalized === '1' || normalized === 'yes') {
+      return true;
+    }
+
+    // Explicit false values
+    if (
+      normalized === 'false' ||
+      normalized === '0' ||
+      normalized === 'no' ||
+      normalized === ''
+    ) {
+      return false;
+    }
+
+    // Unexpected value - warn and use environment-based default
+    console.warn(
+      `[Environment] DB_SSL has unexpected value "${sslEnv}". ` +
+        `Expected "true" or "false". Defaulting to ${isProduction() ? 'true' : 'false'} based on environment.`,
+    );
+    return isProduction();
+  }
+  return isProduction();
+};
 
 /**
  * GraphQL configuration

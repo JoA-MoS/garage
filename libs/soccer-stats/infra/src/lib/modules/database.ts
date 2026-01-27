@@ -6,6 +6,7 @@ export interface DatabaseConfig {
   namePrefix: string;
   stack: string;
   privateSubnetIds: pulumi.Output<string[]>;
+  publicSubnetIds: pulumi.Output<string[]>;
   rdsSecurityGroupId: pulumi.Output<string>;
   dbName: string;
   dbUsername: string;
@@ -14,6 +15,8 @@ export interface DatabaseConfig {
   dbMinCapacity: number;
   dbMaxCapacity: number;
   awsProvider: aws.Provider;
+  /** Allow direct connections from the internet (dev only - for local development) */
+  publiclyAccessible?: boolean;
 }
 
 export interface DatabaseOutputs {
@@ -34,6 +37,7 @@ export function createDatabase(config: DatabaseConfig): DatabaseOutputs {
     namePrefix,
     stack,
     privateSubnetIds,
+    publicSubnetIds,
     rdsSecurityGroupId,
     dbName,
     dbUsername,
@@ -42,14 +46,19 @@ export function createDatabase(config: DatabaseConfig): DatabaseOutputs {
     dbMinCapacity,
     dbMaxCapacity,
     awsProvider,
+    publiclyAccessible = false,
   } = config;
 
   // DB Subnet Group - requires subnets in at least 2 AZs
+  // Use public subnets when publiclyAccessible is true (for dev local access)
+  const subnetIds = publiclyAccessible ? publicSubnetIds : privateSubnetIds;
+  const subnetGroupSuffix = publiclyAccessible ? 'public' : 'private';
+
   const dbSubnetGroup = new aws.rds.SubnetGroup(
-    `${namePrefix}-db-subnet-group`,
+    `${namePrefix}-db-subnet-group-${subnetGroupSuffix}`,
     {
-      subnetIds: privateSubnetIds,
-      description: `Database subnet group for ${namePrefix}`,
+      subnetIds: subnetIds,
+      description: `Database subnet group for ${namePrefix} (${subnetGroupSuffix})`,
       tags: { Name: `${namePrefix}-db-subnet-group`, Environment: stack },
     },
     { provider: awsProvider },
@@ -103,6 +112,7 @@ export function createDatabase(config: DatabaseConfig): DatabaseOutputs {
       dbPassword,
       dbInstanceClass,
       awsProvider,
+      publiclyAccessible,
     });
     dbEndpoint = result.endpoint;
     dbPort = result.port;
@@ -233,6 +243,7 @@ interface StandardRdsConfig {
   dbPassword: random.RandomPassword;
   dbInstanceClass: string;
   awsProvider: aws.Provider;
+  publiclyAccessible: boolean;
 }
 
 /**
@@ -252,6 +263,7 @@ function createStandardRds(config: StandardRdsConfig): {
     dbPassword,
     dbInstanceClass,
     awsProvider,
+    publiclyAccessible,
   } = config;
 
   const rdsInstance = new aws.rds.Instance(
@@ -269,7 +281,7 @@ function createStandardRds(config: StandardRdsConfig): {
       password: dbPassword.result,
       dbSubnetGroupName: dbSubnetGroup.name,
       vpcSecurityGroupIds: [rdsSecurityGroupId],
-      publiclyAccessible: false,
+      publiclyAccessible: publiclyAccessible,
       storageEncrypted: true,
       skipFinalSnapshot: stack !== 'prod',
       finalSnapshotIdentifier:
@@ -280,7 +292,11 @@ function createStandardRds(config: StandardRdsConfig): {
       multiAz: stack === 'prod',
       tags: { Name: `${namePrefix}-rds`, Environment: stack },
     },
-    { provider: awsProvider },
+    {
+      provider: awsProvider,
+      // Force replacement when subnet group changes (AWS doesn't allow in-place updates)
+      replaceOnChanges: ['dbSubnetGroupName'],
+    },
   );
 
   return {

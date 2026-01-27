@@ -7,6 +7,8 @@ export interface SecurityGroupsConfig {
   vpcId: pulumi.Output<string>;
   containerPort: number;
   awsProvider: aws.Provider;
+  /** Allow public access to RDS (dev only - for local development) */
+  allowPublicRdsAccess?: boolean;
 }
 
 export interface SecurityGroupsOutputs {
@@ -21,7 +23,14 @@ export interface SecurityGroupsOutputs {
 export function createSecurityGroups(
   config: SecurityGroupsConfig,
 ): SecurityGroupsOutputs {
-  const { namePrefix, stack, vpcId, containerPort, awsProvider } = config;
+  const {
+    namePrefix,
+    stack,
+    vpcId,
+    containerPort,
+    awsProvider,
+    allowPublicRdsAccess = false,
+  } = config;
 
   // ALB Security Group - allows HTTP/HTTPS from internet
   const albSecurityGroup = new aws.ec2.SecurityGroup(
@@ -88,21 +97,34 @@ export function createSecurityGroups(
     { provider: awsProvider },
   );
 
-  // RDS Security Group - allows PostgreSQL from ECS tasks only
+  // RDS Security Group - allows PostgreSQL from ECS tasks (and optionally from internet in dev)
+  const rdsIngressRules: aws.types.input.ec2.SecurityGroupIngress[] = [
+    {
+      protocol: 'tcp',
+      fromPort: 5432,
+      toPort: 5432,
+      securityGroups: [ecsSecurityGroup.id],
+      description: 'Allow PostgreSQL from ECS tasks',
+    },
+  ];
+
+  // In dev, allow direct access from the internet for local development
+  if (allowPublicRdsAccess) {
+    rdsIngressRules.push({
+      protocol: 'tcp',
+      fromPort: 5432,
+      toPort: 5432,
+      cidrBlocks: ['0.0.0.0/0'],
+      description: 'Allow PostgreSQL from internet (dev only)',
+    });
+  }
+
   const rdsSecurityGroup = new aws.ec2.SecurityGroup(
     `${namePrefix}-rds-sg`,
     {
       vpcId,
       description: 'Security group for RDS PostgreSQL',
-      ingress: [
-        {
-          protocol: 'tcp',
-          fromPort: 5432,
-          toPort: 5432,
-          securityGroups: [ecsSecurityGroup.id],
-          description: 'Allow PostgreSQL from ECS tasks',
-        },
-      ],
+      ingress: rdsIngressRules,
       egress: [
         {
           protocol: '-1',
