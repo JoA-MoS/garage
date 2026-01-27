@@ -4,16 +4,16 @@ import {
   ConflictException,
   Inject,
   forwardRef,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { Team, SourceType } from '../../entities/team.entity';
 import { User } from '../../entities/user.entity';
-import { TeamPlayer } from '../../entities/team-player.entity';
+import { TeamMember, TeamRole } from '../../entities/team-member.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { TeamConfiguration } from '../../entities/team-configuration.entity';
-import { TeamRole } from '../../entities/team-member.entity';
 import { TeamMembersService } from '../team-members/team-members.service';
 
 import { CreateTeamInput } from './dto/create-team.input';
@@ -24,11 +24,11 @@ import { UpdateTeamConfigurationInput } from './dto/update-team-configuration.in
 
 @Injectable()
 export class TeamsService {
+  private readonly logger = new Logger(TeamsService.name);
+
   constructor(
     @InjectRepository(Team)
     private readonly teamRepository: Repository<Team>,
-    @InjectRepository(TeamPlayer)
-    private readonly teamPlayerRepository: Repository<TeamPlayer>,
     @InjectRepository(GameTeam)
     private readonly gameTeamRepository: Repository<GameTeam>,
     @InjectRepository(TeamConfiguration)
@@ -94,28 +94,36 @@ export class TeamsService {
     });
   }
 
+  /**
+   * Find all teams where a user has a PLAYER role
+   */
   async findByPlayerId(playerId: string): Promise<Team[]> {
-    return this.teamRepository.find({
-      relations: ['teamPlayers'],
-      where: {
-        teamPlayers: {
-          user: { id: playerId },
-          isActive: true,
-        },
-      },
-    });
+    const memberships = await this.teamMembersService.findByUser(playerId);
+    return memberships
+      .filter(
+        (m) =>
+          m.isActive &&
+          m.roles?.some((r) => r.role === TeamRole.PLAYER) &&
+          m.team,
+      )
+      .map((m) => m.team);
   }
 
+  /**
+   * Find all teams where a user has a COACH or GUEST_COACH role
+   */
   async findByCoachId(coachId: string): Promise<Team[]> {
-    return this.teamRepository.find({
-      relations: ['teamCoaches'],
-      where: {
-        teamCoaches: {
-          user: { id: coachId },
-          isActive: true,
-        },
-      },
-    });
+    const memberships = await this.teamMembersService.findByUser(coachId);
+    return memberships
+      .filter(
+        (m) =>
+          m.isActive &&
+          m.roles?.some(
+            (r) => r.role === TeamRole.COACH || r.role === TeamRole.GUEST_COACH,
+          ) &&
+          m.team,
+      )
+      .map((m) => m.team);
   }
 
   /**
@@ -137,7 +145,8 @@ export class TeamsService {
   }
 
   /**
-   * Check if a user has access to a specific team
+   * Check if a user has access to a specific team.
+   * Access is granted if user is the creator or has any active membership.
    */
   async userHasTeamAccess(userId: string, teamId: string): Promise<boolean> {
     const team = await this.teamRepository.findOne({
@@ -153,58 +162,27 @@ export class TeamsService {
       return true;
     }
 
-    // Check if user is an active player
-    const playerMembership = await this.teamPlayerRepository.findOne({
-      where: {
-        team: { id: teamId },
-        user: { id: userId },
-        isActive: true,
-      },
-    });
-
-    if (playerMembership) {
-      return true;
-    }
-
-    // Check if user is an active coach
-    // Note: We need to import TeamCoach repository for this
-    // For now, use query builder
-    const coachCount = await this.teamRepository
-      .createQueryBuilder('team')
-      .leftJoin('team.teamCoaches', 'teamCoach')
-      .leftJoin('teamCoach.user', 'coachUser')
-      .where('team.id = :teamId', { teamId })
-      .andWhere('coachUser.id = :userId', { userId })
-      .andWhere('teamCoach.isActive = true')
-      .getCount();
-
-    return coachCount > 0;
+    // Check if user is an active team member (any role)
+    return this.teamMembersService.isTeamMember(userId, teamId);
   }
 
+  /**
+   * Get all users who have a PLAYER role in the team
+   */
   async getPlayersForTeam(teamId: string): Promise<User[]> {
-    const teamPlayers = await this.teamPlayerRepository.find({
-      where: {
-        team: { id: teamId },
-        isActive: true,
-      },
-      relations: ['user'],
-    });
-
-    return teamPlayers
-      .filter(
-        (teamPlayer) =>
-          teamPlayer.user !== null && teamPlayer.user !== undefined,
-      )
-      .map((teamPlayer) => teamPlayer.user as User);
+    const players = await this.teamMembersService.findPlayersForTeam(teamId);
+    return players
+      .filter((member) => member.user !== null && member.user !== undefined)
+      .map((member) => member.user as User);
   }
 
   // ResolveField methods
 
-  async getTeamPlayers(teamId: string): Promise<TeamPlayer[]> {
-    return this.teamPlayerRepository.find({
-      where: { team: { id: teamId } },
-      relations: ['user', 'team'],
-    });
+  /**
+   * Get all team members (all roles) for a team
+   */
+  async getTeamMembers(teamId: string): Promise<TeamMember[]> {
+    return this.teamMembersService.findByTeam(teamId);
   }
 
   async getGameTeams(teamId: string): Promise<GameTeam[]> {
@@ -215,90 +193,117 @@ export class TeamsService {
     });
   }
 
+  /**
+   * Add a player to a team with jersey number and position
+   */
   async addPlayerToTeam(
     addPlayerToTeamInput: AddPlayerToTeamInput,
   ): Promise<Team> {
     // Verify team exists
     const team = await this.findOne(addPlayerToTeamInput.teamId);
 
-    // Check if player already exists in this team
-    const existing = await this.teamPlayerRepository.findOne({
-      where: {
-        team: { id: addPlayerToTeamInput.teamId },
-        user: { id: addPlayerToTeamInput.playerId },
-      },
-    });
+    // Check if player already has PLAYER role in this team
+    const hasPlayerRole = await this.teamMembersService.hasRole(
+      addPlayerToTeamInput.playerId,
+      addPlayerToTeamInput.teamId,
+      TeamRole.PLAYER,
+    );
 
-    if (existing) {
+    if (hasPlayerRole) {
       throw new ConflictException(
         `Player is already associated with this team`,
       );
     }
 
-    // Check if jersey number is already taken
-    const jerseyTaken = await this.teamPlayerRepository.findOne({
-      where: {
-        team: { id: addPlayerToTeamInput.teamId },
-        jerseyNumber: addPlayerToTeamInput.jersey.toString(),
-      },
-    });
-
-    if (jerseyTaken) {
-      throw new ConflictException(
-        `Jersey number ${addPlayerToTeamInput.jersey} is already taken`,
+    // Check if jersey number is already taken (only if jersey provided)
+    if (addPlayerToTeamInput.jerseyNumber) {
+      const existingPlayers = await this.teamMembersService.findPlayersForTeam(
+        addPlayerToTeamInput.teamId,
       );
+      const jerseyTaken = existingPlayers.some((member) =>
+        member.roles?.some(
+          (r) =>
+            r.role === TeamRole.PLAYER &&
+            r.jerseyNumber === addPlayerToTeamInput.jerseyNumber,
+        ),
+      );
+
+      if (jerseyTaken) {
+        throw new ConflictException(
+          `Jersey number ${addPlayerToTeamInput.jerseyNumber} is already taken`,
+        );
+      }
     }
 
-    const teamPlayer = this.teamPlayerRepository.create({
-      teamId: addPlayerToTeamInput.teamId,
-      userId: addPlayerToTeamInput.playerId,
-      jerseyNumber: addPlayerToTeamInput.jersey.toString(),
-      primaryPosition: 'Midfielder', // Default position
-      joinedDate: new Date(),
-      isActive: addPlayerToTeamInput.isActive !== false,
-    });
+    // Add the player using TeamMembersService
+    await this.teamMembersService.addPlayer(
+      addPlayerToTeamInput.teamId,
+      addPlayerToTeamInput.playerId,
+      {
+        jerseyNumber: addPlayerToTeamInput.jerseyNumber,
+        primaryPosition: addPlayerToTeamInput.primaryPosition,
+      },
+    );
 
-    await this.teamPlayerRepository.save(teamPlayer);
-
-    // Return the team (which should have all required fields)
+    // Return the team
     return team;
   }
 
+  /**
+   * Remove a player from a team
+   */
   async removePlayerFromTeam(
     teamId: string,
     playerId: string,
   ): Promise<boolean> {
-    const teamPlayer = await this.teamPlayerRepository.findOne({
-      where: {
-        team: { id: teamId },
-        user: { id: playerId },
-      },
-    });
+    const membership = await this.teamMembersService.findMembership(
+      playerId,
+      teamId,
+    );
 
-    if (!teamPlayer) {
+    if (!membership) {
       throw new NotFoundException(`Player is not associated with this team`);
     }
 
-    await this.teamPlayerRepository.remove(teamPlayer);
+    const playerRole = membership.roles?.find(
+      (r) => r.role === TeamRole.PLAYER,
+    );
+    if (!playerRole) {
+      throw new NotFoundException(
+        `User does not have player role in this team`,
+      );
+    }
+
+    // Remove the player role (this may also remove membership if no other roles)
+    await this.teamMembersService.removeRoleFromMember(
+      membership.id,
+      TeamRole.PLAYER,
+    );
     return true;
   }
 
+  /**
+   * Get players with their jersey numbers for display
+   */
   async getPlayersWithJersey(teamId: string): Promise<TeamPlayerWithJersey[]> {
-    const teamPlayers = await this.teamPlayerRepository.find({
-      where: { team: { id: teamId } },
-      relations: ['user'],
-      order: { jerseyNumber: 'ASC' },
-    });
+    const players = await this.teamMembersService.findPlayersForTeam(teamId);
 
-    return teamPlayers
-      .filter((tp) => tp.user !== null && tp.user !== undefined)
-      .map((tp) => ({
-        id: (tp.user as User).id,
-        name: `${(tp.user as User).firstName} ${(tp.user as User).lastName}`,
-        position: tp.primaryPosition || 'Unknown',
-        jersey: parseInt(tp.jerseyNumber || '0'),
-        isActive: tp.isActive,
-      }));
+    return players
+      .filter((member) => member.user !== null && member.user !== undefined)
+      .map((member) => {
+        const playerRole = member.roles?.find(
+          (r) => r.role === TeamRole.PLAYER,
+        );
+        const user = member.user as User;
+        return {
+          id: user.id,
+          name: `${user.firstName} ${user.lastName}`,
+          position: playerRole?.primaryPosition || 'Unknown',
+          jersey: parseInt(playerRole?.jerseyNumber || '0'),
+          isActive: member.isActive,
+        };
+      })
+      .sort((a, b) => a.jersey - b.jersey);
   }
 
   // Unmanaged team support methods
@@ -420,6 +425,12 @@ export class TeamsService {
     });
 
     const updatedTeams: Team[] = [];
+    const failedTeams: Array<{
+      teamId: string;
+      teamName: string;
+      reason: string;
+      isExpected: boolean;
+    }> = [];
 
     for (const team of teamsCreatedByUser) {
       // Check if team already has an owner
@@ -436,12 +447,54 @@ export class TeamsService {
             TeamRole.OWNER,
           );
           updatedTeams.push(team);
-        } catch {
-          // Skip if there's an error (e.g., user already has another role)
-          console.warn(
-            `Could not add owner to team ${team.id}: user may already have a role`,
-          );
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          const errorStack =
+            error instanceof Error ? error.stack : 'No stack trace';
+
+          // Determine if this is an expected failure (user already has role)
+          // or an unexpected failure (database error, etc.)
+          const isExpectedFailure =
+            errorMessage.includes('already') ||
+            errorMessage.includes('conflict') ||
+            errorMessage.includes('duplicate');
+
+          if (isExpectedFailure) {
+            this.logger.debug(
+              `Skipping owner assignment for team ${team.id} (${team.name}): ${errorMessage}`,
+            );
+          } else {
+            // Log unexpected errors with full stack trace for debugging
+            this.logger.error(
+              `Failed to add owner to team ${team.id} (${team.name}) for user ${internalUserId}: ${errorMessage}`,
+              errorStack,
+            );
+          }
+
+          failedTeams.push({
+            teamId: team.id,
+            teamName: team.name,
+            reason: errorMessage,
+            isExpected: isExpectedFailure,
+          });
         }
+      }
+    }
+
+    // Log summary if there were failures
+    if (failedTeams.length > 0) {
+      const unexpectedFailures = failedTeams.filter((f) => !f.isExpected);
+      if (unexpectedFailures.length > 0) {
+        this.logger.warn(
+          `Backfill completed with ${unexpectedFailures.length} unexpected failure(s) out of ${failedTeams.length} total failure(s). ` +
+            `Successfully updated ${updatedTeams.length} team(s). ` +
+            `Unexpected failures: ${JSON.stringify(unexpectedFailures)}`,
+        );
+      } else {
+        this.logger.debug(
+          `Backfill completed: ${updatedTeams.length} team(s) updated, ${failedTeams.length} skipped (expected)`,
+        );
       }
     }
 

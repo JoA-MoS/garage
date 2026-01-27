@@ -252,8 +252,8 @@ export const GamePage = () => {
       }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
       // Refetch stats for both teams since we don't know which team the goal belonged to
       const game = data?.game;
-      const homeTeam = game?.gameTeams?.find((gt) => gt.teamType === 'home');
-      const awayTeam = game?.gameTeams?.find((gt) => gt.teamType === 'away');
+      const homeTeam = game?.teams?.find((gt) => gt.teamType === 'home');
+      const awayTeam = game?.teams?.find((gt) => gt.teamType === 'away');
       if (homeTeam) {
         queries.push({
           query: GET_PLAYER_STATS,
@@ -282,8 +282,8 @@ export const GamePage = () => {
           variables: object;
         }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
         const game = data?.game;
-        const homeTeam = game?.gameTeams?.find((gt) => gt.teamType === 'home');
-        const awayTeam = game?.gameTeams?.find((gt) => gt.teamType === 'away');
+        const homeTeam = game?.teams?.find((gt) => gt.teamType === 'home');
+        const awayTeam = game?.teams?.find((gt) => gt.teamType === 'away');
         if (homeTeam) {
           queries.push({
             query: GET_PLAYER_STATS,
@@ -318,8 +318,8 @@ export const GamePage = () => {
           variables: object;
         }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
         const game = data?.game;
-        const homeTeam = game?.gameTeams?.find((gt) => gt.teamType === 'home');
-        const awayTeam = game?.gameTeams?.find((gt) => gt.teamType === 'away');
+        const homeTeam = game?.teams?.find((gt) => gt.teamType === 'home');
+        const awayTeam = game?.teams?.find((gt) => gt.teamType === 'away');
         if (homeTeam) {
           queries.push({
             query: GET_GAME_LINEUP,
@@ -349,8 +349,8 @@ export const GamePage = () => {
           variables: object;
         }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
         const game = data?.game;
-        const homeTeam = game?.gameTeams?.find((gt) => gt.teamType === 'home');
-        const awayTeam = game?.gameTeams?.find((gt) => gt.teamType === 'away');
+        const homeTeam = game?.teams?.find((gt) => gt.teamType === 'home');
+        const awayTeam = game?.teams?.find((gt) => gt.teamType === 'away');
         if (homeTeam) {
           queries.push({
             query: GET_PLAYER_STATS,
@@ -396,8 +396,8 @@ export const GamePage = () => {
           variables: object;
         }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
         const game = data?.game;
-        const homeTeam = game?.gameTeams?.find((gt) => gt.teamType === 'home');
-        const awayTeam = game?.gameTeams?.find((gt) => gt.teamType === 'away');
+        const homeTeam = game?.teams?.find((gt) => gt.teamType === 'home');
+        const awayTeam = game?.teams?.find((gt) => gt.teamType === 'away');
         if (homeTeam) {
           queries.push({
             query: GET_PLAYER_STATS,
@@ -447,24 +447,24 @@ export const GamePage = () => {
 
   // Memoize team lookups to prevent unnecessary recalculations
   const homeTeamData = useMemo(
-    () => data?.game?.gameTeams?.find((gt) => gt.teamType === 'home'),
-    [data?.game?.gameTeams],
+    () => data?.game?.teams?.find((gt) => gt.teamType === 'home'),
+    [data?.game?.teams],
   );
   const awayTeamData = useMemo(
-    () => data?.game?.gameTeams?.find((gt) => gt.teamType === 'away'),
-    [data?.game?.gameTeams],
+    () => data?.game?.teams?.find((gt) => gt.teamType === 'away'),
+    [data?.game?.teams],
   );
   const homeTeamId = homeTeamData?.id;
   const awayTeamId = awayTeamData?.id;
 
   // Memoize scores to prevent recalculation on every render
   const homeScore = useMemo(
-    () => computeScore(homeTeamData?.gameEvents),
-    [homeTeamData?.gameEvents],
+    () => computeScore(homeTeamData?.events),
+    [homeTeamData?.events],
   );
   const awayScore = useMemo(
-    () => computeScore(awayTeamData?.gameEvents),
-    [awayTeamData?.gameEvents],
+    () => computeScore(awayTeamData?.events),
+    [awayTeamData?.events],
   );
 
   // Fetch lineup data for goal modal (only when needed)
@@ -1093,7 +1093,7 @@ export const GamePage = () => {
 
     if (effectiveLevel === StatsTrackingLevel.GoalsOnly) {
       // Skip modal - record goal directly without player attribution
-      const gameTeam = game?.gameTeams?.find((gt) => gt.teamType === team);
+      const gameTeam = game?.teams?.find((gt) => gt.teamType === team);
       if (!gameTeam) return;
 
       const minute = Math.floor(elapsedSeconds / 60);
@@ -1138,8 +1138,7 @@ export const GamePage = () => {
     }
 
     // Calculate half duration in seconds
-    const halfDurationSeconds =
-      ((game.gameFormat?.durationMinutes || 60) / 2) * 60;
+    const halfDurationSeconds = ((game.format?.durationMinutes || 60) / 2) * 60;
 
     // Determine which half we should be tracking
     const currentHalf = isFirstHalf ? 'first' : 'second';
@@ -1202,7 +1201,7 @@ export const GamePage = () => {
     data?.game?.status,
     data?.game?.actualStart,
     data?.game?.secondHalfStart,
-    data?.game?.gameFormat?.durationMinutes,
+    data?.game?.format?.durationMinutes,
     data?.game?.pausedAt,
   ]);
 
@@ -1268,7 +1267,7 @@ export const GamePage = () => {
   // Get current game time in minutes and seconds for goal recording
   // During HALFTIME, use the end-of-first-half time (half of total duration)
   const halftimeDurationMinutes = Math.floor(
-    (game.gameFormat?.durationMinutes || 60) / 2,
+    (game.format?.durationMinutes || 60) / 2,
   );
   const gameMinute =
     game.status === GameStatus.Halftime
@@ -1296,8 +1295,8 @@ export const GamePage = () => {
       <GameHeader
         gameName={game.name || 'Game Details'}
         status={game.status}
-        gameFormatName={game.gameFormat.name}
-        durationMinutes={game.gameFormat.durationMinutes}
+        gameFormatName={game.format.name}
+        durationMinutes={game.format.durationMinutes}
         statsTrackingLevel={game.statsTrackingLevel || StatsTrackingLevel.Full}
         isPaused={!!game.pausedAt}
         isConnected={isConnected}
@@ -1330,7 +1329,7 @@ export const GamePage = () => {
         status={game.status}
         elapsedSeconds={elapsedSeconds}
         isPaused={!!game.pausedAt}
-        durationMinutes={game.gameFormat.durationMinutes}
+        durationMinutes={game.format.durationMinutes}
         halfIndicator={halfIndicator}
         firstHalfEnd={game.firstHalfEnd}
         actualStart={game.actualStart}
@@ -1418,7 +1417,7 @@ export const GamePage = () => {
                   teamName={homeTeam.team.name}
                   teamColor={homeTeam.team.homePrimaryColor || '#3B82F6'}
                   isManaged={homeTeam.team.isManaged}
-                  playersPerTeam={game.gameFormat.playersPerTeam}
+                  playersPerTeam={game.format.playersPerTeam}
                   gameStatus={game.status}
                   currentGameMinute={gameMinute}
                   onFormationChange={(formation, minute) =>
@@ -1434,7 +1433,7 @@ export const GamePage = () => {
                   teamName={awayTeam.team.name}
                   teamColor={awayTeam.team.homePrimaryColor || '#EF4444'}
                   isManaged={awayTeam.team.isManaged}
-                  playersPerTeam={game.gameFormat.playersPerTeam}
+                  playersPerTeam={game.format.playersPerTeam}
                   gameStatus={game.status}
                   currentGameMinute={gameMinute}
                   onFormationChange={(formation, minute) =>
@@ -1459,7 +1458,7 @@ export const GamePage = () => {
                       name: homeTeam.team.name,
                       homePrimaryColor: homeTeam.team.homePrimaryColor,
                     },
-                    gameEvents: homeTeam.gameEvents?.map((e) => ({
+                    events: homeTeam.events?.map((e) => ({
                       id: e.id,
                       createdAt: e.createdAt,
                       gameMinute: e.gameMinute,
@@ -1480,7 +1479,7 @@ export const GamePage = () => {
                       name: awayTeam.team.name,
                       homePrimaryColor: awayTeam.team.homePrimaryColor,
                     },
-                    gameEvents: awayTeam.gameEvents?.map((e) => ({
+                    events: awayTeam.events?.map((e) => ({
                       id: e.id,
                       createdAt: e.createdAt,
                       gameMinute: e.gameMinute,
@@ -1660,7 +1659,7 @@ export const GamePage = () => {
                   teamType: 'home' | 'away',
                   defaultColor: string,
                 ) => {
-                  if (!gameTeam?.gameEvents) return;
+                  if (!gameTeam?.events) return;
 
                   // Track SUB_IN events we've already paired
                   const processedSubIns = new Set<string>();
@@ -1670,7 +1669,7 @@ export const GamePage = () => {
                   const periodChildEventIds = new Set<string>();
 
                   // First pass: collect all child event IDs from period and game end events
-                  gameTeam.gameEvents.forEach((event) => {
+                  gameTeam.events.forEach((event) => {
                     if (
                       (event.eventType?.name === 'PERIOD_START' ||
                         event.eventType?.name === 'PERIOD_END' ||
@@ -1683,14 +1682,14 @@ export const GamePage = () => {
                     }
                   });
 
-                  gameTeam.gameEvents.forEach((event) => {
+                  gameTeam.events.forEach((event) => {
                     // Skip events that are children of period events
                     if (periodChildEventIds.has(event.id)) {
                       return;
                     }
                     // Process GOAL events
                     if (event.eventType?.name === 'GOAL') {
-                      const assistEvent = gameTeam.gameEvents?.find(
+                      const assistEvent = gameTeam.events?.find(
                         (e) =>
                           e.eventType?.name === 'ASSIST' &&
                           e.gameMinute === event.gameMinute &&
@@ -1724,7 +1723,7 @@ export const GamePage = () => {
                     // Process SUBSTITUTION_OUT events (pair with SUBSTITUTION_IN at same time)
                     if (event.eventType?.name === 'SUBSTITUTION_OUT') {
                       // Find matching SUBSTITUTION_IN at same time
-                      const subInEvent = gameTeam.gameEvents?.find(
+                      const subInEvent = gameTeam.events?.find(
                         (e) =>
                           e.eventType?.name === 'SUBSTITUTION_IN' &&
                           e.gameMinute === event.gameMinute &&
@@ -1770,7 +1769,7 @@ export const GamePage = () => {
                       !processedSwaps.has(event.id)
                     ) {
                       // Find the paired swap event at the same time
-                      const pairedSwap = gameTeam.gameEvents?.find(
+                      const pairedSwap = gameTeam.events?.find(
                         (e) =>
                           e.eventType?.name === 'POSITION_SWAP' &&
                           e.id !== event.id &&
@@ -1900,7 +1899,7 @@ export const GamePage = () => {
                     // Process PERIOD_END events (skip if GAME_END exists at same time - redundant with Full Time)
                     if (event.eventType?.name === 'PERIOD_END') {
                       // Check if there's a GAME_END at the same minute/second (final whistle)
-                      const hasGameEndAtSameTime = gameTeam.gameEvents?.some(
+                      const hasGameEndAtSameTime = gameTeam.events?.some(
                         (e) =>
                           e.eventType?.name === 'GAME_END' &&
                           e.gameMinute === event.gameMinute &&
@@ -1974,15 +1973,16 @@ export const GamePage = () => {
                     return name || player.email || 'Unknown';
                   }
                   // Priority 4: Fallback to team roster lookup
-                  if (playerId && team?.team.teamPlayers) {
-                    const rosterPlayer = team.team.teamPlayers.find(
-                      (tp) => tp.userId === playerId,
+                  if (playerId && team?.team.roster) {
+                    const rosterPlayer = team.team.roster.find(
+                      (tp) => tp.teamMember.user.id === playerId,
                     );
-                    if (rosterPlayer?.user) {
-                      const name = `${rosterPlayer.user.firstName || ''} ${
-                        rosterPlayer.user.lastName || ''
-                      }`.trim();
-                      return name || rosterPlayer.user.email;
+                    if (rosterPlayer?.teamMember?.user) {
+                      const name =
+                        `${rosterPlayer.teamMember.user.firstName || ''} ${
+                          rosterPlayer.teamMember.user.lastName || ''
+                        }`.trim();
+                      return name || rosterPlayer.teamMember.user.email;
                     }
                   }
                   return 'Unknown';

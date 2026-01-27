@@ -25,29 +25,22 @@ export const GET_ALL_USERS = graphql(`
         name
         shortName
       }
-      teamPlayers {
+      teamMemberships {
         id
-        jerseyNumber
-        primaryPosition
+        isActive
         joinedDate
         leftDate
-        isActive
         team {
           id
           name
           shortName
         }
-      }
-      teamCoaches {
-        id
-        role
-        startDate
-        endDate
-        isActive
-        team {
+        roles {
           id
-          name
-          shortName
+          role
+          jerseyNumber
+          primaryPosition
+          coachTitle
         }
       }
     }
@@ -67,18 +60,20 @@ export const GET_USERS_BY_TEAM = graphql(`
       email
       phone
       isActive
-      teamPlayers {
+      teamMemberships {
         id
-        jerseyNumber
-        primaryPosition
+        isActive
         joinedDate
-        isActive
-      }
-      teamCoaches {
-        id
-        role
-        startDate
-        isActive
+        team {
+          id
+        }
+        roles {
+          id
+          role
+          jerseyNumber
+          primaryPosition
+          coachTitle
+        }
       }
     }
   }
@@ -94,17 +89,17 @@ export const SEARCH_USERS_BY_NAME = graphql(`
       firstName
       lastName
       email
-      teamPlayers {
+      teamMemberships {
+        id
         team {
+          id
           name
         }
-        primaryPosition
-      }
-      teamCoaches {
-        team {
-          name
+        roles {
+          role
+          primaryPosition
+          coachTitle
         }
-        role
       }
     }
   }
@@ -135,17 +130,21 @@ export const GET_PLAYERS = graphql(`
         name
         shortName
       }
-      teamPlayers {
+      teamMemberships {
         id
-        jerseyNumber
-        primaryPosition
+        isActive
         joinedDate
         leftDate
-        isActive
         team {
           id
           name
           shortName
+        }
+        roles {
+          id
+          role
+          jerseyNumber
+          primaryPosition
         }
       }
     }
@@ -161,12 +160,16 @@ export const GET_PLAYERS_BY_TEAM = graphql(`
       id
       firstName
       lastName
-      teamPlayers {
+      teamMemberships {
         id
-        jerseyNumber
-        primaryPosition
-        joinedDate
         isActive
+        joinedDate
+        roles {
+          id
+          role
+          jerseyNumber
+          primaryPosition
+        }
       }
     }
   }
@@ -181,9 +184,13 @@ export const GET_PLAYERS_BY_POSITION = graphql(`
       id
       firstName
       lastName
-      teamPlayers {
+      teamMemberships {
         id
-        jerseyNumber
+        roles {
+          id
+          role
+          jerseyNumber
+        }
         team {
           name
         }
@@ -201,12 +208,15 @@ export const SEARCH_PLAYERS_BY_NAME = graphql(`
       id
       firstName
       lastName
-      teamPlayers {
+      teamMemberships {
         team {
           name
         }
-        primaryPosition
-        jerseyNumber
+        roles {
+          role
+          primaryPosition
+          jerseyNumber
+        }
       }
     }
   }
@@ -236,16 +246,20 @@ export const GET_COACHES = graphql(`
         name
         shortName
       }
-      teamCoaches {
+      teamMemberships {
         id
-        role
-        startDate
-        endDate
         isActive
+        joinedDate
+        leftDate
         team {
           id
           name
           shortName
+        }
+        roles {
+          id
+          role
+          coachTitle
         }
       }
     }
@@ -261,11 +275,15 @@ export const GET_COACHES_BY_TEAM = graphql(`
       id
       firstName
       lastName
-      teamCoaches {
+      teamMemberships {
         id
-        role
-        startDate
         isActive
+        joinedDate
+        roles {
+          id
+          role
+          coachTitle
+        }
       }
     }
   }
@@ -280,11 +298,15 @@ export const GET_COACHES_BY_ROLE = graphql(`
       id
       firstName
       lastName
-      teamCoaches {
+      teamMemberships {
         id
-        startDate
+        joinedDate
         team {
           name
+        }
+        roles {
+          role
+          coachTitle
         }
       }
     }
@@ -300,11 +322,14 @@ export const SEARCH_COACHES_BY_NAME = graphql(`
       id
       firstName
       lastName
-      teamCoaches {
+      teamMemberships {
         team {
           name
         }
-        role
+        roles {
+          role
+          coachTitle
+        }
       }
     }
   }
@@ -334,29 +359,22 @@ export const GET_USER_BY_ID = graphql(`
         name
         shortName
       }
-      teamPlayers {
+      teamMemberships {
         id
-        jerseyNumber
-        primaryPosition
+        isActive
         joinedDate
         leftDate
-        isActive
         team {
           id
           name
           shortName
         }
-      }
-      teamCoaches {
-        id
-        role
-        startDate
-        endDate
-        isActive
-        team {
+        roles {
           id
-          name
-          shortName
+          role
+          jerseyNumber
+          primaryPosition
+          coachTitle
         }
       }
     }
@@ -419,30 +437,25 @@ export const REMOVE_USER = graphql(`
 
 /**
  * Add user to team as player
+ * Note: Uses the new addPlayerToTeam mutation with input object
  */
 export const ADD_PLAYER_TO_TEAM = graphql(`
-  mutation AddPlayerToTeam(
-    $userId: ID!
-    $teamId: ID!
-    $jerseyNumber: String
-    $primaryPosition: String
-    $joinedDate: DateTime
-  ) {
-    addPlayerToTeam(
-      userId: $userId
-      teamId: $teamId
-      jerseyNumber: $jerseyNumber
-      primaryPosition: $primaryPosition
-      joinedDate: $joinedDate
-    ) {
+  mutation AddPlayerToTeam($addPlayerToTeamInput: AddPlayerToTeamInput!) {
+    addPlayerToTeam(addPlayerToTeamInput: $addPlayerToTeamInput) {
       id
-      jerseyNumber
-      primaryPosition
-      joinedDate
-      isActive
-      team {
+      name
+      teamMembers {
         id
-        name
+        user {
+          id
+          firstName
+          lastName
+        }
+        roles {
+          role
+          jerseyNumber
+          primaryPosition
+        }
       }
     }
   }
@@ -452,34 +465,33 @@ export const ADD_PLAYER_TO_TEAM = graphql(`
  * Remove player from team
  */
 export const REMOVE_PLAYER_FROM_TEAM = graphql(`
-  mutation RemoveUserFromTeam($userId: ID!, $teamId: ID!, $leftDate: DateTime) {
-    removePlayerFromTeam(userId: $userId, teamId: $teamId, leftDate: $leftDate)
+  mutation RemovePlayerFromTeam($teamId: ID!, $playerId: ID!) {
+    removePlayerFromTeam(teamId: $teamId, playerId: $playerId) {
+      id
+      name
+    }
   }
 `);
 
 /**
  * Add user to team as coach
+ * Returns the TeamMember record
  */
 export const ADD_COACH_TO_TEAM = graphql(`
-  mutation AddCoachToTeam(
-    $userId: ID!
-    $teamId: ID!
-    $role: String!
-    $startDate: DateTime!
-  ) {
-    addCoachToTeam(
-      userId: $userId
-      teamId: $teamId
-      role: $role
-      startDate: $startDate
-    ) {
+  mutation AddCoachToTeam($userId: ID!, $teamId: ID!, $coachTitle: String!) {
+    addCoachToTeam(userId: $userId, teamId: $teamId, coachTitle: $coachTitle) {
       id
-      role
-      startDate
-      isActive
-      team {
+      teamId
+      userId
+      user {
         id
-        name
+        firstName
+        lastName
+      }
+      roles {
+        id
+        role
+        coachTitle
       }
     }
   }
@@ -487,92 +499,11 @@ export const ADD_COACH_TO_TEAM = graphql(`
 
 /**
  * Remove coach from team
+ * Returns true if successful
  */
 export const REMOVE_COACH_FROM_TEAM = graphql(`
-  mutation RemoveCoachFromTeam($userId: ID!, $teamId: ID!, $endDate: DateTime) {
-    removeCoachFromTeam(userId: $userId, teamId: $teamId, endDate: $endDate)
-  }
-`);
-
-// =================================
-// BACKWARD COMPATIBILITY (Legacy API)
-// =================================
-
-/**
- * @deprecated Use CREATE_USER instead
- * Legacy mutation for backward compatibility
- */
-export const CREATE_PLAYER = graphql(`
-  mutation CreateUserAccount($createPlayerInput: CreatePlayerInput!) {
-    createPlayer(createPlayerInput: $createPlayerInput) {
-      id
-      firstName
-      lastName
-      email
-      dateOfBirth
-      phone
-      isActive
-      createdAt
-      updatedAt
-    }
-  }
-`);
-
-/**
- * @deprecated Use CREATE_USER instead
- * Legacy mutation for backward compatibility
- */
-export const CREATE_COACH = graphql(`
-  mutation CreateCoach($createCoachInput: CreateUserInput!) {
-    createCoach(createCoachInput: $createCoachInput) {
-      id
-      firstName
-      lastName
-      email
-      dateOfBirth
-      phone
-      isActive
-      createdAt
-      updatedAt
-    }
-  }
-`);
-
-/**
- * @deprecated Use UPDATE_USER instead
- * Legacy mutation for backward compatibility
- */
-export const UPDATE_PLAYER = graphql(`
-  mutation UpdateUserAccount($id: ID!, $updatePlayerInput: UpdatePlayerInput!) {
-    updatePlayer(id: $id, updatePlayerInput: $updatePlayerInput) {
-      id
-      firstName
-      lastName
-      email
-      dateOfBirth
-      phone
-      isActive
-      updatedAt
-    }
-  }
-`);
-
-/**
- * @deprecated Use UPDATE_USER instead
- * Legacy mutation for backward compatibility
- */
-export const UPDATE_COACH = graphql(`
-  mutation UpdateCoach($id: ID!, $updateCoachInput: UpdateUserInput!) {
-    updateCoach(id: $id, updateCoachInput: $updateCoachInput) {
-      id
-      firstName
-      lastName
-      email
-      dateOfBirth
-      phone
-      isActive
-      updatedAt
-    }
+  mutation RemoveCoachFromTeam($userId: ID!, $teamId: ID!) {
+    removeCoachFromTeam(userId: $userId, teamId: $teamId)
   }
 `);
 
@@ -627,8 +558,7 @@ export type User = {
   createdAt: Date;
   updatedAt: Date;
   teams?: Team[];
-  teamPlayers?: TeamPlayer[];
-  teamCoaches?: TeamCoach[];
+  teamMemberships?: TeamMembership[];
 };
 
 export type Team = {
@@ -637,21 +567,19 @@ export type Team = {
   shortName?: string;
 };
 
-export type TeamPlayer = {
+export type TeamMembership = {
   id: string;
-  jerseyNumber?: string;
-  primaryPosition?: string;
+  isActive: boolean;
   joinedDate?: Date;
   leftDate?: Date;
-  isActive: boolean;
   team: Team;
+  roles: TeamMemberRole[];
 };
 
-export type TeamCoach = {
+export type TeamMemberRole = {
   id: string;
   role: string;
-  startDate: Date;
-  endDate?: Date;
-  isActive: boolean;
-  team: Team;
+  jerseyNumber?: string;
+  primaryPosition?: string;
+  coachTitle?: string;
 };

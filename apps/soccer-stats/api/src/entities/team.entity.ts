@@ -3,8 +3,6 @@ import { ObjectType, Field, registerEnumType } from '@nestjs/graphql';
 
 import { BaseEntity } from './base.entity';
 import { GameTeam } from './game-team.entity';
-import { TeamPlayer } from './team-player.entity';
-import { TeamCoach } from './team-coach.entity';
 import { TeamConfiguration } from './team-configuration.entity';
 import { TeamMember } from './team-member.entity';
 
@@ -83,19 +81,7 @@ export class Team extends BaseEntity {
 
   @Field(() => [GameTeam], { nullable: true })
   @OneToMany(() => GameTeam, (gameTeam) => gameTeam.team, { cascade: true })
-  gameTeams: GameTeam[];
-
-  @Field(() => [TeamPlayer], { nullable: true })
-  @OneToMany(() => TeamPlayer, (teamPlayer) => teamPlayer.team, {
-    cascade: true,
-  })
-  teamPlayers: TeamPlayer[];
-
-  @Field(() => [TeamCoach], { nullable: true })
-  @OneToMany(() => TeamCoach, (teamCoach) => teamCoach.team, {
-    cascade: true,
-  })
-  teamCoaches: TeamCoach[];
+  games: GameTeam[];
 
   @Field(() => TeamConfiguration, { nullable: true })
   @OneToOne(
@@ -103,7 +89,7 @@ export class Team extends BaseEntity {
     (teamConfiguration) => teamConfiguration.team,
     {
       cascade: true,
-    }
+    },
   )
   teamConfiguration?: TeamConfiguration;
 

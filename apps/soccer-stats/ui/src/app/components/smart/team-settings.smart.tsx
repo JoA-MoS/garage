@@ -142,7 +142,7 @@ export const TeamSettingsSmart = () => {
         let backendGameFormatId: string | undefined;
         if (settingsData.gameFormat && gameFormatsData?.gameFormats) {
           const backendFormat = gameFormatsData.gameFormats.find(
-            (f) => f.name === settingsData.gameFormat,
+            (f: GameFormat) => f.name === settingsData.gameFormat,
           );
           backendGameFormatId = backendFormat?.id;
         }

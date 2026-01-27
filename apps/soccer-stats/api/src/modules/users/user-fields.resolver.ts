@@ -2,8 +2,7 @@ import { Resolver, ResolveField, Parent, Context } from '@nestjs/graphql';
 
 import { User } from '../../entities/user.entity';
 import { Team } from '../../entities/team.entity';
-import { TeamPlayer } from '../../entities/team-player.entity';
-import { TeamCoach } from '../../entities/team-coach.entity';
+import { TeamMember } from '../../entities/team-member.entity';
 import { GraphQLContext } from '../dataloaders';
 
 /**
@@ -18,74 +17,47 @@ import { GraphQLContext } from '../dataloaders';
 @Resolver(() => User)
 export class UserFieldsResolver {
   /**
-   * Resolves the 'teamPlayers' field on User.
-   * Uses DataLoader to batch multiple teamPlayers lookups into a single query.
+   * Resolves the 'teamMemberships' field on User.
+   * Uses DataLoader to batch multiple membership lookups into a single query.
    *
-   * Returns the user's team memberships as a player (with team data included).
+   * Returns the user's team memberships with their roles.
    */
-  @ResolveField(() => [TeamPlayer], {
-    description: "User's team memberships as a player",
+  @ResolveField(() => [TeamMember], {
+    description: "User's team memberships (with roles)",
   })
-  async teamPlayers(
+  async teamMemberships(
     @Parent() user: User,
     @Context() context: GraphQLContext,
-  ): Promise<TeamPlayer[]> {
-    // If teamPlayers was already loaded (e.g., via eager loading), return it
-    if (user.teamPlayers !== undefined) {
-      return user.teamPlayers;
+  ): Promise<TeamMember[]> {
+    // If teamMemberships was already loaded, return it
+    if (user.teamMemberships !== undefined) {
+      return user.teamMemberships;
     }
     // Use DataLoader to batch the query
-    return context.loaders.teamPlayersByUserIdLoader.load(user.id);
+    return context.loaders.teamMembersByUserIdLoader.load(user.id);
   }
 
   /**
-   * Resolves the 'teamCoaches' field on User.
-   * Uses DataLoader to batch multiple teamCoaches lookups into a single query.
-   *
-   * Returns the user's team memberships as a coach (with team data included).
-   */
-  @ResolveField(() => [TeamCoach], {
-    description: "User's team memberships as a coach",
-  })
-  async teamCoaches(
-    @Parent() user: User,
-    @Context() context: GraphQLContext,
-  ): Promise<TeamCoach[]> {
-    // If teamCoaches was already loaded (e.g., via eager loading), return it
-    if (user.teamCoaches !== undefined) {
-      return user.teamCoaches;
-    }
-    // Use DataLoader to batch the query
-    return context.loaders.teamCoachesByUserIdLoader.load(user.id);
-  }
-
-  /**
-   * Resolves the 'teams' field on User (computed from teamPlayers).
-   * Uses DataLoader to batch teamPlayers lookups into a single query,
-   * then extracts the associated teams.
-   *
-   * This is a convenience field that extracts teams from the user's
-   * teamPlayers relationships.
+   * Resolves the 'teams' field on User.
+   * Returns all teams the user is a member of (any role).
    */
   @ResolveField(() => [Team], {
-    description: 'Teams the user is a player on',
+    description: 'All teams the user is a member of',
   })
   async teams(
     @Parent() user: User,
     @Context() context: GraphQLContext,
   ): Promise<Team[]> {
-    // If teamPlayers is already loaded with teams, extract them
-    // (filter isActive since pre-loaded data may include inactive)
-    if (user.teamPlayers !== undefined) {
-      return user.teamPlayers
-        .filter((tp) => tp.isActive && tp.team)
-        .map((tp) => tp.team);
+    // If teamMemberships is already loaded with teams, extract them
+    if (user.teamMemberships !== undefined) {
+      return user.teamMemberships
+        .filter((tm) => tm.isActive && tm.team)
+        .map((tm) => tm.team);
     }
 
-    // DataLoader already filters isActive=true in the query
-    const teamPlayers = await context.loaders.teamPlayersByUserIdLoader.load(
+    const memberships = await context.loaders.teamMembersByUserIdLoader.load(
       user.id,
     );
-    return teamPlayers.filter((tp) => tp.team).map((tp) => tp.team);
+    return memberships.filter((tm) => tm.team).map((tm) => tm.team);
   }
 }

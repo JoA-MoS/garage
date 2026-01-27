@@ -18,14 +18,18 @@ export const PLAYER_CARD_FRAGMENT = graphql(`
     phone
     dateOfBirth
     isActive
-    teamPlayers {
+    teamMemberships {
       id
-      jerseyNumber
-      primaryPosition
       isActive
       team {
         id
         name
+      }
+      roles {
+        id
+        role
+        jerseyNumber
+        primaryPosition
       }
     }
     # Note: Game stats would need to be computed from performedEvents
@@ -67,28 +71,35 @@ export const PlayerCardSmart = ({
     id: playerRef.id,
     firstName: `Player`,
     lastName: `${playerRef.id}`,
-    teamPlayers: [
+    teamMemberships: [
       {
-        id: `tp-${playerRef.id}`,
-        jerseyNumber: (parseInt(playerRef.id) + 10).toString(),
-        primaryPosition: playerRef.id === '2' ? 'Goalkeeper' : 'Forward',
+        id: `tm-${playerRef.id}`,
         isActive: true,
         team: {
           id: 'team-1',
           name: 'Home Team',
         },
+        roles: [
+          {
+            id: `tmr-${playerRef.id}`,
+            role: 'PLAYER',
+            jerseyNumber: (parseInt(playerRef.id) + 10).toString(),
+            primaryPosition: playerRef.id === '2' ? 'Goalkeeper' : 'Forward',
+          },
+        ],
       },
     ],
   };
 
   // Data mapping: Transform User entity to PlayerCardPresentation props
   const player = mockPlayer;
-  const activeTeamPlayer = player.teamPlayers.find((tp) => tp.isActive);
+  const activeMembership = player.teamMemberships.find((tm) => tm.isActive);
+  const playerRole = activeMembership?.roles.find((r) => r.role === 'PLAYER');
 
   // Extract player info from User entity
   const name = `${player.firstName} ${player.lastName}`;
-  const jersey = parseInt(activeTeamPlayer?.jerseyNumber || '0');
-  const position = activeTeamPlayer?.primaryPosition || 'Unknown';
+  const jersey = parseInt(playerRole?.jerseyNumber || '0');
+  const position = playerRole?.primaryPosition || 'Unknown';
 
   // Mock game stats - in real implementation, these would come from:
   // 1. A custom resolver field that aggregates performedEvents
@@ -161,7 +172,7 @@ export const PlayerCardSmart = ({
       position={position}
       photo={undefined} // No photo field in User entity
       playTime={90} // Mock - would need to be computed from game data
-      isOnField={activeTeamPlayer?.isActive || false}
+      isOnField={activeMembership?.isActive || false}
       stats={stats}
       onYellowCardClick={handleStatClick('yellowCard')}
       onRedCardClick={handleStatClick('redCard')}

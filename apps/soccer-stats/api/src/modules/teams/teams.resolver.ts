@@ -20,7 +20,6 @@ import { RequireTeamRole } from '../auth/require-team-role.decorator';
 import { CurrentUser } from '../auth/user.decorator';
 import { AuthenticatedUser } from '../auth/authenticated-user.type';
 import { GameTeam } from '../../entities/game-team.entity';
-import { PlayersService } from '../players/players.service';
 import { TeamMembersService } from '../team-members/team-members.service';
 
 import { TeamPlayerWithJersey } from './dto/team-player-with-jersey.dto';
@@ -35,7 +34,6 @@ import { UpdateTeamConfigurationInput } from './dto/update-team-configuration.in
 export class TeamsResolver {
   constructor(
     private readonly teamsService: TeamsService,
-    private readonly playersService: PlayersService,
     private readonly teamMembersService: TeamMembersService,
     @Inject('PUB_SUB') private pubSub: PubSub,
   ) {}

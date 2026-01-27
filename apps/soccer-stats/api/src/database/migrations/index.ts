@@ -19,6 +19,7 @@ import { ConvertToTimestamptz1769110989864 } from './1769110989864-ConvertToTime
 import { AddPeriodConfigToGameFormat1769200000000 } from './1769200000000-AddPeriodConfigToGameFormat';
 import { Add4v4GameFormat1769210000000 } from './1769210000000-Add4v4GameFormat';
 import { Update4v4Description1769210100000 } from './1769210100000-Update4v4Description';
+import { ConsolidateTeamMembership1769300000000 } from './1769300000000-ConsolidateTeamMembership';
 
 /**
  * All migrations in chronological order.
@@ -35,4 +36,5 @@ export const migrations = [
   AddPeriodConfigToGameFormat1769200000000,
   Add4v4GameFormat1769210000000,
   Update4v4Description1769210100000,
+  ConsolidateTeamMembership1769300000000,
 ];
