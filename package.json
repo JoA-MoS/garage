@@ -183,6 +183,7 @@
     "dayjs": "^1.10.7",
     "express": "^5.0.0",
     "graphql": "^16.11.0",
+    "graphql-query-complexity": "^1.1.0",
     "graphql-subscriptions": "^3.0.0",
     "graphql-ws": "^6.0.6",
     "jsonc-parser": "^3.0.0",

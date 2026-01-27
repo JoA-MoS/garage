@@ -124,6 +124,9 @@ importers:
       graphql:
         specifier: ^16.11.0
         version: 16.11.0
+      graphql-query-complexity:
+        specifier: ^1.1.0
+        version: 1.1.0(graphql@16.11.0)
       graphql-subscriptions:
         specifier: ^3.0.0
         version: 3.0.0(graphql@16.11.0)
@@ -17386,6 +17389,14 @@ packages:
       }
     peerDependencies:
       graphql: ^14.6.0 || ^15.0.0 || ^16.0.0
+
+  graphql-query-complexity@1.1.0:
+    resolution:
+      {
+        integrity: sha512-6sfAX+9CgkcPeZ7UiuBwgTGA+M1FYgHrQOXvORhQGd6SiaXbNVkLDcJ9ZSvNgzyChIfH0uPFFOY3Jm4wFZ4qEA==,
+      }
+    peerDependencies:
+      graphql: ^15.0.0 || ^16.0.0
 
   graphql-scalars@1.24.2:
     resolution:
@@ -44772,6 +44783,11 @@ snapshots:
       - utf-8-validate
 
   graphql-query-complexity@0.12.0(graphql@16.11.0):
+    dependencies:
+      graphql: 16.11.0
+      lodash.get: 4.4.2
+
+  graphql-query-complexity@1.1.0(graphql@16.11.0):
     dependencies:
       graphql: 16.11.0
       lodash.get: 4.4.2
