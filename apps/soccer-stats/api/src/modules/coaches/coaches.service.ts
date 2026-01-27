@@ -107,12 +107,21 @@ export class CoachesService {
   async remove(id: string): Promise<boolean> {
     const user = await this.findOne(id);
 
-    // Set coach as inactive instead of deleting
-    user.isActive = false;
-    await this.userRepository.save(user);
+    // Use transaction to ensure both user and memberships are deactivated atomically
+    await this.userRepository.manager.transaction(
+      async (transactionalEntityManager) => {
+        // Set coach as inactive instead of deleting
+        user.isActive = false;
+        await transactionalEntityManager.save(user);
 
-    // Also deactivate all team memberships
-    await this.teamMemberRepository.update({ userId: id }, { isActive: false });
+        // Also deactivate all team memberships
+        await transactionalEntityManager.update(
+          TeamMember,
+          { userId: id },
+          { isActive: false },
+        );
+      },
+    );
 
     return true;
   }
