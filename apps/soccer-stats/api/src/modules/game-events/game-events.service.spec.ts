@@ -27,7 +27,6 @@ describe('GameEventsService', () => {
     ensurePlayerInfoProvided: jest.fn(),
     publishGameEvent: jest.fn(),
     checkForDuplicateOrConflict: jest.fn(),
-    loadEventWithRelations: jest.fn(),
     buildConflictInfo: jest.fn(),
     getPlayerNameFromEvent: jest.fn(),
     getRecordedByUserName: jest.fn(),

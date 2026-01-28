@@ -266,20 +266,16 @@ export class EventManagementService {
 
     const savedSwap2 = await this.gameEventsRepository.save(swap2Event);
 
-    // Return both events with relations loaded
-    const [swap1WithRelations, swap2WithRelations] = await Promise.all([
-      this.coreService.loadEventWithRelations(savedSwap1.id),
-      this.coreService.loadEventWithRelations(savedSwap2.id),
-    ]);
-
     // Publish the position swap event (use swap1 as the primary event)
+    // Field resolvers handle relation loading for subscribers
     await this.coreService.publishGameEvent(
       gameTeam.gameId,
       GameEventAction.CREATED,
-      swap1WithRelations,
+      savedSwap1,
     );
 
-    return [swap1WithRelations, swap2WithRelations];
+    // Return base entities - field resolvers handle relation loading on-demand
+    return [savedSwap1, savedSwap2];
   }
 
   /**
@@ -730,7 +726,16 @@ export class EventManagementService {
       );
     }
 
-    // Return the selected event with full relations
-    return this.coreService.loadEventWithRelations(selectedEventId);
+    // Return base entity - field resolvers handle relation loading on-demand
+    // Re-fetch to get the updated state (conflictId cleared)
+    const updatedEvent = await this.gameEventsRepository.findOne({
+      where: { id: selectedEventId },
+    });
+
+    if (!updatedEvent) {
+      throw new NotFoundException(`GameEvent ${selectedEventId} not found`);
+    }
+
+    return updatedEvent;
   }
 }

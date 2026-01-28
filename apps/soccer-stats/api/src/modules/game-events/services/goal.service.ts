@@ -48,18 +48,16 @@ export class GoalService {
 
     // If duplicate: return existing event, notify subscriber with DUPLICATE_DETECTED
     if (detectionResult.isDuplicate && detectionResult.existingEvent) {
-      const existingEvent = await this.coreService.loadEventWithRelations(
-        detectionResult.existingEvent.id,
-      );
-
       // Publish duplicate detection (silent sync - event already exists)
+      // Field resolvers handle relation loading for subscribers
       await this.coreService.publishGameEvent(
         gameTeam.gameId,
         GameEventAction.DUPLICATE_DETECTED,
-        existingEvent,
+        detectionResult.existingEvent,
       );
 
-      return existingEvent;
+      // Return base entity - field resolvers handle relation loading on-demand
+      return detectionResult.existingEvent;
     }
 
     // Prepare conflictId if this is a conflict
@@ -128,13 +126,11 @@ export class GoalService {
       );
     }
 
-    // Return goal event with relations loaded
-    const goalEventWithRelations =
-      await this.coreService.loadEventWithRelations(savedGoalEvent.id);
-
     // Publish the event to subscribers
+    // Field resolvers handle relation loading for subscribers
     if (detectionResult.isConflict && conflictId) {
       // Get all conflicting events for the conflict info
+      // This eager loading is needed for building conflict info (business logic)
       const allConflictingEvents = await this.gameEventsRepository.find({
         where: { conflictId },
         relations: ['player', 'recordedByUser'],
@@ -151,7 +147,7 @@ export class GoalService {
       await this.coreService.publishGameEvent(
         gameTeam.gameId,
         GameEventAction.CONFLICT_DETECTED,
-        goalEventWithRelations,
+        savedGoalEvent,
         undefined,
         conflictInfo,
       );
@@ -159,11 +155,12 @@ export class GoalService {
       await this.coreService.publishGameEvent(
         gameTeam.gameId,
         GameEventAction.CREATED,
-        goalEventWithRelations,
+        savedGoalEvent,
       );
     }
 
-    return goalEventWithRelations;
+    // Return base entity - field resolvers handle relation loading on-demand
+    return savedGoalEvent;
   }
 
   async updateGoal(input: UpdateGoalInput): Promise<GameEvent> {
@@ -253,19 +250,15 @@ export class GoalService {
       }
     }
 
-    // Return updated goal event with relations
-    const updatedGoal = await this.coreService.loadEventWithRelations(
-      input.gameEventId,
-    );
-
-    // Publish the update event
+    // Publish the update event - field resolvers handle relation loading for subscribers
     await this.coreService.publishGameEvent(
       gameEvent.gameId,
       GameEventAction.UPDATED,
-      updatedGoal,
+      gameEvent,
     );
 
-    return updatedGoal;
+    // Return base entity - field resolvers handle relation loading on-demand
+    return gameEvent;
   }
 
   async deleteGoal(gameEventId: string): Promise<boolean> {

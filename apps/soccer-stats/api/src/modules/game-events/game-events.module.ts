@@ -12,6 +12,7 @@ import { GamesModule } from '../games/games.module';
 
 import { GameEventsService } from './game-events.service';
 import { GameEventsResolver } from './game-events.resolver';
+import { GameEventFieldsResolver } from './game-event-fields.resolver';
 import {
   EventCoreService,
   LineupService,
@@ -41,8 +42,9 @@ import {
     EventManagementService,
     // Facade service (public API)
     GameEventsService,
-    // GraphQL resolver
+    // GraphQL resolvers
     GameEventsResolver,
+    GameEventFieldsResolver,
   ],
   exports: [GameEventsService],
 })
