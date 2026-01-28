@@ -275,22 +275,4 @@ export class EventCoreService implements OnModuleInit {
       conflictingEvents: conflictingEventsInfo,
     };
   }
-
-  /**
-   * Load a game event with standard relations for return values.
-   */
-  async loadEventWithRelations(eventId: string): Promise<GameEvent> {
-    return this.gameEventsRepository.findOneOrFail({
-      where: { id: eventId },
-      relations: [
-        'eventType',
-        'player',
-        'recordedByUser',
-        'gameTeam',
-        'game',
-        'childEvents',
-        'childEvents.eventType',
-      ],
-    });
-  }
 }

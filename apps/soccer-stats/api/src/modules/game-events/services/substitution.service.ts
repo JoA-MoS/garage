@@ -82,9 +82,8 @@ export class SubstitutionService {
       metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
     });
 
-    const savedEvent = await this.gameEventsRepository.save(gameEvent);
-
-    return this.coreService.loadEventWithRelations(savedEvent.id);
+    // Return base entity - field resolvers handle relation loading on-demand
+    return this.gameEventsRepository.save(gameEvent);
   }
 
   /**
@@ -149,18 +148,15 @@ export class SubstitutionService {
 
     const savedEvent = await this.gameEventsRepository.save(subOutEvent);
 
-    // 7. Publish the event
-    const eventWithRelations = await this.coreService.loadEventWithRelations(
-      savedEvent.id,
-    );
-
+    // 7. Publish the event - field resolvers handle relation loading for subscribers
     await this.coreService.publishGameEvent(
       gameTeam.gameId,
       GameEventAction.CREATED,
-      eventWithRelations,
+      savedEvent,
     );
 
-    return eventWithRelations;
+    // Return base entity - field resolvers handle relation loading on-demand
+    return savedEvent;
   }
 
   async substitutePlayer(
@@ -224,20 +220,16 @@ export class SubstitutionService {
 
     const savedSubIn = await this.gameEventsRepository.save(subInEvent);
 
-    // Return with relations loaded
-    const [subOutWithRelations, subInWithRelations] = await Promise.all([
-      this.coreService.loadEventWithRelations(savedSubOut.id),
-      this.coreService.loadEventWithRelations(savedSubIn.id),
-    ]);
-
     // Publish the substitution event (use SUB_OUT as the primary event)
+    // Field resolvers handle relation loading for subscribers
     await this.coreService.publishGameEvent(
       gameTeam.gameId,
       GameEventAction.CREATED,
-      subOutWithRelations,
+      savedSubOut,
     );
 
-    return [subOutWithRelations, subInWithRelations];
+    // Return base entities - field resolvers handle relation loading on-demand
+    return [savedSubOut, savedSubIn];
   }
 
   /**

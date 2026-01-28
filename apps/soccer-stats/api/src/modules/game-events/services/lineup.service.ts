@@ -62,9 +62,8 @@ export class LineupService {
       gameSecond: 0,
     });
 
-    const savedEvent = await this.gameEventsRepository.save(gameEvent);
-
-    return this.coreService.loadEventWithRelations(savedEvent.id);
+    // Return base entity - field resolvers handle relation loading on-demand
+    return this.gameEventsRepository.save(gameEvent);
   }
 
   async addPlayerToBench(
@@ -100,9 +99,8 @@ export class LineupService {
       gameSecond: 0,
     });
 
-    const savedEvent = await this.gameEventsRepository.save(gameEvent);
-
-    return this.coreService.loadEventWithRelations(savedEvent.id);
+    // Return base entity - field resolvers handle relation loading on-demand
+    return this.gameEventsRepository.save(gameEvent);
   }
 
   async removeFromLineup(gameEventId: string): Promise<boolean> {
