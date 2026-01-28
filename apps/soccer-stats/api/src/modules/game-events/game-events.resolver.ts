@@ -6,7 +6,7 @@ import {
   ID,
   Subscription,
 } from '@nestjs/graphql';
-import { UseGuards, Inject, BadRequestException, Logger } from '@nestjs/common';
+import { UseGuards, Inject, BadRequestException } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
 
 import { GameEvent } from '../../entities/game-event.entity';
@@ -42,8 +42,6 @@ import { PeriodResult } from './dto/period-result.output';
 @Resolver(() => GameEvent)
 @UseGuards(ClerkAuthGuard)
 export class GameEventsResolver {
-  private readonly logger = new Logger(GameEventsResolver.name);
-
   constructor(
     private readonly gameEventsService: GameEventsService,
     @Inject('PUB_SUB') private pubSub: PubSub,
