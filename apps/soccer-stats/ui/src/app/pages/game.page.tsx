@@ -547,7 +547,7 @@ export const GamePage = () => {
           id: event.gameTeamId,
         }),
         fields: {
-          gameEvents(existingEvents = [], { readField }) {
+          events(existingEvents = [], { readField }) {
             // Check if event already exists to prevent duplicates
             const eventExists = existingEvents.some(
               (ref: { __ref: string }) => readField('id', ref) === event.id,

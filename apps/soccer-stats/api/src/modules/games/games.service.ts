@@ -303,6 +303,11 @@ export class GamesService {
 
   /**
    * Update a GameTeam's settings (formation, stats tracking level, etc.)
+   *
+   * Returns the base entity without eager-loaded relations.
+   * GraphQL field resolvers + DataLoaders handle relation loading on-demand.
+   *
+   * @see game-team.resolver.ts for field resolvers
    */
   async updateGameTeam(
     gameTeamId: string,
@@ -310,7 +315,6 @@ export class GamesService {
   ): Promise<GameTeam> {
     const gameTeam = await this.gameTeamRepository.findOne({
       where: { id: gameTeamId },
-      relations: ['team', 'game'],
     });
 
     if (!gameTeam) {
@@ -328,29 +332,8 @@ export class GamesService {
       gameTeam.tacticalNotes = updateGameTeamInput.tacticalNotes;
     }
 
-    await this.gameTeamRepository.save(gameTeam);
-
-    // Return with full relations for GraphQL
-    const updatedGameTeam = await this.gameTeamRepository.findOne({
-      where: { id: gameTeamId },
-      relations: [
-        'team',
-        'team.teamMembers',
-        'team.teamMembers.user',
-        'team.teamMembers.roles',
-        'game',
-        'gameEvents',
-        'gameEvents.eventType',
-      ],
-    });
-
-    if (!updatedGameTeam) {
-      throw new NotFoundException(
-        `GameTeam with ID ${gameTeamId} not found after update`,
-      );
-    }
-
-    return updatedGameTeam;
+    // Save and return - field resolvers handle any requested relations
+    return this.gameTeamRepository.save(gameTeam);
   }
 
   /**
@@ -602,7 +585,7 @@ export class GamesService {
     // Get game details for duration calculation
     const game = await this.gameRepository.findOne({
       where: { id: gameId },
-      relations: ['gameFormat'],
+      relations: ['format'],
     });
 
     if (!game) {
