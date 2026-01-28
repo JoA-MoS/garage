@@ -93,7 +93,7 @@ type Documents = {
   '\n  mutation RemoveUser($id: ID!) {\n    removeUser(id: $id)\n  }\n': typeof types.RemoveUserDocument;
   '\n  mutation AddPlayerToTeam($addPlayerToTeamInput: AddPlayerToTeamInput!) {\n    addPlayerToTeam(addPlayerToTeamInput: $addPlayerToTeamInput) {\n      id\n      name\n      teamMembers {\n        id\n        user {\n          id\n          firstName\n          lastName\n        }\n        roles {\n          role\n          jerseyNumber\n          primaryPosition\n        }\n      }\n    }\n  }\n': typeof types.AddPlayerToTeamDocument;
   '\n  mutation RemovePlayerFromTeam($teamId: ID!, $playerId: ID!) {\n    removePlayerFromTeam(teamId: $teamId, playerId: $playerId) {\n      id\n      name\n    }\n  }\n': typeof types.RemovePlayerFromTeamDocument;
-  '\n  mutation AddCoachToTeam(\n    $userId: ID!\n    $teamId: ID!\n    $coachTitle: String!\n  ) {\n    addCoachToTeam(\n      userId: $userId\n      teamId: $teamId\n      coachTitle: $coachTitle\n    ) {\n      id\n      teamId\n      userId\n      user {\n        id\n        firstName\n        lastName\n      }\n      roles {\n        id\n        role\n        coachTitle\n      }\n    }\n  }\n': typeof types.AddCoachToTeamDocument;
+  '\n  mutation AddCoachToTeam($userId: ID!, $teamId: ID!, $coachTitle: String!) {\n    addCoachToTeam(userId: $userId, teamId: $teamId, coachTitle: $coachTitle) {\n      id\n      teamId\n      userId\n      user {\n        id\n        firstName\n        lastName\n      }\n      roles {\n        id\n        role\n        coachTitle\n      }\n    }\n  }\n': typeof types.AddCoachToTeamDocument;
   '\n  mutation RemoveCoachFromTeam($userId: ID!, $teamId: ID!) {\n    removeCoachFromTeam(userId: $userId, teamId: $teamId)\n  }\n': typeof types.RemoveCoachFromTeamDocument;
   '\n  subscription UserUpdated {\n    userUpdated {\n      id\n      firstName\n      lastName\n      email\n      isActive\n      updatedAt\n    }\n  }\n': typeof types.UserUpdatedDocument;
   '\n  subscription UserCreated {\n    userCreated {\n      id\n      firstName\n      lastName\n      email\n      isActive\n      createdAt\n    }\n  }\n': typeof types.UserCreatedDocument;
@@ -257,7 +257,7 @@ const documents: Documents = {
     types.AddPlayerToTeamDocument,
   '\n  mutation RemovePlayerFromTeam($teamId: ID!, $playerId: ID!) {\n    removePlayerFromTeam(teamId: $teamId, playerId: $playerId) {\n      id\n      name\n    }\n  }\n':
     types.RemovePlayerFromTeamDocument,
-  '\n  mutation AddCoachToTeam(\n    $userId: ID!\n    $teamId: ID!\n    $coachTitle: String!\n  ) {\n    addCoachToTeam(\n      userId: $userId\n      teamId: $teamId\n      coachTitle: $coachTitle\n    ) {\n      id\n      teamId\n      userId\n      user {\n        id\n        firstName\n        lastName\n      }\n      roles {\n        id\n        role\n        coachTitle\n      }\n    }\n  }\n':
+  '\n  mutation AddCoachToTeam($userId: ID!, $teamId: ID!, $coachTitle: String!) {\n    addCoachToTeam(userId: $userId, teamId: $teamId, coachTitle: $coachTitle) {\n      id\n      teamId\n      userId\n      user {\n        id\n        firstName\n        lastName\n      }\n      roles {\n        id\n        role\n        coachTitle\n      }\n    }\n  }\n':
     types.AddCoachToTeamDocument,
   '\n  mutation RemoveCoachFromTeam($userId: ID!, $teamId: ID!) {\n    removeCoachFromTeam(userId: $userId, teamId: $teamId)\n  }\n':
     types.RemoveCoachFromTeamDocument,
@@ -759,8 +759,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: '\n  mutation AddCoachToTeam(\n    $userId: ID!\n    $teamId: ID!\n    $coachTitle: String!\n  ) {\n    addCoachToTeam(\n      userId: $userId\n      teamId: $teamId\n      coachTitle: $coachTitle\n    ) {\n      id\n      teamId\n      userId\n      user {\n        id\n        firstName\n        lastName\n      }\n      roles {\n        id\n        role\n        coachTitle\n      }\n    }\n  }\n',
-): (typeof documents)['\n  mutation AddCoachToTeam(\n    $userId: ID!\n    $teamId: ID!\n    $coachTitle: String!\n  ) {\n    addCoachToTeam(\n      userId: $userId\n      teamId: $teamId\n      coachTitle: $coachTitle\n    ) {\n      id\n      teamId\n      userId\n      user {\n        id\n        firstName\n        lastName\n      }\n      roles {\n        id\n        role\n        coachTitle\n      }\n    }\n  }\n'];
+  source: '\n  mutation AddCoachToTeam($userId: ID!, $teamId: ID!, $coachTitle: String!) {\n    addCoachToTeam(userId: $userId, teamId: $teamId, coachTitle: $coachTitle) {\n      id\n      teamId\n      userId\n      user {\n        id\n        firstName\n        lastName\n      }\n      roles {\n        id\n        role\n        coachTitle\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation AddCoachToTeam($userId: ID!, $teamId: ID!, $coachTitle: String!) {\n    addCoachToTeam(userId: $userId, teamId: $teamId, coachTitle: $coachTitle) {\n      id\n      teamId\n      userId\n      user {\n        id\n        firstName\n        lastName\n      }\n      roles {\n        id\n        role\n        coachTitle\n      }\n    }\n  }\n'];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
