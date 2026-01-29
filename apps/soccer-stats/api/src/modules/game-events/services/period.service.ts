@@ -145,6 +145,13 @@ export class PeriodService {
       ],
     });
 
+    if (!periodEventWithRelations) {
+      throw new Error(
+        `Failed to reload period start event after creation. Event ID: ${savedPeriodEvent.id}. ` +
+          `This may indicate a race condition or database issue.`,
+      );
+    }
+
     // 8. Reload substitution events with relations
     const substitutionEventIds = substitutionEvents.map((e) => e.id);
     const substitutionEventsWithRelations =
@@ -159,11 +166,11 @@ export class PeriodService {
     await this.coreService.publishGameEvent(
       game.id,
       GameEventAction.CREATED,
-      periodEventWithRelations!,
+      periodEventWithRelations,
     );
 
     return {
-      periodEvent: periodEventWithRelations!,
+      periodEvent: periodEventWithRelations,
       substitutionEvents: substitutionEventsWithRelations,
       period: input.period,
       substitutionCount: substitutionEventsWithRelations.length,
@@ -269,6 +276,13 @@ export class PeriodService {
       ],
     });
 
+    if (!periodEventWithRelations) {
+      throw new Error(
+        `Failed to reload period end event after creation. Event ID: ${savedPeriodEvent.id}. ` +
+          `This may indicate a race condition or database issue.`,
+      );
+    }
+
     // 8. Reload substitution events with relations
     const substitutionEventIds = substitutionEvents.map((e) => e.id);
     const substitutionEventsWithRelations =
@@ -283,11 +297,11 @@ export class PeriodService {
     await this.coreService.publishGameEvent(
       game.id,
       GameEventAction.CREATED,
-      periodEventWithRelations!,
+      periodEventWithRelations,
     );
 
     return {
-      periodEvent: periodEventWithRelations!,
+      periodEvent: periodEventWithRelations,
       substitutionEvents: substitutionEventsWithRelations,
       period: input.period,
       substitutionCount: substitutionEventsWithRelations.length,
