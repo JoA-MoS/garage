@@ -42,24 +42,22 @@ export class GoalService {
       'GOAL',
       input.scorerId,
       input.externalScorerName,
-      input.gameMinute,
-      input.gameSecond,
+      input.period,
+      input.periodSecond,
     );
 
     // If duplicate: return existing event, notify subscriber with DUPLICATE_DETECTED
     if (detectionResult.isDuplicate && detectionResult.existingEvent) {
-      const existingEvent = await this.coreService.loadEventWithRelations(
-        detectionResult.existingEvent.id,
-      );
-
       // Publish duplicate detection (silent sync - event already exists)
+      // Field resolvers handle relation loading for subscribers
       await this.coreService.publishGameEvent(
         gameTeam.gameId,
         GameEventAction.DUPLICATE_DETECTED,
-        existingEvent,
+        detectionResult.existingEvent,
       );
 
-      return existingEvent;
+      // Return base entity - field resolvers handle relation loading on-demand
+      return detectionResult.existingEvent;
     }
 
     // Prepare conflictId if this is a conflict
@@ -90,8 +88,12 @@ export class GoalService {
       externalPlayerName: input.externalScorerName,
       externalPlayerNumber: input.externalScorerNumber,
       recordedByUserId,
-      gameMinute: input.gameMinute,
-      gameSecond: input.gameSecond,
+      // Legacy fields (deprecated, kept for migration compatibility)
+      gameMinute: Math.floor(input.periodSecond / 60),
+      gameSecond: input.periodSecond % 60,
+      // New period-relative timing
+      period: input.period,
+      periodSecond: input.periodSecond,
       conflictId,
     });
 
@@ -109,8 +111,12 @@ export class GoalService {
         externalPlayerName: input.externalAssisterName,
         externalPlayerNumber: input.externalAssisterNumber,
         recordedByUserId,
-        gameMinute: input.gameMinute,
-        gameSecond: input.gameSecond,
+        // Legacy fields (deprecated, kept for migration compatibility)
+        gameMinute: Math.floor(input.periodSecond / 60),
+        gameSecond: input.periodSecond % 60,
+        // New period-relative timing
+        period: input.period,
+        periodSecond: input.periodSecond,
         parentEventId: savedGoalEvent.id,
       });
 
@@ -128,13 +134,11 @@ export class GoalService {
       );
     }
 
-    // Return goal event with relations loaded
-    const goalEventWithRelations =
-      await this.coreService.loadEventWithRelations(savedGoalEvent.id);
-
     // Publish the event to subscribers
+    // Field resolvers handle relation loading for subscribers
     if (detectionResult.isConflict && conflictId) {
       // Get all conflicting events for the conflict info
+      // This eager loading is needed for building conflict info (business logic)
       const allConflictingEvents = await this.gameEventsRepository.find({
         where: { conflictId },
         relations: ['player', 'recordedByUser'],
@@ -143,15 +147,15 @@ export class GoalService {
       const conflictInfo = this.coreService.buildConflictInfo(
         conflictId,
         'GOAL',
-        input.gameMinute,
-        input.gameSecond,
+        input.period,
+        input.periodSecond,
         allConflictingEvents,
       );
 
       await this.coreService.publishGameEvent(
         gameTeam.gameId,
         GameEventAction.CONFLICT_DETECTED,
-        goalEventWithRelations,
+        savedGoalEvent,
         undefined,
         conflictInfo,
       );
@@ -159,11 +163,12 @@ export class GoalService {
       await this.coreService.publishGameEvent(
         gameTeam.gameId,
         GameEventAction.CREATED,
-        goalEventWithRelations,
+        savedGoalEvent,
       );
     }
 
-    return goalEventWithRelations;
+    // Return base entity - field resolvers handle relation loading on-demand
+    return savedGoalEvent;
   }
 
   async updateGoal(input: UpdateGoalInput): Promise<GameEvent> {
@@ -192,11 +197,19 @@ export class GoalService {
     if (input.externalScorerNumber !== undefined) {
       gameEvent.externalPlayerNumber = input.externalScorerNumber || undefined;
     }
-    if (input.gameMinute !== undefined) {
-      gameEvent.gameMinute = input.gameMinute;
+    if (input.period !== undefined) {
+      gameEvent.period = input.period;
+      // Also update legacy fields for compatibility
+      if (input.periodSecond !== undefined) {
+        gameEvent.gameMinute = Math.floor(input.periodSecond / 60);
+        gameEvent.gameSecond = input.periodSecond % 60;
+      }
     }
-    if (input.gameSecond !== undefined) {
-      gameEvent.gameSecond = input.gameSecond;
+    if (input.periodSecond !== undefined) {
+      gameEvent.periodSecond = input.periodSecond;
+      // Also update legacy fields for compatibility
+      gameEvent.gameMinute = Math.floor(input.periodSecond / 60);
+      gameEvent.gameSecond = input.periodSecond % 60;
     }
 
     await this.gameEventsRepository.save(gameEvent);
@@ -227,11 +240,14 @@ export class GoalService {
             input.externalAssisterNumber || undefined;
         }
         // Sync time with goal
-        if (input.gameMinute !== undefined) {
-          existingAssist.gameMinute = input.gameMinute;
+        if (input.period !== undefined) {
+          existingAssist.period = input.period;
         }
-        if (input.gameSecond !== undefined) {
-          existingAssist.gameSecond = input.gameSecond;
+        if (input.periodSecond !== undefined) {
+          existingAssist.periodSecond = input.periodSecond;
+          // Also update legacy fields for compatibility
+          existingAssist.gameMinute = Math.floor(input.periodSecond / 60);
+          existingAssist.gameSecond = input.periodSecond % 60;
         }
         await this.gameEventsRepository.save(existingAssist);
       } else {
@@ -245,27 +261,26 @@ export class GoalService {
           externalPlayerName: input.externalAssisterName,
           externalPlayerNumber: input.externalAssisterNumber,
           recordedByUserId: gameEvent.recordedByUserId,
+          // Copy timing from goal event
           gameMinute: gameEvent.gameMinute,
           gameSecond: gameEvent.gameSecond,
+          period: gameEvent.period,
+          periodSecond: gameEvent.periodSecond,
           parentEventId: gameEvent.id,
         });
         await this.gameEventsRepository.save(assistEvent);
       }
     }
 
-    // Return updated goal event with relations
-    const updatedGoal = await this.coreService.loadEventWithRelations(
-      input.gameEventId,
-    );
-
-    // Publish the update event
+    // Publish the update event - field resolvers handle relation loading for subscribers
     await this.coreService.publishGameEvent(
       gameEvent.gameId,
       GameEventAction.UPDATED,
-      updatedGoal,
+      gameEvent,
     );
 
-    return updatedGoal;
+    // Return base entity - field resolvers handle relation loading on-demand
+    return gameEvent;
   }
 
   async deleteGoal(gameEventId: string): Promise<boolean> {

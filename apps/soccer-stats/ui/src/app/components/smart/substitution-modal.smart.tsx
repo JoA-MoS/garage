@@ -7,6 +7,7 @@ import {
   BatchSubstitutionInput,
   BatchSwapInput,
 } from '@garage/soccer-stats/graphql-codegen';
+import { fromPeriodSecond } from '@garage/soccer-stats/utils';
 
 import {
   BATCH_LINEUP_CHANGES,
@@ -21,8 +22,8 @@ interface SubstitutionModalProps {
   teamColor: string;
   currentOnField: LineupPlayer[];
   bench: LineupPlayer[];
-  gameMinute: number;
-  gameSecond: number;
+  period: string;
+  periodSecond: number;
   onClose: () => void;
   onSuccess?: () => void;
 }
@@ -90,8 +91,8 @@ export const SubstitutionModal = ({
   teamColor,
   currentOnField,
   bench,
-  gameMinute,
-  gameSecond,
+  period,
+  periodSecond,
   onClose,
   onSuccess,
 }: SubstitutionModalProps) => {
@@ -361,8 +362,8 @@ export const SubstitutionModal = ({
         variables: {
           input: {
             gameTeamId,
-            gameMinute,
-            gameSecond,
+            period,
+            periodSecond,
             substitutions: substitutionInputs,
             swaps: swapInputs,
           },
@@ -483,8 +484,11 @@ export const SubstitutionModal = ({
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Changes</h3>
             <p className="text-sm text-gray-500">
-              {teamName} &bull; {String(gameMinute).padStart(2, '0')}:
-              {String(gameSecond).padStart(2, '0')}
+              {teamName} &bull; Period {period}{' '}
+              {(() => {
+                const { minute, second } = fromPeriodSecond(periodSecond);
+                return `${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
+              })()}
             </p>
           </div>
         </div>

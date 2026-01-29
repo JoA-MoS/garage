@@ -98,7 +98,9 @@ export class TeamsService {
    * Find all teams where a user has a PLAYER role
    */
   async findByPlayerId(playerId: string): Promise<Team[]> {
-    const memberships = await this.teamMembersService.findByUser(playerId);
+    const memberships = await this.teamMembersService.findByUser(playerId, {
+      includeRoles: true,
+    });
     return memberships
       .filter(
         (m) =>
@@ -113,7 +115,9 @@ export class TeamsService {
    * Find all teams where a user has a COACH or GUEST_COACH role
    */
   async findByCoachId(coachId: string): Promise<Team[]> {
-    const memberships = await this.teamMembersService.findByUser(coachId);
+    const memberships = await this.teamMembersService.findByUser(coachId, {
+      includeRoles: true,
+    });
     return memberships
       .filter(
         (m) =>

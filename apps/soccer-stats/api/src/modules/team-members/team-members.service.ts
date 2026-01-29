@@ -67,12 +67,20 @@ export class TeamMembersService {
   }
 
   /**
-   * Find all team memberships for a user
+   * Find all team memberships for a user.
+   * Loads team relation by default; roles are loaded via field resolver when needed.
    */
-  async findByUser(userId: string): Promise<TeamMember[]> {
+  async findByUser(
+    userId: string,
+    options?: { includeRoles?: boolean },
+  ): Promise<TeamMember[]> {
+    const relations: string[] = ['team'];
+    if (options?.includeRoles) {
+      relations.push('roles');
+    }
     return this.teamMemberRepository.find({
       where: { userId, isActive: true },
-      relations: ['team', 'roles'],
+      relations,
     });
   }
 
@@ -81,11 +89,15 @@ export class TeamMembersService {
    * @param roles If provided, filter to teams where user has at least one of these roles
    */
   async findTeamsForUser(userId: string, roles?: TeamRole[]): Promise<Team[]> {
-    const memberships = await this.findByUser(userId);
+    // Only load roles if we need to filter by them
+    const needsRoles = roles && roles.length > 0;
+    const memberships = await this.findByUser(userId, {
+      includeRoles: needsRoles,
+    });
 
     let filtered = memberships.filter((m) => m.team);
 
-    if (roles && roles.length > 0) {
+    if (needsRoles) {
       filtered = filtered.filter((m) =>
         m.roles?.some((r) => roles.includes(r.role)),
       );

@@ -70,8 +70,12 @@ export class EventManagementService {
       gameTeamId: input.gameTeamId,
       eventTypeId: formationEventType.id,
       recordedByUserId,
-      gameMinute: input.gameMinute,
-      gameSecond: input.gameSecond,
+      // Legacy fields (deprecated, kept for migration compatibility)
+      gameMinute: Math.floor(input.periodSecond / 60),
+      gameSecond: input.periodSecond % 60,
+      // New period-relative timing
+      period: input.period,
+      periodSecond: input.periodSecond,
       formation: input.formation,
       metadata: {
         previousFormation: previousFormation || null,
@@ -132,7 +136,7 @@ export class EventManagementService {
     const events = await this.gameEventsRepository.find({
       where: { gameTeamId: input.gameTeamId },
       relations: ['eventType'],
-      order: { gameMinute: 'ASC', gameSecond: 'ASC', createdAt: 'ASC' },
+      order: { period: 'ASC', periodSecond: 'ASC', createdAt: 'ASC' },
     });
 
     // Find the player's current position by replaying their position history
@@ -168,8 +172,12 @@ export class EventManagementService {
       externalPlayerName: playerEntryEvent.externalPlayerName,
       externalPlayerNumber: playerEntryEvent.externalPlayerNumber,
       recordedByUserId,
-      gameMinute: input.gameMinute,
-      gameSecond: input.gameSecond,
+      // Legacy fields (deprecated, kept for migration compatibility)
+      gameMinute: Math.floor(input.periodSecond / 60),
+      gameSecond: input.periodSecond % 60,
+      // New period-relative timing
+      period: input.period,
+      periodSecond: input.periodSecond,
       position: input.newPosition,
       metadata: {
         previousPosition: previousPosition || null,
@@ -242,8 +250,12 @@ export class EventManagementService {
       externalPlayerName: player1Event.externalPlayerName,
       externalPlayerNumber: player1Event.externalPlayerNumber,
       recordedByUserId,
-      gameMinute: input.gameMinute,
-      gameSecond: input.gameSecond,
+      // Legacy fields (deprecated, kept for migration compatibility)
+      gameMinute: Math.floor(input.periodSecond / 60),
+      gameSecond: input.periodSecond % 60,
+      // New period-relative timing
+      period: input.period,
+      periodSecond: input.periodSecond,
       position: player2Event.position, // Player 1 gets player 2's position
     });
 
@@ -258,28 +270,28 @@ export class EventManagementService {
       externalPlayerName: player2Event.externalPlayerName,
       externalPlayerNumber: player2Event.externalPlayerNumber,
       recordedByUserId,
-      gameMinute: input.gameMinute,
-      gameSecond: input.gameSecond,
+      // Legacy fields (deprecated, kept for migration compatibility)
+      gameMinute: Math.floor(input.periodSecond / 60),
+      gameSecond: input.periodSecond % 60,
+      // New period-relative timing
+      period: input.period,
+      periodSecond: input.periodSecond,
       position: player1Event.position, // Player 2 gets player 1's position
       parentEventId: savedSwap1.id,
     });
 
     const savedSwap2 = await this.gameEventsRepository.save(swap2Event);
 
-    // Return both events with relations loaded
-    const [swap1WithRelations, swap2WithRelations] = await Promise.all([
-      this.coreService.loadEventWithRelations(savedSwap1.id),
-      this.coreService.loadEventWithRelations(savedSwap2.id),
-    ]);
-
     // Publish the position swap event (use swap1 as the primary event)
+    // Field resolvers handle relation loading for subscribers
     await this.coreService.publishGameEvent(
       gameTeam.gameId,
       GameEventAction.CREATED,
-      swap1WithRelations,
+      savedSwap1,
     );
 
-    return [swap1WithRelations, swap2WithRelations];
+    // Return base entities - field resolvers handle relation loading on-demand
+    return [savedSwap1, savedSwap2];
   }
 
   /**
@@ -442,8 +454,8 @@ export class EventManagementService {
       dependentEventsMap.set(event.id, {
         id: event.id,
         eventType: event.eventType.name,
-        gameMinute: event.gameMinute,
-        gameSecond: event.gameSecond,
+        period: event.period,
+        periodSecond: event.periodSecond,
         playerName,
         description: getDescription(event.eventType.name),
       });
@@ -503,15 +515,30 @@ export class EventManagementService {
 
     // If we have players to track, find their future events
     if (playerIds.length > 0 || externalPlayerNames.length > 0) {
-      const sourceTimeInSeconds =
-        sourceEvent.gameMinute * 60 + sourceEvent.gameSecond;
+      const sourcePeriod = sourceEvent.period || '1';
+      const sourcePeriodSeconds = sourceEvent.periodSecond;
 
       // Get all events for the same game team
       const allEvents = await this.gameEventsRepository.find({
         where: { gameTeamId: sourceEvent.gameTeamId },
         relations: ['eventType', 'parentEvent', 'parentEvent.eventType'],
-        order: { gameMinute: 'ASC', gameSecond: 'ASC' },
+        order: { period: 'ASC', periodSecond: 'ASC' },
       });
+
+      // Helper to check if event B is after event A (period-relative comparison)
+      const isEventAfter = (
+        eventPeriod: string | undefined,
+        eventPeriodSeconds: number,
+        sourcePeriod: string,
+        sourcePeriodSeconds: number,
+      ): boolean => {
+        const ePeriod = eventPeriod || '1';
+        // Compare periods first (alphabetical works for "1", "2", "OT1", "OT2")
+        if (ePeriod > sourcePeriod) return true;
+        if (ePeriod < sourcePeriod) return false;
+        // Same period - compare seconds
+        return eventPeriodSeconds > sourcePeriodSeconds;
+      };
 
       for (const event of allEvents) {
         // Skip the source event itself
@@ -524,8 +551,15 @@ export class EventManagementService {
         if (sourceEvent.parentEventId === event.id) continue;
 
         // Check if this event is after the source event
-        const eventTimeInSeconds = event.gameMinute * 60 + event.gameSecond;
-        if (eventTimeInSeconds <= sourceTimeInSeconds) continue;
+        if (
+          !isEventAfter(
+            event.period,
+            event.periodSecond,
+            sourcePeriod,
+            sourcePeriodSeconds,
+          )
+        )
+          continue;
 
         // Check if this event involves one of our players
         const involvesPlayer =
@@ -543,12 +577,15 @@ export class EventManagementService {
       }
     }
 
-    // Convert map to array and sort by game time
+    // Convert map to array and sort by game time (period, then periodSecond)
     const dependentEvents = Array.from(dependentEventsMap.values()).sort(
       (a, b) => {
-        const timeA = a.gameMinute * 60 + a.gameSecond;
-        const timeB = b.gameMinute * 60 + b.gameSecond;
-        return timeA - timeB;
+        const periodA = a.period || '1';
+        const periodB = b.period || '1';
+        if (periodA !== periodB) {
+          return periodA.localeCompare(periodB);
+        }
+        return a.periodSecond - b.periodSecond;
       },
     );
 
@@ -599,9 +636,12 @@ export class EventManagementService {
 
     // Delete dependent events in reverse chronological order (latest first)
     const sortedDependents = [...dependentEvents].sort((a, b) => {
-      const timeA = a.gameMinute * 60 + a.gameSecond;
-      const timeB = b.gameMinute * 60 + b.gameSecond;
-      return timeB - timeA; // Descending order
+      const periodA = a.period || '1';
+      const periodB = b.period || '1';
+      if (periodA !== periodB) {
+        return periodB.localeCompare(periodA); // Descending order
+      }
+      return b.periodSecond - a.periodSecond; // Descending order
     });
 
     for (const dep of sortedDependents) {
@@ -625,11 +665,11 @@ export class EventManagementService {
         depEventType === 'SUBSTITUTION_OUT' ||
         depEventType === 'SUBSTITUTION_IN'
       ) {
-        // Check if it's a starter entry (minute 0, no parent)
+        // Check if it's a starter entry (period 1, second 0, no parent)
         if (
           depEventType === 'SUBSTITUTION_IN' &&
-          depEvent.gameMinute === 0 &&
-          depEvent.gameSecond === 0 &&
+          depEvent.period === '1' &&
+          depEvent.periodSecond === 0 &&
           !depEvent.parentEventId
         ) {
           await this.substitutionService.deleteStarterEntry(dep.id);
@@ -730,7 +770,16 @@ export class EventManagementService {
       );
     }
 
-    // Return the selected event with full relations
-    return this.coreService.loadEventWithRelations(selectedEventId);
+    // Return base entity - field resolvers handle relation loading on-demand
+    // Re-fetch to get the updated state (conflictId cleared)
+    const updatedEvent = await this.gameEventsRepository.findOne({
+      where: { id: selectedEventId },
+    });
+
+    if (!updatedEvent) {
+      throw new NotFoundException(`GameEvent ${selectedEventId} not found`);
+    }
+
+    return updatedEvent;
   }
 }

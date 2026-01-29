@@ -29,8 +29,12 @@ interface GameLineupTabProps {
   isManaged: boolean;
   playersPerTeam: number;
   gameStatus?: GameStatus;
-  currentGameMinute?: number;
-  onFormationChange?: (formation: string, gameMinute?: number) => Promise<void>;
+  currentPeriod?: string;
+  currentPeriodSeconds?: number;
+  onFormationChange?: (
+    formation: string,
+    periodSecond?: number,
+  ) => Promise<void>;
 }
 
 type ModalMode =
@@ -113,7 +117,8 @@ export const GameLineupTab = memo(function GameLineupTab({
   isManaged,
   playersPerTeam,
   gameStatus,
-  currentGameMinute = 0,
+  currentPeriod = '1',
+  currentPeriodSeconds = 0,
   onFormationChange,
 }: GameLineupTabProps) {
   const formations = getFormationsForTeamSize(playersPerTeam);
@@ -124,7 +129,8 @@ export const GameLineupTab = memo(function GameLineupTab({
   const [externalName, setExternalName] = useState('');
   const [externalNumber, setExternalNumber] = useState('');
 
-  const [gameMinute, setGameMinute] = useState('0');
+  const [substitutionPeriod, setSubstitutionPeriod] = useState('1');
+  const [substitutionPeriodSeconds, setSubstitutionPeriodSeconds] = useState(0);
   const [savingFormation, setSavingFormation] = useState(false);
 
   // Mutations for creating new players
@@ -208,8 +214,8 @@ export const GameLineupTab = memo(function GameLineupTab({
         setSavingFormation(true);
         try {
           if (isGameActive) {
-            // Mid-game: record formation change event with current game minute
-            await onFormationChange(formation.code, currentGameMinute);
+            // Mid-game: record formation change event with current period seconds
+            await onFormationChange(formation.code, currentPeriodSeconds);
           } else {
             // Pre-game: just update formation without event
             await onFormationChange(formation.code);
@@ -225,7 +231,7 @@ export const GameLineupTab = memo(function GameLineupTab({
         setSelectedFormation(formation);
       }
     },
-    [gameStatus, currentGameMinute, onFormationChange],
+    [gameStatus, currentPeriodSeconds, onFormationChange],
   );
 
   // Handle formation selection change
@@ -286,8 +292,8 @@ export const GameLineupTab = memo(function GameLineupTab({
             await recordPositionChange({
               playerEventId: player.gameEventId,
               newPosition,
-              gameMinute: currentGameMinute,
-              gameSecond: 0,
+              period: currentPeriod,
+              periodSecond: currentPeriodSeconds,
               reason: 'FORMATION_CHANGE',
             });
           } else {
@@ -313,7 +319,8 @@ export const GameLineupTab = memo(function GameLineupTab({
     recordPositionChange,
     executeFormationChange,
     gameStatus,
-    currentGameMinute,
+    currentPeriod,
+    currentPeriodSeconds,
   ]);
 
   // Handle position click on field
@@ -361,14 +368,15 @@ export const GameLineupTab = memo(function GameLineupTab({
         if (isGameActive) {
           // During game: use bringPlayerOntoField which creates SUBSTITUTION_IN
           // without trying to remove the existing event (which may be SUBSTITUTION_OUT)
-          await bringPlayerOntoField({
+          const mutationInput = {
             playerId: player.playerId || undefined,
             externalPlayerName: player.externalPlayerName || undefined,
             externalPlayerNumber: player.externalPlayerNumber || undefined,
             position,
-            gameMinute: currentGameMinute,
-            gameSecond: 0,
-          });
+            period: currentPeriod,
+            periodSecond: currentPeriodSeconds,
+          };
+          await bringPlayerOntoField(mutationInput);
         } else {
           // Pre-game: remove from bench, then add to lineup
           await removeFromLineup(player.gameEventId);
@@ -393,10 +401,12 @@ export const GameLineupTab = memo(function GameLineupTab({
     },
     [
       gameStatus,
-      currentGameMinute,
+      currentPeriod,
+      currentPeriodSeconds,
       bringPlayerOntoField,
       addToLineup,
       removeFromLineup,
+      refetchLineup,
     ],
   );
 
@@ -467,16 +477,17 @@ export const GameLineupTab = memo(function GameLineupTab({
           playerInId: benchPlayer.playerId || undefined,
           externalPlayerInName: benchPlayer.externalPlayerName || undefined,
           externalPlayerInNumber: benchPlayer.externalPlayerNumber || undefined,
-          gameMinute: parseInt(gameMinute, 10) || 0,
-          gameSecond: 0,
+          period: substitutionPeriod,
+          periodSecond: substitutionPeriodSeconds,
         });
         setModalMode({ type: 'closed' });
-        setGameMinute('0');
+        setSubstitutionPeriod('1');
+        setSubstitutionPeriodSeconds(0);
       } catch (err) {
         console.error('Failed to substitute player:', err);
       }
     },
-    [substitutePlayer, gameMinute],
+    [substitutePlayer, substitutionPeriod, substitutionPeriodSeconds],
   );
 
   // Create new player, add to team roster, then add to lineup
@@ -826,23 +837,50 @@ export const GameLineupTab = memo(function GameLineupTab({
                     'Player'}
                 </h4>
 
-                <div className="mb-4">
-                  <label
-                    htmlFor="game-minute"
-                    className="mb-1 block text-sm font-medium text-gray-700"
-                  >
-                    Game Minute
-                  </label>
-                  <input
-                    id="game-minute"
-                    type="number"
-                    min="0"
-                    max="120"
-                    value={gameMinute}
-                    onChange={(e) => setGameMinute(e.target.value)}
-                    className="w-full rounded border px-3 py-2"
-                    placeholder="0"
-                  />
+                <div className="mb-4 space-y-2">
+                  <div>
+                    <label
+                      htmlFor="sub-period"
+                      className="mb-1 block text-sm font-medium text-gray-700"
+                    >
+                      Period
+                    </label>
+                    <select
+                      id="sub-period"
+                      value={substitutionPeriod}
+                      onChange={(e) => setSubstitutionPeriod(e.target.value)}
+                      className="w-full rounded border px-3 py-2"
+                    >
+                      <option value="1">1st Half</option>
+                      <option value="2">2nd Half</option>
+                      <option value="OT1">Overtime 1</option>
+                      <option value="OT2">Overtime 2</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="sub-minute"
+                      className="mb-1 block text-sm font-medium text-gray-700"
+                    >
+                      Minute (in period)
+                    </label>
+                    <input
+                      id="sub-minute"
+                      type="number"
+                      min="0"
+                      max="60"
+                      value={Math.floor(substitutionPeriodSeconds / 60)}
+                      onChange={(e) => {
+                        const minutes = parseInt(e.target.value, 10) || 0;
+                        const currentSeconds = substitutionPeriodSeconds % 60;
+                        setSubstitutionPeriodSeconds(
+                          minutes * 60 + currentSeconds,
+                        );
+                      }}
+                      className="w-full rounded border px-3 py-2"
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
 
                 <div className="mb-4">

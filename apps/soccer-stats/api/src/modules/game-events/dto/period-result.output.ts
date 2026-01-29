@@ -14,8 +14,10 @@ export class PeriodResult {
   })
   substitutionEvents: GameEvent[];
 
-  @Field(() => Int, { description: 'Period number' })
-  period: number;
+  @Field(() => String, {
+    description: 'Period identifier (e.g., "1", "2", "OT1")',
+  })
+  period: string;
 
   @Field(() => Int, { description: 'Number of substitution events created' })
   substitutionCount: number;
