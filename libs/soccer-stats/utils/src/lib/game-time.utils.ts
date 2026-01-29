@@ -4,7 +4,7 @@
  * @param second - Seconds within the minute (0-59), defaults to 0
  * @returns Total seconds elapsed in the period
  */
-export function toPeriodSecond(minute: number, second: number = 0): number {
+export function toPeriodSecond(minute: number, second = 0): number {
   return minute * 60 + second;
 }
 
