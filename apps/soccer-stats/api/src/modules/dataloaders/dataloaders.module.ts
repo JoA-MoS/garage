@@ -6,6 +6,7 @@ import { GameFormat } from '../../entities/game-format.entity';
 import { Team } from '../../entities/team.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { GameEvent } from '../../entities/game-event.entity';
+import { EventType } from '../../entities/event-type.entity';
 import { User } from '../../entities/user.entity';
 import { TeamMember } from '../../entities/team-member.entity';
 import { TeamMemberRole } from '../../entities/team-member-role.entity';
@@ -30,6 +31,7 @@ import { DataLoadersService } from './dataloaders.service';
       Team,
       GameTeam,
       GameEvent,
+      EventType,
       User,
       TeamMember,
       TeamMemberRole,

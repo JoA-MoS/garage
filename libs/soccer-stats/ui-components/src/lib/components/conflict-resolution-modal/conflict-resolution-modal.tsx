@@ -16,10 +16,10 @@ export interface ConflictResolutionModalProps {
   conflictId: string;
   /** Type of the conflicting event */
   eventType: string;
-  /** Game minute when the conflict occurred */
-  gameMinute: number;
-  /** Game second when the conflict occurred */
-  gameSecond: number;
+  /** Period identifier (e.g., "1", "2", "OT1") */
+  period?: string | null;
+  /** Seconds within the period */
+  periodSecond: number;
   /** List of conflicting events to choose from */
   conflictingEvents: ConflictingEvent[];
   /** Whether resolution is in progress */
@@ -34,8 +34,11 @@ export interface ConflictResolutionModalProps {
   onClose: () => void;
 }
 
-const formatTime = (minute: number, second: number) =>
-  `${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
+const formatTime = (periodSecond: number) => {
+  const minute = Math.floor(periodSecond / 60);
+  const second = periodSecond % 60;
+  return `${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
+};
 
 const formatEventType = (type: string) => {
   switch (type.toUpperCase()) {
@@ -60,8 +63,8 @@ export const ConflictResolutionModal = memo(function ConflictResolutionModal({
   isOpen,
   conflictId,
   eventType,
-  gameMinute,
-  gameSecond,
+  period,
+  periodSecond,
   conflictingEvents,
   isResolving,
   onResolve,
@@ -108,7 +111,8 @@ export const ConflictResolutionModal = memo(function ConflictResolutionModal({
               </h3>
               <p className="text-sm text-amber-600">
                 Multiple {formatEventType(eventType).toLowerCase()}s recorded at{' '}
-                {formatTime(gameMinute, gameSecond)}
+                {period && `P${period} `}
+                {formatTime(periodSecond)}
               </p>
             </div>
           </div>

@@ -8,11 +8,11 @@ export class DependentEvent {
   @Field()
   eventType: string;
 
-  @Field(() => Int)
-  gameMinute: number;
+  @Field(() => String, { nullable: true, description: 'Period identifier' })
+  period?: string;
 
-  @Field(() => Int)
-  gameSecond: number;
+  @Field(() => Int, { description: 'Seconds elapsed within the period' })
+  periodSecond: number;
 
   @Field({ nullable: true })
   playerName?: string;

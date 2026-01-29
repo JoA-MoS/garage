@@ -65,8 +65,8 @@ export class StatsService {
       relations: ['eventType', 'player'],
     });
 
-    // Sort events by period first, then by time within each period
-    // This ensures period 1 events (even at minute 47) come before period 2 events (at minute 45)
+    // Sort events by period first, then by periodSecond within each period
+    // This ensures period 1 events come before period 2 events
     // Events without a period (like STARTING_LINEUP) are treated as period 0
     events.sort((a, b) => {
       const periodA = a.period ?? '0';
@@ -74,11 +74,8 @@ export class StatsService {
       if (periodA !== periodB) {
         return periodA.localeCompare(periodB);
       }
-      if (a.gameMinute !== b.gameMinute) {
-        return a.gameMinute - b.gameMinute;
-      }
-      if (a.gameSecond !== b.gameSecond) {
-        return a.gameSecond - b.gameSecond;
+      if (a.periodSecond !== b.periodSecond) {
+        return a.periodSecond - b.periodSecond;
       }
       return a.createdAt.getTime() - b.createdAt.getTime();
     });
@@ -114,7 +111,8 @@ export class StatsService {
           }`.trim() || event.player.email
         : undefined;
 
-      const eventSeconds = event.gameMinute * 60 + event.gameSecond;
+      // Use periodSecond for time within each period
+      const eventSeconds = event.periodSecond;
 
       let playerData = playerTimeMap.get(playerKey);
       if (!playerData) {
@@ -287,8 +285,8 @@ export class StatsService {
       .leftJoinAndSelect('ge.player', 'p')
       .where('ge.gameTeamId IN (:...gameTeamIds)', { gameTeamIds })
       .orderBy('ge.gameTeamId', 'ASC')
-      .addOrderBy('ge.gameMinute', 'ASC')
-      .addOrderBy('ge.gameSecond', 'ASC')
+      .addOrderBy('ge.period', 'ASC')
+      .addOrderBy('ge.periodSecond', 'ASC')
       .addOrderBy('ge.createdAt', 'ASC')
       .getMany();
 
@@ -344,9 +342,8 @@ export class StatsService {
       eventsByGameTeam.set(event.gameTeamId, gameTeamEvents);
     }
 
-    // Sort events within each game team by period, then by time
-    // This ensures period 1 events come before period 2 events, even if
-    // period 2 starts at a lower gameMinute (e.g., 45) than period 1 ended (e.g., 47)
+    // Sort events within each game team by period, then by periodSecond
+    // This ensures period 1 events come before period 2 events
     for (const [, gameTeamEvents] of eventsByGameTeam) {
       gameTeamEvents.sort((a, b) => {
         const periodA = a.period ?? '0';
@@ -354,11 +351,8 @@ export class StatsService {
         if (periodA !== periodB) {
           return periodA.localeCompare(periodB);
         }
-        if (a.gameMinute !== b.gameMinute) {
-          return a.gameMinute - b.gameMinute;
-        }
-        if (a.gameSecond !== b.gameSecond) {
-          return a.gameSecond - b.gameSecond;
+        if (a.periodSecond !== b.periodSecond) {
+          return a.periodSecond - b.periodSecond;
         }
         return a.createdAt.getTime() - b.createdAt.getTime();
       });
@@ -386,7 +380,8 @@ export class StatsService {
         const playerKey =
           event.playerId || event.externalPlayerName || event.id;
         const playerStats = getPlayerStats(event);
-        const eventSeconds = event.gameMinute * 60 + event.gameSecond;
+        // Use periodSecond for time within each period
+        const eventSeconds = event.periodSecond;
 
         switch (event.eventType.name) {
           case 'STARTING_LINEUP':

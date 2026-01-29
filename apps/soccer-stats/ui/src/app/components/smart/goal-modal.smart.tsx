@@ -6,14 +6,15 @@ import {
   LineupPlayer,
   StatsTrackingLevel,
 } from '@garage/soccer-stats/graphql-codegen';
+import { fromPeriodSecond, toPeriodSecond } from '@garage/soccer-stats/utils';
 
 import { RECORD_GOAL, UPDATE_GOAL } from '../../services/games-graphql.service';
 
 // Data for an existing goal being edited
 export interface EditGoalData {
   id: string;
-  gameMinute: number;
-  gameSecond: number;
+  period: string;
+  periodSecond: number;
   playerId?: string | null;
   externalPlayerName?: string | null;
   externalPlayerNumber?: string | null;
@@ -32,8 +33,8 @@ interface GoalModalProps {
   teamColor: string;
   currentOnField: LineupPlayer[];
   bench: LineupPlayer[];
-  gameMinute: number;
-  gameSecond: number;
+  period: string;
+  periodSecond: number;
   onClose: () => void;
   onSuccess?: () => void;
   // Edit mode props
@@ -78,8 +79,8 @@ export const GoalModal = ({
   teamColor,
   currentOnField,
   bench,
-  gameMinute: defaultGameMinute,
-  gameSecond: defaultGameSecond,
+  period: defaultPeriod,
+  periodSecond: defaultPeriodSeconds,
   onClose,
   onSuccess,
   editGoal,
@@ -131,11 +132,11 @@ export const GoalModal = ({
   );
 
   // Time fields (editable in edit mode)
-  const [editMinute, setEditMinute] = useState(
-    editGoal?.gameMinute ?? defaultGameMinute,
+  const [editPeriod, setEditPeriod] = useState(
+    editGoal?.period ?? defaultPeriod,
   );
-  const [editSecond, setEditSecond] = useState(
-    editGoal?.gameSecond ?? defaultGameSecond,
+  const [editPeriodSeconds, setEditPeriodSeconds] = useState(
+    editGoal?.periodSecond ?? defaultPeriodSeconds,
   );
 
   // Track if we should clear the assist
@@ -185,8 +186,8 @@ export const GoalModal = ({
           variables: {
             input: {
               gameEventId: editGoal.id,
-              gameMinute: editMinute,
-              gameSecond: editSecond,
+              period: editPeriod,
+              periodSecond: editPeriodSeconds,
               // Scorer info
               scorerId: scorer?.playerId || undefined,
               externalScorerName:
@@ -223,8 +224,8 @@ export const GoalModal = ({
           variables: {
             input: {
               gameTeamId,
-              gameMinute: defaultGameMinute,
-              gameSecond: defaultGameSecond,
+              period: defaultPeriod,
+              periodSecond: defaultPeriodSeconds,
               scorerId: scorer?.playerId || undefined,
               externalScorerName:
                 scorer?.externalPlayerName ||
@@ -296,16 +297,13 @@ export const GoalModal = ({
               {isEditMode ? 'Edit Goal' : 'Record Goal'}
             </h3>
             <p className="text-sm text-gray-500">
-              {teamName} &bull;{' '}
-              {String(isEditMode ? editMinute : defaultGameMinute).padStart(
-                2,
-                '0',
-              )}
-              :
-              {String(isEditMode ? editSecond : defaultGameSecond).padStart(
-                2,
-                '0',
-              )}
+              {teamName} &bull; Period {isEditMode ? editPeriod : defaultPeriod}{' '}
+              {(() => {
+                const { minute, second } = fromPeriodSecond(
+                  isEditMode ? editPeriodSeconds : defaultPeriodSeconds,
+                );
+                return `${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
+              })()}
             </p>
           </div>
         </div>
@@ -313,15 +311,28 @@ export const GoalModal = ({
         {/* Time Edit (only in edit mode) */}
         {isEditMode && (
           <div className="mb-4 flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Period:</label>
+            <select
+              value={editPeriod}
+              onChange={(e) => setEditPeriod(e.target.value)}
+              className="w-24 rounded-lg border border-gray-300 p-2 text-center focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="1">1st Half</option>
+              <option value="2">2nd Half</option>
+              <option value="OT1">OT 1</option>
+              <option value="OT2">OT 2</option>
+            </select>
             <label className="text-sm font-medium text-gray-700">Time:</label>
             <input
               type="number"
               min="0"
-              max="999"
-              value={editMinute}
-              onChange={(e) =>
-                setEditMinute(Math.max(0, parseInt(e.target.value) || 0))
-              }
+              max="99"
+              value={fromPeriodSecond(editPeriodSeconds).minute}
+              onChange={(e) => {
+                const { second } = fromPeriodSecond(editPeriodSeconds);
+                const newMinute = Math.max(0, parseInt(e.target.value) || 0);
+                setEditPeriodSeconds(toPeriodSecond(newMinute, second));
+              }}
               className="w-16 rounded-lg border border-gray-300 p-2 text-center focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
             />
             <span className="text-gray-500">:</span>
@@ -329,12 +340,15 @@ export const GoalModal = ({
               type="number"
               min="0"
               max="59"
-              value={editSecond}
-              onChange={(e) =>
-                setEditSecond(
-                  Math.min(59, Math.max(0, parseInt(e.target.value) || 0)),
-                )
-              }
+              value={fromPeriodSecond(editPeriodSeconds).second}
+              onChange={(e) => {
+                const { minute } = fromPeriodSecond(editPeriodSeconds);
+                const newSecond = Math.min(
+                  59,
+                  Math.max(0, parseInt(e.target.value) || 0),
+                );
+                setEditPeriodSeconds(toPeriodSecond(minute, newSecond));
+              }}
               className="w-16 rounded-lg border border-gray-300 p-2 text-center focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -374,15 +388,12 @@ export const GoalModal = ({
           {!showScorerField && (
             <div className="rounded-lg bg-gray-50 p-4 text-center text-sm text-gray-600">
               Recording goal at{' '}
-              {String(isEditMode ? editMinute : defaultGameMinute).padStart(
-                2,
-                '0',
-              )}
-              :
-              {String(isEditMode ? editSecond : defaultGameSecond).padStart(
-                2,
-                '0',
-              )}
+              {(() => {
+                const { minute, second } = fromPeriodSecond(
+                  isEditMode ? editPeriodSeconds : defaultPeriodSeconds,
+                );
+                return `${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
+              })()}
               <p className="mt-1 text-xs text-gray-500">
                 Player tracking is disabled for this game
               </p>

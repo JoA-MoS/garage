@@ -52,15 +52,18 @@ export class RecordGoalInput {
   @IsString()
   externalAssisterNumber?: string;
 
-  @Field(() => Int)
-  @IsInt()
-  @Min(0)
-  @Max(999)
-  gameMinute: number;
+  @Field(() => String, {
+    description: 'Period identifier (e.g., "1", "2", "OT1")',
+  })
+  @IsString()
+  period: string;
 
-  @Field(() => Int, { defaultValue: 0 })
+  @Field(() => Int, {
+    description: 'Seconds elapsed within the period (0-5999)',
+    defaultValue: 0,
+  })
   @IsInt()
   @Min(0)
-  @Max(59)
-  gameSecond: number;
+  @Max(5999)
+  periodSecond: number;
 }

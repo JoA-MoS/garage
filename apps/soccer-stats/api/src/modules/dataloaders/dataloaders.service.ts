@@ -8,6 +8,7 @@ import { GameFormat } from '../../entities/game-format.entity';
 import { Team } from '../../entities/team.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { GameEvent } from '../../entities/game-event.entity';
+import { EventType } from '../../entities/event-type.entity';
 import { User } from '../../entities/user.entity';
 import { TeamMember } from '../../entities/team-member.entity';
 import { TeamMemberRole } from '../../entities/team-member-role.entity';
@@ -25,10 +26,16 @@ export interface IDataLoaders {
   gameLoader: DataLoader<string, Game>;
   gameFormatLoader: DataLoader<string, GameFormat>;
   teamLoader: DataLoader<string, Team>;
+  gameTeamLoader: DataLoader<string, GameTeam>;
   gameTeamsByGameLoader: DataLoader<string, GameTeam[]>;
+  gameEventLoader: DataLoader<string, GameEvent>;
   gameEventsByGameLoader: DataLoader<string, GameEvent[]>;
   gameEventsByGameTeamLoader: DataLoader<string, GameEvent[]>;
+  childEventsByParentIdLoader: DataLoader<string, GameEvent[]>;
   gameTimingLoader: DataLoader<string, GameTiming>;
+
+  // Reference data loaders
+  eventTypeLoader: DataLoader<string, EventType>;
 
   // User loader
   userLoader: DataLoader<string, User>;
@@ -61,6 +68,8 @@ export class DataLoadersService {
     private readonly gameTeamRepository: Repository<GameTeam>,
     @InjectRepository(GameEvent)
     private readonly gameEventRepository: Repository<GameEvent>,
+    @InjectRepository(EventType)
+    private readonly eventTypeRepository: Repository<EventType>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(TeamMember)
@@ -99,10 +108,16 @@ export class DataLoadersService {
       gameLoader: this.createGameLoader(),
       gameFormatLoader: this.createGameFormatLoader(),
       teamLoader: this.createTeamLoader(),
+      gameTeamLoader: this.createGameTeamLoader(),
       gameTeamsByGameLoader: this.createGameTeamsByGameLoader(),
+      gameEventLoader: this.createGameEventLoader(),
       gameEventsByGameLoader: this.createGameEventsByGameLoader(),
       gameEventsByGameTeamLoader: this.createGameEventsByGameTeamLoader(),
+      childEventsByParentIdLoader: this.createChildEventsByParentIdLoader(),
       gameTimingLoader: this.createGameTimingLoader(),
+
+      // Reference data loaders
+      eventTypeLoader: this.createEventTypeLoader(),
 
       // User loader
       userLoader: this.createUserLoader(),
@@ -169,6 +184,25 @@ export class DataLoadersService {
   }
 
   /**
+   * Batch loads GameTeams by their IDs (single entity lookup).
+   */
+  private createGameTeamLoader(): DataLoader<string, GameTeam> {
+    return this.createLoader<string, GameTeam>(
+      'gameTeamLoader',
+      async (gameTeamIds) => {
+        const gameTeams = await this.gameTeamRepository.find({
+          where: { id: In([...gameTeamIds]) },
+        });
+
+        const gameTeamMap = new Map(gameTeams.map((gt) => [gt.id, gt]));
+        return gameTeamIds.map(
+          (id) => gameTeamMap.get(id) || new Error(`GameTeam not found: ${id}`),
+        );
+      },
+    );
+  }
+
+  /**
    * Batch loads GameTeams by gameId.
    * Returns an array of GameTeams for each game.
    */
@@ -214,7 +248,7 @@ export class DataLoadersService {
             'childEvents.eventType',
             'childEvents.player',
           ],
-          order: { gameMinute: 'ASC', gameSecond: 'ASC', createdAt: 'ASC' },
+          order: { period: 'ASC', periodSecond: 'ASC', createdAt: 'ASC' },
         });
 
         // Group by gameId
@@ -253,7 +287,7 @@ export class DataLoadersService {
             'childEvents.eventType',
             'childEvents.player',
           ],
-          order: { gameMinute: 'ASC', gameSecond: 'ASC', createdAt: 'ASC' },
+          order: { period: 'ASC', periodSecond: 'ASC', createdAt: 'ASC' },
         });
 
         // Group by gameTeamId
@@ -267,6 +301,75 @@ export class DataLoadersService {
         }
 
         return gameTeamIds.map((id) => eventsMap.get(id) || []);
+      },
+    );
+  }
+
+  /**
+   * Batch loads single GameEvents by their IDs.
+   * Used for GameEvent.parentEvent field resolution.
+   */
+  private createGameEventLoader(): DataLoader<string, GameEvent> {
+    return this.createLoader<string, GameEvent>(
+      'gameEventLoader',
+      async (eventIds) => {
+        const events = await this.gameEventRepository.find({
+          where: { id: In([...eventIds]) },
+        });
+
+        const eventMap = new Map(events.map((e) => [e.id, e]));
+        return eventIds.map(
+          (id) => eventMap.get(id) || new Error(`GameEvent not found: ${id}`),
+        );
+      },
+    );
+  }
+
+  /**
+   * Batch loads child GameEvents by parentEventId.
+   * Used for GameEvent.childEvents field resolution.
+   */
+  private createChildEventsByParentIdLoader(): DataLoader<string, GameEvent[]> {
+    return this.createLoader<string, GameEvent[]>(
+      'childEventsByParentIdLoader',
+      async (parentIds) => {
+        const events = await this.gameEventRepository.find({
+          where: { parentEventId: In([...parentIds]) },
+          order: { period: 'ASC', periodSecond: 'ASC', createdAt: 'ASC' },
+        });
+
+        // Group by parentEventId
+        const eventsMap = new Map<string, GameEvent[]>();
+        for (const event of events) {
+          if (event.parentEventId) {
+            const existing = eventsMap.get(event.parentEventId) || [];
+            existing.push(event);
+            eventsMap.set(event.parentEventId, existing);
+          }
+        }
+
+        return parentIds.map((id) => eventsMap.get(id) || []);
+      },
+    );
+  }
+
+  /**
+   * Batch loads EventTypes by their IDs.
+   * Used for GameEvent.eventType field resolution.
+   */
+  private createEventTypeLoader(): DataLoader<string, EventType> {
+    return this.createLoader<string, EventType>(
+      'eventTypeLoader',
+      async (eventTypeIds) => {
+        const eventTypes = await this.eventTypeRepository.find({
+          where: { id: In([...eventTypeIds]) },
+        });
+
+        const eventTypeMap = new Map(eventTypes.map((et) => [et.id, et]));
+        return eventTypeIds.map(
+          (id) =>
+            eventTypeMap.get(id) || new Error(`EventType not found: ${id}`),
+        );
       },
     );
   }

@@ -18,6 +18,40 @@ import { EventCoreService } from './event-core.service';
 import { LineupService } from './lineup.service';
 
 /**
+ * Compute legacy gameMinute from period-relative timing.
+ * Adds period offset for absolute game time (assumes 45-minute halves).
+ *
+ * @param period - Period identifier ('1', '2', 'OT1', 'OT2', etc.)
+ * @param periodSecond - Seconds elapsed within the period
+ * @returns Absolute game minute for legacy field compatibility
+ */
+function computeLegacyGameMinute(period: string, periodSecond: number): number {
+  const minuteInPeriod = Math.floor(periodSecond / 60);
+
+  // Standard 45-minute halves assumption for period offset
+  const HALF_DURATION = 45;
+  const OT_DURATION = 15;
+
+  switch (period) {
+    case '1':
+      return minuteInPeriod;
+    case '2':
+      return HALF_DURATION + minuteInPeriod;
+    default:
+      // Overtime periods: OT1, OT2, etc.
+      if (period.startsWith('OT')) {
+        const otNumber = parseInt(period.slice(2), 10) || 1;
+        // OT starts after 90 minutes (2 halves), each OT period is 15 minutes
+        return (
+          2 * HALF_DURATION + (otNumber - 1) * OT_DURATION + minuteInPeriod
+        );
+      }
+      // Fallback: just return period-relative minute
+      return minuteInPeriod;
+  }
+}
+
+/**
  * Service responsible for substitution operations.
  * Handles player substitutions, field entries/exits, and batch changes.
  */
@@ -58,9 +92,6 @@ export class SubstitutionService {
 
     // Build metadata object with optional fields
     const metadata: Record<string, string | null> = {};
-    if (input.period !== undefined) {
-      metadata.period = String(input.period);
-    }
     if (input.reason) {
       metadata.reason = input.reason;
     }
@@ -77,14 +108,17 @@ export class SubstitutionService {
       externalPlayerNumber: input.externalPlayerNumber,
       position: input.position,
       recordedByUserId,
-      gameMinute: input.gameMinute,
-      gameSecond: input.gameSecond ?? 0,
+      // Legacy fields (deprecated, kept for migration compatibility)
+      gameMinute: computeLegacyGameMinute(input.period, input.periodSecond),
+      gameSecond: input.periodSecond % 60,
+      // New period-relative timing
+      period: input.period,
+      periodSecond: input.periodSecond,
       metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
     });
 
-    const savedEvent = await this.gameEventsRepository.save(gameEvent);
-
-    return this.coreService.loadEventWithRelations(savedEvent.id);
+    // Return base entity - field resolvers handle relation loading on-demand
+    return this.gameEventsRepository.save(gameEvent);
   }
 
   /**
@@ -122,9 +156,6 @@ export class SubstitutionService {
 
     // 5. Build metadata object with optional fields
     const metadata: Record<string, string | null> = {};
-    if (input.period !== undefined) {
-      metadata.period = String(input.period);
-    }
     if (input.reason) {
       metadata.reason = input.reason;
     }
@@ -142,25 +173,26 @@ export class SubstitutionService {
       externalPlayerNumber: playerEvent.externalPlayerNumber,
       position: playerEvent.position,
       recordedByUserId,
-      gameMinute: input.gameMinute,
-      gameSecond: input.gameSecond ?? 0,
+      // Legacy fields (deprecated, kept for migration compatibility)
+      gameMinute: computeLegacyGameMinute(input.period, input.periodSecond),
+      gameSecond: input.periodSecond % 60,
+      // New period-relative timing
+      period: input.period,
+      periodSecond: input.periodSecond,
       metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
     });
 
     const savedEvent = await this.gameEventsRepository.save(subOutEvent);
 
-    // 7. Publish the event
-    const eventWithRelations = await this.coreService.loadEventWithRelations(
-      savedEvent.id,
-    );
-
+    // 7. Publish the event - field resolvers handle relation loading for subscribers
     await this.coreService.publishGameEvent(
       gameTeam.gameId,
       GameEventAction.CREATED,
-      eventWithRelations,
+      savedEvent,
     );
 
-    return eventWithRelations;
+    // Return base entity - field resolvers handle relation loading on-demand
+    return savedEvent;
   }
 
   async substitutePlayer(
@@ -200,8 +232,12 @@ export class SubstitutionService {
       externalPlayerName: playerOutEvent.externalPlayerName,
       externalPlayerNumber: playerOutEvent.externalPlayerNumber,
       recordedByUserId,
-      gameMinute: input.gameMinute,
-      gameSecond: input.gameSecond,
+      // Legacy fields (deprecated, kept for migration compatibility)
+      gameMinute: computeLegacyGameMinute(input.period, input.periodSecond),
+      gameSecond: input.periodSecond % 60,
+      // New period-relative timing
+      period: input.period,
+      periodSecond: input.periodSecond,
       position: playerOutEvent.position,
     });
 
@@ -216,28 +252,28 @@ export class SubstitutionService {
       externalPlayerName: input.externalPlayerInName,
       externalPlayerNumber: input.externalPlayerInNumber,
       recordedByUserId,
-      gameMinute: input.gameMinute,
-      gameSecond: input.gameSecond,
+      // Legacy fields (deprecated, kept for migration compatibility)
+      gameMinute: computeLegacyGameMinute(input.period, input.periodSecond),
+      gameSecond: input.periodSecond % 60,
+      // New period-relative timing
+      period: input.period,
+      periodSecond: input.periodSecond,
       position: playerOutEvent.position,
       parentEventId: savedSubOut.id,
     });
 
     const savedSubIn = await this.gameEventsRepository.save(subInEvent);
 
-    // Return with relations loaded
-    const [subOutWithRelations, subInWithRelations] = await Promise.all([
-      this.coreService.loadEventWithRelations(savedSubOut.id),
-      this.coreService.loadEventWithRelations(savedSubIn.id),
-    ]);
-
     // Publish the substitution event (use SUB_OUT as the primary event)
+    // Field resolvers handle relation loading for subscribers
     await this.coreService.publishGameEvent(
       gameTeam.gameId,
       GameEventAction.CREATED,
-      subOutWithRelations,
+      savedSubOut,
     );
 
-    return [subOutWithRelations, subInWithRelations];
+    // Return base entities - field resolvers handle relation loading on-demand
+    return [savedSubOut, savedSubIn];
   }
 
   /**
@@ -314,7 +350,7 @@ export class SubstitutionService {
   }
 
   /**
-   * Delete a starter entry event (SUBSTITUTION_IN at minute 0)
+   * Delete a starter entry event (SUBSTITUTION_IN at period 1, periodSecond 0)
    * @param gameEventId - ID of the SUBSTITUTION_IN event
    */
   async deleteStarterEntry(gameEventId: string): Promise<boolean> {
@@ -356,19 +392,18 @@ export class SubstitutionService {
    * when players leave the field.
    *
    * @param gameTeamId - The game team ID
-   * @param gameMinute - Game minute for the events
-   * @param gameSecond - Game second for the events
+   * @param period - Period identifier (e.g., '1', '2', 'OT1')
+   * @param periodSecond - Seconds elapsed within the period
    * @param recordedByUserId - User recording the events
-   * @param period - Period number (e.g., '1', '2') for stats calculation
+   * @param parentEventId - Optional parent event ID
    * @returns Array of created SUB_OUT events
    */
   async createSubstitutionOutForAllOnField(
     gameTeamId: string,
-    gameMinute: number,
-    gameSecond: number,
+    period: string,
+    periodSecond: number,
     recordedByUserId: string,
     parentEventId?: string,
-    period?: string,
   ): Promise<GameEvent[]> {
     const lineup = await this.lineupService.getGameLineup(gameTeamId);
     const subOutType = this.coreService.getEventTypeByName('SUBSTITUTION_OUT');
@@ -392,10 +427,13 @@ export class SubstitutionService {
         externalPlayerNumber: player.externalPlayerNumber,
         position: player.position,
         recordedByUserId,
-        gameMinute,
-        gameSecond,
-        parentEventId,
+        // Legacy fields (deprecated, kept for migration compatibility)
+        gameMinute: computeLegacyGameMinute(period, periodSecond),
+        gameSecond: periodSecond % 60,
+        // New period-relative timing
         period,
+        periodSecond,
+        parentEventId,
       }),
     );
 
@@ -438,8 +476,8 @@ export class SubstitutionService {
         playerInId: sub.playerInId,
         externalPlayerInName: sub.externalPlayerInName,
         externalPlayerInNumber: sub.externalPlayerInNumber,
-        gameMinute: input.gameMinute,
-        gameSecond: input.gameSecond,
+        period: input.period,
+        periodSecond: input.periodSecond,
       };
 
       const events = await this.substitutePlayer(subInput, recordedByUserId);
@@ -500,8 +538,8 @@ export class SubstitutionService {
         gameTeamId: input.gameTeamId,
         player1EventId,
         player2EventId,
-        gameMinute: input.gameMinute,
-        gameSecond: input.gameSecond,
+        period: input.period,
+        periodSecond: input.periodSecond,
       };
 
       const events = await swapPositionsFn(swapInput, recordedByUserId);

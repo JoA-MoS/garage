@@ -58,13 +58,16 @@ export class LineupService {
       externalPlayerNumber: input.externalPlayerNumber,
       position: input.position,
       recordedByUserId,
+      // Legacy fields (deprecated, kept for migration compatibility)
       gameMinute: 0,
       gameSecond: 0,
+      // New period-relative timing
+      period: '1',
+      periodSecond: 0,
     });
 
-    const savedEvent = await this.gameEventsRepository.save(gameEvent);
-
-    return this.coreService.loadEventWithRelations(savedEvent.id);
+    // Return base entity - field resolvers handle relation loading on-demand
+    return this.gameEventsRepository.save(gameEvent);
   }
 
   async addPlayerToBench(
@@ -96,13 +99,16 @@ export class LineupService {
       externalPlayerName: input.externalPlayerName,
       externalPlayerNumber: input.externalPlayerNumber,
       recordedByUserId,
+      // Legacy fields (deprecated, kept for migration compatibility)
       gameMinute: 0,
       gameSecond: 0,
+      // New period-relative timing
+      period: '1',
+      periodSecond: 0,
     });
 
-    const savedEvent = await this.gameEventsRepository.save(gameEvent);
-
-    return this.coreService.loadEventWithRelations(savedEvent.id);
+    // Return base entity - field resolvers handle relation loading on-demand
+    return this.gameEventsRepository.save(gameEvent);
   }
 
   async removeFromLineup(gameEventId: string): Promise<boolean> {
@@ -152,10 +158,13 @@ export class LineupService {
       throw new NotFoundException(`GameTeam ${gameTeamId} not found`);
     }
 
+    // Sort by createdAt primarily to handle period boundaries correctly
+    // At halftime, period-end SUBSTITUTION_OUT events have higher gameMinute
+    // than new SUBSTITUTION_IN events, but were created earlier
     const events = await this.gameEventsRepository.find({
       where: { gameTeamId },
       relations: ['eventType', 'player'],
-      order: { gameMinute: 'ASC', gameSecond: 'ASC', createdAt: 'ASC' },
+      order: { createdAt: 'ASC' },
     });
 
     const starters: LineupPlayer[] = [];
@@ -230,9 +239,9 @@ export class LineupService {
           lineupPlayer.isOnField = true;
           currentOnField.set(playerKey, lineupPlayer);
 
-          // If this is a SUBSTITUTION_IN at minute 0, treat as a starter
+          // If this is a SUBSTITUTION_IN at period start (0 seconds), treat as a starter
           // (this happens when STARTING_LINEUP events are converted on game start)
-          if (event.gameMinute === 0 && event.gameSecond === 0) {
+          if (event.period === '1' && event.periodSecond === 0) {
             starters.push(lineupPlayer);
           }
 
@@ -364,7 +373,7 @@ export class LineupService {
         'childEvents',
         'childEvents.eventType',
       ],
-      order: { gameMinute: 'ASC', gameSecond: 'ASC', createdAt: 'ASC' },
+      order: { period: 'ASC', periodSecond: 'ASC', createdAt: 'ASC' },
     });
   }
 

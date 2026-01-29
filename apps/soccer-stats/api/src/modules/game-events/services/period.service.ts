@@ -6,7 +6,7 @@ import {
   Inject,
   Logger,
 } from '@nestjs/common';
-import { In, IsNull, MoreThanOrEqual } from 'typeorm';
+import { In, IsNull } from 'typeorm';
 
 import { GameEvent } from '../../../entities/game-event.entity';
 import { Game, GameStatus } from '../../../entities/game.entity';
@@ -77,11 +77,9 @@ export class PeriodService {
       );
     }
 
-    // 3. Determine game time for period start
-    const gameMinute =
-      input.gameMinute ??
-      (input.period === 1 ? 0 : await this.calculateHalftimeMinute(game));
-    const gameSecond = input.gameSecond ?? 0;
+    // 3. Period start always begins at periodSecond 0 for that period
+    const periodString = String(input.period);
+    const periodSecond = input.periodSecond ?? 0;
 
     // 4. Get event types
     const periodStartType = this.coreService.getEventTypeByName('PERIOD_START');
@@ -93,16 +91,19 @@ export class PeriodService {
       gameTeamId: input.gameTeamId,
       eventTypeId: periodStartType.id,
       recordedByUserId,
-      gameMinute,
-      gameSecond,
-      metadata: { period: String(input.period) },
+      // Legacy fields (deprecated, kept for migration compatibility)
+      gameMinute: Math.floor(periodSecond / 60),
+      gameSecond: periodSecond % 60,
+      // New period-relative timing
+      period: periodString,
+      periodSecond,
+      metadata: { period: periodString },
     });
 
     const savedPeriodEvent = await this.gameEventsRepository.save(periodEvent);
 
     // 6. Create SUB_IN events as children of PERIOD_START
     const substitutionEvents: GameEvent[] = [];
-    const periodString = String(input.period);
 
     // Batch create all SUB_IN events
     const subInEventsToCreate = input.lineup.map((player) =>
@@ -115,10 +116,13 @@ export class PeriodService {
         externalPlayerNumber: player.externalPlayerNumber,
         position: player.position,
         recordedByUserId,
-        gameMinute,
-        gameSecond,
-        parentEventId: savedPeriodEvent.id,
+        // Legacy fields (deprecated, kept for migration compatibility)
+        gameMinute: Math.floor(periodSecond / 60),
+        gameSecond: periodSecond % 60,
+        // New period-relative timing
         period: periodString,
+        periodSecond,
+        parentEventId: savedPeriodEvent.id,
       }),
     );
 
@@ -141,6 +145,13 @@ export class PeriodService {
       ],
     });
 
+    if (!periodEventWithRelations) {
+      throw new Error(
+        `Failed to reload period start event after creation. Event ID: ${savedPeriodEvent.id}. ` +
+          `This may indicate a race condition or database issue.`,
+      );
+    }
+
     // 8. Reload substitution events with relations
     const substitutionEventIds = substitutionEvents.map((e) => e.id);
     const substitutionEventsWithRelations =
@@ -155,11 +166,11 @@ export class PeriodService {
     await this.coreService.publishGameEvent(
       game.id,
       GameEventAction.CREATED,
-      periodEventWithRelations!,
+      periodEventWithRelations,
     );
 
     return {
-      periodEvent: periodEventWithRelations!,
+      periodEvent: periodEventWithRelations,
       substitutionEvents: substitutionEventsWithRelations,
       period: input.period,
       substitutionCount: substitutionEventsWithRelations.length,
@@ -191,16 +202,12 @@ export class PeriodService {
 
     const game = gameTeam.game;
 
-    // 2. Determine game time for period end
-    const totalDuration =
-      game.durationMinutes ?? game.format?.durationMinutes ?? 90;
-    const elapsedSeconds = await this.gameTimingService.getGameDurationSeconds(
-      game.id,
-      totalDuration,
+    // 2. Determine period seconds for period end (from input or calculate based on period duration)
+    const periodString = String(input.period);
+    const periodDurationMinutes = Math.floor(
+      (game.durationMinutes ?? game.format?.durationMinutes ?? 90) / 2,
     );
-
-    const gameMinute = input.gameMinute ?? Math.floor(elapsedSeconds / 60);
-    const gameSecond = input.gameSecond ?? elapsedSeconds % 60;
+    const periodSecond = input.periodSecond ?? periodDurationMinutes * 60; // Default to half duration
 
     // 3. Get event types
     const periodEndType = this.coreService.getEventTypeByName('PERIOD_END');
@@ -212,9 +219,13 @@ export class PeriodService {
       gameTeamId: input.gameTeamId,
       eventTypeId: periodEndType.id,
       recordedByUserId,
-      gameMinute,
-      gameSecond,
-      metadata: { period: String(input.period) },
+      // Legacy fields (deprecated, kept for migration compatibility)
+      gameMinute: Math.floor(periodSecond / 60),
+      gameSecond: periodSecond % 60,
+      // New period-relative timing
+      period: periodString,
+      periodSecond,
+      metadata: { period: periodString },
     });
 
     const savedPeriodEvent = await this.gameEventsRepository.save(periodEvent);
@@ -236,8 +247,12 @@ export class PeriodService {
         externalPlayerNumber: player.externalPlayerNumber,
         position: player.position,
         recordedByUserId,
-        gameMinute,
-        gameSecond,
+        // Legacy fields (deprecated, kept for migration compatibility)
+        gameMinute: Math.floor(periodSecond / 60),
+        gameSecond: periodSecond % 60,
+        // New period-relative timing
+        period: periodString,
+        periodSecond,
         parentEventId: savedPeriodEvent.id,
       }),
     );
@@ -261,6 +276,13 @@ export class PeriodService {
       ],
     });
 
+    if (!periodEventWithRelations) {
+      throw new Error(
+        `Failed to reload period end event after creation. Event ID: ${savedPeriodEvent.id}. ` +
+          `This may indicate a race condition or database issue.`,
+      );
+    }
+
     // 8. Reload substitution events with relations
     const substitutionEventIds = substitutionEvents.map((e) => e.id);
     const substitutionEventsWithRelations =
@@ -275,11 +297,11 @@ export class PeriodService {
     await this.coreService.publishGameEvent(
       game.id,
       GameEventAction.CREATED,
-      periodEventWithRelations!,
+      periodEventWithRelations,
     );
 
     return {
-      periodEvent: periodEventWithRelations!,
+      periodEvent: periodEventWithRelations,
       substitutionEvents: substitutionEventsWithRelations,
       period: input.period,
       substitutionCount: substitutionEventsWithRelations.length,
@@ -331,28 +353,21 @@ export class PeriodService {
       );
     }
 
-    // 4. Get actual game clock time at halftime (when first half ended)
-    const totalDuration =
-      game.durationMinutes ?? game.format?.durationMinutes ?? 90;
-    const actualHalftimeSeconds =
-      await this.gameTimingService.getGameDurationSeconds(
-        game.id,
-        totalDuration,
-      );
-    const halftimeMinute = Math.floor(actualHalftimeSeconds / 60);
-    const halftimeSecond = actualHalftimeSeconds % 60;
+    // 4. Second half lineup starts at period 2, periodSecond 0
+    const secondHalfPeriod = '2';
+    const secondHalfPeriodSeconds = 0;
 
     // 5. Get SUBSTITUTION_IN event type
     const subInType = this.coreService.getEventTypeByName('SUBSTITUTION_IN');
 
     // 6. Clear any existing second half SUB_IN events
     // (in case coach is changing their mind about the lineup)
-    await this.clearSecondHalfLineup(input.gameTeamId, halftimeMinute);
+    await this.clearSecondHalfLineup(input.gameTeamId);
 
     const allEvents: GameEvent[] = [];
 
     // 7. Create SUBSTITUTION_IN events for each player in the new lineup
-    // Uses actual halftime clock (players enter at the halftime moment)
+    // Uses period-relative time (period 2 starts at 0 seconds)
     // Note: SUB_OUT events were created automatically when game transitioned to HALFTIME
     // Batch create all SUB_IN events for second half lineup
     const subInEventsToCreate = input.lineup.map((player) =>
@@ -364,10 +379,13 @@ export class PeriodService {
         externalPlayerName: player.externalPlayerName,
         externalPlayerNumber: player.externalPlayerNumber,
         recordedByUserId,
-        gameMinute: halftimeMinute,
-        gameSecond: halftimeSecond,
+        // Legacy fields (deprecated, kept for migration compatibility)
+        gameMinute: 0,
+        gameSecond: 0,
+        // New period-relative timing
+        period: secondHalfPeriod,
+        periodSecond: secondHalfPeriodSeconds,
         position: player.position,
-        period: '2', // Second half
       }),
     );
 
@@ -411,28 +429,21 @@ export class PeriodService {
   }
 
   /**
-   * Clear any existing second half lineup (SUB_IN events at or after halftime).
+   * Clear any existing second half lineup (SUB_IN events in period 2).
    * Used when coach wants to change their mind about the second half lineup.
    */
-  private async clearSecondHalfLineup(
-    gameTeamId: string,
-    halftimeMinute: number,
-  ): Promise<void> {
+  private async clearSecondHalfLineup(gameTeamId: string): Promise<void> {
     const subInType = this.coreService.getEventTypeByName('SUBSTITUTION_IN');
 
-    // Find and delete existing SUB_IN events at halftime or later
-    const existingSubIns = await this.gameEventsRepository.find({
+    // Find and delete existing SUB_IN events in period 2 (second half lineup)
+    // Keep SUB_IN events from period 1 (first half substitutions)
+    const secondHalfSubIns = await this.gameEventsRepository.find({
       where: {
         gameTeamId,
         eventTypeId: subInType.id,
+        period: '2',
       },
     });
-
-    // Only delete SUB_IN events at or after halftime (second half lineup)
-    // Keep SUB_IN events from earlier (first half substitutions)
-    const secondHalfSubIns = existingSubIns.filter(
-      (event) => event.gameMinute >= halftimeMinute,
-    );
 
     if (secondHalfSubIns.length > 0) {
       await this.gameEventsRepository.remove(secondHalfSubIns);
@@ -466,19 +477,17 @@ export class PeriodService {
    * (with their positions) for the second half unless coach explicitly changed lineup.
    *
    * @param gameTeamId - The game team ID
-   * @param halftimeMinute - Game minute at halftime (when players were subbed out)
+   * @param _halftimeMinute - Deprecated: Game minute at halftime (kept for API compatibility)
    * @param recordedByUserId - User recording the events
    * @param parentEventId - Optional parent event ID (PERIOD_START) to link SUB_IN events as children
    */
   async ensureSecondHalfLineupExists(
     gameTeamId: string,
-    halftimeMinute: number,
+    _halftimeMinute: number,
     recordedByUserId: string,
     parentEventId?: string,
   ): Promise<void> {
-    this.logger.log(
-      `[ensureSecondHalfLineupExists] gameTeamId=${gameTeamId}, halftimeMinute=${halftimeMinute}`,
-    );
+    this.logger.log(`[ensureSecondHalfLineupExists] gameTeamId=${gameTeamId}`);
 
     const gameTeam = await this.gameTeamsRepository.findOne({
       where: { id: gameTeamId },
@@ -584,8 +593,8 @@ export class PeriodService {
 
     // Create SUB_IN events for each player who was subbed out at halftime
     // This effectively "brings them back" for the second half
-    // Use the gameMinute from the PERIOD_END event for consistency
-    const actualHalftimeMinute = periodEndEvent.gameMinute;
+    // Use period-relative timing: period 2 starts at periodSecond 0
+    const secondHalfPeriodSeconds = 0;
 
     for (const subOut of halftimeSubOuts) {
       const subInEvent = this.gameEventsRepository.create({
@@ -597,10 +606,13 @@ export class PeriodService {
         externalPlayerNumber: subOut.externalPlayerNumber,
         position: subOut.position, // Preserve their position from first half
         recordedByUserId,
-        gameMinute: actualHalftimeMinute,
-        gameSecond: 0, // Second half starts at the next second
+        // Legacy fields (deprecated, kept for migration compatibility)
+        gameMinute: 0,
+        gameSecond: 0,
+        // New period-relative timing
+        period: '2',
+        periodSecond: secondHalfPeriodSeconds,
         parentEventId,
-        period: '2', // Second half
       });
 
       await this.gameEventsRepository.save(subInEvent);
@@ -614,29 +626,29 @@ export class PeriodService {
    * Called when transitioning to SECOND_HALF to ensure all second-half SUB_IN events
    * have proper parentEventId linkage.
    *
-   * @param gameId - The game ID
+   * @param _gameId - The game ID (unused but kept for API compatibility)
    * @param gameTeamId - The game team ID
-   * @param halftimeMinute - The game minute when halftime occurred
+   * @param _halftimeMinute - Deprecated: kept for API compatibility
    * @param periodStartEventId - The PERIOD_START period=2 event ID
    */
   async linkOrphanSubInsToSecondHalfPeriodStart(
     _gameId: string,
     gameTeamId: string,
-    halftimeMinute: number,
+    _halftimeMinute: number,
     periodStartEventId: string,
   ): Promise<number> {
     const subInType = this.coreService.getEventTypeByName('SUBSTITUTION_IN');
 
     // Find SUB_IN events that:
     // 1. Belong to this game team
-    // 2. Are at or after halftime (second half starters)
+    // 2. Are in period 2 (second half starters)
     // 3. Have NO parentEventId (orphan events from bringPlayerOntoField or setSecondHalfLineup)
     const orphanSubIns = await this.gameEventsRepository.find({
       where: {
         gameTeamId,
         eventTypeId: subInType.id,
         parentEventId: IsNull(),
-        gameMinute: MoreThanOrEqual(halftimeMinute),
+        period: '2',
       },
     });
 
@@ -663,7 +675,8 @@ export class PeriodService {
   }
 
   /**
-   * Link first half starters (minute 0 SUB_IN events without parent) to the PERIOD_START period=1 event.
+   * Link first half starters (period 1, periodSecond 0 SUB_IN events without parent)
+   * to the PERIOD_START period=1 event.
    *
    * Called when transitioning to FIRST_HALF to ensure all starter SUB_IN events
    * have proper parentEventId linkage for display in the Events tab.
@@ -679,15 +692,15 @@ export class PeriodService {
 
     // Find SUB_IN events that:
     // 1. Belong to this game team
-    // 2. Are at minute 0 (starters)
+    // 2. Are in period 1 at periodSecond 0 (starters)
     // 3. Have NO parentEventId (orphan events)
     const starterSubIns = await this.gameEventsRepository.find({
       where: {
         gameTeamId,
         eventTypeId: subInType.id,
         parentEventId: IsNull(),
-        gameMinute: 0,
-        gameSecond: 0,
+        period: '1',
+        periodSecond: 0,
       },
     });
 

@@ -8,6 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import type { PubSub } from 'graphql-subscriptions';
+import { toPeriodSecond } from '@garage/soccer-stats/utils';
 
 import { Game, GameStatus } from '../../entities/game.entity';
 import { Team } from '../../entities/team.entity';
@@ -303,6 +304,11 @@ export class GamesService {
 
   /**
    * Update a GameTeam's settings (formation, stats tracking level, etc.)
+   *
+   * Returns the base entity without eager-loaded relations.
+   * GraphQL field resolvers + DataLoaders handle relation loading on-demand.
+   *
+   * @see game-team.resolver.ts for field resolvers
    */
   async updateGameTeam(
     gameTeamId: string,
@@ -310,7 +316,6 @@ export class GamesService {
   ): Promise<GameTeam> {
     const gameTeam = await this.gameTeamRepository.findOne({
       where: { id: gameTeamId },
-      relations: ['team', 'game'],
     });
 
     if (!gameTeam) {
@@ -328,29 +333,8 @@ export class GamesService {
       gameTeam.tacticalNotes = updateGameTeamInput.tacticalNotes;
     }
 
-    await this.gameTeamRepository.save(gameTeam);
-
-    // Return with full relations for GraphQL
-    const updatedGameTeam = await this.gameTeamRepository.findOne({
-      where: { id: gameTeamId },
-      relations: [
-        'team',
-        'team.teamMembers',
-        'team.teamMembers.user',
-        'team.teamMembers.roles',
-        'game',
-        'gameEvents',
-        'gameEvents.eventType',
-      ],
-    });
-
-    if (!updatedGameTeam) {
-      throw new NotFoundException(
-        `GameTeam with ID ${gameTeamId} not found after update`,
-      );
-    }
-
-    return updatedGameTeam;
+    // Save and return - field resolvers handle any requested relations
+    return this.gameTeamRepository.save(gameTeam);
   }
 
   /**
@@ -602,7 +586,7 @@ export class GamesService {
     // Get game details for duration calculation
     const game = await this.gameRepository.findOne({
       where: { id: gameId },
-      relations: ['gameFormat'],
+      relations: ['format'],
     });
 
     if (!game) {
@@ -721,14 +705,15 @@ export class GamesService {
         );
 
         // 2. Create SUBSTITUTION_OUT for all on-field players as children of PERIOD_END
+        // Calculate period-relative seconds (time elapsed in period 1)
+        const periodSecond = toPeriodSecond(halftimeMinute, halftimeSecond);
         for (const gameTeam of gameTeams) {
           await this.gameEventsService.createSubstitutionOutForAllOnField(
             gameTeam.id,
-            halftimeMinute,
-            halftimeSecond,
+            '1', // Period 1 (first half)
+            periodSecond,
             userId!,
             periodEndEvent.id,
-            '1', // Period 1 (first half)
           );
         }
 
@@ -871,14 +856,20 @@ export class GamesService {
         );
 
         // 3. Create SUBSTITUTION_OUT for all on-field players as children of GAME_END
+        // Calculate period-relative seconds for period 2
+        // Approximate: total time minus estimated halftime (half of total duration)
+        const halfDurationSeconds = Math.floor(totalDuration / 2) * 60;
+        const endPeriodSeconds = Math.max(
+          0,
+          toPeriodSecond(endMinute, endSecond) - halfDurationSeconds,
+        );
         for (const gameTeam of gameTeams) {
           await this.gameEventsService.createSubstitutionOutForAllOnField(
             gameTeam.id,
-            endMinute,
-            endSecond,
+            '2', // Period 2 (second half)
+            endPeriodSeconds,
             userId!,
             gameEndEvent.id,
-            '2', // Period 2 (second half)
           );
         }
 

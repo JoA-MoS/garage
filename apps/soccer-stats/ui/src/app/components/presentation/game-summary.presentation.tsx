@@ -5,6 +5,8 @@
  * - Goals timeline with halftime marker and assists
  */
 
+import { fromPeriodSecond } from '@garage/soccer-stats/utils';
+
 interface PlayerInfo {
   firstName?: string | null;
   lastName?: string | null;
@@ -25,8 +27,10 @@ interface ChildEvent {
 export interface GameEvent {
   id: string;
   createdAt: string;
-  gameMinute: number;
-  gameSecond: number;
+  /** Period identifier (e.g., "1", "2", "OT1") */
+  period?: string | null;
+  /** Seconds within the period */
+  periodSecond: number;
   playerId?: string | null;
   externalPlayerName?: string | null;
   externalPlayerNumber?: string | null;
@@ -36,8 +40,6 @@ export interface GameEvent {
     category: string;
   } | null;
   childEvents?: ChildEvent[] | null;
-  /** Period identifier for timing events (e.g., "1", "2", "OT1") */
-  period?: string | null;
 }
 
 interface TeamData {
@@ -59,7 +61,8 @@ export interface GameSummaryProps {
 }
 
 // Format time as M' (e.g., "45'" or "12:30'")
-function formatEventTime(minute: number, second: number): string {
+function formatEventTime(periodSecond: number): string {
+  const { minute, second } = fromPeriodSecond(periodSecond);
   if (second > 0) {
     return `${minute}:${second.toString().padStart(2, '0')}'`;
   }
@@ -87,8 +90,7 @@ type TimelineItem =
       type: 'goal';
       id: string;
       createdAt: string;
-      minute: number;
-      second: number;
+      periodSecond: number;
       teamName: string;
       teamColor: string;
       scorerName: string;
@@ -97,7 +99,7 @@ type TimelineItem =
   | {
       type: 'halftime';
       createdAt: string;
-      minute: number;
+      periodSecond: number;
     };
 
 /**
@@ -143,8 +145,7 @@ function extractTimelineItems(teamData: TeamData): TimelineItem[] {
         type: 'goal',
         id: event.id,
         createdAt: event.createdAt,
-        minute: event.gameMinute,
-        second: event.gameSecond,
+        periodSecond: event.periodSecond,
         teamName,
         teamColor,
         scorerName: getPlayerName(
@@ -158,7 +159,7 @@ function extractTimelineItems(teamData: TeamData): TimelineItem[] {
       items.push({
         type: 'halftime',
         createdAt: event.createdAt,
-        minute: event.gameMinute,
+        periodSecond: event.periodSecond,
       });
     }
   }
@@ -229,7 +230,7 @@ export function GameSummaryPresentation({
                     className="rounded-full px-2 py-1 text-xs font-bold text-white"
                     style={{ backgroundColor: item.teamColor }}
                   >
-                    {formatEventTime(item.minute, item.second)}
+                    {formatEventTime(item.periodSecond)}
                   </span>
                   <span className="text-lg" role="img" aria-label="Goal">
                     ⚽

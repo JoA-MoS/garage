@@ -87,7 +87,7 @@ export class TeamsResolver {
   }
 
   @ResolveField(() => [GameTeam])
-  gameTeams(@Parent() team: Team): Promise<GameTeam[]> {
+  games(@Parent() team: Team): Promise<GameTeam[]> {
     return this.teamsService.getGameTeams(team.id);
   }
 
