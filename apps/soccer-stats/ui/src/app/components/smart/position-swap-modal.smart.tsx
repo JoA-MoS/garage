@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation } from '@apollo/client/react';
 
 import { LineupPlayer } from '@garage/soccer-stats/graphql-codegen';
+import { fromPeriodSecond } from '@garage/soccer-stats/utils';
 
 import {
   SWAP_POSITIONS,
@@ -15,8 +16,8 @@ interface PositionSwapModalProps {
   teamName: string;
   teamColor: string;
   currentOnField: LineupPlayer[];
-  gameMinute: number;
-  gameSecond: number;
+  period: string;
+  periodSecond: number;
   onClose: () => void;
   onSuccess?: () => void;
 }
@@ -53,8 +54,8 @@ export const PositionSwapModal = ({
   teamName,
   teamColor,
   currentOnField,
-  gameMinute,
-  gameSecond,
+  period,
+  periodSecond,
   onClose,
   onSuccess,
 }: PositionSwapModalProps) => {
@@ -82,8 +83,8 @@ export const PositionSwapModal = ({
             gameTeamId,
             player1EventId,
             player2EventId,
-            gameMinute,
-            gameSecond,
+            period,
+            periodSecond,
           },
         },
       });
@@ -140,8 +141,11 @@ export const PositionSwapModal = ({
               Swap Positions
             </h3>
             <p className="text-sm text-gray-500">
-              {teamName} &bull; {String(gameMinute).padStart(2, '0')}:
-              {String(gameSecond).padStart(2, '0')}
+              {teamName} &bull; Period {period}{' '}
+              {(() => {
+                const { minute, second } = fromPeriodSecond(periodSecond);
+                return `${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
+              })()}
             </p>
           </div>
         </div>

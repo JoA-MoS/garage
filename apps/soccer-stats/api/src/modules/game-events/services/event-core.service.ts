@@ -151,35 +151,34 @@ export class EventCoreService implements OnModuleInit {
 
   /**
    * Check for duplicate or conflicting events within a time window.
-   * - Duplicate: Same event type + same player within 60 seconds
-   * - Conflict: Same event type + different player within 60 seconds
+   * - Duplicate: Same event type + same player within 60 seconds (same period)
+   * - Conflict: Same event type + different player within 60 seconds (same period)
    */
   async checkForDuplicateOrConflict(
     gameTeamId: string,
     eventTypeName: string,
     playerId: string | undefined,
     externalPlayerName: string | undefined,
-    gameMinute: number,
-    gameSecond: number,
+    period: string,
+    periodSecond: number,
   ): Promise<DuplicateConflictResult> {
     const eventType = this.getEventTypeByName(eventTypeName);
-    const targetTimeInSeconds = gameMinute * 60 + gameSecond;
 
-    // Find events of the same type within the time window
+    // Find events of the same type within the same period
     const events = await this.gameEventsRepository.find({
       where: {
         gameTeamId,
         eventTypeId: eventType.id,
+        period, // Only compare within the same period
       },
       relations: ['eventType', 'player', 'recordedByUser'],
-      order: { gameMinute: 'ASC', gameSecond: 'ASC' },
+      order: { periodSecond: 'ASC' },
     });
 
     const eventsInWindow: GameEvent[] = [];
 
     for (const event of events) {
-      const eventTimeInSeconds = event.gameMinute * 60 + event.gameSecond;
-      const timeDiff = Math.abs(eventTimeInSeconds - targetTimeInSeconds);
+      const timeDiff = Math.abs(event.periodSecond - periodSecond);
 
       if (timeDiff <= DUPLICATE_CONFLICT_WINDOW_SECONDS) {
         eventsInWindow.push(event);
@@ -256,8 +255,8 @@ export class EventCoreService implements OnModuleInit {
   buildConflictInfo(
     conflictId: string,
     eventType: string,
-    gameMinute: number,
-    gameSecond: number,
+    period: string,
+    periodSecond: number,
     events: GameEvent[],
   ): ConflictInfo {
     const conflictingEventsInfo: ConflictingEvent[] = events.map((event) => ({
@@ -270,8 +269,8 @@ export class EventCoreService implements OnModuleInit {
     return {
       conflictId,
       eventType,
-      gameMinute,
-      gameSecond,
+      period,
+      periodSecond,
       conflictingEvents: conflictingEventsInfo,
     };
   }

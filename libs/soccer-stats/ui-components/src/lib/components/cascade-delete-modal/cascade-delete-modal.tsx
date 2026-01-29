@@ -5,8 +5,8 @@ import { ModalPortal } from '../modal-portal';
 export interface DependentEvent {
   id: string;
   eventType: string;
-  gameMinute: number;
-  gameSecond: number;
+  period?: string | null;
+  periodSecond: number;
   playerName?: string | null;
   description?: string | null;
 }
@@ -28,8 +28,11 @@ export interface CascadeDeleteModalProps {
   onCancel: () => void;
 }
 
-const formatTime = (minute: number, second: number) =>
-  `${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
+const formatTime = (periodSecond: number) => {
+  const minute = Math.floor(periodSecond / 60);
+  const second = periodSecond % 60;
+  return `${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
+};
 
 const getEventIcon = (type: string) => {
   switch (type) {
@@ -132,7 +135,7 @@ export const CascadeDeleteModal = memo(function CascadeDeleteModal({
                         {event.description || event.eventType}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {formatTime(event.gameMinute, event.gameSecond)}
+                        {formatTime(event.periodSecond)}
                         {event.playerName && ` - ${event.playerName}`}
                       </div>
                     </div>

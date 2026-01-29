@@ -228,8 +228,8 @@ describe('GameEventsService', () => {
       const input = {
         gameTeamId: 'gt-1',
         scorerId: 'player-1',
-        gameMinute: 25,
-        gameSecond: 30,
+        period: '1',
+        periodSecond: 1530,
       };
       const mockEvent = { id: 'goal-1' } as GameEvent;
       mockGoalService.recordGoal.mockResolvedValue(mockEvent);
@@ -245,8 +245,8 @@ describe('GameEventsService', () => {
         gameTeamId: 'gt-1',
         playerOutEventId: 'event-1',
         playerInId: 'player-2',
-        gameMinute: 60,
-        gameSecond: 0,
+        period: '2',
+        periodSecond: 900,
       };
       const mockEvents = [{ id: 'sub-out' }, { id: 'sub-in' }] as GameEvent[];
       mockSubstitutionService.substitutePlayer.mockResolvedValue(mockEvents);
@@ -263,10 +263,9 @@ describe('GameEventsService', () => {
     it('should delegate startPeriod to periodService', async () => {
       const input = {
         gameTeamId: 'gt-1',
-        period: 1,
+        period: '1',
         lineup: [{ playerId: 'player-1', position: 'ST' }],
-        gameMinute: 0,
-        gameSecond: 0,
+        periodSecond: 0,
       };
       const mockEvent = { id: 'period-start' } as GameEvent;
       mockPeriodService.startPeriod.mockResolvedValue(mockEvent);
@@ -296,8 +295,8 @@ describe('GameEventsService', () => {
         gameTeamId: 'gt-1',
         player1EventId: 'event-1',
         player2EventId: 'event-2',
-        gameMinute: 30,
-        gameSecond: 0,
+        period: '1',
+        periodSecond: 1800,
       };
       const mockEvents = [{ id: 'swap-1' }, { id: 'swap-2' }] as GameEvent[];
       mockEventManagementService.swapPositions.mockResolvedValue(mockEvents);

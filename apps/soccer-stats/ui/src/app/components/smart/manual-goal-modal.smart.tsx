@@ -6,6 +6,7 @@ import {
   LineupPlayer,
   StatsTrackingLevel,
 } from '@garage/soccer-stats/graphql-codegen';
+import { toPeriodSecond } from '@garage/soccer-stats/utils';
 
 import { RECORD_GOAL } from '../../services/games-graphql.service';
 
@@ -73,7 +74,8 @@ export const ManualGoalModal = ({
   );
   const selectedTeam = selectedTeamType === 'home' ? homeTeam : awayTeam;
 
-  // Time fields (game minute from start, not period-relative)
+  // Time fields (period-relative)
+  const [period, setPeriod] = useState('1');
   const [minute, setMinute] = useState(0);
   const [second, setSecond] = useState(0);
 
@@ -147,8 +149,8 @@ export const ManualGoalModal = ({
         variables: {
           input: {
             gameTeamId: selectedTeam.gameTeamId,
-            gameMinute: minute,
-            gameSecond: second,
+            period,
+            periodSecond: toPeriodSecond(minute, second),
             scorerId: scorer?.playerId || undefined,
             externalScorerName:
               scorer?.externalPlayerName ||
@@ -246,23 +248,34 @@ export const ManualGoalModal = ({
           </div>
         </div>
 
-        {/* Time */}
+        {/* Period & Time */}
         <div className="mb-4">
           <label
             id="time-label"
             className="mb-2 block text-sm font-medium text-gray-700"
           >
-            Game Time <span className="text-red-500">*</span>
+            Period & Time <span className="text-red-500">*</span>
           </label>
-          <div className="flex items-center gap-1" aria-labelledby="time-label">
+          <div className="flex items-center gap-2" aria-labelledby="time-label">
+            <select
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className="rounded-lg border border-gray-300 p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+              aria-label="Period"
+            >
+              <option value="1">1st Half</option>
+              <option value="2">2nd Half</option>
+              <option value="OT1">OT 1</option>
+              <option value="OT2">OT 2</option>
+            </select>
             <input
               type="number"
               min="0"
-              max="999"
+              max="99"
               value={minute}
               onChange={(e) =>
                 setMinute(
-                  Math.min(999, Math.max(0, parseInt(e.target.value) || 0)),
+                  Math.min(99, Math.max(0, parseInt(e.target.value) || 0)),
                 )
               }
               className="w-16 rounded-lg border border-gray-300 p-2.5 text-center focus:border-blue-500 focus:ring-2 focus:ring-blue-500"

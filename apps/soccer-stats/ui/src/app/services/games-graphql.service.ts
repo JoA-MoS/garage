@@ -108,12 +108,13 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
           createdAt
           gameMinute
           gameSecond
+          period
+          periodSecond
           position
           formation
           playerId
           externalPlayerName
           externalPlayerNumber
-          period
           player {
             id
             firstName
@@ -131,6 +132,8 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
             externalPlayerName
             externalPlayerNumber
             position
+            period
+            periodSecond
             player {
               id
               firstName
@@ -364,6 +367,8 @@ export const ADD_PLAYER_TO_LINEUP = graphql(/* GraphQL */ `
       id
       gameMinute
       gameSecond
+      period
+      periodSecond
       position
       playerId
       externalPlayerName
@@ -382,6 +387,8 @@ export const ADD_PLAYER_TO_BENCH = graphql(/* GraphQL */ `
       id
       gameMinute
       gameSecond
+      period
+      periodSecond
       position
       playerId
       externalPlayerName
@@ -415,6 +422,8 @@ export const SUBSTITUTE_PLAYER = graphql(/* GraphQL */ `
       id
       gameMinute
       gameSecond
+      period
+      periodSecond
       position
       playerId
       externalPlayerName
@@ -433,6 +442,8 @@ export const RECORD_FORMATION_CHANGE = graphql(/* GraphQL */ `
       id
       gameMinute
       gameSecond
+      period
+      periodSecond
       eventType {
         id
         name
@@ -447,6 +458,8 @@ export const RECORD_POSITION_CHANGE = graphql(/* GraphQL */ `
       id
       gameMinute
       gameSecond
+      period
+      periodSecond
       position
       eventType {
         id
@@ -462,6 +475,8 @@ export const RECORD_GOAL = graphql(/* GraphQL */ `
       id
       gameMinute
       gameSecond
+      period
+      periodSecond
       playerId
       externalPlayerName
       externalPlayerNumber
@@ -474,6 +489,8 @@ export const RECORD_GOAL = graphql(/* GraphQL */ `
         playerId
         externalPlayerName
         externalPlayerNumber
+        period
+        periodSecond
         eventType {
           id
           name
@@ -513,8 +530,8 @@ export const GET_DEPENDENT_EVENTS = graphql(/* GraphQL */ `
       dependentEvents {
         id
         eventType
-        gameMinute
-        gameSecond
+        period
+        periodSecond
         playerName
         description
       }
@@ -545,6 +562,8 @@ export const RESOLVE_EVENT_CONFLICT = graphql(/* GraphQL */ `
       id
       gameMinute
       gameSecond
+      period
+      periodSecond
       playerId
       externalPlayerName
       externalPlayerNumber
@@ -563,6 +582,8 @@ export const UPDATE_GOAL = graphql(/* GraphQL */ `
       id
       gameMinute
       gameSecond
+      period
+      periodSecond
       playerId
       externalPlayerName
       externalPlayerNumber
@@ -575,6 +596,8 @@ export const UPDATE_GOAL = graphql(/* GraphQL */ `
         playerId
         externalPlayerName
         externalPlayerNumber
+        period
+        periodSecond
         eventType {
           id
           name
@@ -590,6 +613,8 @@ export const SWAP_POSITIONS = graphql(/* GraphQL */ `
       id
       gameMinute
       gameSecond
+      period
+      periodSecond
       position
       playerId
       externalPlayerName
@@ -608,6 +633,8 @@ export const BATCH_LINEUP_CHANGES = graphql(/* GraphQL */ `
       id
       gameMinute
       gameSecond
+      period
+      periodSecond
       position
       playerId
       externalPlayerName
@@ -675,8 +702,9 @@ export const GAME_EVENT_CHANGED = graphql(/* GraphQL */ `
         gameTeamId
         gameMinute
         gameSecond
-        position
         period
+        periodSecond
+        position
         playerId
         externalPlayerName
         externalPlayerNumber
@@ -699,6 +727,8 @@ export const GAME_EVENT_CHANGED = graphql(/* GraphQL */ `
           id
           gameMinute
           gameSecond
+          period
+          periodSecond
           playerId
           externalPlayerName
           externalPlayerNumber
@@ -719,8 +749,8 @@ export const GAME_EVENT_CHANGED = graphql(/* GraphQL */ `
       conflict {
         conflictId
         eventType
-        gameMinute
-        gameSecond
+        period
+        periodSecond
         conflictingEvents {
           eventId
           playerName
@@ -755,6 +785,8 @@ export const BRING_PLAYER_ONTO_FIELD = graphql(/* GraphQL */ `
       id
       gameMinute
       gameSecond
+      period
+      periodSecond
       position
       playerId
       externalPlayerName
@@ -775,6 +807,8 @@ export const SET_SECOND_HALF_LINEUP = graphql(/* GraphQL */ `
         id
         gameMinute
         gameSecond
+        period
+        periodSecond
         position
         playerId
         externalPlayerName
@@ -799,6 +833,7 @@ export const START_PERIOD = graphql(/* GraphQL */ `
         gameMinute
         gameSecond
         period
+        periodSecond
         eventType {
           id
           name
@@ -809,6 +844,8 @@ export const START_PERIOD = graphql(/* GraphQL */ `
           externalPlayerName
           externalPlayerNumber
           position
+          period
+          periodSecond
           eventType {
             id
             name
@@ -819,8 +856,9 @@ export const START_PERIOD = graphql(/* GraphQL */ `
         id
         gameMinute
         gameSecond
-        position
         period
+        periodSecond
+        position
         playerId
         externalPlayerName
         externalPlayerNumber
@@ -844,6 +882,7 @@ export const END_PERIOD = graphql(/* GraphQL */ `
         gameMinute
         gameSecond
         period
+        periodSecond
         eventType {
           id
           name
@@ -854,6 +893,8 @@ export const END_PERIOD = graphql(/* GraphQL */ `
           externalPlayerName
           externalPlayerNumber
           position
+          period
+          periodSecond
           eventType {
             id
             name
@@ -864,8 +905,9 @@ export const END_PERIOD = graphql(/* GraphQL */ `
         id
         gameMinute
         gameSecond
-        position
         period
+        periodSecond
+        position
         playerId
         externalPlayerName
         externalPlayerNumber
