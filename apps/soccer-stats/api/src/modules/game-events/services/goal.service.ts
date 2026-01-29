@@ -42,8 +42,8 @@ export class GoalService {
       'GOAL',
       input.scorerId,
       input.externalScorerName,
-      input.gameMinute,
-      input.gameSecond,
+      input.period,
+      input.periodSecond,
     );
 
     // If duplicate: return existing event, notify subscriber with DUPLICATE_DETECTED
@@ -88,8 +88,12 @@ export class GoalService {
       externalPlayerName: input.externalScorerName,
       externalPlayerNumber: input.externalScorerNumber,
       recordedByUserId,
-      gameMinute: input.gameMinute,
-      gameSecond: input.gameSecond,
+      // Legacy fields (deprecated, kept for migration compatibility)
+      gameMinute: Math.floor(input.periodSecond / 60),
+      gameSecond: input.periodSecond % 60,
+      // New period-relative timing
+      period: input.period,
+      periodSecond: input.periodSecond,
       conflictId,
     });
 
@@ -107,8 +111,12 @@ export class GoalService {
         externalPlayerName: input.externalAssisterName,
         externalPlayerNumber: input.externalAssisterNumber,
         recordedByUserId,
-        gameMinute: input.gameMinute,
-        gameSecond: input.gameSecond,
+        // Legacy fields (deprecated, kept for migration compatibility)
+        gameMinute: Math.floor(input.periodSecond / 60),
+        gameSecond: input.periodSecond % 60,
+        // New period-relative timing
+        period: input.period,
+        periodSecond: input.periodSecond,
         parentEventId: savedGoalEvent.id,
       });
 
@@ -139,8 +147,8 @@ export class GoalService {
       const conflictInfo = this.coreService.buildConflictInfo(
         conflictId,
         'GOAL',
-        input.gameMinute,
-        input.gameSecond,
+        input.period,
+        input.periodSecond,
         allConflictingEvents,
       );
 
@@ -189,11 +197,19 @@ export class GoalService {
     if (input.externalScorerNumber !== undefined) {
       gameEvent.externalPlayerNumber = input.externalScorerNumber || undefined;
     }
-    if (input.gameMinute !== undefined) {
-      gameEvent.gameMinute = input.gameMinute;
+    if (input.period !== undefined) {
+      gameEvent.period = input.period;
+      // Also update legacy fields for compatibility
+      if (input.periodSecond !== undefined) {
+        gameEvent.gameMinute = Math.floor(input.periodSecond / 60);
+        gameEvent.gameSecond = input.periodSecond % 60;
+      }
     }
-    if (input.gameSecond !== undefined) {
-      gameEvent.gameSecond = input.gameSecond;
+    if (input.periodSecond !== undefined) {
+      gameEvent.periodSecond = input.periodSecond;
+      // Also update legacy fields for compatibility
+      gameEvent.gameMinute = Math.floor(input.periodSecond / 60);
+      gameEvent.gameSecond = input.periodSecond % 60;
     }
 
     await this.gameEventsRepository.save(gameEvent);
@@ -224,11 +240,14 @@ export class GoalService {
             input.externalAssisterNumber || undefined;
         }
         // Sync time with goal
-        if (input.gameMinute !== undefined) {
-          existingAssist.gameMinute = input.gameMinute;
+        if (input.period !== undefined) {
+          existingAssist.period = input.period;
         }
-        if (input.gameSecond !== undefined) {
-          existingAssist.gameSecond = input.gameSecond;
+        if (input.periodSecond !== undefined) {
+          existingAssist.periodSecond = input.periodSecond;
+          // Also update legacy fields for compatibility
+          existingAssist.gameMinute = Math.floor(input.periodSecond / 60);
+          existingAssist.gameSecond = input.periodSecond % 60;
         }
         await this.gameEventsRepository.save(existingAssist);
       } else {
@@ -242,8 +261,11 @@ export class GoalService {
           externalPlayerName: input.externalAssisterName,
           externalPlayerNumber: input.externalAssisterNumber,
           recordedByUserId: gameEvent.recordedByUserId,
+          // Copy timing from goal event
           gameMinute: gameEvent.gameMinute,
           gameSecond: gameEvent.gameSecond,
+          period: gameEvent.period,
+          periodSecond: gameEvent.periodSecond,
           parentEventId: gameEvent.id,
         });
         await this.gameEventsRepository.save(assistEvent);

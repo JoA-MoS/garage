@@ -19,6 +19,7 @@ import {
   GameStatus,
   StatsTrackingLevel,
 } from '@garage/soccer-stats/graphql-codegen';
+import { fromPeriodSecond, toPeriodSecond } from '@garage/soccer-stats/utils';
 
 import {
   GET_GAME_BY_ID,
@@ -53,8 +54,7 @@ const GameEventFragmentDoc = gql`
   fragment GameEventFragment on GameEvent {
     id
     createdAt
-    gameMinute
-    gameSecond
+    periodSecond
     position
     formation
     playerId
@@ -150,8 +150,8 @@ export const GamePage = () => {
     dependentEvents: Array<{
       id: string;
       eventType: string;
-      gameMinute: number;
-      gameSecond: number;
+      period?: string | null;
+      periodSecond: number;
       playerName?: string | null;
       description?: string | null;
     }>;
@@ -162,8 +162,8 @@ export const GamePage = () => {
   const [conflictData, setConflictData] = useState<{
     conflictId: string;
     eventType: string;
-    gameMinute: number;
-    gameSecond: number;
+    period?: string | null;
+    periodSecond: number;
     conflictingEvents: Array<{
       eventId: string;
       playerName: string;
@@ -520,18 +520,17 @@ export const GamePage = () => {
     (event: {
       id: string;
       gameTeamId: string;
-      gameMinute: number;
-      gameSecond: number;
-      position?: string | null;
       period?: string | null;
+      periodSecond: number;
+      position?: string | null;
       playerId?: string | null;
       externalPlayerName?: string | null;
       externalPlayerNumber?: string | null;
       eventType: { id: string; name: string; category: string };
       childEvents?: Array<{
         id: string;
-        gameMinute: number;
-        gameSecond: number;
+        period?: string | null;
+        periodSecond: number;
         playerId?: string | null;
         externalPlayerName?: string | null;
         externalPlayerNumber?: string | null;
@@ -560,11 +559,10 @@ export const GamePage = () => {
                 __typename: 'GameEvent',
                 id: event.id,
                 createdAt: new Date().toISOString(),
-                gameMinute: event.gameMinute,
-                gameSecond: event.gameSecond,
+                period: event.period ?? null,
+                periodSecond: event.periodSecond,
                 position: event.position ?? null,
                 formation: null,
-                period: event.period ?? null,
                 playerId: event.playerId,
                 externalPlayerName: event.externalPlayerName,
                 externalPlayerNumber: event.externalPlayerNumber,
@@ -642,8 +640,8 @@ export const GamePage = () => {
     (conflict: {
       conflictId: string;
       eventType: string;
-      gameMinute: number;
-      gameSecond: number;
+      period?: string | null;
+      periodSecond: number;
       conflictingEvents: Array<{
         eventId: string;
         playerName: string;
@@ -1014,17 +1012,17 @@ export const GamePage = () => {
 
   // Handle formation change for a team
   const handleFormationChange = useCallback(
-    async (gameTeamId: string, formation: string, gameMinute?: number) => {
+    async (gameTeamId: string, formation: string, periodSecond?: number) => {
       try {
-        if (gameMinute !== undefined) {
+        if (periodSecond !== undefined) {
           // Mid-game: record formation change event
           await recordFormationChange({
             variables: {
               input: {
                 gameTeamId,
                 formation,
-                gameMinute,
-                gameSecond: 0,
+                period: currentPeriod,
+                periodSecond,
               },
             },
           });
@@ -1094,10 +1092,16 @@ export const GamePage = () => {
     if (effectiveLevel === StatsTrackingLevel.GoalsOnly) {
       // Skip modal - record goal directly without player attribution
       const gameTeam = game?.teams?.find((gt) => gt.teamType === team);
-      if (!gameTeam) return;
+      if (!gameTeam || !game) return;
 
-      const minute = Math.floor(elapsedSeconds / 60);
-      const second = elapsedSeconds % 60;
+      // Calculate period and period-relative seconds
+      const halftimeDurationSeconds =
+        Math.floor((game.format?.durationMinutes || 60) / 2) * 60;
+      const isSecondHalf = game.status === GameStatus.SecondHalf;
+      const period = isSecondHalf ? '2' : '1';
+      const periodSecs = isSecondHalf
+        ? Math.max(0, elapsedSeconds - halftimeDurationSeconds)
+        : elapsedSeconds;
 
       try {
         // Call mutation - subscription will update cache for all connected clients
@@ -1105,8 +1109,8 @@ export const GamePage = () => {
           variables: {
             input: {
               gameTeamId: gameTeam.id,
-              gameMinute: minute,
-              gameSecond: second,
+              period,
+              periodSecond: periodSecs,
             },
           },
         });
@@ -1269,12 +1273,25 @@ export const GamePage = () => {
   const halftimeDurationMinutes = Math.floor(
     (game.format?.durationMinutes || 60) / 2,
   );
-  const gameMinute =
+  const halftimeDurationSeconds = halftimeDurationMinutes * 60;
+
+  // Determine current period based on game status
+  const currentPeriod =
+    game.status === GameStatus.SecondHalf
+      ? '2'
+      : game.status === GameStatus.Halftime
+        ? '2' // At halftime, we're transitioning to period 2
+        : '1';
+
+  // Calculate period-relative seconds
+  // In period 1: elapsedSeconds directly
+  // In period 2 or after halftime: elapsedSeconds minus first half duration
+  const currentPeriodSeconds =
     game.status === GameStatus.Halftime
-      ? halftimeDurationMinutes
-      : Math.floor(elapsedSeconds / 60);
-  const gameSecond =
-    game.status === GameStatus.Halftime ? 0 : elapsedSeconds % 60;
+      ? 0 // At halftime, period 2 hasn't started
+      : game.status === GameStatus.SecondHalf
+        ? Math.max(0, elapsedSeconds - halftimeDurationSeconds)
+        : elapsedSeconds;
 
   // Compute compact half indicator for sticky header
   const halfIndicator =
@@ -1419,9 +1436,10 @@ export const GamePage = () => {
                   isManaged={homeTeam.team.isManaged}
                   playersPerTeam={game.format.playersPerTeam}
                   gameStatus={game.status}
-                  currentGameMinute={gameMinute}
-                  onFormationChange={(formation, minute) =>
-                    handleFormationChange(homeTeam.id, formation, minute)
+                  currentPeriod={currentPeriod}
+                  currentPeriodSeconds={currentPeriodSeconds}
+                  onFormationChange={(formation, periodSecs) =>
+                    handleFormationChange(homeTeam.id, formation, periodSecs)
                   }
                 />
               )}
@@ -1435,9 +1453,10 @@ export const GamePage = () => {
                   isManaged={awayTeam.team.isManaged}
                   playersPerTeam={game.format.playersPerTeam}
                   gameStatus={game.status}
-                  currentGameMinute={gameMinute}
-                  onFormationChange={(formation, minute) =>
-                    handleFormationChange(awayTeam.id, formation, minute)
+                  currentPeriod={currentPeriod}
+                  currentPeriodSeconds={currentPeriodSeconds}
+                  onFormationChange={(formation, periodSecs) =>
+                    handleFormationChange(awayTeam.id, formation, periodSecs)
                   }
                 />
               )}
@@ -1461,8 +1480,8 @@ export const GamePage = () => {
                     events: homeTeam.events?.map((e) => ({
                       id: e.id,
                       createdAt: e.createdAt,
-                      gameMinute: e.gameMinute,
-                      gameSecond: e.gameSecond,
+                      period: e.period,
+                      periodSecond: e.periodSecond,
                       playerId: e.playerId,
                       externalPlayerName: e.externalPlayerName,
                       externalPlayerNumber: e.externalPlayerNumber,
@@ -1482,8 +1501,8 @@ export const GamePage = () => {
                     events: awayTeam.events?.map((e) => ({
                       id: e.id,
                       createdAt: e.createdAt,
-                      gameMinute: e.gameMinute,
-                      gameSecond: e.gameSecond,
+                      period: e.period,
+                      periodSecond: e.periodSecond,
                       playerId: e.playerId,
                       externalPlayerName: e.externalPlayerName,
                       externalPlayerNumber: e.externalPlayerNumber,
@@ -1600,8 +1619,7 @@ export const GamePage = () => {
                     | 'period_start'
                     | 'period_end'
                     | 'game_end';
-                  gameMinute: number;
-                  gameSecond: number;
+                  periodSecond: number;
                   teamType: string;
                   teamName: string;
                   teamColor: string;
@@ -1692,15 +1710,13 @@ export const GamePage = () => {
                       const assistEvent = gameTeam.events?.find(
                         (e) =>
                           e.eventType?.name === 'ASSIST' &&
-                          e.gameMinute === event.gameMinute &&
-                          e.gameSecond === event.gameSecond,
+                          e.periodSecond === event.periodSecond,
                       );
                       matchEvents.push({
                         id: event.id,
                         createdAt: event.createdAt,
                         eventType: 'goal',
-                        gameMinute: event.gameMinute,
-                        gameSecond: event.gameSecond,
+                        periodSecond: event.periodSecond,
                         teamType,
                         teamName: gameTeam.team.name,
                         teamColor:
@@ -1726,8 +1742,7 @@ export const GamePage = () => {
                       const subInEvent = gameTeam.events?.find(
                         (e) =>
                           e.eventType?.name === 'SUBSTITUTION_IN' &&
-                          e.gameMinute === event.gameMinute &&
-                          e.gameSecond === event.gameSecond &&
+                          e.periodSecond === event.periodSecond &&
                           !processedSubIns.has(e.id),
                       );
 
@@ -1739,8 +1754,7 @@ export const GamePage = () => {
                         id: event.id,
                         createdAt: event.createdAt,
                         eventType: 'substitution',
-                        gameMinute: event.gameMinute,
-                        gameSecond: event.gameSecond,
+                        periodSecond: event.periodSecond,
                         teamType,
                         teamName: gameTeam.team.name,
                         teamColor:
@@ -1773,8 +1787,7 @@ export const GamePage = () => {
                         (e) =>
                           e.eventType?.name === 'POSITION_SWAP' &&
                           e.id !== event.id &&
-                          e.gameMinute === event.gameMinute &&
-                          e.gameSecond === event.gameSecond &&
+                          e.periodSecond === event.periodSecond &&
                           !processedSwaps.has(e.id),
                       );
 
@@ -1788,8 +1801,7 @@ export const GamePage = () => {
                         id: event.id,
                         createdAt: event.createdAt,
                         eventType: 'position_swap',
-                        gameMinute: event.gameMinute,
-                        gameSecond: event.gameSecond,
+                        periodSecond: event.periodSecond,
                         teamType,
                         teamName: gameTeam.team.name,
                         teamColor:
@@ -1814,20 +1826,18 @@ export const GamePage = () => {
                       });
                     }
 
-                    // Process SUBSTITUTION_IN events at minute 0 (starters entering field)
+                    // Process SUBSTITUTION_IN events at second 0 (starters entering field)
                     // These are not paired with SUBSTITUTION_OUT events
                     if (
                       event.eventType?.name === 'SUBSTITUTION_IN' &&
-                      event.gameMinute === 0 &&
-                      event.gameSecond === 0 &&
+                      event.periodSecond === 0 &&
                       !processedSubIns.has(event.id)
                     ) {
                       matchEvents.push({
                         id: event.id,
                         createdAt: event.createdAt,
                         eventType: 'starter_entry',
-                        gameMinute: event.gameMinute,
-                        gameSecond: event.gameSecond,
+                        periodSecond: event.periodSecond,
                         teamType,
                         teamName: gameTeam.team.name,
                         teamColor:
@@ -1847,8 +1857,7 @@ export const GamePage = () => {
                         id: event.id,
                         createdAt: event.createdAt,
                         eventType: 'formation_change',
-                        gameMinute: event.gameMinute,
-                        gameSecond: event.gameSecond,
+                        periodSecond: event.periodSecond,
                         teamType,
                         teamName: gameTeam.team.name,
                         teamColor:
@@ -1885,8 +1894,7 @@ export const GamePage = () => {
                         id: event.id,
                         createdAt: event.createdAt,
                         eventType: 'period_start',
-                        gameMinute: event.gameMinute,
-                        gameSecond: event.gameSecond,
+                        periodSecond: event.periodSecond,
                         teamType,
                         teamName: gameTeam.team.name,
                         teamColor:
@@ -1898,12 +1906,11 @@ export const GamePage = () => {
 
                     // Process PERIOD_END events (skip if GAME_END exists at same time - redundant with Full Time)
                     if (event.eventType?.name === 'PERIOD_END') {
-                      // Check if there's a GAME_END at the same minute/second (final whistle)
+                      // Check if there's a GAME_END at the same periodSecond (final whistle)
                       const hasGameEndAtSameTime = gameTeam.events?.some(
                         (e) =>
                           e.eventType?.name === 'GAME_END' &&
-                          e.gameMinute === event.gameMinute &&
-                          e.gameSecond === event.gameSecond,
+                          e.periodSecond === event.periodSecond,
                       );
                       // Only show PERIOD_END if it's not the final period (no concurrent GAME_END)
                       if (!hasGameEndAtSameTime) {
@@ -1911,8 +1918,7 @@ export const GamePage = () => {
                           id: event.id,
                           createdAt: event.createdAt,
                           eventType: 'period_end',
-                          gameMinute: event.gameMinute,
-                          gameSecond: event.gameSecond,
+                          periodSecond: event.periodSecond,
                           teamType,
                           teamName: gameTeam.team.name,
                           teamColor:
@@ -1929,8 +1935,7 @@ export const GamePage = () => {
                         id: event.id,
                         createdAt: event.createdAt,
                         eventType: 'game_end',
-                        gameMinute: event.gameMinute,
-                        gameSecond: event.gameSecond,
+                        periodSecond: event.periodSecond,
                         teamType,
                         teamName: gameTeam.team.name,
                         teamColor:
@@ -2098,8 +2103,7 @@ export const GamePage = () => {
                           key={event.id}
                           id={event.id}
                           eventType={event.eventType}
-                          gameMinute={event.gameMinute}
-                          gameSecond={event.gameSecond}
+                          periodSecond={event.periodSecond}
                           teamName={event.teamName}
                           teamColor={event.teamColor}
                           scorerName={scorerName}
@@ -2121,8 +2125,8 @@ export const GamePage = () => {
                                     team: event.teamType as 'home' | 'away',
                                     goal: {
                                       id: event.id,
-                                      gameMinute: event.gameMinute,
-                                      gameSecond: event.gameSecond,
+                                      period: event.period || '1',
+                                      periodSecond: event.periodSecond,
                                       playerId: event.playerId,
                                       externalPlayerName:
                                         event.externalPlayerName,
@@ -2182,8 +2186,8 @@ export const GamePage = () => {
               ? (homeLineupData?.gameLineup?.bench ?? [])
               : (awayLineupData?.gameLineup?.bench ?? [])
           }
-          gameMinute={gameMinute}
-          gameSecond={gameSecond}
+          period={currentPeriod}
+          periodSecond={currentPeriodSeconds}
           onClose={() => setGoalModalTeam(null)}
           statsTrackingLevel={getEffectiveTrackingLevel(goalModalTeam)}
         />
@@ -2219,8 +2223,8 @@ export const GamePage = () => {
               ? (homeLineupData?.gameLineup?.bench ?? [])
               : (awayLineupData?.gameLineup?.bench ?? [])
           }
-          gameMinute={gameMinute}
-          gameSecond={gameSecond}
+          period={editGoalData.goal.period}
+          periodSecond={editGoalData.goal.periodSecond}
           onClose={() => setEditGoalData(null)}
           editGoal={editGoalData.goal}
           statsTrackingLevel={getEffectiveTrackingLevel(editGoalData.team)}
@@ -2278,8 +2282,8 @@ export const GamePage = () => {
               ? (homeLineupData?.gameLineup?.bench ?? [])
               : (awayLineupData?.gameLineup?.bench ?? [])
           }
-          gameMinute={gameMinute}
-          gameSecond={gameSecond}
+          period={currentPeriod}
+          periodSecond={currentPeriodSeconds}
           onClose={() => setSubModalTeam(null)}
         />
       )}
@@ -2302,8 +2306,8 @@ export const GamePage = () => {
         isOpen={conflictData !== null}
         conflictId={conflictData?.conflictId || ''}
         eventType={conflictData?.eventType || ''}
-        gameMinute={conflictData?.gameMinute || 0}
-        gameSecond={conflictData?.gameSecond || 0}
+        period={conflictData?.period}
+        periodSecond={conflictData?.periodSecond || 0}
         conflictingEvents={conflictData?.conflictingEvents || []}
         isResolving={resolvingConflict}
         onResolve={handleResolveConflict}

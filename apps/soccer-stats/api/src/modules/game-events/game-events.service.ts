@@ -177,19 +177,17 @@ export class GameEventsService implements OnModuleInit {
    */
   async createSubstitutionOutForAllOnField(
     gameTeamId: string,
-    gameMinute: number,
-    gameSecond: number,
+    period: string,
+    periodSecond: number,
     recordedByUserId: string,
     parentEventId?: string,
-    period?: string,
   ): Promise<GameEvent[]> {
     return this.substitutionService.createSubstitutionOutForAllOnField(
       gameTeamId,
-      gameMinute,
-      gameSecond,
+      period,
+      periodSecond,
       recordedByUserId,
       parentEventId,
-      period,
     );
   }
 

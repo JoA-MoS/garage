@@ -154,17 +154,19 @@ export class ConsolidateTeamMembership1769300000000
 
       // Step 5: Migrate team_players data
       // First, create TeamMember records for any players not already in team_members
+      // Include role='PLAYER' for databases where role column is NOT NULL
       console.log('Step 5: Migrating team_players data...');
       await queryRunner.query(`
         INSERT INTO "team_members" (
-          "teamId", "userId", "joinedDate", "leftDate", "isActive"
+          "teamId", "userId", "joinedDate", "leftDate", "isActive", "role"
         )
         SELECT
           tp."teamId",
           tp."userId",
           tp."joinedDate",
           tp."leftDate",
-          tp."isActive"
+          tp."isActive",
+          'PLAYER'::"public"."team_members_role_enum"
         FROM "team_players" tp
         WHERE NOT EXISTS (
           SELECT 1 FROM "team_members" tm
@@ -204,23 +206,61 @@ export class ConsolidateTeamMembership1769300000000
 
       // Step 6: Migrate team_coaches data
       // First, create TeamMember records for any coaches not already in team_members
+      // Handle both schemas: legacy (isGuest column) and production (role column)
       console.log('Step 6: Migrating team_coaches data...');
-      await queryRunner.query(`
-        INSERT INTO "team_members" (
-          "teamId", "userId", "joinedDate", "leftDate", "isActive"
-        )
-        SELECT
-          tc."teamId",
-          tc."userId",
-          tc."startDate",
-          tc."endDate",
-          tc."isActive"
-        FROM "team_coaches" tc
-        WHERE NOT EXISTS (
-          SELECT 1 FROM "team_members" tm
-          WHERE tm."teamId" = tc."teamId" AND tm."userId" = tc."userId"
-        )
+
+      // Check if isGuest column exists (legacy schema) or role column (production schema)
+      const hasIsGuestColumn = await queryRunner.query(`
+        SELECT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'team_coaches' AND column_name = 'isGuest'
+        ) as exists
       `);
+
+      if (hasIsGuestColumn[0]?.exists) {
+        // Legacy schema: use isGuest to determine role
+        await queryRunner.query(`
+          INSERT INTO "team_members" (
+            "teamId", "userId", "joinedDate", "leftDate", "isActive", "role"
+          )
+          SELECT
+            tc."teamId",
+            tc."userId",
+            tc."startDate",
+            tc."endDate",
+            tc."isActive",
+            CASE WHEN tc."isGuest" = true
+              THEN 'GUEST_COACH'::"public"."team_members_role_enum"
+              ELSE 'COACH'::"public"."team_members_role_enum"
+            END
+          FROM "team_coaches" tc
+          WHERE NOT EXISTS (
+            SELECT 1 FROM "team_members" tm
+            WHERE tm."teamId" = tc."teamId" AND tm."userId" = tc."userId"
+          )
+        `);
+      } else {
+        // Production schema: team_coaches.role is a varchar containing the coach's title
+        // (e.g., "Head Coach"), not a TeamRole enum. All coaches get COACH role;
+        // the title is stored in roleData later (Step 6 coach roles creation)
+        await queryRunner.query(`
+          INSERT INTO "team_members" (
+            "teamId", "userId", "joinedDate", "leftDate", "isActive", "role"
+          )
+          SELECT
+            tc."teamId",
+            tc."userId",
+            tc."startDate",
+            tc."endDate",
+            tc."isActive",
+            'COACH'::"public"."team_members_role_enum"
+          FROM "team_coaches" tc
+          WHERE NOT EXISTS (
+            SELECT 1 FROM "team_members" tm
+            WHERE tm."teamId" = tc."teamId" AND tm."userId" = tc."userId"
+          )
+        `);
+      }
 
       // Update existing team_members with coach data if joinedDate not set
       await queryRunner.query(`

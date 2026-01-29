@@ -53,33 +53,20 @@ export class BringPlayerOntoFieldInput {
   @MaxLength(20)
   position: string;
 
-  @Field(() => Int, { description: 'Game minute when player enters' })
-  @IsInt()
-  @Min(0)
-  @Max(999)
-  gameMinute: number;
+  @Field(() => String, {
+    description: 'Period identifier (e.g., "1", "2", "OT1")',
+  })
+  @IsString()
+  period: string;
 
   @Field(() => Int, {
-    nullable: true,
+    description: 'Seconds elapsed within the period (0-5999)',
     defaultValue: 0,
-    description: 'Game second when player enters',
   })
-  @IsOptional()
   @IsInt()
   @Min(0)
-  @Max(59)
-  gameSecond?: number;
-
-  @Field(() => Int, {
-    nullable: true,
-    description:
-      'Period number (1 for first half, 2 for second half). If not provided, will be inferred from game time.',
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(10) // Allow for extra time periods
-  period?: number;
+  @Max(5999)
+  periodSecond: number;
 
   @Field(() => SubstitutionReason, {
     nullable: true,

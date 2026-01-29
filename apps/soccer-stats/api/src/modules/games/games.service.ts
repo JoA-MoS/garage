@@ -8,6 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import type { PubSub } from 'graphql-subscriptions';
+import { toPeriodSecond } from '@garage/soccer-stats/utils';
 
 import { Game, GameStatus } from '../../entities/game.entity';
 import { Team } from '../../entities/team.entity';
@@ -704,14 +705,15 @@ export class GamesService {
         );
 
         // 2. Create SUBSTITUTION_OUT for all on-field players as children of PERIOD_END
+        // Calculate period-relative seconds (time elapsed in period 1)
+        const periodSecond = toPeriodSecond(halftimeMinute, halftimeSecond);
         for (const gameTeam of gameTeams) {
           await this.gameEventsService.createSubstitutionOutForAllOnField(
             gameTeam.id,
-            halftimeMinute,
-            halftimeSecond,
+            '1', // Period 1 (first half)
+            periodSecond,
             userId!,
             periodEndEvent.id,
-            '1', // Period 1 (first half)
           );
         }
 
@@ -854,14 +856,20 @@ export class GamesService {
         );
 
         // 3. Create SUBSTITUTION_OUT for all on-field players as children of GAME_END
+        // Calculate period-relative seconds for period 2
+        // Approximate: total time minus estimated halftime (half of total duration)
+        const halfDurationSeconds = Math.floor(totalDuration / 2) * 60;
+        const endPeriodSeconds = Math.max(
+          0,
+          toPeriodSecond(endMinute, endSecond) - halfDurationSeconds,
+        );
         for (const gameTeam of gameTeams) {
           await this.gameEventsService.createSubstitutionOutForAllOnField(
             gameTeam.id,
-            endMinute,
-            endSecond,
+            '2', // Period 2 (second half)
+            endPeriodSeconds,
             userId!,
             gameEndEvent.id,
-            '2', // Period 2 (second half)
           );
         }
 

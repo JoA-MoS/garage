@@ -1,4 +1,5 @@
 import { InputType, Field, ID, Int } from '@nestjs/graphql';
+import { IsString, IsInt, Min, Max } from 'class-validator';
 
 @InputType()
 export class SubstitutePlayerInput {
@@ -28,9 +29,18 @@ export class SubstitutePlayerInput {
   })
   externalPlayerInNumber?: string;
 
-  @Field(() => Int)
-  gameMinute: number;
+  @Field(() => String, {
+    description: 'Period identifier (e.g., "1", "2", "OT1")',
+  })
+  @IsString()
+  period: string;
 
-  @Field(() => Int, { defaultValue: 0 })
-  gameSecond: number;
+  @Field(() => Int, {
+    description: 'Seconds elapsed within the period (0-5999)',
+    defaultValue: 0,
+  })
+  @IsInt()
+  @Min(0)
+  @Max(5999)
+  periodSecond: number;
 }

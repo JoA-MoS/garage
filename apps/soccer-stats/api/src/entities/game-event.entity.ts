@@ -50,13 +50,42 @@ export class GameEvent extends BaseEntity {
   @Column('uuid', { nullable: true })
   parentEventId?: string;
 
-  @Field(() => Int)
+  /**
+   * @deprecated Use `period` and `periodSecond` instead.
+   * Kept for backward compatibility during migration.
+   */
+  @Field(() => Int, {
+    deprecationReason: 'Use period and periodSecond instead',
+  })
   @Column({ type: 'int' })
   gameMinute: number;
 
-  @Field(() => Int)
+  /**
+   * @deprecated Use `period` and `periodSecond` instead.
+   * Kept for backward compatibility during migration.
+   */
+  @Field(() => Int, {
+    deprecationReason: 'Use period and periodSecond instead',
+  })
   @Column({ type: 'int' })
   gameSecond: number;
+
+  /**
+   * Period identifier (e.g., "1", "2", "OT1", "OT2").
+   * The clock resets at the start of each period, matching real soccer timing.
+   */
+  @Field(() => String, { nullable: true })
+  @Column({ length: 10, nullable: true })
+  period?: string;
+
+  /**
+   * Seconds elapsed within the current period (resets each period).
+   * Combined with `period`, this represents the exact game time.
+   * Example: period="2", periodSecond=1320 means 22:00 into second half (67' display time).
+   */
+  @Field(() => Int)
+  @Column({ type: 'int', default: 0 })
+  periodSecond: number;
 
   @Field({ nullable: true })
   @Column({ length: 50, nullable: true })
@@ -81,24 +110,6 @@ export class GameEvent extends BaseEntity {
   // Note: metadata field is excluded from GraphQL schema to avoid type complexity
   @Column({ type: 'json', nullable: true })
   metadata?: object;
-
-  /**
-   * Period identifier for timing events (PERIOD_START, PERIOD_END).
-   * Derived from metadata.period. Returns null for non-period events.
-   * Examples: "1" (first half), "2" (second half), "OT1" (overtime)
-   *
-   * Note: This is a computed property, not a database column. It works both
-   * when accessed directly on the entity and via GraphQL. The @Field decorator
-   * on this getter makes it automatically available in the GraphQL schema, so
-   * no separate @ResolveField or resolver method is required.
-   *
-   * Returns null (not undefined) to ensure the field is always present in
-   * GraphQL responses, which prevents Apollo Client cache warnings.
-   */
-  @Field(() => String, { nullable: true })
-  get period(): string | null {
-    return (this.metadata as { period?: string } | undefined)?.period ?? null;
-  }
 
   @Field(() => Game)
   @ManyToOne(() => Game, (game) => game.events, { onDelete: 'CASCADE' })

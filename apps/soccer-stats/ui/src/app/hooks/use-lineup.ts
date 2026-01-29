@@ -44,6 +44,9 @@ export interface RosterPlayer {
 
 export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
   // Fetch lineup data
+  // Use cache-and-network to ensure fresh data after mutations
+  // GameLineup is a computed result without an 'id' field, so cache normalization
+  // doesn't work well - we need to always fetch to get accurate lineup state
   const {
     data: lineupData,
     loading: lineupLoading,
@@ -52,6 +55,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
   } = useQuery(GetGameLineupDocument, {
     variables: { gameTeamId },
     skip: !gameTeamId,
+    fetchPolicy: 'cache-and-network',
   });
 
   // Fetch game data for roster (if gameId provided)
@@ -63,13 +67,15 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     },
   );
 
-  // Mutations
+  // Mutations - all use awaitRefetchQueries to prevent race conditions
+  // when multiple mutations are called in sequence
   const [addToLineupMutation, { loading: addingToLineup }] = useMutation(
     AddPlayerToLineupDocument,
     {
       refetchQueries: [
         { query: GetGameLineupDocument, variables: { gameTeamId } },
       ],
+      awaitRefetchQueries: true,
     },
   );
 
@@ -79,6 +85,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       refetchQueries: [
         { query: GetGameLineupDocument, variables: { gameTeamId } },
       ],
+      awaitRefetchQueries: true,
     },
   );
 
@@ -88,6 +95,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       refetchQueries: [
         { query: GetGameLineupDocument, variables: { gameTeamId } },
       ],
+      awaitRefetchQueries: true,
     },
   );
 
@@ -97,6 +105,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       refetchQueries: [
         { query: GetGameLineupDocument, variables: { gameTeamId } },
       ],
+      awaitRefetchQueries: true,
     },
   );
 
@@ -106,6 +115,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       refetchQueries: [
         { query: GetGameLineupDocument, variables: { gameTeamId } },
       ],
+      awaitRefetchQueries: true,
     },
   );
 
@@ -114,6 +124,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       refetchQueries: [
         { query: GetGameLineupDocument, variables: { gameTeamId } },
       ],
+      awaitRefetchQueries: true,
     });
 
   const [setSecondHalfLineupMutation, { loading: settingSecondHalfLineup }] =
@@ -121,6 +132,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       refetchQueries: [
         { query: GetGameLineupDocument, variables: { gameTeamId } },
       ],
+      awaitRefetchQueries: true,
     });
 
   const [bringPlayerOntoFieldMutation, { loading: bringingOntoField }] =
@@ -128,6 +140,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       refetchQueries: [
         { query: GetGameLineupDocument, variables: { gameTeamId } },
       ],
+      awaitRefetchQueries: true,
     });
 
   const [startPeriodMutation, { loading: startingPeriod }] = useMutation(
@@ -136,6 +149,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       refetchQueries: [
         { query: GetGameLineupDocument, variables: { gameTeamId } },
       ],
+      awaitRefetchQueries: true,
     },
   );
 
@@ -145,6 +159,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       refetchQueries: [
         { query: GetGameLineupDocument, variables: { gameTeamId } },
       ],
+      awaitRefetchQueries: true,
     },
   );
 
@@ -264,8 +279,8 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       playerInId?: string;
       externalPlayerInName?: string;
       externalPlayerInNumber?: string;
-      gameMinute: number;
-      gameSecond?: number;
+      period: string;
+      periodSecond?: number;
     }) => {
       return substitutePlayerMutation({
         variables: {
@@ -275,8 +290,8 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
             playerInId: params.playerInId,
             externalPlayerInName: params.externalPlayerInName,
             externalPlayerInNumber: params.externalPlayerInNumber,
-            gameMinute: params.gameMinute,
-            gameSecond: params.gameSecond ?? 0,
+            period: params.period,
+            periodSecond: params.periodSecond ?? 0,
           },
         },
       });
@@ -288,8 +303,8 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     async (params: {
       playerEventId: string;
       newPosition: string;
-      gameMinute: number;
-      gameSecond?: number;
+      period: string;
+      periodSecond?: number;
       reason?: 'FORMATION_CHANGE' | 'TACTICAL' | 'OTHER';
     }) => {
       return recordPositionChangeMutation({
@@ -298,8 +313,8 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
             gameTeamId,
             playerEventId: params.playerEventId,
             newPosition: params.newPosition,
-            gameMinute: params.gameMinute,
-            gameSecond: params.gameSecond ?? 0,
+            period: params.period,
+            periodSecond: params.periodSecond ?? 0,
             reason: params.reason,
           },
         },
@@ -337,8 +352,8 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       externalPlayerName?: string;
       externalPlayerNumber?: string;
       position: string;
-      gameMinute: number;
-      gameSecond?: number;
+      period: string;
+      periodSecond?: number;
     }) => {
       return bringPlayerOntoFieldMutation({
         variables: {
@@ -348,8 +363,8 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
             externalPlayerName: params.externalPlayerName,
             externalPlayerNumber: params.externalPlayerNumber,
             position: params.position,
-            gameMinute: params.gameMinute,
-            gameSecond: params.gameSecond ?? 0,
+            period: params.period,
+            periodSecond: params.periodSecond ?? 0,
           },
         },
       });
@@ -360,15 +375,14 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
   // Start a period - creates PERIOD_START event with SUB_IN events as children
   const startPeriod = useCallback(
     async (params: {
-      period: number;
+      period: string;
       lineup: Array<{
         playerId?: string;
         externalPlayerName?: string;
         externalPlayerNumber?: string;
         position: string;
       }>;
-      gameMinute?: number;
-      gameSecond?: number;
+      periodSecond?: number;
     }) => {
       return startPeriodMutation({
         variables: {
@@ -376,8 +390,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
             gameTeamId,
             period: params.period,
             lineup: params.lineup,
-            gameMinute: params.gameMinute,
-            gameSecond: params.gameSecond,
+            periodSecond: params.periodSecond ?? 0,
           },
         },
       });
@@ -388,18 +401,13 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
   // End a period - creates PERIOD_END event with SUB_OUT events as children
   // Queries the database for current on-field players
   const endPeriod = useCallback(
-    async (params: {
-      period: number;
-      gameMinute?: number;
-      gameSecond?: number;
-    }) => {
+    async (params: { period: string; periodSecond?: number }) => {
       return endPeriodMutation({
         variables: {
           input: {
             gameTeamId,
             period: params.period,
-            gameMinute: params.gameMinute,
-            gameSecond: params.gameSecond,
+            periodSecond: params.periodSecond,
           },
         },
       });

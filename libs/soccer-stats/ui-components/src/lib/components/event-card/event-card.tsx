@@ -21,8 +21,8 @@ export interface ChildEventData {
 export interface EventCardProps {
   id: string;
   eventType: EventType;
-  gameMinute: number;
-  gameSecond: number;
+  /** Total seconds within the period */
+  periodSecond: number;
   teamName: string;
   teamColor: string;
   // Goal-specific
@@ -54,8 +54,7 @@ export interface EventCardProps {
 export const EventCard = memo(function EventCard({
   id,
   eventType,
-  gameMinute,
-  gameSecond,
+  periodSecond,
   teamName,
   teamColor,
   scorerName,
@@ -78,6 +77,8 @@ export const EventCard = memo(function EventCard({
   // State for expanding/collapsing child events (period events only)
   const [isExpanded, setIsExpanded] = useState(false);
   const hasChildren = childEvents && childEvents.length > 0;
+  const gameMinute = Math.floor(periodSecond / 60);
+  const gameSecond = periodSecond % 60;
   const formattedTime = `${String(gameMinute).padStart(2, '0')}:${String(
     gameSecond,
   ).padStart(2, '0')}`;

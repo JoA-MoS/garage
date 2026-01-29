@@ -52,19 +52,23 @@ export class UpdateGoalInput {
   @IsString()
   externalAssisterNumber?: string;
 
-  @Field(() => Int, { nullable: true })
+  @Field(() => String, {
+    nullable: true,
+    description: 'Period identifier (e.g., "1", "2", "OT1")',
+  })
   @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(999)
-  gameMinute?: number;
+  @IsString()
+  period?: string;
 
-  @Field(() => Int, { nullable: true })
+  @Field(() => Int, {
+    nullable: true,
+    description: 'Seconds elapsed within the period (0-5999)',
+  })
   @IsOptional()
   @IsInt()
   @Min(0)
-  @Max(59)
-  gameSecond?: number;
+  @Max(5999)
+  periodSecond?: number;
 
   @Field({ nullable: true, description: 'Set to true to clear the assist' })
   @IsOptional()

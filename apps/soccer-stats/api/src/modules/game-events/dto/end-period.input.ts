@@ -1,25 +1,24 @@
 import { InputType, Field, ID, Int } from '@nestjs/graphql';
+import { IsString, IsInt, Min, Max, IsOptional } from 'class-validator';
 
 @InputType()
 export class EndPeriodInput {
   @Field(() => ID, { description: 'The game team ID' })
   gameTeamId: string;
 
-  @Field(() => Int, {
-    description: 'Period number to end (1 for first half, 2 for second half)',
+  @Field(() => String, {
+    description: 'Period identifier to end (e.g., "1", "2", "OT1")',
   })
-  period: number;
+  @IsString()
+  period: string;
 
   @Field(() => Int, {
     nullable: true,
-    description:
-      'Game minute for the period end (defaults to calculated elapsed time)',
+    description: 'Seconds elapsed within the period at end time',
   })
-  gameMinute?: number;
-
-  @Field(() => Int, {
-    nullable: true,
-    description: 'Game second for the period end (defaults to 0)',
-  })
-  gameSecond?: number;
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(5999)
+  periodSecond?: number;
 }

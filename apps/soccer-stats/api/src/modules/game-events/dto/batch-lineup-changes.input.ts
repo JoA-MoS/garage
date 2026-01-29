@@ -1,4 +1,5 @@
 import { InputType, Field, ID, Int } from '@nestjs/graphql';
+import { IsString, IsInt, Min, Max } from 'class-validator';
 
 /**
  * Single substitution within a batch operation
@@ -75,14 +76,20 @@ export class BatchLineupChangesInput {
   @Field(() => ID)
   gameTeamId: string;
 
-  @Field(() => Int, { description: 'Game minute when changes occur' })
-  gameMinute: number;
+  @Field(() => String, {
+    description: 'Period identifier (e.g., "1", "2", "OT1")',
+  })
+  @IsString()
+  period: string;
 
   @Field(() => Int, {
+    description: 'Seconds elapsed within the period (0-5999)',
     defaultValue: 0,
-    description: 'Game second when changes occur',
   })
-  gameSecond: number;
+  @IsInt()
+  @Min(0)
+  @Max(5999)
+  periodSecond: number;
 
   @Field(() => [BatchSubstitutionInput], {
     defaultValue: [],

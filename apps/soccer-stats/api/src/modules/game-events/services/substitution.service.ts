@@ -58,9 +58,6 @@ export class SubstitutionService {
 
     // Build metadata object with optional fields
     const metadata: Record<string, string | null> = {};
-    if (input.period !== undefined) {
-      metadata.period = String(input.period);
-    }
     if (input.reason) {
       metadata.reason = input.reason;
     }
@@ -77,8 +74,12 @@ export class SubstitutionService {
       externalPlayerNumber: input.externalPlayerNumber,
       position: input.position,
       recordedByUserId,
-      gameMinute: input.gameMinute,
-      gameSecond: input.gameSecond ?? 0,
+      // Legacy fields (deprecated, kept for migration compatibility)
+      gameMinute: Math.floor(input.periodSecond / 60),
+      gameSecond: input.periodSecond % 60,
+      // New period-relative timing
+      period: input.period,
+      periodSecond: input.periodSecond,
       metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
     });
 
@@ -121,9 +122,6 @@ export class SubstitutionService {
 
     // 5. Build metadata object with optional fields
     const metadata: Record<string, string | null> = {};
-    if (input.period !== undefined) {
-      metadata.period = String(input.period);
-    }
     if (input.reason) {
       metadata.reason = input.reason;
     }
@@ -141,8 +139,12 @@ export class SubstitutionService {
       externalPlayerNumber: playerEvent.externalPlayerNumber,
       position: playerEvent.position,
       recordedByUserId,
-      gameMinute: input.gameMinute,
-      gameSecond: input.gameSecond ?? 0,
+      // Legacy fields (deprecated, kept for migration compatibility)
+      gameMinute: Math.floor(input.periodSecond / 60),
+      gameSecond: input.periodSecond % 60,
+      // New period-relative timing
+      period: input.period,
+      periodSecond: input.periodSecond,
       metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
     });
 
@@ -196,8 +198,12 @@ export class SubstitutionService {
       externalPlayerName: playerOutEvent.externalPlayerName,
       externalPlayerNumber: playerOutEvent.externalPlayerNumber,
       recordedByUserId,
-      gameMinute: input.gameMinute,
-      gameSecond: input.gameSecond,
+      // Legacy fields (deprecated, kept for migration compatibility)
+      gameMinute: Math.floor(input.periodSecond / 60),
+      gameSecond: input.periodSecond % 60,
+      // New period-relative timing
+      period: input.period,
+      periodSecond: input.periodSecond,
       position: playerOutEvent.position,
     });
 
@@ -212,8 +218,12 @@ export class SubstitutionService {
       externalPlayerName: input.externalPlayerInName,
       externalPlayerNumber: input.externalPlayerInNumber,
       recordedByUserId,
-      gameMinute: input.gameMinute,
-      gameSecond: input.gameSecond,
+      // Legacy fields (deprecated, kept for migration compatibility)
+      gameMinute: Math.floor(input.periodSecond / 60),
+      gameSecond: input.periodSecond % 60,
+      // New period-relative timing
+      period: input.period,
+      periodSecond: input.periodSecond,
       position: playerOutEvent.position,
       parentEventId: savedSubOut.id,
     });
@@ -348,19 +358,18 @@ export class SubstitutionService {
    * when players leave the field.
    *
    * @param gameTeamId - The game team ID
-   * @param gameMinute - Game minute for the events
-   * @param gameSecond - Game second for the events
+   * @param period - Period identifier (e.g., '1', '2', 'OT1')
+   * @param periodSecond - Seconds elapsed within the period
    * @param recordedByUserId - User recording the events
-   * @param period - Period number (e.g., '1', '2') for stats calculation
+   * @param parentEventId - Optional parent event ID
    * @returns Array of created SUB_OUT events
    */
   async createSubstitutionOutForAllOnField(
     gameTeamId: string,
-    gameMinute: number,
-    gameSecond: number,
+    period: string,
+    periodSecond: number,
     recordedByUserId: string,
     parentEventId?: string,
-    period?: string,
   ): Promise<GameEvent[]> {
     const lineup = await this.lineupService.getGameLineup(gameTeamId);
     const subOutType = this.coreService.getEventTypeByName('SUBSTITUTION_OUT');
@@ -384,10 +393,13 @@ export class SubstitutionService {
         externalPlayerNumber: player.externalPlayerNumber,
         position: player.position,
         recordedByUserId,
-        gameMinute,
-        gameSecond,
-        parentEventId,
+        // Legacy fields (deprecated, kept for migration compatibility)
+        gameMinute: Math.floor(periodSecond / 60),
+        gameSecond: periodSecond % 60,
+        // New period-relative timing
         period,
+        periodSecond,
+        parentEventId,
       }),
     );
 
@@ -430,8 +442,8 @@ export class SubstitutionService {
         playerInId: sub.playerInId,
         externalPlayerInName: sub.externalPlayerInName,
         externalPlayerInNumber: sub.externalPlayerInNumber,
-        gameMinute: input.gameMinute,
-        gameSecond: input.gameSecond,
+        period: input.period,
+        periodSecond: input.periodSecond,
       };
 
       const events = await this.substitutePlayer(subInput, recordedByUserId);
@@ -492,8 +504,8 @@ export class SubstitutionService {
         gameTeamId: input.gameTeamId,
         player1EventId,
         player2EventId,
-        gameMinute: input.gameMinute,
-        gameSecond: input.gameSecond,
+        period: input.period,
+        periodSecond: input.periodSecond,
       };
 
       const events = await swapPositionsFn(swapInput, recordedByUserId);

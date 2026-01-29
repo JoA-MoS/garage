@@ -1,4 +1,5 @@
 import { InputType, Field, ID, Int } from '@nestjs/graphql';
+import { IsString, IsInt, Min, Max, IsOptional } from 'class-validator';
 
 @InputType()
 export class PeriodLineupPlayerInput {
@@ -26,10 +27,11 @@ export class StartPeriodInput {
   @Field(() => ID, { description: 'The game team ID' })
   gameTeamId: string;
 
-  @Field(() => Int, {
-    description: 'Period number (1 for first half, 2 for second half)',
+  @Field(() => String, {
+    description: 'Period identifier (e.g., "1", "2", "OT1")',
   })
-  period: number;
+  @IsString()
+  period: string;
 
   @Field(() => [PeriodLineupPlayerInput], {
     description: 'Players to bring onto the field for this period',
@@ -39,13 +41,12 @@ export class StartPeriodInput {
   @Field(() => Int, {
     nullable: true,
     description:
-      'Game minute for the period start (defaults to 0 for period 1, or calculated from timing for period 2+)',
+      'Seconds elapsed within the period (defaults to 0 for period start)',
+    defaultValue: 0,
   })
-  gameMinute?: number;
-
-  @Field(() => Int, {
-    nullable: true,
-    description: 'Game second for the period start (defaults to 0)',
-  })
-  gameSecond?: number;
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(5999)
+  periodSecond?: number;
 }
