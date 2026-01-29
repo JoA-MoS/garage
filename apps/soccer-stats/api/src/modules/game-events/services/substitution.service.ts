@@ -18,6 +18,40 @@ import { EventCoreService } from './event-core.service';
 import { LineupService } from './lineup.service';
 
 /**
+ * Compute legacy gameMinute from period-relative timing.
+ * Adds period offset for absolute game time (assumes 45-minute halves).
+ *
+ * @param period - Period identifier ('1', '2', 'OT1', 'OT2', etc.)
+ * @param periodSecond - Seconds elapsed within the period
+ * @returns Absolute game minute for legacy field compatibility
+ */
+function computeLegacyGameMinute(period: string, periodSecond: number): number {
+  const minuteInPeriod = Math.floor(periodSecond / 60);
+
+  // Standard 45-minute halves assumption for period offset
+  const HALF_DURATION = 45;
+  const OT_DURATION = 15;
+
+  switch (period) {
+    case '1':
+      return minuteInPeriod;
+    case '2':
+      return HALF_DURATION + minuteInPeriod;
+    default:
+      // Overtime periods: OT1, OT2, etc.
+      if (period.startsWith('OT')) {
+        const otNumber = parseInt(period.slice(2), 10) || 1;
+        // OT starts after 90 minutes (2 halves), each OT period is 15 minutes
+        return (
+          2 * HALF_DURATION + (otNumber - 1) * OT_DURATION + minuteInPeriod
+        );
+      }
+      // Fallback: just return period-relative minute
+      return minuteInPeriod;
+  }
+}
+
+/**
  * Service responsible for substitution operations.
  * Handles player substitutions, field entries/exits, and batch changes.
  */
@@ -75,7 +109,7 @@ export class SubstitutionService {
       position: input.position,
       recordedByUserId,
       // Legacy fields (deprecated, kept for migration compatibility)
-      gameMinute: Math.floor(input.periodSecond / 60),
+      gameMinute: computeLegacyGameMinute(input.period, input.periodSecond),
       gameSecond: input.periodSecond % 60,
       // New period-relative timing
       period: input.period,
@@ -140,7 +174,7 @@ export class SubstitutionService {
       position: playerEvent.position,
       recordedByUserId,
       // Legacy fields (deprecated, kept for migration compatibility)
-      gameMinute: Math.floor(input.periodSecond / 60),
+      gameMinute: computeLegacyGameMinute(input.period, input.periodSecond),
       gameSecond: input.periodSecond % 60,
       // New period-relative timing
       period: input.period,
@@ -199,7 +233,7 @@ export class SubstitutionService {
       externalPlayerNumber: playerOutEvent.externalPlayerNumber,
       recordedByUserId,
       // Legacy fields (deprecated, kept for migration compatibility)
-      gameMinute: Math.floor(input.periodSecond / 60),
+      gameMinute: computeLegacyGameMinute(input.period, input.periodSecond),
       gameSecond: input.periodSecond % 60,
       // New period-relative timing
       period: input.period,
@@ -219,7 +253,7 @@ export class SubstitutionService {
       externalPlayerNumber: input.externalPlayerInNumber,
       recordedByUserId,
       // Legacy fields (deprecated, kept for migration compatibility)
-      gameMinute: Math.floor(input.periodSecond / 60),
+      gameMinute: computeLegacyGameMinute(input.period, input.periodSecond),
       gameSecond: input.periodSecond % 60,
       // New period-relative timing
       period: input.period,
@@ -316,7 +350,7 @@ export class SubstitutionService {
   }
 
   /**
-   * Delete a starter entry event (SUBSTITUTION_IN at minute 0)
+   * Delete a starter entry event (SUBSTITUTION_IN at period 1, periodSecond 0)
    * @param gameEventId - ID of the SUBSTITUTION_IN event
    */
   async deleteStarterEntry(gameEventId: string): Promise<boolean> {
@@ -394,7 +428,7 @@ export class SubstitutionService {
         position: player.position,
         recordedByUserId,
         // Legacy fields (deprecated, kept for migration compatibility)
-        gameMinute: Math.floor(periodSecond / 60),
+        gameMinute: computeLegacyGameMinute(period, periodSecond),
         gameSecond: periodSecond % 60,
         // New period-relative timing
         period,

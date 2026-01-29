@@ -248,7 +248,7 @@ export class DataLoadersService {
             'childEvents.eventType',
             'childEvents.player',
           ],
-          order: { gameMinute: 'ASC', gameSecond: 'ASC', createdAt: 'ASC' },
+          order: { period: 'ASC', periodSecond: 'ASC', createdAt: 'ASC' },
         });
 
         // Group by gameId
@@ -287,7 +287,7 @@ export class DataLoadersService {
             'childEvents.eventType',
             'childEvents.player',
           ],
-          order: { gameMinute: 'ASC', gameSecond: 'ASC', createdAt: 'ASC' },
+          order: { period: 'ASC', periodSecond: 'ASC', createdAt: 'ASC' },
         });
 
         // Group by gameTeamId
@@ -335,7 +335,7 @@ export class DataLoadersService {
       async (parentIds) => {
         const events = await this.gameEventRepository.find({
           where: { parentEventId: In([...parentIds]) },
-          order: { gameMinute: 'ASC', gameSecond: 'ASC', createdAt: 'ASC' },
+          order: { period: 'ASC', periodSecond: 'ASC', createdAt: 'ASC' },
         });
 
         // Group by parentEventId
