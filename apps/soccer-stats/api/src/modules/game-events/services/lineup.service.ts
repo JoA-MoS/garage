@@ -73,177 +73,125 @@ export class LineupService {
       throw new NotFoundException(`GameTeam ${gameTeamId} not found`);
     }
 
-    // Sort by createdAt primarily to handle period boundaries correctly
-    // At halftime, period-end SUBSTITUTION_OUT events have higher gameMinute
-    // than new SUBSTITUTION_IN events, but were created earlier
     const events = await this.gameEventsRepository.find({
       where: { gameTeamId },
       relations: ['eventType', 'player'],
       order: { createdAt: 'ASC' },
     });
 
-    const starters: LineupPlayer[] = [];
-    const bench: LineupPlayer[] = [];
+    // 1. Build game roster from GAME_ROSTER events
     const gameRoster: LineupPlayer[] = [];
-    const currentOnField: Map<string, LineupPlayer> = new Map();
-
-    // Track all players and their current on-field status
-    const playerStatusMap: Map<
-      string,
-      { isOnField: boolean; latestEvent: LineupPlayer }
-    > = new Map();
 
     for (const event of events) {
-      const lineupPlayer: LineupPlayer = {
-        gameEventId: event.id,
-        playerId: event.playerId,
-        playerName: event.player
-          ? `${event.player.firstName || ''} ${
-              event.player.lastName || ''
-            }`.trim() || event.player.email
-          : undefined,
-        firstName: event.player?.firstName,
-        lastName: event.player?.lastName,
-        externalPlayerName: event.externalPlayerName,
-        externalPlayerNumber: event.externalPlayerNumber,
-        position: event.position,
-        isOnField: false,
-      };
+      if (event.eventType.name === 'GAME_ROSTER') {
+        gameRoster.push(this.toLineupPlayer(event));
+      }
+    }
 
-      const playerKey = event.playerId || event.externalPlayerName || event.id;
+    // 2. Track current on-field status and last positions
+    const currentOnField = new Map<string, LineupPlayer>();
+    const lastPositions = new Map<string, string>();
+    const starters: LineupPlayer[] = [];
 
-      switch (event.eventType.name) {
-        case 'GAME_ROSTER':
-          // GAME_ROSTER events represent players added to the game roster
-          // before the game starts - they are not yet assigned as starters or bench
-          lineupPlayer.isOnField = false;
-          gameRoster.push(lineupPlayer);
-          playerStatusMap.set(playerKey, {
-            isOnField: false,
-            latestEvent: lineupPlayer,
-          });
-          break;
+    for (const event of events) {
+      const key = this.getPlayerKey(event);
 
-        case 'STARTING_LINEUP':
-          lineupPlayer.isOnField = true;
-          starters.push(lineupPlayer);
-          currentOnField.set(playerKey, lineupPlayer);
-          playerStatusMap.set(playerKey, {
-            isOnField: true,
-            latestEvent: lineupPlayer,
-          });
-          break;
+      if (event.eventType.name === 'SUBSTITUTION_IN') {
+        const player = this.toLineupPlayer(event);
+        player.isOnField = true;
+        currentOnField.set(key, player);
+        lastPositions.set(key, event.position || '');
 
-        case 'BENCH':
-          lineupPlayer.isOnField = false;
-          bench.push(lineupPlayer);
-          playerStatusMap.set(playerKey, {
-            isOnField: false,
-            latestEvent: lineupPlayer,
-          });
-          break;
-
-        case 'SUBSTITUTION_OUT': {
-          // Player going off the field
-          currentOnField.delete(playerKey);
-          // Update their status - they're now off field but still in the game
-          const outStatus = playerStatusMap.get(playerKey);
-          if (outStatus) {
-            outStatus.isOnField = false;
-            outStatus.latestEvent.isOnField = false;
-          }
-          // Add them to bench as available for sub (with the SUB_OUT event info for tracking)
-          lineupPlayer.isOnField = false;
-          bench.push(lineupPlayer);
-          playerStatusMap.set(playerKey, {
-            isOnField: false,
-            latestEvent: lineupPlayer,
-          });
-          break;
+        // Track starters (period 1, second 0)
+        if (event.period === '1' && event.periodSecond === 0) {
+          starters.push(player);
         }
-
-        case 'SUBSTITUTION_IN': {
-          lineupPlayer.isOnField = true;
-          currentOnField.set(playerKey, lineupPlayer);
-
-          // If this is a SUBSTITUTION_IN at period start (0 seconds), treat as a starter
-          // (this happens when STARTING_LINEUP events are converted on game start)
-          if (event.period === '1' && event.periodSecond === 0) {
-            starters.push(lineupPlayer);
-          }
-
-          // Update their status
-          const inStatus = playerStatusMap.get(playerKey);
-          if (inStatus) {
-            inStatus.isOnField = true;
-            inStatus.latestEvent.isOnField = true;
-          }
-          playerStatusMap.set(playerKey, {
-            isOnField: true,
-            latestEvent: lineupPlayer,
-          });
-          break;
-        }
-
-        case 'POSITION_SWAP':
-        case 'POSITION_CHANGE': {
-          // Update the player's position in currentOnField
-          // The event's position field contains the NEW position
-          const existingOnField = currentOnField.get(playerKey);
-          if (existingOnField) {
-            existingOnField.position = event.position;
-          }
-          // Also update the lineupPlayer and status map
-          lineupPlayer.isOnField = true;
-          lineupPlayer.position = event.position;
-          currentOnField.set(playerKey, lineupPlayer);
-          playerStatusMap.set(playerKey, {
-            isOnField: true,
-            latestEvent: lineupPlayer,
-          });
-          break;
+      } else if (event.eventType.name === 'SUBSTITUTION_OUT') {
+        currentOnField.delete(key);
+        lastPositions.set(key, event.position || '');
+      } else if (
+        event.eventType.name === 'POSITION_SWAP' ||
+        event.eventType.name === 'POSITION_CHANGE'
+      ) {
+        // Update position for players still on field
+        const existingOnField = currentOnField.get(key);
+        if (existingOnField) {
+          existingOnField.position = event.position;
+          lastPositions.set(key, event.position || '');
         }
       }
     }
 
-    // Final pass: update isOnField for all players based on final status
-    for (const starter of starters) {
-      const key =
-        starter.playerId || starter.externalPlayerName || starter.gameEventId;
-      const status = playerStatusMap.get(key);
-      if (status) {
-        starter.isOnField = status.isOnField;
-      }
-    }
+    // 3. Build bench (roster members not on field)
+    const onFieldKeys = new Set(currentOnField.keys());
+    const bench = gameRoster
+      .filter((p) => !onFieldKeys.has(this.getPlayerKeyFromLineup(p)))
+      .map((p) => {
+        const key = this.getPlayerKeyFromLineup(p);
+        return {
+          ...p,
+          position: lastPositions.get(key) ?? p.position,
+          isOnField: false,
+        };
+      });
 
-    for (const benchPlayer of bench) {
-      const key =
-        benchPlayer.playerId ||
-        benchPlayer.externalPlayerName ||
-        benchPlayer.gameEventId;
-      const status = playerStatusMap.get(key);
-      if (status) {
-        benchPlayer.isOnField = status.isOnField;
-      }
-    }
-
-    // Filter bench to only include players NOT currently on field
-    // (players who were subbed out and then subbed back in should not appear in bench)
-    const filteredBench = bench.filter((player) => {
-      const key =
-        player.playerId || player.externalPlayerName || player.gameEventId;
-      const status = playerStatusMap.get(key);
-      return status && !status.isOnField;
-    });
+    // 4. Get previous period lineup (for halftime pre-fill)
+    const periodEndEvent = events.find(
+      (e) => e.eventType.name === 'PERIOD_END',
+    );
+    const previousPeriodLineup = periodEndEvent
+      ? events
+          .filter(
+            (e) =>
+              e.eventType.name === 'SUBSTITUTION_OUT' &&
+              e.parentEventId === periodEndEvent.id,
+          )
+          .map((e) => this.toLineupPlayer(e))
+      : undefined;
 
     return {
       gameTeamId,
       formation: gameTeam.formation,
       gameRoster,
       starters,
-      bench: filteredBench,
+      bench,
       currentOnField: Array.from(currentOnField.values()),
+      previousPeriodLineup,
     };
+  }
+
+  /**
+   * Convert a GameEvent to a LineupPlayer object
+   */
+  private toLineupPlayer(event: GameEvent): LineupPlayer {
+    return {
+      gameEventId: event.id,
+      playerId: event.playerId,
+      playerName: event.player
+        ? `${event.player.firstName || ''} ${event.player.lastName || ''}`.trim() ||
+          event.player.email
+        : undefined,
+      firstName: event.player?.firstName,
+      lastName: event.player?.lastName,
+      externalPlayerName: event.externalPlayerName,
+      externalPlayerNumber: event.externalPlayerNumber,
+      position: event.position,
+      isOnField: false,
+    };
+  }
+
+  /**
+   * Get a unique key for a player from a GameEvent
+   */
+  private getPlayerKey(event: GameEvent): string {
+    return event.playerId || event.externalPlayerName || event.id;
+  }
+
+  /**
+   * Get a unique key for a player from a LineupPlayer
+   */
+  private getPlayerKeyFromLineup(player: LineupPlayer): string {
+    return player.playerId || player.externalPlayerName || player.gameEventId;
   }
 
   /**
