@@ -311,6 +311,17 @@ export const GET_GAME_LINEUP = graphql(/* GraphQL */ `
     gameLineup(gameTeamId: $gameTeamId) {
       gameTeamId
       formation
+      gameRoster {
+        gameEventId
+        playerId
+        playerName
+        firstName
+        lastName
+        externalPlayerName
+        externalPlayerNumber
+        position
+        isOnField
+      }
       starters {
         gameEventId
         playerId
@@ -334,6 +345,17 @@ export const GET_GAME_LINEUP = graphql(/* GraphQL */ `
         isOnField
       }
       currentOnField {
+        gameEventId
+        playerId
+        playerName
+        firstName
+        lastName
+        externalPlayerName
+        externalPlayerNumber
+        position
+        isOnField
+      }
+      previousPeriodLineup {
         gameEventId
         playerId
         playerName
