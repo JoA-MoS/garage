@@ -22,6 +22,7 @@ import { Update4v4Description1769210100000 } from './1769210100000-Update4v4Desc
 import { ConsolidateTeamMembership1769300000000 } from './1769300000000-ConsolidateTeamMembership';
 import { AddGameSecondsAndPeriodColumns1769400000000 } from './1769400000000-AddGameSecondsAndPeriodColumns';
 import { AddGameRosterEventType1769500000000 } from './1769500000000-AddGameRosterEventType';
+import { ConvertBenchToGameRoster1769600000000 } from './1769600000000-ConvertBenchToGameRoster';
 
 /**
  * All migrations in chronological order.
@@ -41,4 +42,5 @@ export const migrations = [
   ConsolidateTeamMembership1769300000000,
   AddGameSecondsAndPeriodColumns1769400000000,
   AddGameRosterEventType1769500000000,
+  ConvertBenchToGameRoster1769600000000,
 ];
