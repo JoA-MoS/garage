@@ -1,4 +1,4 @@
-import { useState, useCallback, memo, useEffect } from 'react';
+import { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import { useMutation } from '@apollo/client/react';
 
 import { CreatePlayerModal } from '@garage/soccer-stats/ui-components';
@@ -149,6 +149,7 @@ export const GameLineupTab = memo(function GameLineupTab({
   const {
     onField,
     bench,
+    previousPeriodLineup,
     availableRoster,
     teamRoster,
     loading,
@@ -163,6 +164,15 @@ export const GameLineupTab = memo(function GameLineupTab({
     refetchRoster,
     formation: savedFormation,
   } = useLineup({ gameTeamId, gameId });
+
+  // At halftime, use previousPeriodLineup to show who was on field at end of first half
+  // This allows the coach to see and modify the lineup for the second half
+  const displayedOnField = useMemo(() => {
+    if (gameStatus === GameStatus.Halftime && previousPeriodLineup?.length) {
+      return previousPeriodLineup;
+    }
+    return onField;
+  }, [gameStatus, previousPeriodLineup, onField]);
 
   // Helper to get jersey number for a player (from roster for managed players, or externalPlayerNumber)
   const getJerseyNumber = useCallback(
@@ -240,7 +250,7 @@ export const GameLineupTab = memo(function GameLineupTab({
     async (formation: Formation) => {
       // Check if any players need reassignment
       const playersToReassign = findPlayersNeedingReassignment(
-        onField,
+        displayedOnField,
         selectedFormation,
         formation,
       );
@@ -259,7 +269,7 @@ export const GameLineupTab = memo(function GameLineupTab({
       // No reassignment needed - proceed with formation change
       await executeFormationChange(formation);
     },
-    [onField, selectedFormation, executeFormationChange],
+    [displayedOnField, selectedFormation, executeFormationChange],
   );
 
   // Handle confirming position reassignments
@@ -599,7 +609,7 @@ export const GameLineupTab = memo(function GameLineupTab({
       <div className="mx-auto max-w-sm">
         <FieldLineup
           formation={selectedFormation}
-          lineup={onField}
+          lineup={displayedOnField}
           onPositionClick={handlePositionClick}
           teamColor={teamColor}
           disabled={mutating}
@@ -953,7 +963,7 @@ export const GameLineupTab = memo(function GameLineupTab({
 
                       // Count positions occupied by players staying in place (not being reassigned)
                       const occupiedByStaying = new Map<string, number>();
-                      for (const p of onField) {
+                      for (const p of displayedOnField) {
                         if (
                           p.position &&
                           !reassigningPlayerIds.has(p.gameEventId)
