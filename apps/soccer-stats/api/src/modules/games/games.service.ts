@@ -572,11 +572,22 @@ export class GamesService {
         );
 
         // Link any existing minute 0 SUB_IN events (starters) to PERIOD_START
+        // If none exist (new roster flow), create SUB_IN from GAME_ROSTER starters
         for (const gameTeam of gameTeams) {
-          await this.gameEventsService.linkFirstHalfStartersToPeriodStart(
-            gameTeam.id,
-            periodStartEvent.id,
-          );
+          const linkedCount =
+            await this.gameEventsService.linkFirstHalfStartersToPeriodStart(
+              gameTeam.id,
+              periodStartEvent.id,
+            );
+
+          // If no existing SUB_IN events were linked, create from GAME_ROSTER starters
+          if (linkedCount === 0) {
+            await this.gameEventsService.createSubInEventsFromRosterStarters(
+              gameTeam.id,
+              periodStartEvent.id,
+              userId!,
+            );
+          }
         }
 
         // Publish GAME_START with PERIOD_START as child
