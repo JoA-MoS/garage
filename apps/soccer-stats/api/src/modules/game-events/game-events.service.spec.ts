@@ -74,6 +74,7 @@ describe('GameEventsService', () => {
     ensureSecondHalfLineupExists: jest.fn(),
     linkOrphanSubInsToSecondHalfPeriodStart: jest.fn(),
     linkFirstHalfStartersToPeriodStart: jest.fn(),
+    createSubInEventsFromRosterStarters: jest.fn(),
   };
 
   const mockEventManagementService = {

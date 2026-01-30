@@ -301,6 +301,22 @@ export class GameEventsService implements OnModuleInit {
     );
   }
 
+  /**
+   * Create SUB_IN events from GAME_ROSTER starters (players with positions).
+   * Called when no existing SUB_IN starters are found during game start.
+   */
+  async createSubInEventsFromRosterStarters(
+    gameTeamId: string,
+    periodStartEventId: string,
+    recordedByUserId: string,
+  ): Promise<number> {
+    return this.periodService.createSubInEventsFromRosterStarters(
+      gameTeamId,
+      periodStartEventId,
+      recordedByUserId,
+    );
+  }
+
   // ========================================
   // Event Management Operations (EventManagementService)
   // ========================================

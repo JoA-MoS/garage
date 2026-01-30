@@ -717,4 +717,83 @@ export class PeriodService {
 
     return starterSubIns.length;
   }
+
+  /**
+   * Create SUB_IN events from GAME_ROSTER starters (players with positions).
+   *
+   * Called when transitioning to FIRST_HALF to ensure starters are properly
+   * represented as SUB_IN events linked to the PERIOD_START event.
+   *
+   * This handles the new roster flow where players are added via addPlayerToGameRoster
+   * with positions, rather than bringPlayerOntoField which creates SUB_IN directly.
+   *
+   * @param gameTeamId - The game team ID
+   * @param periodStartEventId - The PERIOD_START period=1 event ID
+   * @param recordedByUserId - User recording the events
+   * @returns Number of SUB_IN events created
+   */
+  async createSubInEventsFromRosterStarters(
+    gameTeamId: string,
+    periodStartEventId: string,
+    recordedByUserId: string,
+  ): Promise<number> {
+    const gameRosterType = this.coreService.getEventTypeByName('GAME_ROSTER');
+    const subInType = this.coreService.getEventTypeByName('SUBSTITUTION_IN');
+
+    // Find all GAME_ROSTER events with positions (starters)
+    const rosterStarters = await this.gameEventsRepository.find({
+      where: {
+        gameTeamId,
+        eventTypeId: gameRosterType.id,
+      },
+    });
+
+    // Filter to only those with non-null positions (starters)
+    const starters = rosterStarters.filter((e) => e.position != null);
+
+    this.logger.log(
+      `[createSubInEventsFromRosterStarters] Found ${starters.length} GAME_ROSTER starters for gameTeam ${gameTeamId}`,
+    );
+
+    if (starters.length === 0) {
+      return 0;
+    }
+
+    // Get the game team to get the game ID
+    const gameTeam = await this.gameTeamsRepository.findOne({
+      where: { id: gameTeamId },
+    });
+
+    if (!gameTeam) {
+      throw new NotFoundException(`GameTeam ${gameTeamId} not found`);
+    }
+
+    // Create SUB_IN events for each starter as children of PERIOD_START
+    const subInEventsToCreate = starters.map((starter) =>
+      this.gameEventsRepository.create({
+        gameId: gameTeam.gameId,
+        gameTeamId,
+        eventTypeId: subInType.id,
+        playerId: starter.playerId,
+        externalPlayerName: starter.externalPlayerName,
+        externalPlayerNumber: starter.externalPlayerNumber,
+        position: starter.position,
+        recordedByUserId,
+        // Starters enter at period 1, second 0
+        gameMinute: 0,
+        gameSecond: 0,
+        period: '1',
+        periodSecond: 0,
+        parentEventId: periodStartEventId,
+      }),
+    );
+
+    await this.gameEventsRepository.save(subInEventsToCreate);
+
+    this.logger.log(
+      `[createSubInEventsFromRosterStarters] Created ${subInEventsToCreate.length} SUB_IN events from GAME_ROSTER starters for gameTeam ${gameTeamId}`,
+    );
+
+    return subInEventsToCreate.length;
+  }
 }
