@@ -54,23 +54,27 @@ pnpm nx serve <project-name>
 
 ### GraphQL Code Generation
 
-The soccer-stats-ui project uses GraphQL Code Generator to create TypeScript types from the GraphQL schema:
+The soccer-stats projects use GraphQL Code Generator to create TypeScript types from the GraphQL schema:
 
 ```bash
 # Generate types once (run from workspace root)
-pnpm nx graphql-codegen soccer-stats-ui
-
-# Watch mode (automatically regenerates on schema/query changes)
-pnpm nx graphql-codegen-watch soccer-stats-ui
+pnpm nx run soccer-stats-graphql-codegen:codegen
 
 # Or use the root-level scripts
 pnpm codegen
 pnpm codegen:watch
 ```
 
-**Generated Files Location:** `apps/soccer-stats/ui/src/app/generated/`
+**Generated Files Location:** `libs/soccer-stats/graphql-codegen/src/generated/`
 
 **Important:** The GraphQL Code Generator is configured to use TypedDocumentNode mode for Apollo Client compatibility. Generated files are automatically formatted with Prettier.
+
+**Auto-Watch Mode:** When running `pnpm nx serve soccer-stats-ui`, the codegen runs in watch mode automatically as a dependency. You can verify this and other running tasks using the Nx MCP tools:
+
+- `mcp__nx__nx_current_running_tasks_details` - Check what Nx tasks are currently running
+- `mcp__nx__nx_current_running_task_output` - Get logs from a specific running task
+
+This is useful when debugging build issues or verifying that codegen is regenerating after schema changes.
 
 ### Project Discovery
 
