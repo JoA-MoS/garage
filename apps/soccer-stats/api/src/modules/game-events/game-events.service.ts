@@ -10,6 +10,7 @@ import { RecordPositionChangeInput } from './dto/record-position-change.input';
 import { SwapPositionsInput } from './dto/swap-positions.input';
 import { BatchLineupChangesInput } from './dto/batch-lineup-changes.input';
 import { GameLineup } from './dto/game-lineup.output';
+import { GameRoster } from './dto/game-roster.output';
 import { PlayerPositionStats } from './dto/player-position-stats.output';
 import { PlayerFullStats } from './dto/player-full-stats.output';
 import { PlayerStatsInput } from './dto/player-stats.input';
@@ -88,6 +89,10 @@ export class GameEventsService implements OnModuleInit {
 
   async getGameLineup(gameTeamId: string): Promise<GameLineup> {
     return this.lineupService.getGameLineup(gameTeamId);
+  }
+
+  async getGameRoster(gameTeamId: string): Promise<GameRoster> {
+    return this.lineupService.getGameRoster(gameTeamId);
   }
 
   async findEventsByGameTeam(gameTeamId: string): Promise<GameEvent[]> {

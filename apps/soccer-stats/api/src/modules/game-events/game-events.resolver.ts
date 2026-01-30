@@ -30,6 +30,7 @@ import { AddToGameRosterInput } from './dto/add-to-game-roster.input';
 import { StartPeriodInput } from './dto/start-period.input';
 import { EndPeriodInput } from './dto/end-period.input';
 import { GameLineup } from './dto/game-lineup.output';
+import { GameRoster } from './dto/game-roster.output';
 import { PlayerPositionStats } from './dto/player-position-stats.output';
 import { PlayerFullStats } from './dto/player-full-stats.output';
 import { PlayerStatsInput } from './dto/player-stats.input';
@@ -52,6 +53,16 @@ export class GameEventsResolver {
     @Args('gameTeamId', { type: () => ID }) gameTeamId: string,
   ): Promise<GameLineup> {
     return this.gameEventsService.getGameLineup(gameTeamId);
+  }
+
+  @Query(() => GameRoster, {
+    description: 'Get current game roster with player positions',
+  })
+  @Public()
+  async gameRoster(
+    @Args('gameTeamId', { type: () => ID }) gameTeamId: string,
+  ): Promise<GameRoster> {
+    return this.gameEventsService.getGameRoster(gameTeamId);
   }
 
   @Query(() => [GameEvent], { name: 'gameEvents' })
