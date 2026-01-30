@@ -36,8 +36,7 @@ type Documents = {
   '\n  mutation UpdateGameTeam(\n    $gameTeamId: ID!\n    $updateGameTeamInput: UpdateGameTeamInput!\n  ) {\n    updateGameTeam(\n      gameTeamId: $gameTeamId\n      updateGameTeamInput: $updateGameTeamInput\n    ) {\n      id\n      teamType\n      formation\n      statsTrackingLevel\n      tacticalNotes\n      team {\n        id\n        name\n      }\n    }\n  }\n': typeof types.UpdateGameTeamDocument;
   '\n  query GetGameLineup($gameTeamId: ID!) {\n    gameLineup(gameTeamId: $gameTeamId) {\n      gameTeamId\n      formation\n      starters {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      bench {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      currentOnField {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n    }\n  }\n': typeof types.GetGameLineupDocument;
   '\n  query GetEventTypes {\n    eventTypes {\n      id\n      name\n      category\n      description\n      requiresPosition\n      allowsParent\n    }\n  }\n': typeof types.GetEventTypesDocument;
-  '\n  mutation AddPlayerToLineup($input: AddToLineupInput!) {\n    addPlayerToLineup(input: $input) {\n      id\n      gameMinute\n      gameSecond\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.AddPlayerToLineupDocument;
-  '\n  mutation AddPlayerToBench($input: AddToBenchInput!) {\n    addPlayerToBench(input: $input) {\n      id\n      gameMinute\n      gameSecond\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.AddPlayerToBenchDocument;
+  '\n  mutation AddPlayerToGameRoster($input: AddToGameRosterInput!) {\n    addPlayerToGameRoster(input: $input) {\n      id\n      gameMinute\n      gameSecond\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.AddPlayerToGameRosterDocument;
   '\n  mutation RemoveFromLineup($gameEventId: ID!) {\n    removeFromLineup(gameEventId: $gameEventId)\n  }\n': typeof types.RemoveFromLineupDocument;
   '\n  mutation UpdatePlayerPosition($gameEventId: ID!, $position: String!) {\n    updatePlayerPosition(gameEventId: $gameEventId, position: $position) {\n      id\n      position\n    }\n  }\n': typeof types.UpdatePlayerPositionDocument;
   '\n  mutation SubstitutePlayer($input: SubstitutePlayerInput!) {\n    substitutePlayer(input: $input) {\n      id\n      gameMinute\n      gameSecond\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.SubstitutePlayerDocument;
@@ -143,10 +142,8 @@ const documents: Documents = {
     types.GetGameLineupDocument,
   '\n  query GetEventTypes {\n    eventTypes {\n      id\n      name\n      category\n      description\n      requiresPosition\n      allowsParent\n    }\n  }\n':
     types.GetEventTypesDocument,
-  '\n  mutation AddPlayerToLineup($input: AddToLineupInput!) {\n    addPlayerToLineup(input: $input) {\n      id\n      gameMinute\n      gameSecond\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n':
-    types.AddPlayerToLineupDocument,
-  '\n  mutation AddPlayerToBench($input: AddToBenchInput!) {\n    addPlayerToBench(input: $input) {\n      id\n      gameMinute\n      gameSecond\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n':
-    types.AddPlayerToBenchDocument,
+  '\n  mutation AddPlayerToGameRoster($input: AddToGameRosterInput!) {\n    addPlayerToGameRoster(input: $input) {\n      id\n      gameMinute\n      gameSecond\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n':
+    types.AddPlayerToGameRosterDocument,
   '\n  mutation RemoveFromLineup($gameEventId: ID!) {\n    removeFromLineup(gameEventId: $gameEventId)\n  }\n':
     types.RemoveFromLineupDocument,
   '\n  mutation UpdatePlayerPosition($gameEventId: ID!, $position: String!) {\n    updatePlayerPosition(gameEventId: $gameEventId, position: $position) {\n      id\n      position\n    }\n  }\n':
@@ -417,14 +414,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: '\n  mutation AddPlayerToLineup($input: AddToLineupInput!) {\n    addPlayerToLineup(input: $input) {\n      id\n      gameMinute\n      gameSecond\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n',
-): (typeof documents)['\n  mutation AddPlayerToLineup($input: AddToLineupInput!) {\n    addPlayerToLineup(input: $input) {\n      id\n      gameMinute\n      gameSecond\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n'];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(
-  source: '\n  mutation AddPlayerToBench($input: AddToBenchInput!) {\n    addPlayerToBench(input: $input) {\n      id\n      gameMinute\n      gameSecond\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n',
-): (typeof documents)['\n  mutation AddPlayerToBench($input: AddToBenchInput!) {\n    addPlayerToBench(input: $input) {\n      id\n      gameMinute\n      gameSecond\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n'];
+  source: '\n  mutation AddPlayerToGameRoster($input: AddToGameRosterInput!) {\n    addPlayerToGameRoster(input: $input) {\n      id\n      gameMinute\n      gameSecond\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation AddPlayerToGameRoster($input: AddToGameRosterInput!) {\n    addPlayerToGameRoster(input: $input) {\n      id\n      gameMinute\n      gameSecond\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n'];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

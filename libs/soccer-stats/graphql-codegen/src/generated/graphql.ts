@@ -38,19 +38,16 @@ export type AddPlayerToTeamInput = {
   teamId: Scalars['ID']['input'];
 };
 
-export type AddToBenchInput = {
+export type AddToGameRosterInput = {
+  /** External player name (for opponents) */
   externalPlayerName?: InputMaybe<Scalars['String']['input']>;
+  /** External player jersey number */
   externalPlayerNumber?: InputMaybe<Scalars['String']['input']>;
   gameTeamId: Scalars['ID']['input'];
+  /** Player ID for managed roster player */
   playerId?: InputMaybe<Scalars['ID']['input']>;
-};
-
-export type AddToLineupInput = {
-  externalPlayerName?: InputMaybe<Scalars['String']['input']>;
-  externalPlayerNumber?: InputMaybe<Scalars['String']['input']>;
-  gameTeamId: Scalars['ID']['input'];
-  playerId?: InputMaybe<Scalars['ID']['input']>;
-  position: Scalars['String']['input'];
+  /** Position if player is a planned starter (e.g., "CM", "ST", "GK"). Omit for bench players. */
+  position?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type BatchLineupChangesInput = {
@@ -317,7 +314,9 @@ export type GameLineup = {
   bench: Array<LineupPlayer>;
   currentOnField: Array<LineupPlayer>;
   formation?: Maybe<Scalars['String']['output']>;
+  gameRoster: Array<LineupPlayer>;
   gameTeamId: Scalars['ID']['output'];
+  previousPeriodLineup?: Maybe<Array<LineupPlayer>>;
   starters: Array<LineupPlayer>;
 };
 
@@ -372,8 +371,8 @@ export type LineupPlayer = {
 export type Mutation = {
   __typename?: 'Mutation';
   addCoachToTeam: TeamMember;
-  addPlayerToBench: GameEvent;
-  addPlayerToLineup: GameEvent;
+  /** Add a player to the game roster. Creates a GAME_ROSTER event. Without position = bench player (available to sub in). With position = planned starter. */
+  addPlayerToGameRoster: GameEvent;
   addPlayerToTeam: Team;
   addRoleToMember: TeamMember;
   addTeamMember: TeamMember;
@@ -443,12 +442,8 @@ export type MutationAddCoachToTeamArgs = {
   userId: Scalars['ID']['input'];
 };
 
-export type MutationAddPlayerToBenchArgs = {
-  input: AddToBenchInput;
-};
-
-export type MutationAddPlayerToLineupArgs = {
-  input: AddToLineupInput;
+export type MutationAddPlayerToGameRosterArgs = {
+  input: AddToGameRosterInput;
 };
 
 export type MutationAddPlayerToTeamArgs = {
@@ -947,7 +942,7 @@ export type RecordPositionChangeInput = {
   period: Scalars['String']['input'];
   /** Seconds elapsed within the period (0-5999) */
   periodSecond?: Scalars['Int']['input'];
-  /** The GameEvent ID of the player entry (STARTING_LINEUP or SUBSTITUTION_IN) */
+  /** The GameEvent ID of the player entry (SUBSTITUTION_IN) */
   playerEventId: Scalars['ID']['input'];
   /** Reason for position change */
   reason?: InputMaybe<Scalars['String']['input']>;
@@ -962,7 +957,7 @@ export type RemovePlayerFromFieldInput = {
   period: Scalars['String']['input'];
   /** Seconds elapsed within the period (0-5999) */
   periodSecond?: Scalars['Int']['input'];
-  /** The GameEvent ID of the player to remove (their current on-field event: STARTING_LINEUP or SUBSTITUTION_IN) */
+  /** The GameEvent ID of the player to remove (their current on-field event: SUBSTITUTION_IN) */
   playerEventId: Scalars['ID']['input'];
   /** Reason for removing the player (e.g., INJURY, RED_CARD) */
   reason?: InputMaybe<SubstitutionReason>;
@@ -1895,34 +1890,13 @@ export type GetEventTypesQuery = {
   }>;
 };
 
-export type AddPlayerToLineupMutationVariables = Exact<{
-  input: AddToLineupInput;
+export type AddPlayerToGameRosterMutationVariables = Exact<{
+  input: AddToGameRosterInput;
 }>;
 
-export type AddPlayerToLineupMutation = {
+export type AddPlayerToGameRosterMutation = {
   __typename?: 'Mutation';
-  addPlayerToLineup: {
-    __typename?: 'GameEvent';
-    id: string;
-    gameMinute: number;
-    gameSecond: number;
-    period?: string | null;
-    periodSecond: number;
-    position?: string | null;
-    playerId?: string | null;
-    externalPlayerName?: string | null;
-    externalPlayerNumber?: string | null;
-    eventType: { __typename?: 'EventType'; id: string; name: string };
-  };
-};
-
-export type AddPlayerToBenchMutationVariables = Exact<{
-  input: AddToBenchInput;
-}>;
-
-export type AddPlayerToBenchMutation = {
-  __typename?: 'Mutation';
-  addPlayerToBench: {
+  addPlayerToGameRoster: {
     __typename?: 'GameEvent';
     id: string;
     gameMinute: number;
@@ -5568,13 +5542,13 @@ export const GetEventTypesDocument = {
     },
   ],
 } as unknown as DocumentNode<GetEventTypesQuery, GetEventTypesQueryVariables>;
-export const AddPlayerToLineupDocument = {
+export const AddPlayerToGameRosterDocument = {
   kind: 'Document',
   definitions: [
     {
       kind: 'OperationDefinition',
       operation: 'mutation',
-      name: { kind: 'Name', value: 'AddPlayerToLineup' },
+      name: { kind: 'Name', value: 'AddPlayerToGameRoster' },
       variableDefinitions: [
         {
           kind: 'VariableDefinition',
@@ -5586,7 +5560,7 @@ export const AddPlayerToLineupDocument = {
             kind: 'NonNullType',
             type: {
               kind: 'NamedType',
-              name: { kind: 'Name', value: 'AddToLineupInput' },
+              name: { kind: 'Name', value: 'AddToGameRosterInput' },
             },
           },
         },
@@ -5596,7 +5570,7 @@ export const AddPlayerToLineupDocument = {
         selections: [
           {
             kind: 'Field',
-            name: { kind: 'Name', value: 'addPlayerToLineup' },
+            name: { kind: 'Name', value: 'addPlayerToGameRoster' },
             arguments: [
               {
                 kind: 'Argument',
@@ -5647,90 +5621,8 @@ export const AddPlayerToLineupDocument = {
     },
   ],
 } as unknown as DocumentNode<
-  AddPlayerToLineupMutation,
-  AddPlayerToLineupMutationVariables
->;
-export const AddPlayerToBenchDocument = {
-  kind: 'Document',
-  definitions: [
-    {
-      kind: 'OperationDefinition',
-      operation: 'mutation',
-      name: { kind: 'Name', value: 'AddPlayerToBench' },
-      variableDefinitions: [
-        {
-          kind: 'VariableDefinition',
-          variable: {
-            kind: 'Variable',
-            name: { kind: 'Name', value: 'input' },
-          },
-          type: {
-            kind: 'NonNullType',
-            type: {
-              kind: 'NamedType',
-              name: { kind: 'Name', value: 'AddToBenchInput' },
-            },
-          },
-        },
-      ],
-      selectionSet: {
-        kind: 'SelectionSet',
-        selections: [
-          {
-            kind: 'Field',
-            name: { kind: 'Name', value: 'addPlayerToBench' },
-            arguments: [
-              {
-                kind: 'Argument',
-                name: { kind: 'Name', value: 'input' },
-                value: {
-                  kind: 'Variable',
-                  name: { kind: 'Name', value: 'input' },
-                },
-              },
-            ],
-            selectionSet: {
-              kind: 'SelectionSet',
-              selections: [
-                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'period' } },
-                {
-                  kind: 'Field',
-                  name: { kind: 'Name', value: 'periodSecond' },
-                },
-                { kind: 'Field', name: { kind: 'Name', value: 'position' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'playerId' } },
-                {
-                  kind: 'Field',
-                  name: { kind: 'Name', value: 'externalPlayerName' },
-                },
-                {
-                  kind: 'Field',
-                  name: { kind: 'Name', value: 'externalPlayerNumber' },
-                },
-                {
-                  kind: 'Field',
-                  name: { kind: 'Name', value: 'eventType' },
-                  selectionSet: {
-                    kind: 'SelectionSet',
-                    selections: [
-                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<
-  AddPlayerToBenchMutation,
-  AddPlayerToBenchMutationVariables
+  AddPlayerToGameRosterMutation,
+  AddPlayerToGameRosterMutationVariables
 >;
 export const RemoveFromLineupDocument = {
   kind: 'Document',

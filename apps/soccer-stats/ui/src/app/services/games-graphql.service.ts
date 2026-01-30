@@ -361,29 +361,9 @@ export const GET_EVENT_TYPES = graphql(/* GraphQL */ `
   }
 `);
 
-export const ADD_PLAYER_TO_LINEUP = graphql(/* GraphQL */ `
-  mutation AddPlayerToLineup($input: AddToLineupInput!) {
-    addPlayerToLineup(input: $input) {
-      id
-      gameMinute
-      gameSecond
-      period
-      periodSecond
-      position
-      playerId
-      externalPlayerName
-      externalPlayerNumber
-      eventType {
-        id
-        name
-      }
-    }
-  }
-`);
-
-export const ADD_PLAYER_TO_BENCH = graphql(/* GraphQL */ `
-  mutation AddPlayerToBench($input: AddToBenchInput!) {
-    addPlayerToBench(input: $input) {
+export const ADD_PLAYER_TO_GAME_ROSTER = graphql(/* GraphQL */ `
+  mutation AddPlayerToGameRoster($input: AddToGameRosterInput!) {
+    addPlayerToGameRoster(input: $input) {
       id
       gameMinute
       gameSecond
