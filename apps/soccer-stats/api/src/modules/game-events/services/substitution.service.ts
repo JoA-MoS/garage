@@ -143,11 +143,12 @@ export class SubstitutionService {
     }
 
     // 3. Validate that the player is currently on the field
-    const validOnFieldTypes = ['STARTING_LINEUP', 'SUBSTITUTION_IN'];
+    // Note: Players enter the field via SUBSTITUTION_IN events (including starters at period 1, second 0)
+    const validOnFieldTypes = ['SUBSTITUTION_IN'];
     if (!validOnFieldTypes.includes(playerEvent.eventType.name)) {
       throw new BadRequestException(
         `Player event ${input.playerEventId} is not an on-field event type. ` +
-          `Expected STARTING_LINEUP or SUBSTITUTION_IN, got ${playerEvent.eventType.name}`,
+          `Expected SUBSTITUTION_IN, got ${playerEvent.eventType.name}`,
       );
     }
 

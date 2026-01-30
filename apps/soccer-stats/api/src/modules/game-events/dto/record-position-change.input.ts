@@ -23,8 +23,7 @@ export class RecordPositionChangeInput {
   gameTeamId: string;
 
   @Field(() => ID, {
-    description:
-      'The GameEvent ID of the player entry (STARTING_LINEUP or SUBSTITUTION_IN)',
+    description: 'The GameEvent ID of the player entry (SUBSTITUTION_IN)',
   })
   @IsUUID()
   playerEventId: string;
