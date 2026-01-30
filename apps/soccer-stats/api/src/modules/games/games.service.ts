@@ -247,13 +247,6 @@ export class GamesService {
       await this.gameRepository.update(id, entityFields);
     }
 
-    // Convert STARTING_LINEUP events to SUBSTITUTION_IN when game starts
-    // This MUST happen BEFORE createTimingEventsForStatusChange because
-    // linkFirstHalfStartersToPeriodStart looks for SUBSTITUTION_IN events
-    if (updateGameInput.status === GameStatus.FIRST_HALF) {
-      await this.convertStartingLineupToSubstitutionIn(id);
-    }
-
     // Create timing events based on status changes
     // Pass game time from frontend for consistent timing with displayed timer
     const providedGameTime =
@@ -391,49 +384,6 @@ export class GamesService {
     }
 
     return queryBuilder.getMany();
-  }
-
-  /**
-   * Converts all STARTING_LINEUP events for a game to SUBSTITUTION_IN events.
-   * Called when a game transitions to FIRST_HALF status.
-   */
-  private async convertStartingLineupToSubstitutionIn(
-    gameId: string,
-  ): Promise<void> {
-    // Find STARTING_LINEUP event type
-    const startingLineupType = await this.eventTypeRepository.findOne({
-      where: { name: 'STARTING_LINEUP' },
-    });
-
-    if (!startingLineupType) {
-      this.logger.warn('STARTING_LINEUP event type not found');
-      return;
-    }
-
-    // Find SUBSTITUTION_IN event type
-    const substitutionInType = await this.eventTypeRepository.findOne({
-      where: { name: 'SUBSTITUTION_IN' },
-    });
-
-    if (!substitutionInType) {
-      this.logger.warn('SUBSTITUTION_IN event type not found');
-      return;
-    }
-
-    // Find all STARTING_LINEUP events for this game
-    const startingLineupEvents = await this.gameEventRepository.find({
-      where: { gameId, eventTypeId: startingLineupType.id },
-    });
-
-    // Update each event's eventTypeId to SUBSTITUTION_IN
-    for (const event of startingLineupEvents) {
-      event.eventTypeId = substitutionInType.id;
-      await this.gameEventRepository.save(event);
-    }
-
-    this.logger.log(
-      `Converted ${startingLineupEvents.length} STARTING_LINEUP events to SUBSTITUTION_IN for game ${gameId}`,
-    );
   }
 
   /**
