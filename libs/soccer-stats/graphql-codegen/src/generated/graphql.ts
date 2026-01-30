@@ -320,6 +320,14 @@ export type GameLineup = {
   starters: Array<LineupPlayer>;
 };
 
+export type GameRoster = {
+  __typename?: 'GameRoster';
+  formation?: Maybe<Scalars['String']['output']>;
+  gameTeamId: Scalars['ID']['output'];
+  players: Array<RosterPlayer>;
+  previousPeriodLineup?: Maybe<Array<RosterPlayer>>;
+};
+
 /** The status of a game */
 export enum GameStatus {
   Cancelled = 'CANCELLED',
@@ -763,6 +771,8 @@ export type Query = {
   gameFormat: GameFormat;
   gameFormats: Array<GameFormat>;
   gameLineup: GameLineup;
+  /** Get current game roster with player positions */
+  gameRoster: GameRoster;
   games: Array<Game>;
   managedTeams: Array<Team>;
   /** Get data for the authenticated user. Returns null if not authenticated. */
@@ -840,6 +850,10 @@ export type QueryGameFormatArgs = {
 };
 
 export type QueryGameLineupArgs = {
+  gameTeamId: Scalars['ID']['input'];
+};
+
+export type QueryGameRosterArgs = {
   gameTeamId: Scalars['ID']['input'];
 };
 
@@ -961,6 +975,19 @@ export type RemovePlayerFromFieldInput = {
   playerEventId: Scalars['ID']['input'];
   /** Reason for removing the player (e.g., INJURY, RED_CARD) */
   reason?: InputMaybe<SubstitutionReason>;
+};
+
+export type RosterPlayer = {
+  __typename?: 'RosterPlayer';
+  externalPlayerName?: Maybe<Scalars['String']['output']>;
+  externalPlayerNumber?: Maybe<Scalars['String']['output']>;
+  firstName?: Maybe<Scalars['String']['output']>;
+  gameEventId: Scalars['ID']['output'];
+  lastName?: Maybe<Scalars['String']['output']>;
+  playerId?: Maybe<Scalars['ID']['output']>;
+  playerName?: Maybe<Scalars['String']['output']>;
+  /** Position on field. null = on bench */
+  position?: Maybe<Scalars['String']['output']>;
 };
 
 export type SecondHalfLineupPlayerInput = {
@@ -1895,6 +1922,41 @@ export type GetGameLineupQuery = {
       externalPlayerNumber?: string | null;
       position?: string | null;
       isOnField: boolean;
+    }> | null;
+  };
+};
+
+export type GetGameRosterQueryVariables = Exact<{
+  gameTeamId: Scalars['ID']['input'];
+}>;
+
+export type GetGameRosterQuery = {
+  __typename?: 'Query';
+  gameRoster: {
+    __typename?: 'GameRoster';
+    gameTeamId: string;
+    formation?: string | null;
+    players: Array<{
+      __typename?: 'RosterPlayer';
+      gameEventId: string;
+      playerId?: string | null;
+      playerName?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+      externalPlayerName?: string | null;
+      externalPlayerNumber?: string | null;
+      position?: string | null;
+    }>;
+    previousPeriodLineup?: Array<{
+      __typename?: 'RosterPlayer';
+      gameEventId: string;
+      playerId?: string | null;
+      playerName?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+      externalPlayerName?: string | null;
+      externalPlayerNumber?: string | null;
+      position?: string | null;
     }> | null;
   };
 };
@@ -5620,6 +5682,137 @@ export const GetGameLineupDocument = {
     },
   ],
 } as unknown as DocumentNode<GetGameLineupQuery, GetGameLineupQueryVariables>;
+export const GetGameRosterDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'query',
+      name: { kind: 'Name', value: 'GetGameRoster' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'gameTeamId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'gameRoster' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'gameTeamId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'gameTeamId' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'gameTeamId' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'formation' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'players' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameEventId' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'playerId' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'playerName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'firstName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'lastName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'externalPlayerName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'externalPlayerNumber' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'position' },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'previousPeriodLineup' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameEventId' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'playerId' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'playerName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'firstName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'lastName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'externalPlayerName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'externalPlayerNumber' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'position' },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<GetGameRosterQuery, GetGameRosterQueryVariables>;
 export const GetEventTypesDocument = {
   kind: 'Document',
   definitions: [

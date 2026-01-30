@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { LineupPlayer } from '@garage/soccer-stats/graphql-codegen';
+import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 
 import {
   Formation,
@@ -10,7 +10,7 @@ import {
 import { getPlayerDisplayName } from '../../hooks/use-lineup';
 
 // Get initials from a player (e.g., firstName="John", lastName="Doe" -> "JD")
-function getPlayerInitials(player: LineupPlayer): string {
+function getPlayerInitials(player: GqlRosterPlayer): string {
   // For roster players, use firstName and lastName
   if (player.playerId && (player.firstName || player.lastName)) {
     const first = player.firstName?.[0] || '';
@@ -35,10 +35,10 @@ function getPlayerInitials(player: LineupPlayer): string {
 
 interface FieldLineupProps {
   formation: Formation;
-  lineup: LineupPlayer[];
+  lineup: GqlRosterPlayer[];
   onPositionClick?: (
     position: FormationPosition,
-    assignedPlayer?: LineupPlayer,
+    assignedPlayer?: GqlRosterPlayer,
   ) => void;
   teamColor?: string;
   isHome?: boolean;
@@ -57,7 +57,7 @@ export function FieldLineup({
   // This handles formations with multiple slots sharing the same position code (e.g., two CBs)
   const positionAssignments = useMemo(() => {
     // Group lineup players by position code
-    const playersByPositionCode = new Map<string, LineupPlayer[]>();
+    const playersByPositionCode = new Map<string, GqlRosterPlayer[]>();
     lineup.forEach((player) => {
       if (player.position) {
         const existing = playersByPositionCode.get(player.position) || [];
@@ -67,7 +67,7 @@ export function FieldLineup({
     });
 
     // Assign players to formation slots, distributing across same-position slots
-    const assignments = new Map<number, LineupPlayer | undefined>();
+    const assignments = new Map<number, GqlRosterPlayer | undefined>();
     const positionIndex = new Map<string, number>();
 
     formation.positions.forEach((pos, slotIndex) => {

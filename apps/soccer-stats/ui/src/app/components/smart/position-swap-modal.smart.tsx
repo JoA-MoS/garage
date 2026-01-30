@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useMutation } from '@apollo/client/react';
 
-import { LineupPlayer } from '@garage/soccer-stats/graphql-codegen';
+import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond } from '@garage/soccer-stats/utils';
 
 import {
   SWAP_POSITIONS,
   GET_GAME_BY_ID,
-  GET_GAME_LINEUP,
+  GET_GAME_ROSTER,
 } from '../../services/games-graphql.service';
 
 interface PositionSwapModalProps {
@@ -15,7 +15,7 @@ interface PositionSwapModalProps {
   gameId: string;
   teamName: string;
   teamColor: string;
-  currentOnField: LineupPlayer[];
+  onField: GqlRosterPlayer[];
   period: string;
   periodSecond: number;
   onClose: () => void;
@@ -25,7 +25,7 @@ interface PositionSwapModalProps {
 /**
  * Get display name for a player
  */
-function getPlayerDisplayName(player: LineupPlayer): string {
+function getPlayerDisplayName(player: GqlRosterPlayer): string {
   if (player.playerName) {
     return player.playerName;
   }
@@ -41,7 +41,7 @@ function getPlayerDisplayName(player: LineupPlayer): string {
 /**
  * Get jersey number display
  */
-function getJerseyNumber(player: LineupPlayer): string | null {
+function getJerseyNumber(player: GqlRosterPlayer): string | null {
   if (player.externalPlayerNumber) {
     return player.externalPlayerNumber;
   }
@@ -53,7 +53,7 @@ export const PositionSwapModal = ({
   gameId,
   teamName,
   teamColor,
-  currentOnField,
+  onField,
   period,
   periodSecond,
   onClose,
@@ -65,13 +65,13 @@ export const PositionSwapModal = ({
   const [swapPositions, { loading }] = useMutation(SWAP_POSITIONS, {
     refetchQueries: [
       { query: GET_GAME_BY_ID, variables: { id: gameId } },
-      { query: GET_GAME_LINEUP, variables: { gameTeamId } },
+      { query: GET_GAME_ROSTER, variables: { gameTeamId } },
     ],
   });
 
   // Get selected players for display
-  const player1 = currentOnField.find((p) => p.gameEventId === player1EventId);
-  const player2 = currentOnField.find((p) => p.gameEventId === player2EventId);
+  const player1 = onField.find((p) => p.gameEventId === player1EventId);
+  const player2 = onField.find((p) => p.gameEventId === player2EventId);
 
   const handleSubmit = async () => {
     if (!player1EventId || !player2EventId) return;
@@ -208,13 +208,13 @@ export const PositionSwapModal = ({
 
         {/* Player Selection */}
         <div>
-          {currentOnField.length < 2 ? (
+          {onField.length < 2 ? (
             <p className="text-sm italic text-gray-500">
               Need at least 2 players on field to swap
             </p>
           ) : (
             <div className="max-h-60 space-y-2 overflow-y-auto">
-              {currentOnField.map((player) => {
+              {onField.map((player) => {
                 const eventId = player.gameEventId;
                 const jersey = getJerseyNumber(player);
                 const name = getPlayerDisplayName(player);

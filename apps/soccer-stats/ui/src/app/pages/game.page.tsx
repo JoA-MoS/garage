@@ -25,7 +25,7 @@ import {
   GET_GAME_BY_ID,
   UPDATE_GAME,
   UPDATE_GAME_TEAM,
-  GET_GAME_LINEUP,
+  GET_GAME_ROSTER,
   DELETE_GOAL,
   DELETE_SUBSTITUTION,
   DELETE_POSITION_SWAP,
@@ -278,7 +278,7 @@ export const GamePage = () => {
           query:
             | typeof GET_GAME_BY_ID
             | typeof GET_PLAYER_STATS
-            | typeof GET_GAME_LINEUP;
+            | typeof GET_GAME_ROSTER;
           variables: object;
         }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
         const game = data?.game;
@@ -290,7 +290,7 @@ export const GamePage = () => {
             variables: { input: { teamId: homeTeam.team.id, gameId } },
           });
           queries.push({
-            query: GET_GAME_LINEUP,
+            query: GET_GAME_ROSTER,
             variables: { gameTeamId: homeTeam.id },
           });
         }
@@ -300,7 +300,7 @@ export const GamePage = () => {
             variables: { input: { teamId: awayTeam.team.id, gameId } },
           });
           queries.push({
-            query: GET_GAME_LINEUP,
+            query: GET_GAME_ROSTER,
             variables: { gameTeamId: awayTeam.id },
           });
         }
@@ -314,7 +314,7 @@ export const GamePage = () => {
     {
       refetchQueries: () => {
         const queries: Array<{
-          query: typeof GET_GAME_BY_ID | typeof GET_GAME_LINEUP;
+          query: typeof GET_GAME_BY_ID | typeof GET_GAME_ROSTER;
           variables: object;
         }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
         const game = data?.game;
@@ -322,13 +322,13 @@ export const GamePage = () => {
         const awayTeam = game?.teams?.find((gt) => gt.teamType === 'away');
         if (homeTeam) {
           queries.push({
-            query: GET_GAME_LINEUP,
+            query: GET_GAME_ROSTER,
             variables: { gameTeamId: homeTeam.id },
           });
         }
         if (awayTeam) {
           queries.push({
-            query: GET_GAME_LINEUP,
+            query: GET_GAME_ROSTER,
             variables: { gameTeamId: awayTeam.id },
           });
         }
@@ -345,7 +345,7 @@ export const GamePage = () => {
           query:
             | typeof GET_GAME_BY_ID
             | typeof GET_PLAYER_STATS
-            | typeof GET_GAME_LINEUP;
+            | typeof GET_GAME_ROSTER;
           variables: object;
         }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
         const game = data?.game;
@@ -357,7 +357,7 @@ export const GamePage = () => {
             variables: { input: { teamId: homeTeam.team.id, gameId } },
           });
           queries.push({
-            query: GET_GAME_LINEUP,
+            query: GET_GAME_ROSTER,
             variables: { gameTeamId: homeTeam.id },
           });
         }
@@ -367,7 +367,7 @@ export const GamePage = () => {
             variables: { input: { teamId: awayTeam.team.id, gameId } },
           });
           queries.push({
-            query: GET_GAME_LINEUP,
+            query: GET_GAME_ROSTER,
             variables: { gameTeamId: awayTeam.id },
           });
         }
@@ -392,7 +392,7 @@ export const GamePage = () => {
           query:
             | typeof GET_GAME_BY_ID
             | typeof GET_PLAYER_STATS
-            | typeof GET_GAME_LINEUP;
+            | typeof GET_GAME_ROSTER;
           variables: object;
         }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
         const game = data?.game;
@@ -404,7 +404,7 @@ export const GamePage = () => {
             variables: { input: { teamId: homeTeam.team.id, gameId } },
           });
           queries.push({
-            query: GET_GAME_LINEUP,
+            query: GET_GAME_ROSTER,
             variables: { gameTeamId: homeTeam.id },
           });
         }
@@ -414,7 +414,7 @@ export const GamePage = () => {
             variables: { input: { teamId: awayTeam.team.id, gameId } },
           });
           queries.push({
-            query: GET_GAME_LINEUP,
+            query: GET_GAME_ROSTER,
             variables: { gameTeamId: awayTeam.id },
           });
         }
@@ -468,15 +468,42 @@ export const GamePage = () => {
   );
 
   // Fetch lineup data for goal modal (only when needed)
-  const { data: homeLineupData } = useQuery(GET_GAME_LINEUP, {
+  const { data: homeLineupData } = useQuery(GET_GAME_ROSTER, {
     variables: { gameTeamId: homeTeamId! },
     skip: !homeTeamId,
   });
 
-  const { data: awayLineupData } = useQuery(GET_GAME_LINEUP, {
+  const { data: awayLineupData } = useQuery(GET_GAME_ROSTER, {
     variables: { gameTeamId: awayTeamId! },
     skip: !awayTeamId,
   });
+
+  // Derive on-field and bench players from roster data
+  // position != null = on field, position == null = bench
+  const homeOnField = useMemo(
+    () =>
+      homeLineupData?.gameRoster?.players?.filter((p) => p.position != null) ??
+      [],
+    [homeLineupData],
+  );
+  const homeBench = useMemo(
+    () =>
+      homeLineupData?.gameRoster?.players?.filter((p) => p.position == null) ??
+      [],
+    [homeLineupData],
+  );
+  const awayOnField = useMemo(
+    () =>
+      awayLineupData?.gameRoster?.players?.filter((p) => p.position != null) ??
+      [],
+    [awayLineupData],
+  );
+  const awayBench = useMemo(
+    () =>
+      awayLineupData?.gameRoster?.players?.filter((p) => p.position == null) ??
+      [],
+    [awayLineupData],
+  );
 
   // Track score highlights for animations
   const [highlightedScore, setHighlightedScore] = useState<
@@ -610,7 +637,7 @@ export const GamePage = () => {
       ];
       if (lineupAffectingEvents.includes(event.eventType.name)) {
         apolloClient.refetchQueries({
-          include: [GET_GAME_LINEUP],
+          include: [GET_GAME_ROSTER],
         });
       }
 
@@ -2176,16 +2203,8 @@ export const GamePage = () => {
               ? homeTeam!.team.homePrimaryColor || '#3B82F6'
               : awayTeam!.team.homePrimaryColor || '#EF4444'
           }
-          currentOnField={
-            goalModalTeam === 'home'
-              ? (homeLineupData?.gameLineup?.currentOnField ?? [])
-              : (awayLineupData?.gameLineup?.currentOnField ?? [])
-          }
-          bench={
-            goalModalTeam === 'home'
-              ? (homeLineupData?.gameLineup?.bench ?? [])
-              : (awayLineupData?.gameLineup?.bench ?? [])
-          }
+          onField={goalModalTeam === 'home' ? homeOnField : awayOnField}
+          bench={goalModalTeam === 'home' ? homeBench : awayBench}
           period={currentPeriod}
           periodSecond={currentPeriodSeconds}
           onClose={() => setGoalModalTeam(null)}
@@ -2213,16 +2232,8 @@ export const GamePage = () => {
               ? homeTeam!.team.homePrimaryColor || '#3B82F6'
               : awayTeam!.team.homePrimaryColor || '#EF4444'
           }
-          currentOnField={
-            editGoalData.team === 'home'
-              ? (homeLineupData?.gameLineup?.currentOnField ?? [])
-              : (awayLineupData?.gameLineup?.currentOnField ?? [])
-          }
-          bench={
-            editGoalData.team === 'home'
-              ? (homeLineupData?.gameLineup?.bench ?? [])
-              : (awayLineupData?.gameLineup?.bench ?? [])
-          }
+          onField={editGoalData.team === 'home' ? homeOnField : awayOnField}
+          bench={editGoalData.team === 'home' ? homeBench : awayBench}
           period={editGoalData.goal.period}
           periodSecond={editGoalData.goal.periodSecond}
           onClose={() => setEditGoalData(null)}
@@ -2241,8 +2252,8 @@ export const GamePage = () => {
             teamName: homeTeam.team.name,
             teamColor: homeTeam.team.homePrimaryColor || '#3B82F6',
             teamType: 'home',
-            currentOnField: homeLineupData?.gameLineup?.currentOnField ?? [],
-            bench: homeLineupData?.gameLineup?.bench ?? [],
+            onField: homeOnField,
+            bench: homeBench,
             statsTrackingLevel: getEffectiveTrackingLevel('home'),
           }}
           awayTeam={{
@@ -2251,8 +2262,8 @@ export const GamePage = () => {
             teamName: awayTeam.team.name,
             teamColor: awayTeam.team.homePrimaryColor || '#EF4444',
             teamType: 'away',
-            currentOnField: awayLineupData?.gameLineup?.currentOnField ?? [],
-            bench: awayLineupData?.gameLineup?.bench ?? [],
+            onField: awayOnField,
+            bench: awayBench,
             statsTrackingLevel: getEffectiveTrackingLevel('away'),
           }}
           onClose={() => setShowManualGoalModal(false)}
@@ -2272,16 +2283,8 @@ export const GamePage = () => {
               ? homeTeam!.team.homePrimaryColor || '#3B82F6'
               : awayTeam!.team.homePrimaryColor || '#EF4444'
           }
-          currentOnField={
-            subModalTeam === 'home'
-              ? (homeLineupData?.gameLineup?.currentOnField ?? [])
-              : (awayLineupData?.gameLineup?.currentOnField ?? [])
-          }
-          bench={
-            subModalTeam === 'home'
-              ? (homeLineupData?.gameLineup?.bench ?? [])
-              : (awayLineupData?.gameLineup?.bench ?? [])
-          }
+          onField={subModalTeam === 'home' ? homeOnField : awayOnField}
+          bench={subModalTeam === 'home' ? homeBench : awayBench}
           period={currentPeriod}
           periodSecond={currentPeriodSeconds}
           onClose={() => setSubModalTeam(null)}
