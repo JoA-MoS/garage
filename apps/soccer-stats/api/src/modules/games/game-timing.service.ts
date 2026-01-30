@@ -40,7 +40,7 @@ type TimingEventName = (typeof TIMING_EVENT_NAMES)[number];
  * This replaces the legacy timing columns (actualStart, firstHalfEnd, etc.)
  * with event-based computation. The source of truth is now timing events:
  * - GAME_START, GAME_END
- * - PERIOD_START, PERIOD_END (with metadata.period)
+ * - PERIOD_START, PERIOD_END (with period column indicating which period)
  * - STOPPAGE_START, STOPPAGE_END
  */
 @Injectable()
@@ -206,8 +206,7 @@ export class GameTimingService implements OnModuleInit {
 
     for (const event of events) {
       const eventTypeName = this.eventTypeIdToName.get(event.eventTypeId);
-      const period = (event.metadata as { period?: string } | undefined)
-        ?.period;
+      const period = event.period;
 
       switch (eventTypeName) {
         case 'GAME_START':

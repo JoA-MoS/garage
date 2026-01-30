@@ -234,6 +234,8 @@ describe('GamesService', () => {
           gameId: 'game-1',
           eventTypeId: 'et-game-start',
           recordedByUserId: 'user-123',
+          period: '1',
+          periodSecond: 0,
         });
 
         // Second event: PERIOD_START with period 1 as child of GAME_START
@@ -241,7 +243,8 @@ describe('GamesService', () => {
           gameId: 'game-1',
           eventTypeId: 'et-period-start',
           recordedByUserId: 'user-123',
-          metadata: { period: '1' },
+          period: '1',
+          periodSecond: 0,
         });
         // PERIOD_START should have GAME_START as parent
         expect(createCalls[1][0].parentEventId).toBeDefined();
@@ -259,7 +262,8 @@ describe('GamesService', () => {
           expect.objectContaining({
             gameId: 'game-1',
             eventTypeId: 'et-period-end',
-            metadata: { period: '1' },
+            period: '1',
+            periodSecond: 0,
           }),
         );
       });
@@ -276,7 +280,7 @@ describe('GamesService', () => {
           expect.objectContaining({
             gameId: 'game-1',
             eventTypeId: 'et-period-start',
-            metadata: { period: '2' },
+            period: '2',
           }),
         );
       });
@@ -296,13 +300,14 @@ describe('GamesService', () => {
         expect(createCalls[0][0]).toMatchObject({
           gameId: 'game-1',
           eventTypeId: 'et-game-end',
+          period: '2',
         });
 
         // Second event: PERIOD_END with period 2 as child of GAME_END
         expect(createCalls[1][0]).toMatchObject({
           gameId: 'game-1',
           eventTypeId: 'et-period-end',
-          metadata: { period: '2' },
+          period: '2',
         });
         // PERIOD_END should have GAME_END as parent (verified via parentEventId)
         expect(createCalls[1][0].parentEventId).toBeDefined();

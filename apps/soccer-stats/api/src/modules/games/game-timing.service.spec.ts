@@ -34,7 +34,7 @@ describe('GameTimingService', () => {
   const createMockEvent = (
     eventTypeName: string,
     createdAt: Date,
-    metadata?: Record<string, unknown>,
+    options?: { period?: string },
   ): Partial<GameEvent> => {
     const eventType = mockEventTypes.find((et) => et.name === eventTypeName);
     return {
@@ -42,7 +42,7 @@ describe('GameTimingService', () => {
       gameId: 'game-1',
       eventTypeId: eventType?.id,
       createdAt,
-      metadata,
+      period: options?.period,
     };
   };
 
