@@ -370,6 +370,36 @@ export const GET_GAME_LINEUP = graphql(/* GraphQL */ `
   }
 `);
 
+// New simplified roster query using SQL window functions
+export const GET_GAME_ROSTER = graphql(/* GraphQL */ `
+  query GetGameRoster($gameTeamId: ID!) {
+    gameRoster(gameTeamId: $gameTeamId) {
+      gameTeamId
+      formation
+      players {
+        gameEventId
+        playerId
+        playerName
+        firstName
+        lastName
+        externalPlayerName
+        externalPlayerNumber
+        position
+      }
+      previousPeriodLineup {
+        gameEventId
+        playerId
+        playerName
+        firstName
+        lastName
+        externalPlayerName
+        externalPlayerNumber
+        position
+      }
+    }
+  }
+`);
+
 export const GET_EVENT_TYPES = graphql(/* GraphQL */ `
   query GetEventTypes {
     eventTypes {

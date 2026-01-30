@@ -2,7 +2,10 @@ import { useState, useCallback, memo, useEffect } from 'react';
 import { useMutation } from '@apollo/client/react';
 
 import { CreatePlayerModal } from '@garage/soccer-stats/ui-components';
-import { LineupPlayer, GameStatus } from '@garage/soccer-stats/graphql-codegen';
+import {
+  RosterPlayer as GqlRosterPlayer,
+  GameStatus,
+} from '@garage/soccer-stats/graphql-codegen';
 
 import { useLineup, RosterPlayer } from '../../hooks/use-lineup';
 import {
@@ -42,13 +45,13 @@ type ModalMode =
   | { type: 'assign-position'; position: FormationPosition }
   | {
       type: 'player-options';
-      player: LineupPlayer;
+      player: GqlRosterPlayer;
       position?: FormationPosition;
     }
   | { type: 'add-external'; target: 'lineup' | 'bench'; position?: string }
   | {
       type: 'substitute';
-      playerOut: LineupPlayer;
+      playerOut: GqlRosterPlayer;
       position?: FormationPosition;
     }
   | { type: 'create-player'; position: FormationPosition }
@@ -56,7 +59,7 @@ type ModalMode =
       type: 'reassign-positions';
       newFormation: Formation;
       playersToReassign: Array<{
-        player: LineupPlayer;
+        player: GqlRosterPlayer;
         oldPosition: string;
       }>;
     };
@@ -72,18 +75,18 @@ function getPositionCounts(formation: Formation): Map<string, number> {
 
 // Find players who need reassignment when changing formations
 function findPlayersNeedingReassignment(
-  currentPlayers: LineupPlayer[],
+  currentPlayers: GqlRosterPlayer[],
   oldFormation: Formation,
   newFormation: Formation,
-): Array<{ player: LineupPlayer; oldPosition: string }> {
+): Array<{ player: GqlRosterPlayer; oldPosition: string }> {
   const newPositionCounts = getPositionCounts(newFormation);
   const playersToReassign: Array<{
-    player: LineupPlayer;
+    player: GqlRosterPlayer;
     oldPosition: string;
   }> = [];
 
   // Group current players by their position
-  const playersByPosition = new Map<string, LineupPlayer[]>();
+  const playersByPosition = new Map<string, GqlRosterPlayer[]>();
   for (const player of currentPlayers) {
     if (player.position) {
       const existing = playersByPosition.get(player.position) || [];
@@ -144,9 +147,8 @@ export const GameLineupTab = memo(function GameLineupTab({
   );
 
   const {
-    starters,
+    onField,
     bench,
-    currentOnField,
     availableRoster,
     teamRoster,
     loading,
@@ -158,13 +160,13 @@ export const GameLineupTab = memo(function GameLineupTab({
     substitutePlayer,
     recordPositionChange,
     bringPlayerOntoField,
-    refetchLineup,
+    refetchRoster,
     formation: savedFormation,
   } = useLineup({ gameTeamId, gameId });
 
   // Helper to get jersey number for a player (from roster for managed players, or externalPlayerNumber)
   const getJerseyNumber = useCallback(
-    (player: LineupPlayer): string => {
+    (player: GqlRosterPlayer): string => {
       // For external players, use externalPlayerNumber
       if (player.externalPlayerNumber) {
         return player.externalPlayerNumber;
@@ -238,7 +240,7 @@ export const GameLineupTab = memo(function GameLineupTab({
     async (formation: Formation) => {
       // Check if any players need reassignment
       const playersToReassign = findPlayersNeedingReassignment(
-        currentOnField,
+        onField,
         selectedFormation,
         formation,
       );
@@ -257,7 +259,7 @@ export const GameLineupTab = memo(function GameLineupTab({
       // No reassignment needed - proceed with formation change
       await executeFormationChange(formation);
     },
-    [currentOnField, selectedFormation, executeFormationChange],
+    [onField, selectedFormation, executeFormationChange],
   );
 
   // Handle confirming position reassignments
@@ -324,7 +326,7 @@ export const GameLineupTab = memo(function GameLineupTab({
 
   // Handle position click on field
   const handlePositionClick = useCallback(
-    (position: FormationPosition, assignedPlayer?: LineupPlayer) => {
+    (position: FormationPosition, assignedPlayer?: GqlRosterPlayer) => {
       if (assignedPlayer) {
         setModalMode({
           type: 'player-options',
@@ -356,7 +358,7 @@ export const GameLineupTab = memo(function GameLineupTab({
 
   // Assign bench player to a position (move from bench to lineup)
   const handleAssignBenchPlayerToPosition = useCallback(
-    async (player: LineupPlayer, position: string) => {
+    async (player: GqlRosterPlayer, position: string) => {
       const isGameActive =
         gameStatus === GameStatus.InProgress ||
         gameStatus === GameStatus.FirstHalf ||
@@ -405,7 +407,7 @@ export const GameLineupTab = memo(function GameLineupTab({
       bringPlayerOntoField,
       addPlayerToGameRoster,
       removeFromLineup,
-      refetchLineup,
+      refetchRoster,
     ],
   );
 
@@ -458,13 +460,13 @@ export const GameLineupTab = memo(function GameLineupTab({
   );
 
   // Move bench player to position
-  const handleBenchPlayerClick = useCallback((player: LineupPlayer) => {
+  const handleBenchPlayerClick = useCallback((player: GqlRosterPlayer) => {
     setModalMode({ type: 'player-options', player });
   }, []);
 
   // Handle substitution
   const handleSubstitute = useCallback(
-    async (playerOut: LineupPlayer, benchPlayer: LineupPlayer) => {
+    async (playerOut: GqlRosterPlayer, benchPlayer: GqlRosterPlayer) => {
       try {
         await substitutePlayer({
           playerOutEventId: playerOut.gameEventId,
@@ -536,7 +538,7 @@ export const GameLineupTab = memo(function GameLineupTab({
         });
 
         // Refetch lineup data to get the new player
-        await refetchLineup();
+        await refetchRoster();
 
         setModalMode({ type: 'closed' });
       } catch (err) {
@@ -544,7 +546,7 @@ export const GameLineupTab = memo(function GameLineupTab({
         throw err;
       }
     },
-    [createUser, addPlayerToTeam, teamId, addPlayerToGameRoster, refetchLineup],
+    [createUser, addPlayerToTeam, teamId, addPlayerToGameRoster, refetchRoster],
   );
 
   if (loading) {
@@ -597,7 +599,7 @@ export const GameLineupTab = memo(function GameLineupTab({
       <div className="mx-auto max-w-sm">
         <FieldLineup
           formation={selectedFormation}
-          lineup={currentOnField}
+          lineup={onField}
           onPositionClick={handlePositionClick}
           teamColor={teamColor}
           disabled={mutating}
@@ -784,7 +786,8 @@ export const GameLineupTab = memo(function GameLineupTab({
 
                 <div className="space-y-2">
                   {/* Show substitute option if player is on field and there are bench players */}
-                  {modalMode.player.isOnField && bench.length > 0 && (
+                  {/* Player is on field if they have a position (position != null) */}
+                  {modalMode.player.position != null && bench.length > 0 && (
                     <button
                       onClick={() =>
                         setModalMode({
@@ -950,7 +953,7 @@ export const GameLineupTab = memo(function GameLineupTab({
 
                       // Count positions occupied by players staying in place (not being reassigned)
                       const occupiedByStaying = new Map<string, number>();
-                      for (const p of currentOnField) {
+                      for (const p of onField) {
                         if (
                           p.position &&
                           !reassigningPlayerIds.has(p.gameEventId)
