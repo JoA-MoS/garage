@@ -592,3 +592,34 @@ After completing all tasks:
 - Frontend uses `onField`/`bench` derived from position
 - Old `gameLineup` query removed
 - All tests passing
+
+---
+
+## Future Work / Technical Debt
+
+### TODO: Refactor GameStatus Enum
+
+The current `GameStatus` enum uses values like `FIRST_HALF`, `SECOND_HALF`, `HALFTIME`, etc. This doesn't fully align with the period-based approach where we track period numbers (1, 2, OT1, OT2, etc.).
+
+**Current values:**
+
+- `SCHEDULED`
+- `FIRST_HALF`
+- `HALFTIME`
+- `SECOND_HALF`
+- `OVERTIME`
+- `COMPLETED`
+- `CANCELLED`
+- `POSTPONED`
+
+**Potential issues:**
+
+1. `FIRST_HALF` and `SECOND_HALF` are period-specific, but periods are now tracked as `period: '1'`, `period: '2'`, `period: 'OT1'`, etc.
+2. `OVERTIME` is generic but could have multiple OT periods
+3. The enum doesn't support arbitrary periods (like shootouts, extra periods, etc.)
+
+**Possible solutions:**
+
+1. Keep the enum for high-level game state, use period numbers for period-specific logic
+2. Refactor to a more flexible state machine (e.g., `IN_PROGRESS` + current period)
+3. Add more granular states (e.g., `OT1`, `OT2`, `PENALTY_SHOOTOUT`)
