@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 
 import { GameEvent } from '../../../entities/game-event.entity';
 import { EventType } from '../../../entities/event-type.entity';
@@ -42,11 +42,26 @@ describe('LineupService', () => {
     name: 'PERIOD_END',
   } as EventType;
 
+  const mockPositionChangeEventType = {
+    id: 'event-type-position-change',
+    name: 'POSITION_CHANGE',
+  } as EventType;
+
+  const mockFormationChangeEventType = {
+    id: 'event-type-formation-change',
+    name: 'FORMATION_CHANGE',
+  } as EventType;
+
   const mockGameTeam = {
     id: mockGameTeamId,
     gameId: mockGameId,
     formation: '4-3-3',
   } as GameTeam;
+
+  // Mock manager for query builder
+  const mockManager = {
+    createQueryBuilder: jest.fn(),
+  };
 
   beforeEach(async () => {
     // Create mock repositories
@@ -57,6 +72,7 @@ describe('LineupService', () => {
       save: jest.fn(),
       remove: jest.fn(),
       createQueryBuilder: jest.fn(),
+      manager: mockManager,
     } as unknown as jest.Mocked<Repository<GameEvent>>;
 
     mockGameTeamsRepository = {
@@ -534,6 +550,251 @@ describe('LineupService', () => {
       await expect(service.removeFromLineup('goal-1')).rejects.toThrow(
         'Can only remove game roster/substitution events',
       );
+    });
+  });
+
+  describe('getGameRoster', () => {
+    // Helper to create a mock query builder chain
+    function createMockQueryBuilder(
+      rawResults: unknown[] = [],
+    ): jest.Mocked<SelectQueryBuilder<GameEvent>> {
+      const mockQb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        from: jest.fn().mockReturnThis(),
+        innerJoin: jest.fn().mockReturnThis(),
+        leftJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        setParameters: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue(rawResults),
+        getRawOne: jest.fn().mockResolvedValue(null),
+      } as unknown as jest.Mocked<SelectQueryBuilder<GameEvent>>;
+      return mockQb;
+    }
+
+    beforeEach(() => {
+      // Setup event type mocks
+      mockCoreService.getEventTypeByName.mockImplementation((name: string) => {
+        switch (name) {
+          case 'GAME_ROSTER':
+            return mockGameRosterEventType;
+          case 'SUBSTITUTION_IN':
+            return mockSubInEventType;
+          case 'SUBSTITUTION_OUT':
+            return mockSubOutEventType;
+          case 'POSITION_CHANGE':
+            return mockPositionChangeEventType;
+          case 'FORMATION_CHANGE':
+            return mockFormationChangeEventType;
+          case 'PERIOD_END':
+            return mockPeriodEndEventType;
+          default:
+            throw new Error(`Unknown event type: ${name}`);
+        }
+      });
+    });
+
+    it('should return empty players array when no events exist', async () => {
+      const mockQb = createMockQueryBuilder([]);
+      const mockFormationQb = createMockQueryBuilder([]);
+
+      // Mock manager.createQueryBuilder for the window function query
+      mockManager.createQueryBuilder.mockReturnValue(mockQb);
+
+      // Mock repository.createQueryBuilder for the formation query
+      mockGameEventsRepository.createQueryBuilder = jest
+        .fn()
+        .mockReturnValue(mockFormationQb);
+
+      // Mock repository.findOne for period end check
+      mockGameEventsRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.getGameRoster(mockGameTeamId);
+
+      expect(result.gameTeamId).toBe(mockGameTeamId);
+      expect(result.players).toEqual([]);
+      expect(result.formation).toBeNull();
+      expect(result.previousPeriodLineup).toBeUndefined();
+    });
+
+    it('should return players with positions from query results', async () => {
+      const rawPlayers = [
+        {
+          gameEventId: 'evt-1',
+          playerId: 'player-1',
+          firstName: 'John',
+          lastName: 'Doe',
+          externalPlayerName: null,
+          externalPlayerNumber: null,
+          position: 'ST',
+        },
+        {
+          gameEventId: 'evt-2',
+          playerId: 'player-2',
+          firstName: 'Jane',
+          lastName: 'Smith',
+          externalPlayerName: null,
+          externalPlayerNumber: null,
+          position: 'GK',
+        },
+      ];
+
+      const mockQb = createMockQueryBuilder(rawPlayers);
+      const mockFormationQb = createMockQueryBuilder([]);
+
+      mockManager.createQueryBuilder.mockReturnValue(mockQb);
+
+      mockGameEventsRepository.createQueryBuilder = jest
+        .fn()
+        .mockReturnValue(mockFormationQb);
+
+      mockGameEventsRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.getGameRoster(mockGameTeamId);
+
+      expect(result.players).toHaveLength(2);
+      expect(result.players[0]).toEqual({
+        gameEventId: 'evt-1',
+        playerId: 'player-1',
+        firstName: 'John',
+        lastName: 'Doe',
+        externalPlayerName: null,
+        externalPlayerNumber: null,
+        position: 'ST',
+        playerName: 'John Doe',
+      });
+      expect(result.players[1].position).toBe('GK');
+    });
+
+    it('should return null position for bench players (after SUBSTITUTION_OUT)', async () => {
+      // Window function returns latest state, which for subbed out players has null position
+      const rawPlayers = [
+        {
+          gameEventId: 'evt-1',
+          playerId: 'player-1',
+          firstName: 'John',
+          lastName: 'Doe',
+          externalPlayerName: null,
+          externalPlayerNumber: null,
+          position: null, // Subbed out = bench
+        },
+      ];
+
+      const mockQb = createMockQueryBuilder(rawPlayers);
+      const mockFormationQb = createMockQueryBuilder([]);
+
+      mockManager.createQueryBuilder.mockReturnValue(mockQb);
+
+      mockGameEventsRepository.createQueryBuilder = jest
+        .fn()
+        .mockReturnValue(mockFormationQb);
+
+      mockGameEventsRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.getGameRoster(mockGameTeamId);
+
+      expect(result.players).toHaveLength(1);
+      expect(result.players[0].position).toBeNull();
+    });
+
+    it('should return latest formation from FORMATION_CHANGE events', async () => {
+      const mockQb = createMockQueryBuilder([]);
+      const mockFormationQb = createMockQueryBuilder([]);
+      mockFormationQb.getRawOne = jest
+        .fn()
+        .mockResolvedValue({ formation: '4-3-3' });
+
+      mockManager.createQueryBuilder.mockReturnValue(mockQb);
+
+      mockGameEventsRepository.createQueryBuilder = jest
+        .fn()
+        .mockReturnValue(mockFormationQb);
+
+      mockGameEventsRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.getGameRoster(mockGameTeamId);
+
+      expect(result.formation).toBe('4-3-3');
+    });
+
+    it('should handle external players correctly', async () => {
+      const rawPlayers = [
+        {
+          gameEventId: 'evt-1',
+          playerId: null,
+          firstName: null,
+          lastName: null,
+          externalPlayerName: 'Guest Player',
+          externalPlayerNumber: '99',
+          position: 'LW',
+        },
+      ];
+
+      const mockQb = createMockQueryBuilder(rawPlayers);
+      const mockFormationQb = createMockQueryBuilder([]);
+
+      mockManager.createQueryBuilder.mockReturnValue(mockQb);
+
+      mockGameEventsRepository.createQueryBuilder = jest
+        .fn()
+        .mockReturnValue(mockFormationQb);
+
+      mockGameEventsRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.getGameRoster(mockGameTeamId);
+
+      expect(result.players).toHaveLength(1);
+      expect(result.players[0].externalPlayerName).toBe('Guest Player');
+      expect(result.players[0].externalPlayerNumber).toBe('99');
+      expect(result.players[0].playerId).toBeNull();
+      expect(result.players[0].playerName).toBeUndefined();
+    });
+
+    it('should populate previousPeriodLineup from PERIOD_END event children', async () => {
+      const mockQb = createMockQueryBuilder([]);
+      const mockFormationQb = createMockQueryBuilder([]);
+
+      mockManager.createQueryBuilder.mockReturnValue(mockQb);
+
+      mockGameEventsRepository.createQueryBuilder = jest
+        .fn()
+        .mockReturnValue(mockFormationQb);
+
+      // Mock period end event
+      const periodEndEvent = createMockEvent(
+        'period-end-1',
+        mockPeriodEndEventType,
+        { period: '1' },
+      );
+
+      // First findOne call returns period end event, others return null
+      mockGameEventsRepository.findOne.mockResolvedValueOnce(periodEndEvent);
+
+      // Mock find for SUB_OUT events linked to period end
+      const subOutEvents = [
+        createMockEvent('sub-out-1', mockSubOutEventType, {
+          playerId: 'player-1',
+          position: 'ST',
+          parentEventId: periodEndEvent.id,
+        }),
+        createMockEvent('sub-out-2', mockSubOutEventType, {
+          playerId: 'player-2',
+          position: 'GK',
+          parentEventId: periodEndEvent.id,
+        }),
+      ];
+      mockGameEventsRepository.find.mockResolvedValue(subOutEvents);
+
+      const result = await service.getGameRoster(mockGameTeamId);
+
+      expect(result.previousPeriodLineup).toBeDefined();
+      expect(result.previousPeriodLineup).toHaveLength(2);
+      expect(result.previousPeriodLineup![0].position).toBe('ST');
+      expect(result.previousPeriodLineup![1].position).toBe('GK');
     });
   });
 
