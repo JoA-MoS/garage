@@ -26,6 +26,7 @@ import { BatchLineupChangesInput } from './dto/batch-lineup-changes.input';
 import { SetSecondHalfLineupInput } from './dto/set-second-half-lineup.input';
 import { BringPlayerOntoFieldInput } from './dto/bring-player-onto-field.input';
 import { RemovePlayerFromFieldInput } from './dto/remove-player-from-field.input';
+import { AddToGameRosterInput } from './dto/add-to-game-roster.input';
 import { StartPeriodInput } from './dto/start-period.input';
 import { EndPeriodInput } from './dto/end-period.input';
 import { GameLineup } from './dto/game-lineup.output';
@@ -91,6 +92,18 @@ export class GameEventsResolver {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<GameEvent> {
     return this.gameEventsService.removePlayerFromField(input, user.id);
+  }
+
+  @Mutation(() => GameEvent, {
+    name: 'addPlayerToGameRoster',
+    description:
+      'Add a player to the game roster. Creates a GAME_ROSTER event. Without position = bench player (available to sub in). With position = planned starter.',
+  })
+  addPlayerToGameRoster(
+    @Args('input') input: AddToGameRosterInput,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<GameEvent> {
+    return this.gameEventsService.addPlayerToGameRoster(input, user.id);
   }
 
   @Mutation(() => Boolean, { name: 'removeFromLineup' })
