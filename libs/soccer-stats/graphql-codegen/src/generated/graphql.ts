@@ -1836,6 +1836,18 @@ export type GetGameLineupQuery = {
     __typename?: 'GameLineup';
     gameTeamId: string;
     formation?: string | null;
+    gameRoster: Array<{
+      __typename?: 'LineupPlayer';
+      gameEventId: string;
+      playerId?: string | null;
+      playerName?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+      externalPlayerName?: string | null;
+      externalPlayerNumber?: string | null;
+      position?: string | null;
+      isOnField: boolean;
+    }>;
     starters: Array<{
       __typename?: 'LineupPlayer';
       gameEventId: string;
@@ -1872,6 +1884,18 @@ export type GetGameLineupQuery = {
       position?: string | null;
       isOnField: boolean;
     }>;
+    previousPeriodLineup?: Array<{
+      __typename?: 'LineupPlayer';
+      gameEventId: string;
+      playerId?: string | null;
+      playerName?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+      externalPlayerName?: string | null;
+      externalPlayerNumber?: string | null;
+      position?: string | null;
+      isOnField: boolean;
+    }> | null;
   };
 };
 
@@ -5365,6 +5389,51 @@ export const GetGameLineupDocument = {
                 { kind: 'Field', name: { kind: 'Name', value: 'formation' } },
                 {
                   kind: 'Field',
+                  name: { kind: 'Name', value: 'gameRoster' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameEventId' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'playerId' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'playerName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'firstName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'lastName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'externalPlayerName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'externalPlayerNumber' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'position' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'isOnField' },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: 'Field',
                   name: { kind: 'Name', value: 'starters' },
                   selectionSet: {
                     kind: 'SelectionSet',
@@ -5456,6 +5525,51 @@ export const GetGameLineupDocument = {
                 {
                   kind: 'Field',
                   name: { kind: 'Name', value: 'currentOnField' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameEventId' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'playerId' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'playerName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'firstName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'lastName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'externalPlayerName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'externalPlayerNumber' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'position' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'isOnField' },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'previousPeriodLineup' },
                   selectionSet: {
                     kind: 'SelectionSet',
                     selections: [
