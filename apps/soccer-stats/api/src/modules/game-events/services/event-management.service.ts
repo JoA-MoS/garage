@@ -149,13 +149,11 @@ export class EventManagementService {
       if (eventPlayerKey !== playerKey) continue;
 
       // Track position from relevant events
+      // Note: Players enter the field via SUBSTITUTION_IN (including starters at period 1, second 0)
       if (
-        [
-          'STARTING_LINEUP',
-          'SUBSTITUTION_IN',
-          'POSITION_SWAP',
-          'POSITION_CHANGE',
-        ].includes(event.eventType.name)
+        ['SUBSTITUTION_IN', 'POSITION_SWAP', 'POSITION_CHANGE'].includes(
+          event.eventType.name,
+        )
       ) {
         if (event.position) {
           previousPosition = event.position;
