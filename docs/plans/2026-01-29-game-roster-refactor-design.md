@@ -272,7 +272,7 @@ return {
 4. Update `LineupService.getGameLineup()` - New logic
 5. Update `GameLineup` DTO - Add new fields
 6. Add `addPlayerToGameRoster` mutation
-7. Update `removeFromLineup` → `removeFromGameRoster`
+7. Update `removeFromLineup` mutation to operate on GAME_ROSTER-based lineups (no API rename)
 8. Update `startPeriod` - Read from GAME_ROSTER positions
 9. Remove old mutations after UI updated
 10. Update tests

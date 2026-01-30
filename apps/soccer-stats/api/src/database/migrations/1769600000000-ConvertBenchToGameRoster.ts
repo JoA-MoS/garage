@@ -67,8 +67,10 @@ export class ConvertBenchToGameRoster1769600000000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Convert GAME_ROSTER back to BENCH (only the ones that were originally BENCH)
-    // Note: This is a lossy rollback - we can't distinguish original BENCH from backfilled starters
+    // WARNING: Lossy rollback - converts ALL GAME_ROSTER events back to BENCH,
+    // including the backfilled starters that never had BENCH events originally.
+    // This is acceptable because BENCH events work correctly (just with duplicates
+    // at halftime that prompted this refactor).
     await queryRunner.query(`
       UPDATE game_events
       SET "eventTypeId" = (SELECT id FROM event_types WHERE name = 'BENCH')
