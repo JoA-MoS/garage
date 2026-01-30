@@ -6,6 +6,7 @@ import {
 
 import { GameEvent } from '../../../entities/game-event.entity';
 import { GameLineup, LineupPlayer } from '../dto/game-lineup.output';
+import { AddToGameRosterInput } from '../dto/add-to-game-roster.input';
 
 import { EventCoreService } from './event-core.service';
 
@@ -264,5 +265,92 @@ export class LineupService {
         'childEvents.eventType',
       ],
     });
+  }
+
+  /**
+   * Add a player to the game roster.
+   * Creates a GAME_ROSTER event.
+   *
+   * This replaces the old addToBench and addToLineup mutations:
+   * - Without position: equivalent to addToBench (player on roster, available to sub in)
+   * - With position: equivalent to addToLineup (planned starter with assigned position)
+   *
+   * @param input - The input containing player and optional position info
+   * @param recordedByUserId - The user recording this roster addition
+   * @returns The created GAME_ROSTER event
+   */
+  async addPlayerToGameRoster(
+    input: AddToGameRosterInput,
+    recordedByUserId: string,
+  ): Promise<GameEvent> {
+    this.coreService.ensurePlayerInfoProvided(
+      input.playerId,
+      input.externalPlayerName,
+      'game roster entry',
+    );
+
+    const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
+    const eventType = this.coreService.getEventTypeByName('GAME_ROSTER');
+
+    // Check if player is already in game roster
+    await this.ensurePlayerNotInGameRoster(
+      gameTeam.id,
+      input.playerId,
+      input.externalPlayerName,
+    );
+
+    const gameEvent = this.gameEventsRepository.create({
+      gameId: gameTeam.gameId,
+      gameTeamId: input.gameTeamId,
+      eventTypeId: eventType.id,
+      playerId: input.playerId,
+      externalPlayerName: input.externalPlayerName,
+      externalPlayerNumber: input.externalPlayerNumber,
+      position: input.position,
+      recordedByUserId,
+      gameMinute: 0,
+      gameSecond: 0,
+      period: '1',
+      periodSecond: 0,
+    });
+
+    return this.gameEventsRepository.save(gameEvent);
+  }
+
+  /**
+   * Ensure player is not already in the game roster.
+   * Only checks GAME_ROSTER events (not SUBSTITUTION_IN).
+   * @throws BadRequestException if player is already in game roster
+   */
+  private async ensurePlayerNotInGameRoster(
+    gameTeamId: string,
+    playerId?: string,
+    externalPlayerName?: string,
+  ): Promise<void> {
+    const gameRosterType = this.coreService.getEventTypeByName('GAME_ROSTER');
+
+    let existingEvent: GameEvent | null = null;
+
+    if (playerId) {
+      existingEvent = await this.gameEventsRepository.findOne({
+        where: {
+          gameTeamId,
+          playerId,
+          eventTypeId: gameRosterType.id,
+        },
+      });
+    } else if (externalPlayerName) {
+      existingEvent = await this.gameEventsRepository.findOne({
+        where: {
+          gameTeamId,
+          externalPlayerName,
+          eventTypeId: gameRosterType.id,
+        },
+      });
+    }
+
+    if (existingEvent) {
+      throw new BadRequestException('Player is already in the game roster');
+    }
   }
 }

@@ -21,6 +21,7 @@ import { EndPeriodInput } from './dto/end-period.input';
 import { PeriodResult } from './dto/period-result.output';
 import { RemovePlayerFromFieldInput } from './dto/remove-player-from-field.input';
 import { BringPlayerOntoFieldInput } from './dto/bring-player-onto-field.input';
+import { AddToGameRosterInput } from './dto/add-to-game-roster.input';
 import {
   EventCoreService,
   LineupService,
@@ -95,6 +96,21 @@ export class GameEventsService implements OnModuleInit {
 
   async findOne(id: string): Promise<GameEvent | null> {
     return this.lineupService.findOne(id);
+  }
+
+  /**
+   * Add a player to the game roster.
+   * Creates a GAME_ROSTER event.
+   *
+   * This replaces the old addToBench and addToLineup mutations:
+   * - Without position: equivalent to addToBench (player on roster, available to sub in)
+   * - With position: equivalent to addToLineup (planned starter with assigned position)
+   */
+  async addPlayerToGameRoster(
+    input: AddToGameRosterInput,
+    recordedByUserId: string,
+  ): Promise<GameEvent> {
+    return this.lineupService.addPlayerToGameRoster(input, recordedByUserId);
   }
 
   // ========================================
