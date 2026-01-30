@@ -61,26 +61,21 @@ export class EventCoreService implements OnModuleInit {
   /**
    * Load all event types into cache at service startup.
    * Event types are static reference data that rarely changes.
+   *
+   * @throws Error if event types cannot be loaded - prevents app from starting in broken state
    */
   async onModuleInit(): Promise<void> {
-    try {
-      const eventTypes = await this.eventTypesRepository.find();
+    const eventTypes = await this.eventTypesRepository.find();
 
-      if (eventTypes.length === 0) {
-        this.logger.warn(
-          'No event types found in database - cache is empty. Game events will fail.',
-        );
-        return;
-      }
-
-      eventTypes.forEach((et) => this.eventTypeCache.set(et.name, et));
-      this.logger.log(`Cached ${eventTypes.length} event types`);
-    } catch (error) {
-      this.logger.error(
-        'Failed to load event types into cache. Game events will fail.',
-        error instanceof Error ? error.stack : String(error),
+    if (eventTypes.length === 0) {
+      throw new Error(
+        'CRITICAL: No event types found in database. Cannot initialize game events service. ' +
+          'Ensure database is properly seeded before starting the application.',
       );
     }
+
+    eventTypes.forEach((et) => this.eventTypeCache.set(et.name, et));
+    this.logger.log(`Cached ${eventTypes.length} event types`);
   }
 
   /**
