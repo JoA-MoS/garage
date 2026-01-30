@@ -121,10 +121,10 @@ export class LineupService {
       throw new NotFoundException(`GameEvent ${gameEventId} not found`);
     }
 
-    const lineupEventTypes = ['STARTING_LINEUP', 'BENCH', 'SUBSTITUTION_IN'];
+    const lineupEventTypes = ['GAME_ROSTER', 'SUBSTITUTION_IN'];
     if (!lineupEventTypes.includes(gameEvent.eventType.name)) {
       throw new BadRequestException(
-        'Can only remove lineup/bench/substitution events',
+        'Can only remove game roster/substitution events',
       );
     }
 
@@ -329,8 +329,7 @@ export class LineupService {
   ): Promise<void> {
     // Use cached event types instead of querying the database
     const lineupEventTypes = [
-      this.coreService.getEventTypeByName('STARTING_LINEUP'),
-      this.coreService.getEventTypeByName('BENCH'),
+      this.coreService.getEventTypeByName('GAME_ROSTER'),
       this.coreService.getEventTypeByName('SUBSTITUTION_IN'),
     ];
 
