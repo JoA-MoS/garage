@@ -2,8 +2,6 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 
 import { GameEvent } from '../../entities/game-event.entity';
 
-import { AddToLineupInput } from './dto/add-to-lineup.input';
-import { AddToBenchInput } from './dto/add-to-bench.input';
 import { SubstitutePlayerInput } from './dto/substitute-player.input';
 import { RecordGoalInput } from './dto/record-goal.input';
 import { UpdateGoalInput } from './dto/update-goal.input';
@@ -75,20 +73,6 @@ export class GameEventsService implements OnModuleInit {
   // ========================================
   // Lineup Operations (LineupService)
   // ========================================
-
-  async addPlayerToLineup(
-    input: AddToLineupInput,
-    recordedByUserId: string,
-  ): Promise<GameEvent> {
-    return this.lineupService.addPlayerToLineup(input, recordedByUserId);
-  }
-
-  async addPlayerToBench(
-    input: AddToBenchInput,
-    recordedByUserId: string,
-  ): Promise<GameEvent> {
-    return this.lineupService.addPlayerToBench(input, recordedByUserId);
-  }
 
   async removeFromLineup(gameEventId: string): Promise<boolean> {
     return this.lineupService.removeFromLineup(gameEventId);
