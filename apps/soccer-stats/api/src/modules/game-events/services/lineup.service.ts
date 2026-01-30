@@ -111,10 +111,7 @@ export class LineupService {
       } else if (event.eventType.name === 'SUBSTITUTION_OUT') {
         currentOnField.delete(key);
         lastPositions.set(key, event.position || '');
-      } else if (
-        event.eventType.name === 'POSITION_SWAP' ||
-        event.eventType.name === 'POSITION_CHANGE'
-      ) {
+      } else if (event.eventType.name === 'POSITION_SWAP') {
         // Update position for players still on field
         const existingOnField = currentOnField.get(key);
         if (existingOnField) {
@@ -176,7 +173,7 @@ export class LineupService {
       'GAME_ROSTER',
       'SUBSTITUTION_IN',
       'SUBSTITUTION_OUT',
-      'POSITION_CHANGE',
+      'POSITION_SWAP',
     ];
     const typeIds = relevantTypes.map(
       (name) => this.coreService.getEventTypeByName(name).id,
