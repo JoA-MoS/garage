@@ -42,9 +42,9 @@ describe('LineupService', () => {
     name: 'PERIOD_END',
   } as EventType;
 
-  const mockPositionChangeEventType = {
-    id: 'event-type-position-change',
-    name: 'POSITION_CHANGE',
+  const mockPositionSwapEventType = {
+    id: 'event-type-position-swap',
+    name: 'POSITION_SWAP',
   } as EventType;
 
   const mockFormationChangeEventType = {
@@ -586,8 +586,8 @@ describe('LineupService', () => {
             return mockSubInEventType;
           case 'SUBSTITUTION_OUT':
             return mockSubOutEventType;
-          case 'POSITION_CHANGE':
-            return mockPositionChangeEventType;
+          case 'POSITION_SWAP':
+            return mockPositionSwapEventType;
           case 'FORMATION_CHANGE':
             return mockFormationChangeEventType;
           case 'PERIOD_END':
