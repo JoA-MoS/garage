@@ -303,17 +303,21 @@ export class GameEventsService implements OnModuleInit {
 
   /**
    * Create SUB_IN events from GAME_ROSTER starters (players with positions).
-   * Called when no existing SUB_IN starters are found during game start.
+   * Called when starting a period to convert GAME_ROSTER events to SUB_IN.
+   *
+   * @param period - The period being started ('1' for first half, '2' for second half)
    */
   async createSubInEventsFromRosterStarters(
     gameTeamId: string,
     periodStartEventId: string,
     recordedByUserId: string,
+    period = '1',
   ): Promise<number> {
     return this.periodService.createSubInEventsFromRosterStarters(
       gameTeamId,
       periodStartEventId,
       recordedByUserId,
+      period,
     );
   }
 
