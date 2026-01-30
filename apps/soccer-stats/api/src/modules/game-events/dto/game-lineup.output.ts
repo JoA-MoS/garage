@@ -39,6 +39,9 @@ export class GameLineup {
   formation?: string;
 
   @Field(() => [LineupPlayer])
+  gameRoster: LineupPlayer[];
+
+  @Field(() => [LineupPlayer])
   starters: LineupPlayer[];
 
   @Field(() => [LineupPlayer])
@@ -46,4 +49,7 @@ export class GameLineup {
 
   @Field(() => [LineupPlayer])
   currentOnField: LineupPlayer[];
+
+  @Field(() => [LineupPlayer], { nullable: true })
+  previousPeriodLineup?: LineupPlayer[];
 }
