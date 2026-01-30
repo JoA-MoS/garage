@@ -58,6 +58,9 @@ Thumbs.db
 
 .nx/cache
 .nx/workspace-data
+
+# Git worktrees
+.worktrees/
 vite.config.*.timestamp*
 vitest.config.*.timestamp*
 
