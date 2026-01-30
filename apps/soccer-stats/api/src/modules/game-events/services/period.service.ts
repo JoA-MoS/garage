@@ -260,6 +260,36 @@ export class PeriodService {
       await this.gameEventsRepository.save(subOutEventsToCreate);
     substitutionEvents.push(...savedSubOutEvents);
 
+    // 6b. Create GAME_ROSTER events for the NEXT period to pre-populate the lineup
+    // This uses the same pattern as pre-game: GAME_ROSTER with position → PERIOD_START converts to SUB_IN
+    // The window function will see these as "latest" because period DESC order
+    const nextPeriod = String(parseInt(periodString, 10) + 1);
+    const gameRosterType = this.coreService.getEventTypeByName('GAME_ROSTER');
+
+    const nextPeriodRosterEvents = lineup.currentOnField.map((player) =>
+      this.gameEventsRepository.create({
+        gameId: game.id,
+        gameTeamId: input.gameTeamId,
+        eventTypeId: gameRosterType.id,
+        playerId: player.playerId,
+        externalPlayerName: player.externalPlayerName,
+        externalPlayerNumber: player.externalPlayerNumber,
+        position: player.position, // Preserve their position for next period
+        recordedByUserId,
+        // Next period roster starts at periodSecond 0
+        gameMinute: 0,
+        gameSecond: 0,
+        period: nextPeriod,
+        periodSecond: 0,
+      }),
+    );
+
+    await this.gameEventsRepository.save(nextPeriodRosterEvents);
+
+    this.logger.log(
+      `[endPeriod] Created ${nextPeriodRosterEvents.length} GAME_ROSTER events for period ${nextPeriod}`,
+    );
+
     // 7. Load relations for period event
     const periodEventWithRelations = await this.gameEventsRepository.findOne({
       where: { id: savedPeriodEvent.id },
@@ -721,30 +751,34 @@ export class PeriodService {
   /**
    * Create SUB_IN events from GAME_ROSTER starters (players with positions).
    *
-   * Called when transitioning to FIRST_HALF to ensure starters are properly
-   * represented as SUB_IN events linked to the PERIOD_START event.
+   * Called when starting a period to convert GAME_ROSTER events into SUB_IN events
+   * linked to the PERIOD_START event.
    *
-   * This handles the new roster flow where players are added via addPlayerToGameRoster
-   * with positions, rather than bringPlayerOntoField which creates SUB_IN directly.
+   * This handles both:
+   * - First half: Pre-game GAME_ROSTER events (period='1')
+   * - Second half: Halftime GAME_ROSTER events (period='2') created by endPeriod
    *
    * @param gameTeamId - The game team ID
-   * @param periodStartEventId - The PERIOD_START period=1 event ID
+   * @param periodStartEventId - The PERIOD_START event ID
    * @param recordedByUserId - User recording the events
+   * @param period - The period being started (defaults to '1' for backwards compatibility)
    * @returns Number of SUB_IN events created
    */
   async createSubInEventsFromRosterStarters(
     gameTeamId: string,
     periodStartEventId: string,
     recordedByUserId: string,
+    period = '1',
   ): Promise<number> {
     const gameRosterType = this.coreService.getEventTypeByName('GAME_ROSTER');
     const subInType = this.coreService.getEventTypeByName('SUBSTITUTION_IN');
 
-    // Find all GAME_ROSTER events with positions (starters)
+    // Find GAME_ROSTER events for this period with positions (starters)
     const rosterStarters = await this.gameEventsRepository.find({
       where: {
         gameTeamId,
         eventTypeId: gameRosterType.id,
+        period,
       },
     });
 
@@ -752,7 +786,7 @@ export class PeriodService {
     const starters = rosterStarters.filter((e) => e.position != null);
 
     this.logger.log(
-      `[createSubInEventsFromRosterStarters] Found ${starters.length} GAME_ROSTER starters for gameTeam ${gameTeamId}`,
+      `[createSubInEventsFromRosterStarters] Found ${starters.length} GAME_ROSTER starters for gameTeam ${gameTeamId} period ${period}`,
     );
 
     if (starters.length === 0) {
@@ -779,10 +813,10 @@ export class PeriodService {
         externalPlayerNumber: starter.externalPlayerNumber,
         position: starter.position,
         recordedByUserId,
-        // Starters enter at period 1, second 0
+        // Starters enter at the start of the period (periodSecond 0)
         gameMinute: 0,
         gameSecond: 0,
-        period: '1',
+        period,
         periodSecond: 0,
         parentEventId: periodStartEventId,
       }),
@@ -791,7 +825,7 @@ export class PeriodService {
     await this.gameEventsRepository.save(subInEventsToCreate);
 
     this.logger.log(
-      `[createSubInEventsFromRosterStarters] Created ${subInEventsToCreate.length} SUB_IN events from GAME_ROSTER starters for gameTeam ${gameTeamId}`,
+      `[createSubInEventsFromRosterStarters] Created ${subInEventsToCreate.length} SUB_IN events from GAME_ROSTER starters for gameTeam ${gameTeamId} period ${period}`,
     );
 
     return subInEventsToCreate.length;

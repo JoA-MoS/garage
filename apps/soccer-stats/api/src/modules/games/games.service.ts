@@ -743,15 +743,28 @@ export class GamesService {
           );
         }
 
-        // 3. If no second half lineup set, auto-copy first half ending lineup
-        // SUB_IN events are created as children of PERIOD_START
+        // 3. Convert GAME_ROSTER events (created at halftime) to SUB_IN events
+        // This is the same pattern as first half: GAME_ROSTER → SUB_IN
+        // If no GAME_ROSTER events for period 2, fall back to legacy ensureSecondHalfLineupExists
         for (const gameTeam of gameTeams) {
-          await this.gameEventsService.ensureSecondHalfLineupExists(
-            gameTeam.id,
-            halftimeMinute,
-            userId!,
-            periodStartEvent.id,
-          );
+          const created =
+            await this.gameEventsService.createSubInEventsFromRosterStarters(
+              gameTeam.id,
+              periodStartEvent.id,
+              userId!,
+              '2', // period 2 (second half)
+            );
+
+          // Fallback: If no GAME_ROSTER events were converted (legacy games),
+          // use the old method that copies from SUB_OUT events
+          if (created === 0) {
+            await this.gameEventsService.ensureSecondHalfLineupExists(
+              gameTeam.id,
+              halftimeMinute,
+              userId!,
+              periodStartEvent.id,
+            );
+          }
         }
 
         // 4. Now publish PERIOD_START with childEvents included
