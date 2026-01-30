@@ -67,7 +67,7 @@ export class StatsService {
 
     // Sort events by period first, then by periodSecond within each period
     // This ensures period 1 events come before period 2 events
-    // Events without a period (like STARTING_LINEUP) are treated as period 0
+    // Events without a period (like GAME_ROSTER) are treated as period 0
     events.sort((a, b) => {
       const periodA = a.period ?? '0';
       const periodB = b.period ?? '0';
@@ -127,16 +127,6 @@ export class StatsService {
       }
 
       switch (event.eventType.name) {
-        case 'STARTING_LINEUP':
-          // Player starts at this position from minute 0
-          if (event.position) {
-            playerData.spans.push({
-              position: event.position,
-              startSeconds: 0,
-            });
-          }
-          break;
-
         case 'SUBSTITUTION_IN':
           // Player enters at this position
           if (event.position) {
@@ -384,16 +374,6 @@ export class StatsService {
         const eventSeconds = event.periodSecond;
 
         switch (event.eventType.name) {
-          case 'STARTING_LINEUP':
-            if (event.position) {
-              playerOpenSpans.set(playerKey, {
-                position: event.position,
-                startSeconds: 0,
-              });
-              playerStats.gamesPlayed.add(gameTeamId);
-            }
-            break;
-
           case 'SUBSTITUTION_IN':
             if (event.position) {
               playerOpenSpans.set(playerKey, {
@@ -460,8 +440,8 @@ export class StatsService {
             playerStats.gamesPlayed.add(gameTeamId);
             break;
 
-          case 'BENCH':
-            // Player on bench - mark as participating in game but not playing
+          case 'GAME_ROSTER':
+            // Player on roster - mark as participating in game (may or may not play)
             playerStats.gamesPlayed.add(gameTeamId);
             break;
         }
