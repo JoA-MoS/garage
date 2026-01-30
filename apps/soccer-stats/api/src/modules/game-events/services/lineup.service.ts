@@ -7,6 +7,7 @@ import {
 import { GameEvent } from '../../../entities/game-event.entity';
 import { GameLineup, LineupPlayer } from '../dto/game-lineup.output';
 import { AddToGameRosterInput } from '../dto/add-to-game-roster.input';
+import { GameRoster, RosterPlayer } from '../dto/game-roster.output';
 
 import { EventCoreService } from './event-core.service';
 
@@ -157,6 +158,138 @@ export class LineupService {
       starters,
       bench,
       currentOnField: Array.from(currentOnField.values()),
+      previousPeriodLineup,
+    };
+  }
+
+  /**
+   * Get current game roster with player positions.
+   * Uses SQL window function for efficient single-query retrieval.
+   *
+   * Position logic:
+   * - position != null → player is on field at that position
+   * - position == null → player is on bench
+   */
+  async getGameRoster(gameTeamId: string): Promise<GameRoster> {
+    // Get event type IDs for roster-related events
+    const relevantTypes = [
+      'GAME_ROSTER',
+      'SUBSTITUTION_IN',
+      'SUBSTITUTION_OUT',
+      'POSITION_CHANGE',
+    ];
+    const typeIds = relevantTypes.map(
+      (name) => this.coreService.getEventTypeByName(name).id,
+    );
+
+    // Query current state per player using window function
+    // ROW_NUMBER partitions by player, orders by time DESC to get latest event
+    const players = await this.gameEventsRepository.manager
+      .createQueryBuilder()
+      .select([
+        'sub."gameEventId"',
+        'sub."playerId"',
+        'sub."externalPlayerName"',
+        'sub."externalPlayerNumber"',
+        'sub."position"',
+        'sub."firstName"',
+        'sub."lastName"',
+      ])
+      .from((subQuery) => {
+        return subQuery
+          .select('e.id', 'gameEventId')
+          .addSelect('e.playerId', 'playerId')
+          .addSelect('e.externalPlayerName', 'externalPlayerName')
+          .addSelect('e.externalPlayerNumber', 'externalPlayerNumber')
+          .addSelect(
+            `CASE WHEN et.name = 'SUBSTITUTION_OUT' THEN NULL ELSE e.position END`,
+            'position',
+          )
+          .addSelect('p.firstName', 'firstName')
+          .addSelect('p.lastName', 'lastName')
+          .addSelect(
+            `ROW_NUMBER() OVER (
+            PARTITION BY COALESCE(e."playerId"::text, e."externalPlayerName")
+            ORDER BY e.period DESC, e."periodSecond" DESC, e."createdAt" DESC
+          )`,
+            'rn',
+          )
+          .from('game_events', 'e')
+          .innerJoin('event_types', 'et', 'e."eventTypeId" = et.id')
+          .leftJoin('users', 'p', 'e."playerId" = p.id')
+          .where('e."gameTeamId" = :gameTeamId', { gameTeamId })
+          .andWhere('et.id IN (:...typeIds)', { typeIds });
+      }, 'sub')
+      .where('sub.rn = 1')
+      .setParameters({ gameTeamId, typeIds })
+      .getRawMany();
+
+    // Get latest formation from FORMATION_CHANGE events
+    const formationChangeType =
+      this.coreService.getEventTypeByName('FORMATION_CHANGE');
+    const latestFormation = await this.gameEventsRepository
+      .createQueryBuilder('e')
+      .select('e.formation', 'formation')
+      .where('e.gameTeamId = :gameTeamId', { gameTeamId })
+      .andWhere('e.eventTypeId = :eventTypeId', {
+        eventTypeId: formationChangeType.id,
+      })
+      .orderBy('e.period', 'DESC')
+      .addOrderBy('e.periodSecond', 'DESC')
+      .addOrderBy('e.createdAt', 'DESC')
+      .limit(1)
+      .getRawOne();
+
+    // Get previous period lineup for halftime pre-fill
+    const periodEndType = this.coreService.getEventTypeByName('PERIOD_END');
+    const periodEndEvent = await this.gameEventsRepository.findOne({
+      where: {
+        gameTeamId,
+        eventTypeId: periodEndType.id,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    let previousPeriodLineup: RosterPlayer[] | undefined;
+    if (periodEndEvent) {
+      const subOutType =
+        this.coreService.getEventTypeByName('SUBSTITUTION_OUT');
+      const subOutEvents = await this.gameEventsRepository.find({
+        where: {
+          gameTeamId,
+          eventTypeId: subOutType.id,
+          parentEventId: periodEndEvent.id,
+        },
+        relations: ['player'],
+      });
+      previousPeriodLineup = subOutEvents.map((e) => ({
+        gameEventId: e.id,
+        playerId: e.playerId,
+        playerName: e.player
+          ? `${e.player.firstName || ''} ${e.player.lastName || ''}`.trim()
+          : undefined,
+        firstName: e.player?.firstName,
+        lastName: e.player?.lastName,
+        externalPlayerName: e.externalPlayerName,
+        externalPlayerNumber: e.externalPlayerNumber,
+        position: e.position,
+      }));
+    }
+
+    return {
+      gameTeamId,
+      formation: latestFormation?.formation ?? null,
+      players: players.map((p) => ({
+        gameEventId: p.gameEventId,
+        playerId: p.playerId,
+        externalPlayerName: p.externalPlayerName,
+        externalPlayerNumber: p.externalPlayerNumber,
+        position: p.position,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        playerName:
+          [p.firstName, p.lastName].filter(Boolean).join(' ') || undefined,
+      })),
       previousPeriodLineup,
     };
   }
