@@ -5,8 +5,6 @@ import {
 } from '@nestjs/common';
 
 import { GameEvent } from '../../../entities/game-event.entity';
-import { AddToLineupInput } from '../dto/add-to-lineup.input';
-import { AddToBenchInput } from '../dto/add-to-bench.input';
 import { GameLineup, LineupPlayer } from '../dto/game-lineup.output';
 
 import { EventCoreService } from './event-core.service';
@@ -26,89 +24,6 @@ export class LineupService {
 
   private get gameTeamsRepository() {
     return this.coreService.gameTeamsRepository;
-  }
-
-  async addPlayerToLineup(
-    input: AddToLineupInput,
-    recordedByUserId: string,
-  ): Promise<GameEvent> {
-    // Lineup entries require player info
-    this.coreService.ensurePlayerInfoProvided(
-      input.playerId,
-      input.externalPlayerName,
-      'lineup entry',
-    );
-
-    const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
-    const eventType = this.coreService.getEventTypeByName('STARTING_LINEUP');
-
-    // Check if player is already in lineup or bench
-    await this.ensurePlayerNotInRoster(
-      gameTeam.id,
-      input.playerId,
-      input.externalPlayerName,
-    );
-
-    const gameEvent = this.gameEventsRepository.create({
-      gameId: gameTeam.gameId,
-      gameTeamId: input.gameTeamId,
-      eventTypeId: eventType.id,
-      playerId: input.playerId,
-      externalPlayerName: input.externalPlayerName,
-      externalPlayerNumber: input.externalPlayerNumber,
-      position: input.position,
-      recordedByUserId,
-      // Legacy fields (deprecated, kept for migration compatibility)
-      gameMinute: 0,
-      gameSecond: 0,
-      // New period-relative timing
-      period: '1',
-      periodSecond: 0,
-    });
-
-    // Return base entity - field resolvers handle relation loading on-demand
-    return this.gameEventsRepository.save(gameEvent);
-  }
-
-  async addPlayerToBench(
-    input: AddToBenchInput,
-    recordedByUserId: string,
-  ): Promise<GameEvent> {
-    // Bench entries require player info
-    this.coreService.ensurePlayerInfoProvided(
-      input.playerId,
-      input.externalPlayerName,
-      'bench entry',
-    );
-
-    const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
-    const eventType = this.coreService.getEventTypeByName('BENCH');
-
-    // Check if player is already in lineup or bench
-    await this.ensurePlayerNotInRoster(
-      gameTeam.id,
-      input.playerId,
-      input.externalPlayerName,
-    );
-
-    const gameEvent = this.gameEventsRepository.create({
-      gameId: gameTeam.gameId,
-      gameTeamId: input.gameTeamId,
-      eventTypeId: eventType.id,
-      playerId: input.playerId,
-      externalPlayerName: input.externalPlayerName,
-      externalPlayerNumber: input.externalPlayerNumber,
-      recordedByUserId,
-      // Legacy fields (deprecated, kept for migration compatibility)
-      gameMinute: 0,
-      gameSecond: 0,
-      // New period-relative timing
-      period: '1',
-      periodSecond: 0,
-    });
-
-    // Return base entity - field resolvers handle relation loading on-demand
-    return this.gameEventsRepository.save(gameEvent);
   }
 
   async removeFromLineup(gameEventId: string): Promise<boolean> {

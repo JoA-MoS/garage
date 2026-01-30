@@ -16,8 +16,6 @@ import { CurrentUser } from '../auth/user.decorator';
 import { AuthenticatedUser } from '../auth/authenticated-user.type';
 
 import { GameEventsService } from './game-events.service';
-import { AddToLineupInput } from './dto/add-to-lineup.input';
-import { AddToBenchInput } from './dto/add-to-bench.input';
 import { SubstitutePlayerInput } from './dto/substitute-player.input';
 import { RecordGoalInput } from './dto/record-goal.input';
 import { UpdateGoalInput } from './dto/update-goal.input';
@@ -69,22 +67,6 @@ export class GameEventsResolver {
     @Args('id', { type: () => ID }) id: string,
   ): Promise<GameEvent | null> {
     return this.gameEventsService.findOne(id);
-  }
-
-  @Mutation(() => GameEvent, { name: 'addPlayerToLineup' })
-  addPlayerToLineup(
-    @Args('input') input: AddToLineupInput,
-    @CurrentUser() user: AuthenticatedUser,
-  ): Promise<GameEvent> {
-    return this.gameEventsService.addPlayerToLineup(input, user.id);
-  }
-
-  @Mutation(() => GameEvent, { name: 'addPlayerToBench' })
-  addPlayerToBench(
-    @Args('input') input: AddToBenchInput,
-    @CurrentUser() user: AuthenticatedUser,
-  ): Promise<GameEvent> {
-    return this.gameEventsService.addPlayerToBench(input, user.id);
   }
 
   @Mutation(() => GameEvent, {

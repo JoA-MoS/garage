@@ -38,8 +38,6 @@ describe('GameEventsService', () => {
   };
 
   const mockLineupService = {
-    addPlayerToLineup: jest.fn(),
-    addPlayerToBench: jest.fn(),
     removeFromLineup: jest.fn(),
     updatePlayerPosition: jest.fn(),
     getGameLineup: jest.fn(),
@@ -206,24 +204,6 @@ describe('GameEventsService', () => {
   });
 
   describe('facade delegation', () => {
-    it('should delegate addPlayerToLineup to lineupService', async () => {
-      const input = {
-        gameTeamId: 'gt-1',
-        position: 'ST',
-        playerId: 'player-1',
-      };
-      const mockEvent = { id: 'event-1' } as GameEvent;
-      mockLineupService.addPlayerToLineup.mockResolvedValue(mockEvent);
-
-      const result = await service.addPlayerToLineup(input, 'user-1');
-
-      expect(mockLineupService.addPlayerToLineup).toHaveBeenCalledWith(
-        input,
-        'user-1',
-      );
-      expect(result).toBe(mockEvent);
-    });
-
     it('should delegate recordGoal to goalService', async () => {
       const input = {
         gameTeamId: 'gt-1',

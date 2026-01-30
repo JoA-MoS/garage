@@ -64,19 +64,11 @@ export class EventTypesService {
     }
 
     const defaultEventTypes: CreateEventTypeInput[] = [
-      // Lineup events (TACTICAL category)
+      // Roster events (TACTICAL category)
       {
-        name: 'STARTING_LINEUP',
+        name: 'GAME_ROSTER',
         category: EventCategory.TACTICAL,
-        description:
-          'Player assigned to starting lineup with formation position',
-        requiresPosition: true,
-        allowsParent: false,
-      },
-      {
-        name: 'BENCH',
-        category: EventCategory.TACTICAL,
-        description: 'Player assigned to bench roster for the game',
+        description: 'Player added to game day roster',
         requiresPosition: false,
         allowsParent: false,
       },
