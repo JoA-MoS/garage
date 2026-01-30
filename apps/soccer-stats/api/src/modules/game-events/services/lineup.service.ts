@@ -84,6 +84,7 @@ export class LineupService {
 
     const starters: LineupPlayer[] = [];
     const bench: LineupPlayer[] = [];
+    const gameRoster: LineupPlayer[] = [];
     const currentOnField: Map<string, LineupPlayer> = new Map();
 
     // Track all players and their current on-field status
@@ -112,6 +113,17 @@ export class LineupService {
       const playerKey = event.playerId || event.externalPlayerName || event.id;
 
       switch (event.eventType.name) {
+        case 'GAME_ROSTER':
+          // GAME_ROSTER events represent players added to the game roster
+          // before the game starts - they are not yet assigned as starters or bench
+          lineupPlayer.isOnField = false;
+          gameRoster.push(lineupPlayer);
+          playerStatusMap.set(playerKey, {
+            isOnField: false,
+            latestEvent: lineupPlayer,
+          });
+          break;
+
         case 'STARTING_LINEUP':
           lineupPlayer.isOnField = true;
           starters.push(lineupPlayer);
@@ -227,6 +239,7 @@ export class LineupService {
     return {
       gameTeamId,
       formation: gameTeam.formation,
+      gameRoster,
       starters,
       bench: filteredBench,
       currentOnField: Array.from(currentOnField.values()),
