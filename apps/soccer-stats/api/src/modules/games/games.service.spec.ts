@@ -72,6 +72,7 @@ describe('GamesService', () => {
     linkOrphanSubInsToSecondHalfPeriodStart: jest.fn().mockResolvedValue(0),
     linkFirstHalfStartersToPeriodStart: jest.fn().mockResolvedValue(0),
     createSubInEventsFromRosterStarters: jest.fn().mockResolvedValue(0),
+    createGameRosterForNextPeriod: jest.fn().mockResolvedValue(0),
     getGameLineup: jest.fn().mockResolvedValue({ currentOnField: [] }),
   };
 

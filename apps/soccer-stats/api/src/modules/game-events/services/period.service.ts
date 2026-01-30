@@ -830,4 +830,67 @@ export class PeriodService {
 
     return subInEventsToCreate.length;
   }
+
+  /**
+   * Create GAME_ROSTER events for the next period based on current on-field players.
+   *
+   * Called at halftime to pre-populate the lineup for the second half.
+   * The window function will see these as "latest" because period DESC ordering.
+   *
+   * @param gameTeamId - The game team ID
+   * @param nextPeriod - The next period (e.g., '2' for second half)
+   * @param recordedByUserId - User recording the events
+   * @returns Number of GAME_ROSTER events created
+   */
+  async createGameRosterForNextPeriod(
+    gameTeamId: string,
+    nextPeriod: string,
+    recordedByUserId: string,
+  ): Promise<number> {
+    const gameTeam = await this.gameTeamsRepository.findOne({
+      where: { id: gameTeamId },
+    });
+
+    if (!gameTeam) {
+      throw new NotFoundException(`GameTeam ${gameTeamId} not found`);
+    }
+
+    // Get current on-field players
+    const lineup = await this.lineupService.getGameLineup(gameTeamId);
+    const gameRosterType = this.coreService.getEventTypeByName('GAME_ROSTER');
+
+    if (lineup.currentOnField.length === 0) {
+      this.logger.log(
+        `[createGameRosterForNextPeriod] No on-field players for gameTeam ${gameTeamId}`,
+      );
+      return 0;
+    }
+
+    // Create GAME_ROSTER events for the next period
+    const nextPeriodRosterEvents = lineup.currentOnField.map((player) =>
+      this.gameEventsRepository.create({
+        gameId: gameTeam.gameId,
+        gameTeamId,
+        eventTypeId: gameRosterType.id,
+        playerId: player.playerId,
+        externalPlayerName: player.externalPlayerName,
+        externalPlayerNumber: player.externalPlayerNumber,
+        position: player.position,
+        recordedByUserId,
+        // Next period roster starts at periodSecond 0
+        gameMinute: 0,
+        gameSecond: 0,
+        period: nextPeriod,
+        periodSecond: 0,
+      }),
+    );
+
+    await this.gameEventsRepository.save(nextPeriodRosterEvents);
+
+    this.logger.log(
+      `[createGameRosterForNextPeriod] Created ${nextPeriodRosterEvents.length} GAME_ROSTER events for period ${nextPeriod}`,
+    );
+
+    return nextPeriodRosterEvents.length;
+  }
 }
