@@ -451,7 +451,7 @@ export class GamesService {
 
     const createEvent = async (
       eventTypeName: string,
-      metadata?: Record<string, unknown>,
+      period: string | undefined,
       gameMinute = 0,
       gameSecond = 0,
       skipPublish = false,
@@ -466,7 +466,7 @@ export class GamesService {
       }
 
       // Idempotency check: skip if this event already exists for the game
-      // For period events, also check metadata.period matches
+      // For period events, also check period column matches
       const existingEventQuery = this.gameEventRepository
         .createQueryBuilder('event')
         .where('event.gameId = :gameId', { gameId })
@@ -475,20 +475,21 @@ export class GamesService {
         });
 
       // For PERIOD_START/PERIOD_END, check the specific period
-      if (metadata?.period) {
-        existingEventQuery.andWhere("event.metadata->>'period' = :period", {
-          period: metadata.period,
-        });
+      if (period) {
+        existingEventQuery.andWhere('event.period = :period', { period });
       }
 
       const existingEvent = await existingEventQuery.getOne();
       if (existingEvent) {
         this.logger.debug(
           `Skipping duplicate ${eventTypeName} event for game ${gameId}` +
-            (metadata?.period ? ` (period ${metadata.period})` : ''),
+            (period ? ` (period ${period})` : ''),
         );
         return existingEvent;
       }
+
+      // Calculate periodSecond from gameMinute/gameSecond
+      const periodSecond = toPeriodSecond(gameMinute, gameSecond);
 
       const event = this.gameEventRepository.create({
         gameId,
@@ -497,7 +498,8 @@ export class GamesService {
         recordedByUserId: userId,
         gameMinute,
         gameSecond,
-        metadata,
+        period,
+        periodSecond,
         parentEventId,
       });
       const savedEvent = await this.gameEventRepository.save(event);
@@ -552,7 +554,7 @@ export class GamesService {
         // Skip publishing GAME_START until after PERIOD_START is linked as child
         const gameStartEvent = await createEvent(
           'GAME_START',
-          undefined,
+          '1', // associated with period 1 (first half)
           0,
           0,
           true, // skipPublish - we'll publish after PERIOD_START is created
@@ -562,7 +564,7 @@ export class GamesService {
         // Skip publishing until after starters are linked as children
         const periodStartEvent = await createEvent(
           'PERIOD_START',
-          { period: '1' },
+          '1', // period 1 (first half)
           0,
           0,
           true, // skipPublish - we'll publish after linking children
@@ -648,7 +650,7 @@ export class GamesService {
         // Skip publishing until children are created
         const periodEndEvent = await createEvent(
           'PERIOD_END',
-          { period: '1' },
+          '1', // period 1 (first half)
           halftimeMinute,
           halftimeSecond,
           true, // skipPublish
@@ -713,7 +715,7 @@ export class GamesService {
         // Skip publishing until children are linked/created
         const periodStartEvent = await createEvent(
           'PERIOD_START',
-          { period: '2' },
+          '2', // period 2 (second half)
           halftimeMinute,
           0,
           true, // skipPublish
@@ -785,20 +787,24 @@ export class GamesService {
           endSecond = gameSeconds % 60;
         }
 
+        // TODO: When quarters support is added, determine the final period dynamically
+        // based on game format (e.g., period 4 for quarters, period 2 for halves)
+        const finalPeriod = '2';
+
         // 1. Create GAME_END first - will be parent of PERIOD_END and SUB_OUT events
         // Skip publishing until children are created
         const gameEndEvent = await createEvent(
           'GAME_END',
-          undefined,
+          finalPeriod, // associated with the final period
           endMinute,
           endSecond,
           true, // skipPublish
         );
 
-        // 2. Create PERIOD_END (period 2) as child of GAME_END
+        // 2. Create PERIOD_END as child of GAME_END
         await createEvent(
           'PERIOD_END',
-          { period: '2' },
+          finalPeriod,
           endMinute,
           endSecond,
           true, // skipPublish - will be published as part of GAME_END's children
@@ -806,8 +812,8 @@ export class GamesService {
         );
 
         // 3. Create SUBSTITUTION_OUT for all on-field players as children of GAME_END
-        // Calculate period-relative seconds for period 2
-        // Approximate: total time minus estimated halftime (half of total duration)
+        // Calculate period-relative seconds for the final period
+        // TODO: When quarters support is added, calculate based on actual period count
         const halfDurationSeconds = Math.floor(totalDuration / 2) * 60;
         const endPeriodSeconds = Math.max(
           0,
@@ -816,7 +822,7 @@ export class GamesService {
         for (const gameTeam of gameTeams) {
           await this.gameEventsService.createSubstitutionOutForAllOnField(
             gameTeam.id,
-            '2', // Period 2 (second half)
+            finalPeriod,
             endPeriodSeconds,
             userId!,
             gameEndEvent.id,
@@ -896,6 +902,8 @@ export class GamesService {
       recordedByUserId: userId,
       gameMinute: 0,
       gameSecond: 0,
+      // Stoppage events don't belong to a specific period
+      periodSecond: 0,
     });
     await this.gameEventRepository.save(event);
   }

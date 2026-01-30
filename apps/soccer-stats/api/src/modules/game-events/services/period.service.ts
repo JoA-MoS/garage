@@ -97,7 +97,6 @@ export class PeriodService {
       // New period-relative timing
       period: periodString,
       periodSecond,
-      metadata: { period: periodString },
     });
 
     const savedPeriodEvent = await this.gameEventsRepository.save(periodEvent);
@@ -225,7 +224,6 @@ export class PeriodService {
       // New period-relative timing
       period: periodString,
       periodSecond,
-      metadata: { period: periodString },
     });
 
     const savedPeriodEvent = await this.gameEventsRepository.save(periodEvent);
@@ -509,10 +507,7 @@ export class PeriodService {
       },
     });
 
-    const periodStart2 = periodStartEvents.find((e) => {
-      const metadata = e.metadata as { period?: string } | undefined;
-      return metadata?.period === '2';
-    });
+    const periodStart2 = periodStartEvents.find((e) => e.period === '2');
 
     this.logger.log(
       `[ensureSecondHalfLineupExists] Found PERIOD_START period 2: ${periodStart2?.id ?? 'none'}`,
@@ -563,13 +558,10 @@ export class PeriodService {
       return;
     }
 
-    // Check if this is period 1's end by looking at metadata
-    const periodMetadata = periodEndEvent.metadata as
-      | { period?: string }
-      | undefined;
-    if (periodMetadata?.period !== '1') {
+    // Check if this is period 1's end by looking at the period column
+    if (periodEndEvent.period !== '1') {
       this.logger.log(
-        `[ensureSecondHalfLineupExists] PERIOD_END event is for period ${periodMetadata?.period}, not period 1`,
+        `[ensureSecondHalfLineupExists] PERIOD_END event is for period ${periodEndEvent.period}, not period 1`,
       );
       return;
     }

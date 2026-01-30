@@ -165,7 +165,7 @@ export class EventTypesService {
         name: 'PERIOD_START',
         category: EventCategory.GAME_FLOW,
         description:
-          'Period begins (metadata.period indicates which: "1", "2", "OT1", etc.)',
+          'Period begins (period column indicates which: "1", "2", "OT1", etc.)',
         requiresPosition: false,
         allowsParent: false,
       },
@@ -173,7 +173,7 @@ export class EventTypesService {
         name: 'PERIOD_END',
         category: EventCategory.GAME_FLOW,
         description:
-          'Period ends (metadata.period indicates which: "1", "2", "OT1", etc.)',
+          'Period ends (period column indicates which: "1", "2", "OT1", etc.)',
         requiresPosition: false,
         allowsParent: false,
       },
