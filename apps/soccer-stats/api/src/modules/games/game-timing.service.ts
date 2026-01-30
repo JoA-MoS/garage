@@ -301,4 +301,108 @@ export class GameTimingService implements OnModuleInit {
     const timing = await this.getGameTiming(gameId);
     return timing.pausedAt !== undefined;
   }
+
+  /**
+   * Get timing info for each period (used by stats calculation).
+   * Returns the duration of each completed period and current period info.
+   */
+  async getPeriodTimingInfo(
+    gameId: string,
+    durationMinutes = 60,
+  ): Promise<{
+    /** Duration of first half in seconds (0 if not started/completed) */
+    period1DurationSeconds: number;
+    /** Duration of second half in seconds (0 if not started/completed) */
+    period2DurationSeconds: number;
+    /** Current period ('1', '2', or undefined if game not started or at halftime) */
+    currentPeriod?: string;
+    /** Seconds elapsed in the current period */
+    currentPeriodSeconds: number;
+  }> {
+    const timing = await this.getGameTiming(gameId);
+    const halfDuration = (durationMinutes / 2) * 60;
+
+    // If game hasn't started
+    if (!timing.actualStart) {
+      return {
+        period1DurationSeconds: 0,
+        period2DurationSeconds: 0,
+        currentPeriod: undefined,
+        currentPeriodSeconds: 0,
+      };
+    }
+
+    // Game is completed
+    if (timing.actualEnd) {
+      const totalSeconds = Math.floor(
+        (timing.actualEnd.getTime() - timing.actualStart.getTime()) / 1000,
+      );
+      // Assume equal halves for completed games without detailed timing
+      const period1Duration = timing.firstHalfEnd
+        ? Math.floor(
+            (timing.firstHalfEnd.getTime() - timing.actualStart.getTime()) /
+              1000,
+          )
+        : Math.min(halfDuration, Math.floor(totalSeconds / 2));
+      const period2Duration = timing.secondHalfStart
+        ? Math.floor(
+            (timing.actualEnd.getTime() - timing.secondHalfStart.getTime()) /
+              1000,
+          )
+        : totalSeconds - period1Duration;
+
+      return {
+        period1DurationSeconds: period1Duration,
+        period2DurationSeconds: period2Duration,
+        currentPeriod: undefined, // Game over
+        currentPeriodSeconds: 0,
+      };
+    }
+
+    // Game in progress
+    if (timing.secondHalfStart) {
+      // In second half
+      const endTime = timing.pausedAt || new Date();
+      const period1Duration = timing.firstHalfEnd
+        ? Math.floor(
+            (timing.firstHalfEnd.getTime() - timing.actualStart.getTime()) /
+              1000,
+          )
+        : halfDuration;
+      const currentPeriodSeconds = Math.floor(
+        (endTime.getTime() - timing.secondHalfStart.getTime()) / 1000,
+      );
+
+      return {
+        period1DurationSeconds: period1Duration,
+        period2DurationSeconds: currentPeriodSeconds,
+        currentPeriod: '2',
+        currentPeriodSeconds,
+      };
+    } else if (timing.firstHalfEnd) {
+      // At halftime
+      const period1Duration = Math.floor(
+        (timing.firstHalfEnd.getTime() - timing.actualStart.getTime()) / 1000,
+      );
+      return {
+        period1DurationSeconds: period1Duration,
+        period2DurationSeconds: 0,
+        currentPeriod: undefined, // Halftime
+        currentPeriodSeconds: 0,
+      };
+    } else {
+      // In first half
+      const endTime = timing.pausedAt || new Date();
+      const currentPeriodSeconds = Math.floor(
+        (endTime.getTime() - timing.actualStart.getTime()) / 1000,
+      );
+
+      return {
+        period1DurationSeconds: currentPeriodSeconds,
+        period2DurationSeconds: 0,
+        currentPeriod: '1',
+        currentPeriodSeconds,
+      };
+    }
+  }
 }
