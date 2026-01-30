@@ -21,6 +21,7 @@ import { Add4v4GameFormat1769210000000 } from './1769210000000-Add4v4GameFormat'
 import { Update4v4Description1769210100000 } from './1769210100000-Update4v4Description';
 import { ConsolidateTeamMembership1769300000000 } from './1769300000000-ConsolidateTeamMembership';
 import { AddGameSecondsAndPeriodColumns1769400000000 } from './1769400000000-AddGameSecondsAndPeriodColumns';
+import { AddGameRosterEventType1769500000000 } from './1769500000000-AddGameRosterEventType';
 
 /**
  * All migrations in chronological order.
@@ -39,4 +40,5 @@ export const migrations = [
   Update4v4Description1769210100000,
   ConsolidateTeamMembership1769300000000,
   AddGameSecondsAndPeriodColumns1769400000000,
+  AddGameRosterEventType1769500000000,
 ];
