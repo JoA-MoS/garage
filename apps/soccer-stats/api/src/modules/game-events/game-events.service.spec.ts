@@ -43,6 +43,7 @@ describe('GameEventsService', () => {
     getGameLineup: jest.fn(),
     findEventsByGameTeam: jest.fn(),
     findOne: jest.fn(),
+    addPlayerToGameRoster: jest.fn(),
   };
 
   const mockGoalService = {
@@ -297,6 +298,24 @@ describe('GameEventsService', () => {
 
       expect(mockGoalService.deleteGoal).toHaveBeenCalledWith('goal-1');
       expect(result).toBe(true);
+    });
+
+    it('should delegate addPlayerToGameRoster to lineupService', async () => {
+      const input = {
+        gameTeamId: 'gt-1',
+        playerId: 'player-1',
+        position: 'ST',
+      };
+      const mockEvent = { id: 'roster-1' } as GameEvent;
+      mockLineupService.addPlayerToGameRoster.mockResolvedValue(mockEvent);
+
+      const result = await service.addPlayerToGameRoster(input, 'user-1');
+
+      expect(mockLineupService.addPlayerToGameRoster).toHaveBeenCalledWith(
+        input,
+        'user-1',
+      );
+      expect(result).toBe(mockEvent);
     });
   });
 });

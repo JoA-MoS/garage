@@ -195,50 +195,6 @@ export class LineupService {
     return player.playerId || player.externalPlayerName || player.gameEventId;
   }
 
-  /**
-   * Ensure player is not already in the roster (lineup or bench).
-   * @throws BadRequestException if player is already in roster
-   */
-  async ensurePlayerNotInRoster(
-    gameTeamId: string,
-    playerId?: string,
-    externalPlayerName?: string,
-  ): Promise<void> {
-    // Use cached event types instead of querying the database
-    const lineupEventTypes = [
-      this.coreService.getEventTypeByName('GAME_ROSTER'),
-      this.coreService.getEventTypeByName('SUBSTITUTION_IN'),
-    ];
-
-    const eventTypeIds = lineupEventTypes.map((et) => et.id);
-
-    let existingEvent: GameEvent | null = null;
-
-    if (playerId) {
-      existingEvent = await this.gameEventsRepository
-        .createQueryBuilder('ge')
-        .where('ge.gameTeamId = :gameTeamId', { gameTeamId })
-        .andWhere('ge.playerId = :playerId', { playerId })
-        .andWhere('ge.eventTypeId IN (:...eventTypeIds)', { eventTypeIds })
-        .getOne();
-    } else if (externalPlayerName) {
-      existingEvent = await this.gameEventsRepository
-        .createQueryBuilder('ge')
-        .where('ge.gameTeamId = :gameTeamId', { gameTeamId })
-        .andWhere('ge.externalPlayerName = :externalPlayerName', {
-          externalPlayerName,
-        })
-        .andWhere('ge.eventTypeId IN (:...eventTypeIds)', { eventTypeIds })
-        .getOne();
-    }
-
-    if (existingEvent) {
-      throw new BadRequestException(
-        'Player is already in the lineup or on the bench',
-      );
-    }
-  }
-
   async findEventsByGameTeam(gameTeamId: string): Promise<GameEvent[]> {
     return this.gameEventsRepository.find({
       where: { gameTeamId },
