@@ -152,8 +152,7 @@ export const GameLineupTab = memo(function GameLineupTab({
     loading,
     mutating,
     error,
-    addToLineup,
-    addToBench,
+    addPlayerToGameRoster,
     removeFromLineup,
     updatePosition,
     substitutePlayer,
@@ -343,7 +342,7 @@ export const GameLineupTab = memo(function GameLineupTab({
   const handleAssignRosterPlayer = useCallback(
     async (player: RosterPlayer, position: string) => {
       try {
-        await addToLineup({
+        await addPlayerToGameRoster({
           playerId: player.oduserId,
           position,
         });
@@ -352,7 +351,7 @@ export const GameLineupTab = memo(function GameLineupTab({
         console.error('Failed to add player to lineup:', err);
       }
     },
-    [addToLineup],
+    [addPlayerToGameRoster],
   );
 
   // Assign bench player to a position (move from bench to lineup)
@@ -382,12 +381,12 @@ export const GameLineupTab = memo(function GameLineupTab({
           await removeFromLineup(player.gameEventId);
 
           if (player.playerId) {
-            await addToLineup({
+            await addPlayerToGameRoster({
               playerId: player.playerId,
               position,
             });
           } else {
-            await addToLineup({
+            await addPlayerToGameRoster({
               externalPlayerName: player.externalPlayerName || undefined,
               externalPlayerNumber: player.externalPlayerNumber || undefined,
               position,
@@ -404,7 +403,7 @@ export const GameLineupTab = memo(function GameLineupTab({
       currentPeriod,
       currentPeriodSeconds,
       bringPlayerOntoField,
-      addToLineup,
+      addPlayerToGameRoster,
       removeFromLineup,
       refetchLineup,
     ],
@@ -416,18 +415,12 @@ export const GameLineupTab = memo(function GameLineupTab({
       if (!externalName.trim()) return;
 
       try {
-        if (target === 'lineup' && position) {
-          await addToLineup({
-            externalPlayerName: externalName.trim(),
-            externalPlayerNumber: externalNumber.trim() || undefined,
-            position,
-          });
-        } else {
-          await addToBench({
-            externalPlayerName: externalName.trim(),
-            externalPlayerNumber: externalNumber.trim() || undefined,
-          });
-        }
+        // With position = starter, without = bench
+        await addPlayerToGameRoster({
+          externalPlayerName: externalName.trim(),
+          externalPlayerNumber: externalNumber.trim() || undefined,
+          position: target === 'lineup' ? position : undefined,
+        });
         setExternalName('');
         setExternalNumber('');
         setModalMode({ type: 'closed' });
@@ -435,19 +428,20 @@ export const GameLineupTab = memo(function GameLineupTab({
         console.error('Failed to add external player:', err);
       }
     },
-    [externalName, externalNumber, addToLineup, addToBench],
+    [externalName, externalNumber, addPlayerToGameRoster],
   );
 
   // Add roster player to bench
   const handleAddToBench = useCallback(
     async (player: RosterPlayer) => {
       try {
-        await addToBench({ playerId: player.oduserId });
+        // No position = bench player
+        await addPlayerToGameRoster({ playerId: player.oduserId });
       } catch (err) {
         console.error('Failed to add player to bench:', err);
       }
     },
-    [addToBench],
+    [addPlayerToGameRoster],
   );
 
   // Remove player from lineup/bench
@@ -536,7 +530,7 @@ export const GameLineupTab = memo(function GameLineupTab({
         });
 
         // Step 3: Add player to lineup at the selected position
-        await addToLineup({
+        await addPlayerToGameRoster({
           playerId: newUserId,
           position,
         });
@@ -550,7 +544,7 @@ export const GameLineupTab = memo(function GameLineupTab({
         throw err;
       }
     },
-    [createUser, addPlayerToTeam, teamId, addToLineup, refetchLineup],
+    [createUser, addPlayerToTeam, teamId, addPlayerToGameRoster, refetchLineup],
   );
 
   if (loading) {
