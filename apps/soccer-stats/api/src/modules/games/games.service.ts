@@ -678,6 +678,14 @@ export class GamesService {
             userId!,
             periodEndEvent.id,
           );
+
+          // 2b. Create GAME_ROSTER events for period 2 to pre-populate halftime lineup
+          // This uses the same pattern as pre-game: GAME_ROSTER with position → PERIOD_START converts to SUB_IN
+          await this.gameEventsService.createGameRosterForNextPeriod(
+            gameTeam.id,
+            '2', // Next period
+            userId!,
+          );
         }
 
         // 3. Now publish PERIOD_END with childEvents included
