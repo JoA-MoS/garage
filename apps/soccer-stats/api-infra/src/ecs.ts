@@ -9,6 +9,10 @@ import {
   memory,
   desiredCount,
   frontendUrl,
+  dbPoolMax,
+  dbPoolMin,
+  dbPoolIdleTimeout,
+  dbPoolConnectionTimeout,
   observabilityLogLevel,
   slowQueryThresholdMs,
   queryComplexityLimit,
@@ -109,6 +113,17 @@ export const taskDefinition = new aws.ecs.TaskDefinition(`${namePrefix}-task`, {
             { name: 'PORT', value: containerPort.toString() },
             // Disable TypeORM auto-sync in production to prevent accidental schema changes
             { name: 'DB_SYNCHRONIZE', value: 'false' },
+            // Database connection pool configuration
+            { name: 'DB_POOL_MAX', value: dbPoolMax.toString() },
+            { name: 'DB_POOL_MIN', value: dbPoolMin.toString() },
+            {
+              name: 'DB_POOL_IDLE_TIMEOUT',
+              value: dbPoolIdleTimeout.toString(),
+            },
+            {
+              name: 'DB_POOL_CONNECTION_TIMEOUT',
+              value: dbPoolConnectionTimeout.toString(),
+            },
             // Disable ANSI color codes for cleaner CloudWatch logs
             { name: 'NO_COLOR', value: 'true' },
             // Observability configuration

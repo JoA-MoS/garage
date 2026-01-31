@@ -96,6 +96,81 @@ export const getDbSynchronize = (): boolean =>
 export const getDbLogging = (): boolean =>
   getEnv('DB_LOGGING') === 'true' || !isProduction();
 /**
+ * Database connection pool configuration.
+ * Defaults are conservative for development, override in production.
+ */
+export function getDbPoolMax(): number {
+  const envValue = getEnv('DB_POOL_MAX', '10')!;
+  const value = parseInt(envValue, 10);
+  if (isNaN(value)) {
+    console.warn(
+      `[Environment] DB_POOL_MAX has invalid value "${envValue}". ` +
+        `Expected an integer. Defaulting to 10.`,
+    );
+    return 10;
+  }
+  return value;
+}
+
+export function getDbPoolMin(): number {
+  const envValue = getEnv('DB_POOL_MIN', '2')!;
+  const value = parseInt(envValue, 10);
+  if (isNaN(value)) {
+    console.warn(
+      `[Environment] DB_POOL_MIN has invalid value "${envValue}". ` +
+        `Expected an integer. Defaulting to 2.`,
+    );
+    return 2;
+  }
+  return value;
+}
+
+export function getDbPoolIdleTimeout(): number {
+  const envValue = getEnv('DB_POOL_IDLE_TIMEOUT', '30000')!;
+  const value = parseInt(envValue, 10);
+  if (isNaN(value)) {
+    console.warn(
+      `[Environment] DB_POOL_IDLE_TIMEOUT has invalid value "${envValue}". ` +
+        `Expected an integer in milliseconds. Defaulting to 30000.`,
+    );
+    return 30000;
+  }
+  return value;
+}
+
+export function getDbPoolConnectionTimeout(): number {
+  const envValue = getEnv('DB_POOL_CONNECTION_TIMEOUT', '5000')!;
+  const value = parseInt(envValue, 10);
+  if (isNaN(value)) {
+    console.warn(
+      `[Environment] DB_POOL_CONNECTION_TIMEOUT has invalid value "${envValue}". ` +
+        `Expected an integer in milliseconds. Defaulting to 5000.`,
+    );
+    return 5000;
+  }
+  return value;
+}
+
+/**
+ * Validates pool configuration and warns if min > max.
+ * Returns validated { min, max } with min clamped to max if needed.
+ */
+export function getValidatedPoolConfig(): { min: number; max: number } {
+  const max = getDbPoolMax();
+  let min = getDbPoolMin();
+
+  if (min > max) {
+    console.warn(
+      `[Environment] DB_POOL_MIN (${min}) is greater than DB_POOL_MAX (${max}). ` +
+        `Setting DB_POOL_MIN to ${max} to match DB_POOL_MAX.`,
+    );
+    min = max;
+  }
+
+  return { min, max };
+}
+
+/**
  * Database SSL setting.
  * Enables SSL for PostgreSQL connections (recommended for RDS).
  * Defaults to true in production, false in development (local Docker).
