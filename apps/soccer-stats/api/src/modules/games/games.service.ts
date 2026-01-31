@@ -723,9 +723,14 @@ export class GamesService {
               '2', // period 2 (second half)
             );
 
-          // Fallback: If no GAME_ROSTER events were converted (legacy games),
+          // Fallback: If no GAME_ROSTER events were converted (legacy games or failed halftime),
           // use the old method that copies from SUB_OUT events
           if (created === 0) {
+            this.logger.warn(
+              `[SECOND_HALF] No GAME_ROSTER events found for period 2, gameTeam ${gameTeam.id}. ` +
+                `Falling back to legacy ensureSecondHalfLineupExists. ` +
+                `This may indicate GAME_ROSTER creation failed at halftime.`,
+            );
             await this.gameEventsService.ensureSecondHalfLineupExists(
               gameTeam.id,
               halftimeMinute,

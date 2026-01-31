@@ -484,12 +484,18 @@ export class SubstitutionService {
       const events = await this.substitutePlayer(subInput, recordedByUserId);
       allEvents.push(...events);
 
-      // substitutePlayer returns [subOut, subIn] - the second element is the SUB_IN event
-      // We use array index because the returned entities don't have eventType loaded
-      const subInEvent = events[1];
-      if (subInEvent) {
-        substitutionEventIds.set(i, subInEvent.id);
+      // substitutePlayer must return exactly [subOut, subIn] - validate this assumption
+      if (events.length !== 2) {
+        throw new BadRequestException(
+          `substitutePlayer returned ${events.length} events, expected exactly 2 [subOut, subIn]. ` +
+            `Substitution index: ${i}. This indicates a bug in substitutePlayer.`,
+        );
       }
+
+      // The second element is the SUB_IN event (we use array index because
+      // returned entities don't have eventType relation loaded)
+      const subInEvent = events[1];
+      substitutionEventIds.set(i, subInEvent.id);
     }
 
     // Process all position swaps, resolving player references
