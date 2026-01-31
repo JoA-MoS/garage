@@ -812,7 +812,7 @@ export const GamePage = () => {
   };
 
   // End game
-  // Note: The backend's updateGame automatically creates PERIOD_END, SUB_OUT, and GAME_END events
+  // Note: The backend's updateGame automatically creates PERIOD_END and SUB_OUT events
   // via createTimingEventsForStatusChange when status changes to COMPLETED
   const handleEndGame = async () => {
     try {
@@ -1717,8 +1717,7 @@ export const GamePage = () => {
                   gameTeam.events.forEach((event) => {
                     if (
                       (event.eventType?.name === 'PERIOD_START' ||
-                        event.eventType?.name === 'PERIOD_END' ||
-                        event.eventType?.name === 'GAME_END') &&
+                        event.eventType?.name === 'PERIOD_END') &&
                       event.childEvents
                     ) {
                       event.childEvents.forEach((child) => {
@@ -1931,37 +1930,19 @@ export const GamePage = () => {
                       });
                     }
 
-                    // Process PERIOD_END events (skip if GAME_END exists at same time - redundant with Full Time)
+                    // Process PERIOD_END events
+                    // For final period (determined by format.numberOfPeriods), this serves as the "game end" indicator
+                    // (similar to how PERIOD_START period=1 serves as "game start")
                     if (event.eventType?.name === 'PERIOD_END') {
-                      // Check if there's a GAME_END at the same periodSecond (final whistle)
-                      const hasGameEndAtSameTime = gameTeam.events?.some(
-                        (e) =>
-                          e.eventType?.name === 'GAME_END' &&
-                          e.periodSecond === event.periodSecond,
-                      );
-                      // Only show PERIOD_END if it's not the final period (no concurrent GAME_END)
-                      if (!hasGameEndAtSameTime) {
-                        matchEvents.push({
-                          id: event.id,
-                          createdAt: event.createdAt,
-                          eventType: 'period_end',
-                          periodSecond: event.periodSecond,
-                          teamType,
-                          teamName: gameTeam.team.name,
-                          teamColor:
-                            gameTeam.team.homePrimaryColor || defaultColor,
-                          period: event.period,
-                          childEvents: buildChildEvents(event.childEvents),
-                        });
-                      }
-                    }
-
-                    // Process GAME_END events (with child SUB_OUT events)
-                    if (event.eventType?.name === 'GAME_END') {
+                      // Check if this is the final period using numberOfPeriods from game format
+                      const numberOfPeriods = game.format?.numberOfPeriods ?? 2;
+                      const isFinalPeriod =
+                        event.period === String(numberOfPeriods);
                       matchEvents.push({
                         id: event.id,
                         createdAt: event.createdAt,
-                        eventType: 'game_end',
+                        // Use 'game_end' type for final period to show "Full Time" label
+                        eventType: isFinalPeriod ? 'game_end' : 'period_end',
                         periodSecond: event.periodSecond,
                         teamType,
                         teamName: gameTeam.team.name,

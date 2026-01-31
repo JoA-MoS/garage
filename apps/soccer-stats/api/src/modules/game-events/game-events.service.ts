@@ -322,18 +322,21 @@ export class GameEventsService implements OnModuleInit {
   }
 
   /**
-   * Create GAME_ROSTER events for the next period based on current on-field players.
+   * Create GAME_ROSTER events for the next period based on players who were on field.
    * Called at halftime to pre-populate the lineup for the second half.
+   * Uses SUBSTITUTION_OUT children of the PERIOD_END event to determine who was on field.
    */
   async createGameRosterForNextPeriod(
     gameTeamId: string,
     nextPeriod: string,
     recordedByUserId: string,
+    periodEndEventId: string,
   ): Promise<number> {
     return this.periodService.createGameRosterForNextPeriod(
       gameTeamId,
       nextPeriod,
       recordedByUserId,
+      periodEndEventId,
     );
   }
 

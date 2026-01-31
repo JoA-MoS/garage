@@ -177,8 +177,6 @@ export class GamesService {
         // Clear only timing events (event-based timing model)
         const timingEventTypes = await this.eventTypeRepository.find({
           where: [
-            { name: 'GAME_START' },
-            { name: 'GAME_END' },
             { name: 'PERIOD_START' },
             { name: 'PERIOD_END' },
             { name: 'STOPPAGE_START' },
@@ -416,12 +414,7 @@ export class GamesService {
       );
     }
 
-    const requiredEventTypes = [
-      'GAME_START',
-      'GAME_END',
-      'PERIOD_START',
-      'PERIOD_END',
-    ];
+    const requiredEventTypes = ['PERIOD_START', 'PERIOD_END'];
 
     const eventTypeMap = new Map<string, EventType>();
     const eventTypes = await this.eventTypeRepository.find({
@@ -550,17 +543,8 @@ export class GamesService {
 
     switch (status) {
       case GameStatus.FIRST_HALF: {
-        // Game starting: create GAME_START, then PERIOD_START (period 1) as child
-        // Skip publishing GAME_START until after PERIOD_START is linked as child
-        const gameStartEvent = await createEvent(
-          'GAME_START',
-          '1', // associated with period 1 (first half)
-          0,
-          0,
-          true, // skipPublish - we'll publish after PERIOD_START is created
-        );
-
-        // Create PERIOD_START as child of GAME_START
+        // Game starting: create PERIOD_START (period 1) - no GAME_START wrapper
+        // PERIOD_START (period=1) serves as the game start indicator
         // Skip publishing until after starters are linked as children
         const periodStartEvent = await createEvent(
           'PERIOD_START',
@@ -568,7 +552,6 @@ export class GamesService {
           0,
           0,
           true, // skipPublish - we'll publish after linking children
-          gameStartEvent.id, // parentEventId = GAME_START
         );
 
         // Link any existing minute 0 SUB_IN events (starters) to PERIOD_START
@@ -590,31 +573,7 @@ export class GamesService {
           }
         }
 
-        // Publish GAME_START with PERIOD_START as child
-        const gameStartWithChildren = await this.gameEventRepository.findOne({
-          where: { id: gameStartEvent.id },
-          relations: [
-            'eventType',
-            'player',
-            'recordedByUser',
-            'gameTeam',
-            'childEvents',
-            'childEvents.eventType',
-            'childEvents.player',
-            'childEvents.childEvents',
-            'childEvents.childEvents.eventType',
-            'childEvents.childEvents.player',
-          ],
-        });
-        if (gameStartWithChildren) {
-          await this.publishGameEvent(
-            gameId,
-            GameEventAction.CREATED,
-            gameStartWithChildren,
-          );
-        }
-
-        // Also publish PERIOD_START with its own childEvents (starters)
+        // Publish PERIOD_START with its childEvents (starters)
         const periodStartWithChildren = await this.gameEventRepository.findOne({
           where: { id: periodStartEvent.id },
           relations: [
@@ -680,11 +639,12 @@ export class GamesService {
           );
 
           // 2b. Create GAME_ROSTER events for period 2 to pre-populate halftime lineup
-          // This uses the same pattern as pre-game: GAME_ROSTER with position → PERIOD_START converts to SUB_IN
+          // Uses SUBSTITUTION_OUT children of PERIOD_END to get players who were on field
           await this.gameEventsService.createGameRosterForNextPeriod(
             gameTeam.id,
             '2', // Next period
             userId!,
+            periodEndEvent.id,
           );
         }
 
@@ -819,37 +779,31 @@ export class GamesService {
           endSecond = gameSeconds % 60;
         }
 
-        // TODO: When quarters support is added, determine the final period dynamically
-        // based on game format (e.g., period 4 for quarters, period 2 for halves)
-        const finalPeriod = '2';
+        // Determine final period from game format (e.g., 2 for halves, 4 for quarters)
+        const numberOfPeriods = game.format?.numberOfPeriods ?? 2;
+        const finalPeriod = String(numberOfPeriods);
 
-        // 1. Create GAME_END first - will be parent of PERIOD_END and SUB_OUT events
+        // 1. Create PERIOD_END for final period - no GAME_END wrapper
+        // PERIOD_END (final period) serves as the game end indicator
         // Skip publishing until children are created
-        const gameEndEvent = await createEvent(
-          'GAME_END',
-          finalPeriod, // associated with the final period
+        const periodEndEvent = await createEvent(
+          'PERIOD_END',
+          finalPeriod,
           endMinute,
           endSecond,
           true, // skipPublish
         );
 
-        // 2. Create PERIOD_END as child of GAME_END
-        await createEvent(
-          'PERIOD_END',
-          finalPeriod,
-          endMinute,
-          endSecond,
-          true, // skipPublish - will be published as part of GAME_END's children
-          gameEndEvent.id, // parentEventId = GAME_END
-        );
-
-        // 3. Create SUBSTITUTION_OUT for all on-field players as children of GAME_END
+        // 2. Create SUBSTITUTION_OUT for all on-field players as children of PERIOD_END
         // Calculate period-relative seconds for the final period
-        // TODO: When quarters support is added, calculate based on actual period count
-        const halfDurationSeconds = Math.floor(totalDuration / 2) * 60;
+        const periodDurationSeconds =
+          (game.format?.periodDurationMinutes ??
+            Math.floor(totalDuration / numberOfPeriods)) * 60;
+        const previousPeriodsSeconds =
+          periodDurationSeconds * (numberOfPeriods - 1);
         const endPeriodSeconds = Math.max(
           0,
-          toPeriodSecond(endMinute, endSecond) - halfDurationSeconds,
+          toPeriodSecond(endMinute, endSecond) - previousPeriodsSeconds,
         );
         for (const gameTeam of gameTeams) {
           await this.gameEventsService.createSubstitutionOutForAllOnField(
@@ -857,13 +811,13 @@ export class GamesService {
             finalPeriod,
             endPeriodSeconds,
             userId!,
-            gameEndEvent.id,
+            periodEndEvent.id,
           );
         }
 
-        // 4. Now publish GAME_END with childEvents included (PERIOD_END + SUB_OUTs)
-        const gameEndWithChildren = await this.gameEventRepository.findOne({
-          where: { id: gameEndEvent.id },
+        // 3. Publish PERIOD_END with childEvents (SUB_OUTs)
+        const periodEndWithChildren = await this.gameEventRepository.findOne({
+          where: { id: periodEndEvent.id },
           relations: [
             'eventType',
             'player',
@@ -874,11 +828,11 @@ export class GamesService {
             'childEvents.player',
           ],
         });
-        if (gameEndWithChildren) {
+        if (periodEndWithChildren) {
           await this.publishGameEvent(
             gameId,
             GameEventAction.CREATED,
-            gameEndWithChildren,
+            periodEndWithChildren,
           );
         }
         break;
@@ -941,19 +895,27 @@ export class GamesService {
   }
 
   /**
-   * Reopens a completed game by deleting the GAME_END event and its children,
-   * then setting the status back to SECOND_HALF.
+   * Reopens a completed game by deleting the final PERIOD_END event and its children,
+   * then setting the status back to the final period (e.g., SECOND_HALF).
    *
    * This allows adding missed events (goals, substitutions) to a game that was
    * accidentally completed too early.
    *
    * @param id - The ID of the game to reopen
-   * @returns The updated game with status SECOND_HALF
+   * @returns The updated game with status set to the final period
    * @throws NotFoundException if game not found
    * @throws Error if game is not in COMPLETED status
    */
   async reopenGame(id: string): Promise<Game> {
-    const game = await this.findOne(id);
+    // Load game with format to determine final period
+    const game = await this.gameRepository.findOne({
+      where: { id },
+      relations: ['format'],
+    });
+
+    if (!game) {
+      throw new NotFoundException(`Game with ID ${id} not found`);
+    }
 
     if (game.status !== GameStatus.COMPLETED) {
       throw new Error(
@@ -961,36 +923,43 @@ export class GamesService {
       );
     }
 
-    // Find the GAME_END event for this game
-    const gameEndEventType = await this.eventTypeRepository.findOne({
-      where: { name: 'GAME_END' },
+    // Determine final period from game format
+    const numberOfPeriods = game.format?.numberOfPeriods ?? 2;
+    const finalPeriod = String(numberOfPeriods);
+
+    // Find the PERIOD_END event for the final period
+    const periodEndEventType = await this.eventTypeRepository.findOne({
+      where: { name: 'PERIOD_END' },
     });
 
-    if (!gameEndEventType) {
-      throw new Error('GAME_END event type not found in database');
+    if (!periodEndEventType) {
+      throw new Error('PERIOD_END event type not found in database');
     }
 
-    const gameEndEvent = await this.gameEventRepository.findOne({
+    const periodEndEvent = await this.gameEventRepository.findOne({
       where: {
         gameId: id,
-        eventTypeId: gameEndEventType.id,
+        eventTypeId: periodEndEventType.id,
+        period: finalPeriod,
       },
       relations: ['childEvents', 'childEvents.eventType', 'childEvents.player'],
     });
 
-    if (gameEndEvent) {
+    if (periodEndEvent) {
       // Publish deletion event before deleting
-      await this.publishGameEvent(id, GameEventAction.DELETED, gameEndEvent);
+      await this.publishGameEvent(id, GameEventAction.DELETED, periodEndEvent);
 
-      // Delete GAME_END - children (PERIOD_END, SUBSTITUTION_OUT) cascade automatically
-      await this.gameEventRepository.remove(gameEndEvent);
+      // Delete PERIOD_END - children (SUBSTITUTION_OUT) cascade automatically
+      await this.gameEventRepository.remove(periodEndEvent);
 
       this.logger.log(
-        `Deleted GAME_END event ${gameEndEvent.id} and ${gameEndEvent.childEvents?.length ?? 0} child events for game ${id}`,
+        `Deleted PERIOD_END event ${periodEndEvent.id} (period ${finalPeriod}) and ${periodEndEvent.childEvents?.length ?? 0} child events for game ${id}`,
       );
     }
 
-    // Update game status to SECOND_HALF and clear actualEnd
+    // Update game status back to the final period status and clear actualEnd
+    // For 2 periods (halves): SECOND_HALF, for 4 periods: would be FOURTH_QUARTER, etc.
+    // Currently only halves are supported, so we use SECOND_HALF
     await this.gameRepository
       .createQueryBuilder()
       .update(Game)
@@ -1008,7 +977,7 @@ export class GamesService {
 
   /**
    * Publish a game event change to all subscribers.
-   * Used for timing events (GAME_START, PERIOD_START, etc.) created by GamesService.
+   * Used for timing events (PERIOD_START, PERIOD_END, etc.) created by GamesService.
    */
   private async publishGameEvent(
     gameId: string,

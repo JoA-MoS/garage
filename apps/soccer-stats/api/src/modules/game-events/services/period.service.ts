@@ -840,12 +840,14 @@ export class PeriodService {
    * @param gameTeamId - The game team ID
    * @param nextPeriod - The next period (e.g., '2' for second half)
    * @param recordedByUserId - User recording the events
+   * @param periodEndEventId - The PERIOD_END event ID whose SUBSTITUTION_OUT children define who was on field
    * @returns Number of GAME_ROSTER events created
    */
   async createGameRosterForNextPeriod(
     gameTeamId: string,
     nextPeriod: string,
     recordedByUserId: string,
+    periodEndEventId: string,
   ): Promise<number> {
     const gameTeam = await this.gameTeamsRepository.findOne({
       where: { id: gameTeamId },
@@ -855,34 +857,44 @@ export class PeriodService {
       throw new NotFoundException(`GameTeam ${gameTeamId} not found`);
     }
 
-    // Get current on-field players
-    const lineup = await this.lineupService.getGameLineup(gameTeamId);
+    // Get players who were on field at end of previous period
+    // by querying SUBSTITUTION_OUT children of the PERIOD_END event
+    const subOutType = this.coreService.getEventTypeByName('SUBSTITUTION_OUT');
+    const playersFromPreviousPeriod = await this.gameEventsRepository.find({
+      where: {
+        gameTeamId,
+        eventTypeId: subOutType.id,
+        parentEventId: periodEndEventId,
+      },
+    });
+
     const gameRosterType = this.coreService.getEventTypeByName('GAME_ROSTER');
 
-    if (lineup.currentOnField.length === 0) {
+    if (playersFromPreviousPeriod.length === 0) {
       this.logger.log(
-        `[createGameRosterForNextPeriod] No on-field players for gameTeam ${gameTeamId}`,
+        `[createGameRosterForNextPeriod] No SUBSTITUTION_OUT children found for PERIOD_END ${periodEndEventId}`,
       );
       return 0;
     }
 
-    // Create GAME_ROSTER events for the next period
-    const nextPeriodRosterEvents = lineup.currentOnField.map((player) =>
-      this.gameEventsRepository.create({
-        gameId: gameTeam.gameId,
-        gameTeamId,
-        eventTypeId: gameRosterType.id,
-        playerId: player.playerId,
-        externalPlayerName: player.externalPlayerName,
-        externalPlayerNumber: player.externalPlayerNumber,
-        position: player.position,
-        recordedByUserId,
-        // Next period roster starts at periodSecond 0
-        gameMinute: 0,
-        gameSecond: 0,
-        period: nextPeriod,
-        periodSecond: 0,
-      }),
+    // Create GAME_ROSTER events for the next period using the players/positions from SUBSTITUTION_OUT events
+    const nextPeriodRosterEvents = playersFromPreviousPeriod.map(
+      (subOutEvent) =>
+        this.gameEventsRepository.create({
+          gameId: gameTeam.gameId,
+          gameTeamId,
+          eventTypeId: gameRosterType.id,
+          playerId: subOutEvent.playerId,
+          externalPlayerName: subOutEvent.externalPlayerName,
+          externalPlayerNumber: subOutEvent.externalPlayerNumber,
+          position: subOutEvent.position,
+          recordedByUserId,
+          // Next period roster starts at periodSecond 0
+          gameMinute: 0,
+          gameSecond: 0,
+          period: nextPeriod,
+          periodSecond: 0,
+        }),
     );
 
     await this.gameEventsRepository.save(nextPeriodRosterEvents);

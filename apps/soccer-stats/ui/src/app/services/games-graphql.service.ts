@@ -71,6 +71,7 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
         name
         playersPerTeam
         durationMinutes
+        numberOfPeriods
       }
       teams {
         id
@@ -355,17 +356,6 @@ export const GET_GAME_LINEUP = graphql(/* GraphQL */ `
         position
         isOnField
       }
-      previousPeriodLineup {
-        gameEventId
-        playerId
-        playerName
-        firstName
-        lastName
-        externalPlayerName
-        externalPlayerNumber
-        position
-        isOnField
-      }
     }
   }
 `);
@@ -377,16 +367,6 @@ export const GET_GAME_ROSTER = graphql(/* GraphQL */ `
       gameTeamId
       formation
       players {
-        gameEventId
-        playerId
-        playerName
-        firstName
-        lastName
-        externalPlayerName
-        externalPlayerNumber
-        position
-      }
-      previousPeriodLineup {
         gameEventId
         playerId
         playerName
