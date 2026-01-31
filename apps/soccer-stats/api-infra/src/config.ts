@@ -24,6 +24,14 @@ export const clerkPublishableKey = config.require('clerkPublishableKey');
 // If not set, API allows all origins (safe when behind CloudFront)
 export const frontendUrl = config.get('frontendUrl');
 
+// Database connection pool configuration
+// These settings control the PostgreSQL connection pool in TypeORM
+export const dbPoolMax = config.getNumber('dbPoolMax') || 10;
+export const dbPoolMin = config.getNumber('dbPoolMin') || 2;
+export const dbPoolIdleTimeout = config.getNumber('dbPoolIdleTimeout') || 30000;
+export const dbPoolConnectionTimeout =
+  config.getNumber('dbPoolConnectionTimeout') || 5000;
+
 // Observability configuration
 // Log level: 'none' (safe rollout), 'basic' (warnings only), 'verbose' (all metrics)
 export const observabilityLogLevel =
