@@ -52,6 +52,30 @@ describe('LineupService', () => {
     name: 'FORMATION_CHANGE',
   } as EventType;
 
+  // Mock game team with team configuration for default formation
+  const mockGameTeamWithConfig = {
+    id: mockGameTeamId,
+    gameId: mockGameId,
+    formation: '4-3-3',
+    team: {
+      id: 'team-1',
+      teamConfiguration: {
+        defaultFormation: '4-4-2',
+      },
+    },
+  } as GameTeam;
+
+  // Mock game team without team configuration
+  const mockGameTeamNoConfig = {
+    id: mockGameTeamId,
+    gameId: mockGameId,
+    formation: null,
+    team: {
+      id: 'team-1',
+      teamConfiguration: null,
+    },
+  } as GameTeam;
+
   const mockGameTeam = {
     id: mockGameTeamId,
     gameId: mockGameId,
@@ -577,6 +601,9 @@ describe('LineupService', () => {
     }
 
     beforeEach(() => {
+      // Setup gameTeam mock - default to team with configuration
+      mockGameTeamsRepository.findOne.mockResolvedValue(mockGameTeamWithConfig);
+
       // Setup event type mocks
       mockCoreService.getEventTypeByName.mockImplementation((name: string) => {
         switch (name) {
@@ -598,7 +625,7 @@ describe('LineupService', () => {
       });
     });
 
-    it('should return empty players array when no events exist', async () => {
+    it('should fall back to team default formation when no FORMATION_CHANGE events exist', async () => {
       const mockQb = createMockQueryBuilder([]);
       const mockFormationQb = createMockQueryBuilder([]);
 
@@ -617,8 +644,28 @@ describe('LineupService', () => {
 
       expect(result.gameTeamId).toBe(mockGameTeamId);
       expect(result.players).toEqual([]);
-      expect(result.formation).toBeNull();
+      // Falls back to team's default formation from teamConfiguration
+      expect(result.formation).toBe('4-4-2');
       expect(result.previousPeriodLineup).toBeUndefined();
+    });
+
+    it('should return null formation when no events and team has no default formation', async () => {
+      // Override to use team without configuration
+      mockGameTeamsRepository.findOne.mockResolvedValue(mockGameTeamNoConfig);
+
+      const mockQb = createMockQueryBuilder([]);
+      const mockFormationQb = createMockQueryBuilder([]);
+
+      mockManager.createQueryBuilder.mockReturnValue(mockQb);
+      mockGameEventsRepository.createQueryBuilder = jest
+        .fn()
+        .mockReturnValue(mockFormationQb);
+      mockGameEventsRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.getGameRoster(mockGameTeamId);
+
+      expect(result.gameTeamId).toBe(mockGameTeamId);
+      expect(result.formation).toBeNull();
     });
 
     it('should return players with positions from query results', async () => {
