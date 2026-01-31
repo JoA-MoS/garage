@@ -232,7 +232,8 @@ export class DataLoadersService {
    * Batch loads GameEvents by gameId.
    * Returns an array of GameEvents for each game, with related entities.
    *
-   * Includes childEvents for consistency with gameEventsByGameTeamLoader.
+   * Note: childEvents are loaded on-demand via childEventsByParentIdLoader
+   * to reduce memory pressure during game tracking.
    */
   private createGameEventsByGameLoader(): DataLoader<string, GameEvent[]> {
     return this.createLoader<string, GameEvent[]>(
@@ -244,9 +245,8 @@ export class DataLoadersService {
             'eventType',
             'player',
             'gameTeam',
-            'childEvents',
-            'childEvents.eventType',
-            'childEvents.player',
+            // Removed: childEvents and nested relations
+            // Use childEventsByParentIdLoader for on-demand loading
           ],
           order: { period: 'ASC', periodSecond: 'ASC', createdAt: 'ASC' },
         });
@@ -271,7 +271,8 @@ export class DataLoadersService {
    * This loader is used when events are accessed through GameTeam.gameEvents,
    * which is the primary access path in the frontend.
    *
-   * Relations are consistent with gameEventsByGameLoader for predictable behavior.
+   * Note: childEvents are loaded on-demand via childEventsByParentIdLoader
+   * to reduce memory pressure during game tracking.
    */
   private createGameEventsByGameTeamLoader(): DataLoader<string, GameEvent[]> {
     return this.createLoader<string, GameEvent[]>(
@@ -283,9 +284,8 @@ export class DataLoadersService {
             'eventType',
             'player',
             'gameTeam',
-            'childEvents',
-            'childEvents.eventType',
-            'childEvents.player',
+            // Removed: childEvents and nested relations
+            // Use childEventsByParentIdLoader for on-demand loading
           ],
           order: { period: 'ASC', periodSecond: 'ASC', createdAt: 'ASC' },
         });
@@ -328,6 +328,9 @@ export class DataLoadersService {
   /**
    * Batch loads child GameEvents by parentEventId.
    * Used for GameEvent.childEvents field resolution.
+   *
+   * Includes eventType and player relations since child events
+   * are now loaded on-demand instead of eagerly with parent events.
    */
   private createChildEventsByParentIdLoader(): DataLoader<string, GameEvent[]> {
     return this.createLoader<string, GameEvent[]>(
@@ -335,6 +338,7 @@ export class DataLoadersService {
       async (parentIds) => {
         const events = await this.gameEventRepository.find({
           where: { parentEventId: In([...parentIds]) },
+          relations: ['eventType', 'player'], // Add relations for child events
           order: { period: 'ASC', periodSecond: 'ASC', createdAt: 'ASC' },
         });
 
