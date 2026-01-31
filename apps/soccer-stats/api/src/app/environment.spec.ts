@@ -10,6 +10,11 @@ import {
   getDbName,
   getDbSynchronize,
   getDbLogging,
+  getDbPoolMax,
+  getDbPoolMin,
+  getDbPoolIdleTimeout,
+  getDbPoolConnectionTimeout,
+  getValidatedPoolConfig,
   getGraphqlIntrospection,
   getClerkSecretKey,
   getClerkPublishableKey,
@@ -203,6 +208,132 @@ describe('Environment Configuration', () => {
       process.env['NODE_ENV'] = 'production';
       delete process.env['DB_LOGGING'];
       expect(getDbLogging()).toBe(false);
+    });
+  });
+
+  describe('Database Pool Configuration', () => {
+    describe('getDbPoolMax', () => {
+      it('should return DB_POOL_MAX when set to valid number', () => {
+        process.env['DB_POOL_MAX'] = '25';
+        expect(getDbPoolMax()).toBe(25);
+      });
+
+      it('should return 10 as default when DB_POOL_MAX is not set', () => {
+        delete process.env['DB_POOL_MAX'];
+        expect(getDbPoolMax()).toBe(10);
+      });
+
+      it('should warn and return 10 when DB_POOL_MAX is not a valid number', () => {
+        process.env['DB_POOL_MAX'] = 'invalid';
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+        expect(getDbPoolMax()).toBe(10);
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[Environment] DB_POOL_MAX has invalid value "invalid". ' +
+            'Expected an integer. Defaulting to 10.',
+        );
+        warnSpy.mockRestore();
+      });
+    });
+
+    describe('getDbPoolMin', () => {
+      it('should return DB_POOL_MIN when set to valid number', () => {
+        process.env['DB_POOL_MIN'] = '5';
+        expect(getDbPoolMin()).toBe(5);
+      });
+
+      it('should return 2 as default when DB_POOL_MIN is not set', () => {
+        delete process.env['DB_POOL_MIN'];
+        expect(getDbPoolMin()).toBe(2);
+      });
+
+      it('should warn and return 2 when DB_POOL_MIN is not a valid number', () => {
+        process.env['DB_POOL_MIN'] = 'abc';
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+        expect(getDbPoolMin()).toBe(2);
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[Environment] DB_POOL_MIN has invalid value "abc". ' +
+            'Expected an integer. Defaulting to 2.',
+        );
+        warnSpy.mockRestore();
+      });
+    });
+
+    describe('getDbPoolIdleTimeout', () => {
+      it('should return DB_POOL_IDLE_TIMEOUT when set to valid number', () => {
+        process.env['DB_POOL_IDLE_TIMEOUT'] = '60000';
+        expect(getDbPoolIdleTimeout()).toBe(60000);
+      });
+
+      it('should return 30000 as default when DB_POOL_IDLE_TIMEOUT is not set', () => {
+        delete process.env['DB_POOL_IDLE_TIMEOUT'];
+        expect(getDbPoolIdleTimeout()).toBe(30000);
+      });
+
+      it('should warn and return 30000 when DB_POOL_IDLE_TIMEOUT is not valid', () => {
+        process.env['DB_POOL_IDLE_TIMEOUT'] = 'bad';
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+        expect(getDbPoolIdleTimeout()).toBe(30000);
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[Environment] DB_POOL_IDLE_TIMEOUT has invalid value "bad". ' +
+            'Expected an integer in milliseconds. Defaulting to 30000.',
+        );
+        warnSpy.mockRestore();
+      });
+    });
+
+    describe('getDbPoolConnectionTimeout', () => {
+      it('should return DB_POOL_CONNECTION_TIMEOUT when set to valid number', () => {
+        process.env['DB_POOL_CONNECTION_TIMEOUT'] = '10000';
+        expect(getDbPoolConnectionTimeout()).toBe(10000);
+      });
+
+      it('should return 5000 as default when DB_POOL_CONNECTION_TIMEOUT is not set', () => {
+        delete process.env['DB_POOL_CONNECTION_TIMEOUT'];
+        expect(getDbPoolConnectionTimeout()).toBe(5000);
+      });
+
+      it('should warn and return 5000 when DB_POOL_CONNECTION_TIMEOUT is not valid', () => {
+        process.env['DB_POOL_CONNECTION_TIMEOUT'] = 'xyz';
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+        expect(getDbPoolConnectionTimeout()).toBe(5000);
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[Environment] DB_POOL_CONNECTION_TIMEOUT has invalid value "xyz". ' +
+            'Expected an integer in milliseconds. Defaulting to 5000.',
+        );
+        warnSpy.mockRestore();
+      });
+    });
+
+    describe('getValidatedPoolConfig', () => {
+      it('should return min and max when both are valid and min <= max', () => {
+        process.env['DB_POOL_MIN'] = '5';
+        process.env['DB_POOL_MAX'] = '20';
+        const config = getValidatedPoolConfig();
+        expect(config.min).toBe(5);
+        expect(config.max).toBe(20);
+      });
+
+      it('should warn and clamp min to max when min > max', () => {
+        process.env['DB_POOL_MIN'] = '25';
+        process.env['DB_POOL_MAX'] = '10';
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+        const config = getValidatedPoolConfig();
+        expect(config.min).toBe(10);
+        expect(config.max).toBe(10);
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[Environment] DB_POOL_MIN (25) is greater than DB_POOL_MAX (10). ' +
+            'Setting DB_POOL_MIN to 10 to match DB_POOL_MAX.',
+        );
+        warnSpy.mockRestore();
+      });
+
+      it('should use defaults when neither is set', () => {
+        delete process.env['DB_POOL_MIN'];
+        delete process.env['DB_POOL_MAX'];
+        const config = getValidatedPoolConfig();
+        expect(config.min).toBe(2);
+        expect(config.max).toBe(10);
+      });
     });
   });
 

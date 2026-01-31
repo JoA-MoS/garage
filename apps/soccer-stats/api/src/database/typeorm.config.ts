@@ -16,12 +16,18 @@ import {
   getDbSynchronize,
   getDbLogging,
   getDbSsl,
+  getValidatedPoolConfig,
+  getDbPoolIdleTimeout,
+  getDbPoolConnectionTimeout,
 } from '../app/environment';
 
 /**
  * Migrations table name - must be consistent between CLI and runtime.
  */
 export const MIGRATIONS_TABLE_NAME = 'typeorm_migrations';
+
+// Get validated pool config (warns and clamps if min > max)
+const poolConfig = getValidatedPoolConfig();
 
 /**
  * Base TypeORM configuration shared between NestJS app and CLI.
@@ -38,6 +44,13 @@ export const baseTypeOrmConfig = {
   logging: getDbLogging(),
   ssl: getDbSsl() ? { rejectUnauthorized: false } : false,
   migrationsTableName: MIGRATIONS_TABLE_NAME,
+  // Connection pool configuration for PostgreSQL
+  extra: {
+    max: poolConfig.max,
+    min: poolConfig.min,
+    idleTimeoutMillis: getDbPoolIdleTimeout(),
+    connectionTimeoutMillis: getDbPoolConnectionTimeout(),
+  },
 };
 
 /**
