@@ -484,10 +484,9 @@ export class SubstitutionService {
       const events = await this.substitutePlayer(subInput, recordedByUserId);
       allEvents.push(...events);
 
-      // Find the SUBSTITUTION_IN event and store its ID for swap references
-      const subInEvent = events.find(
-        (e) => e.eventType?.name === 'SUBSTITUTION_IN',
-      );
+      // substitutePlayer returns [subOut, subIn] - the second element is the SUB_IN event
+      // We use array index because the returned entities don't have eventType loaded
+      const subInEvent = events[1];
       if (subInEvent) {
         substitutionEventIds.set(i, subInEvent.id);
       }
