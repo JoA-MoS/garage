@@ -97,7 +97,6 @@ export class PeriodService {
       // New period-relative timing
       period: periodString,
       periodSecond,
-      metadata: { period: periodString },
     });
 
     const savedPeriodEvent = await this.gameEventsRepository.save(periodEvent);
@@ -225,7 +224,6 @@ export class PeriodService {
       // New period-relative timing
       period: periodString,
       periodSecond,
-      metadata: { period: periodString },
     });
 
     const savedPeriodEvent = await this.gameEventsRepository.save(periodEvent);
@@ -261,6 +259,36 @@ export class PeriodService {
     const savedSubOutEvents =
       await this.gameEventsRepository.save(subOutEventsToCreate);
     substitutionEvents.push(...savedSubOutEvents);
+
+    // 6b. Create GAME_ROSTER events for the NEXT period to pre-populate the lineup
+    // This uses the same pattern as pre-game: GAME_ROSTER with position → PERIOD_START converts to SUB_IN
+    // The window function will see these as "latest" because period DESC order
+    const nextPeriod = String(parseInt(periodString, 10) + 1);
+    const gameRosterType = this.coreService.getEventTypeByName('GAME_ROSTER');
+
+    const nextPeriodRosterEvents = lineup.currentOnField.map((player) =>
+      this.gameEventsRepository.create({
+        gameId: game.id,
+        gameTeamId: input.gameTeamId,
+        eventTypeId: gameRosterType.id,
+        playerId: player.playerId,
+        externalPlayerName: player.externalPlayerName,
+        externalPlayerNumber: player.externalPlayerNumber,
+        position: player.position, // Preserve their position for next period
+        recordedByUserId,
+        // Next period roster starts at periodSecond 0
+        gameMinute: 0,
+        gameSecond: 0,
+        period: nextPeriod,
+        periodSecond: 0,
+      }),
+    );
+
+    await this.gameEventsRepository.save(nextPeriodRosterEvents);
+
+    this.logger.log(
+      `[endPeriod] Created ${nextPeriodRosterEvents.length} GAME_ROSTER events for period ${nextPeriod}`,
+    );
 
     // 7. Load relations for period event
     const periodEventWithRelations = await this.gameEventsRepository.findOne({
@@ -509,10 +537,7 @@ export class PeriodService {
       },
     });
 
-    const periodStart2 = periodStartEvents.find((e) => {
-      const metadata = e.metadata as { period?: string } | undefined;
-      return metadata?.period === '2';
-    });
+    const periodStart2 = periodStartEvents.find((e) => e.period === '2');
 
     this.logger.log(
       `[ensureSecondHalfLineupExists] Found PERIOD_START period 2: ${periodStart2?.id ?? 'none'}`,
@@ -563,13 +588,10 @@ export class PeriodService {
       return;
     }
 
-    // Check if this is period 1's end by looking at metadata
-    const periodMetadata = periodEndEvent.metadata as
-      | { period?: string }
-      | undefined;
-    if (periodMetadata?.period !== '1') {
+    // Check if this is period 1's end by looking at the period column
+    if (periodEndEvent.period !== '1') {
       this.logger.log(
-        `[ensureSecondHalfLineupExists] PERIOD_END event is for period ${periodMetadata?.period}, not period 1`,
+        `[ensureSecondHalfLineupExists] PERIOD_END event is for period ${periodEndEvent.period}, not period 1`,
       );
       return;
     }
@@ -724,5 +746,163 @@ export class PeriodService {
     );
 
     return starterSubIns.length;
+  }
+
+  /**
+   * Create SUB_IN events from GAME_ROSTER starters (players with positions).
+   *
+   * Called when starting a period to convert GAME_ROSTER events into SUB_IN events
+   * linked to the PERIOD_START event.
+   *
+   * This handles both:
+   * - First half: Pre-game GAME_ROSTER events (period='1')
+   * - Second half: Halftime GAME_ROSTER events (period='2') created by endPeriod
+   *
+   * @param gameTeamId - The game team ID
+   * @param periodStartEventId - The PERIOD_START event ID
+   * @param recordedByUserId - User recording the events
+   * @param period - The period being started (defaults to '1' for backwards compatibility)
+   * @returns Number of SUB_IN events created
+   */
+  async createSubInEventsFromRosterStarters(
+    gameTeamId: string,
+    periodStartEventId: string,
+    recordedByUserId: string,
+    period = '1',
+  ): Promise<number> {
+    const gameRosterType = this.coreService.getEventTypeByName('GAME_ROSTER');
+    const subInType = this.coreService.getEventTypeByName('SUBSTITUTION_IN');
+
+    // Find GAME_ROSTER events for this period with positions (starters)
+    const rosterStarters = await this.gameEventsRepository.find({
+      where: {
+        gameTeamId,
+        eventTypeId: gameRosterType.id,
+        period,
+      },
+    });
+
+    // Filter to only those with non-null positions (starters)
+    const starters = rosterStarters.filter((e) => e.position != null);
+
+    this.logger.log(
+      `[createSubInEventsFromRosterStarters] Found ${starters.length} GAME_ROSTER starters for gameTeam ${gameTeamId} period ${period}`,
+    );
+
+    if (starters.length === 0) {
+      return 0;
+    }
+
+    // Get the game team to get the game ID
+    const gameTeam = await this.gameTeamsRepository.findOne({
+      where: { id: gameTeamId },
+    });
+
+    if (!gameTeam) {
+      throw new NotFoundException(`GameTeam ${gameTeamId} not found`);
+    }
+
+    // Create SUB_IN events for each starter as children of PERIOD_START
+    const subInEventsToCreate = starters.map((starter) =>
+      this.gameEventsRepository.create({
+        gameId: gameTeam.gameId,
+        gameTeamId,
+        eventTypeId: subInType.id,
+        playerId: starter.playerId,
+        externalPlayerName: starter.externalPlayerName,
+        externalPlayerNumber: starter.externalPlayerNumber,
+        position: starter.position,
+        recordedByUserId,
+        // Starters enter at the start of the period (periodSecond 0)
+        gameMinute: 0,
+        gameSecond: 0,
+        period,
+        periodSecond: 0,
+        parentEventId: periodStartEventId,
+      }),
+    );
+
+    await this.gameEventsRepository.save(subInEventsToCreate);
+
+    this.logger.log(
+      `[createSubInEventsFromRosterStarters] Created ${subInEventsToCreate.length} SUB_IN events from GAME_ROSTER starters for gameTeam ${gameTeamId} period ${period}`,
+    );
+
+    return subInEventsToCreate.length;
+  }
+
+  /**
+   * Create GAME_ROSTER events for the next period based on current on-field players.
+   *
+   * Called at halftime to pre-populate the lineup for the second half.
+   * The window function will see these as "latest" because period DESC ordering.
+   *
+   * @param gameTeamId - The game team ID
+   * @param nextPeriod - The next period (e.g., '2' for second half)
+   * @param recordedByUserId - User recording the events
+   * @param periodEndEventId - The PERIOD_END event ID whose SUBSTITUTION_OUT children define who was on field
+   * @returns Number of GAME_ROSTER events created
+   */
+  async createGameRosterForNextPeriod(
+    gameTeamId: string,
+    nextPeriod: string,
+    recordedByUserId: string,
+    periodEndEventId: string,
+  ): Promise<number> {
+    const gameTeam = await this.gameTeamsRepository.findOne({
+      where: { id: gameTeamId },
+    });
+
+    if (!gameTeam) {
+      throw new NotFoundException(`GameTeam ${gameTeamId} not found`);
+    }
+
+    // Get players who were on field at end of previous period
+    // by querying SUBSTITUTION_OUT children of the PERIOD_END event
+    const subOutType = this.coreService.getEventTypeByName('SUBSTITUTION_OUT');
+    const playersFromPreviousPeriod = await this.gameEventsRepository.find({
+      where: {
+        gameTeamId,
+        eventTypeId: subOutType.id,
+        parentEventId: periodEndEventId,
+      },
+    });
+
+    const gameRosterType = this.coreService.getEventTypeByName('GAME_ROSTER');
+
+    if (playersFromPreviousPeriod.length === 0) {
+      this.logger.log(
+        `[createGameRosterForNextPeriod] No SUBSTITUTION_OUT children found for PERIOD_END ${periodEndEventId}`,
+      );
+      return 0;
+    }
+
+    // Create GAME_ROSTER events for the next period using the players/positions from SUBSTITUTION_OUT events
+    const nextPeriodRosterEvents = playersFromPreviousPeriod.map(
+      (subOutEvent) =>
+        this.gameEventsRepository.create({
+          gameId: gameTeam.gameId,
+          gameTeamId,
+          eventTypeId: gameRosterType.id,
+          playerId: subOutEvent.playerId,
+          externalPlayerName: subOutEvent.externalPlayerName,
+          externalPlayerNumber: subOutEvent.externalPlayerNumber,
+          position: subOutEvent.position,
+          recordedByUserId,
+          // Next period roster starts at periodSecond 0
+          gameMinute: 0,
+          gameSecond: 0,
+          period: nextPeriod,
+          periodSecond: 0,
+        }),
+    );
+
+    await this.gameEventsRepository.save(nextPeriodRosterEvents);
+
+    this.logger.log(
+      `[createGameRosterForNextPeriod] Created ${nextPeriodRosterEvents.length} GAME_ROSTER events for period ${nextPeriod}`,
+    );
+
+    return nextPeriodRosterEvents.length;
   }
 }

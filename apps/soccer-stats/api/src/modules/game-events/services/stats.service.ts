@@ -67,7 +67,7 @@ export class StatsService {
 
     // Sort events by period first, then by periodSecond within each period
     // This ensures period 1 events come before period 2 events
-    // Events without a period (like STARTING_LINEUP) are treated as period 0
+    // Events without a period (like GAME_ROSTER) are treated as period 0
     events.sort((a, b) => {
       const periodA = a.period ?? '0';
       const periodB = b.period ?? '0';
@@ -80,14 +80,13 @@ export class StatsService {
       return a.createdAt.getTime() - b.createdAt.getTime();
     });
 
-    // Get current game time in seconds from timing service
-    const currentGameSeconds =
-      await this.gameTimingService.getGameDurationSeconds(
-        game.id,
-        game.format?.durationMinutes,
-      );
+    // Get period-aware timing info
+    const periodTiming = await this.gameTimingService.getPeriodTimingInfo(
+      game.id,
+      game.format?.durationMinutes,
+    );
 
-    // Track player position time spans
+    // Track player position time spans with period awareness
     type PlayerTimeSpan = {
       playerId?: string;
       playerName?: string;
@@ -95,6 +94,7 @@ export class StatsService {
       externalPlayerNumber?: string;
       spans: Array<{
         position: string;
+        period: string;
         startSeconds: number;
         endSeconds?: number;
       }>;
@@ -113,6 +113,7 @@ export class StatsService {
 
       // Use periodSecond for time within each period
       const eventSeconds = event.periodSecond;
+      const eventPeriod = event.period ?? '1';
 
       let playerData = playerTimeMap.get(playerKey);
       if (!playerData) {
@@ -127,21 +128,12 @@ export class StatsService {
       }
 
       switch (event.eventType.name) {
-        case 'STARTING_LINEUP':
-          // Player starts at this position from minute 0
-          if (event.position) {
-            playerData.spans.push({
-              position: event.position,
-              startSeconds: 0,
-            });
-          }
-          break;
-
         case 'SUBSTITUTION_IN':
           // Player enters at this position
           if (event.position) {
             playerData.spans.push({
               position: event.position,
+              period: eventPeriod,
               startSeconds: eventSeconds,
             });
           }
@@ -170,6 +162,7 @@ export class StatsService {
           if (event.position) {
             playerData.spans.push({
               position: event.position,
+              period: eventPeriod,
               startSeconds: eventSeconds,
             });
           }
@@ -177,6 +170,25 @@ export class StatsService {
         }
       }
     }
+
+    // Helper to get period duration for open span calculation
+    const getPeriodEndSeconds = (period: string): number => {
+      if (period === '1') {
+        // For period 1, use period1 duration (either completed or current)
+        return periodTiming.currentPeriod === '1'
+          ? periodTiming.currentPeriodSeconds
+          : periodTiming.period1DurationSeconds;
+      } else if (period === '2') {
+        // For period 2, use period2 duration (either completed or current)
+        return periodTiming.currentPeriod === '2'
+          ? periodTiming.currentPeriodSeconds
+          : periodTiming.period2DurationSeconds;
+      }
+      // For other periods (OT), use current period seconds if we're in that period
+      return periodTiming.currentPeriod === period
+        ? periodTiming.currentPeriodSeconds
+        : 0;
+    };
 
     // Calculate stats for each player
     const stats: PlayerPositionStats[] = [];
@@ -186,7 +198,8 @@ export class StatsService {
       let totalSeconds = 0;
 
       for (const span of playerData.spans) {
-        const endSeconds = span.endSeconds ?? currentGameSeconds;
+        // Use period-specific end time for open spans
+        const endSeconds = span.endSeconds ?? getPeriodEndSeconds(span.period);
         const duration = Math.max(0, endSeconds - span.startSeconds);
 
         totalSeconds += duration;
@@ -363,15 +376,32 @@ export class StatsService {
       const game = gameMap.get(gameTeamId);
       if (!game) continue;
 
-      const currentGameSeconds =
-        await this.gameTimingService.getGameDurationSeconds(
-          game.id,
-          game.format?.durationMinutes,
-        );
+      // Get period-aware timing info for this game
+      const periodTiming = await this.gameTimingService.getPeriodTimingInfo(
+        game.id,
+        game.format?.durationMinutes,
+      );
 
-      // Track open spans for this game
+      // Helper to get period duration for open span calculation
+      const getPeriodEndSeconds = (period: string): number => {
+        if (period === '1') {
+          return periodTiming.currentPeriod === '1'
+            ? periodTiming.currentPeriodSeconds
+            : periodTiming.period1DurationSeconds;
+        } else if (period === '2') {
+          return periodTiming.currentPeriod === '2'
+            ? periodTiming.currentPeriodSeconds
+            : periodTiming.period2DurationSeconds;
+        }
+        return periodTiming.currentPeriod === period
+          ? periodTiming.currentPeriodSeconds
+          : 0;
+      };
+
+      // Track open spans for this game with period awareness
       type PlayerSpan = {
         position: string;
+        period: string;
         startSeconds: number;
       };
       const playerOpenSpans: Map<string, PlayerSpan | null> = new Map();
@@ -382,22 +412,14 @@ export class StatsService {
         const playerStats = getPlayerStats(event);
         // Use periodSecond for time within each period
         const eventSeconds = event.periodSecond;
+        const eventPeriod = event.period ?? '1';
 
         switch (event.eventType.name) {
-          case 'STARTING_LINEUP':
-            if (event.position) {
-              playerOpenSpans.set(playerKey, {
-                position: event.position,
-                startSeconds: 0,
-              });
-              playerStats.gamesPlayed.add(gameTeamId);
-            }
-            break;
-
           case 'SUBSTITUTION_IN':
             if (event.position) {
               playerOpenSpans.set(playerKey, {
                 position: event.position,
+                period: eventPeriod,
                 startSeconds: eventSeconds,
               });
               playerStats.gamesPlayed.add(gameTeamId);
@@ -444,6 +466,7 @@ export class StatsService {
             if (event.position) {
               playerOpenSpans.set(playerKey, {
                 position: event.position,
+                period: eventPeriod,
                 startSeconds: eventSeconds,
               });
             }
@@ -460,21 +483,23 @@ export class StatsService {
             playerStats.gamesPlayed.add(gameTeamId);
             break;
 
-          case 'BENCH':
-            // Player on bench - mark as participating in game but not playing
+          case 'GAME_ROSTER':
+            // Player on roster - mark as participating in game (may or may not play)
             playerStats.gamesPlayed.add(gameTeamId);
             break;
         }
       }
 
-      // Close any open spans at end of game and track on-field status
+      // Close any open spans at end of game using period-specific end time
       for (const [playerKey, openSpan] of playerOpenSpans) {
         if (openSpan) {
           const playerStats = playerStatsMap.get(playerKey);
           if (playerStats) {
+            // Use period-specific end time, not total game time
+            const periodEndSeconds = getPeriodEndSeconds(openSpan.period);
             const duration = Math.max(
               0,
-              currentGameSeconds - openSpan.startSeconds,
+              periodEndSeconds - openSpan.startSeconds,
             );
             playerStats.totalSeconds += duration;
             const currentPositionTime =

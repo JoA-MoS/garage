@@ -1,11 +1,11 @@
-import { LineupPlayer } from '@garage/soccer-stats/graphql-codegen';
+import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 
 import { getPlayerDisplayName, RosterPlayer } from '../../hooks/use-lineup';
 
 interface LineupBenchProps {
-  bench: LineupPlayer[];
+  bench: GqlRosterPlayer[];
   availableRoster: RosterPlayer[];
-  onBenchPlayerClick?: (player: LineupPlayer) => void;
+  onBenchPlayerClick?: (player: GqlRosterPlayer) => void;
   onRosterPlayerClick?: (player: RosterPlayer) => void;
   onAddExternalPlayer?: () => void;
   teamColor?: string;
@@ -23,21 +23,20 @@ export function LineupBench({
   isManaged = true,
   disabled = false,
 }: LineupBenchProps) {
-  // Filter bench to only show players not currently on field
-  const benchPlayersNotOnField = bench.filter((player) => !player.isOnField);
+  // Bench players are already filtered (position == null) in the hook
 
   return (
     <div className="space-y-4">
       {/* Bench section */}
       <div>
         <h4 className="mb-2 text-sm font-medium text-gray-700">
-          Bench ({benchPlayersNotOnField.length})
+          Bench ({bench.length})
         </h4>
         <div className="flex flex-wrap gap-2">
-          {benchPlayersNotOnField.length === 0 ? (
+          {bench.length === 0 ? (
             <p className="text-sm text-gray-400">No players on bench</p>
           ) : (
-            benchPlayersNotOnField.map((player) => (
+            bench.map((player) => (
               <button
                 key={player.gameEventId}
                 onClick={() => !disabled && onBenchPlayerClick?.(player)}

@@ -64,19 +64,11 @@ export class EventTypesService {
     }
 
     const defaultEventTypes: CreateEventTypeInput[] = [
-      // Lineup events (TACTICAL category)
+      // Roster events (TACTICAL category)
       {
-        name: 'STARTING_LINEUP',
+        name: 'GAME_ROSTER',
         category: EventCategory.TACTICAL,
-        description:
-          'Player assigned to starting lineup with formation position',
-        requiresPosition: true,
-        allowsParent: false,
-      },
-      {
-        name: 'BENCH',
-        category: EventCategory.TACTICAL,
-        description: 'Player assigned to bench roster for the game',
+        description: 'Player added to game day roster',
         requiresPosition: false,
         allowsParent: false,
       },
@@ -173,7 +165,7 @@ export class EventTypesService {
         name: 'PERIOD_START',
         category: EventCategory.GAME_FLOW,
         description:
-          'Period begins (metadata.period indicates which: "1", "2", "OT1", etc.)',
+          'Period begins (period column indicates which: "1", "2", "OT1", etc.)',
         requiresPosition: false,
         allowsParent: false,
       },
@@ -181,7 +173,7 @@ export class EventTypesService {
         name: 'PERIOD_END',
         category: EventCategory.GAME_FLOW,
         description:
-          'Period ends (metadata.period indicates which: "1", "2", "OT1", etc.)',
+          'Period ends (period column indicates which: "1", "2", "OT1", etc.)',
         requiresPosition: false,
         allowsParent: false,
       },

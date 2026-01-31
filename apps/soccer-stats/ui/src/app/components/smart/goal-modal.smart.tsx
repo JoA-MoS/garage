@@ -3,7 +3,7 @@ import { useMutation } from '@apollo/client/react';
 
 import { ModalPortal } from '@garage/soccer-stats/ui-components';
 import {
-  LineupPlayer,
+  RosterPlayer as GqlRosterPlayer,
   StatsTrackingLevel,
 } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond, toPeriodSecond } from '@garage/soccer-stats/utils';
@@ -31,8 +31,8 @@ interface GoalModalProps {
   teamId: string; // The actual team ID (not gameTeam ID) for refetching stats
   teamName: string;
   teamColor: string;
-  currentOnField: LineupPlayer[];
-  bench: LineupPlayer[];
+  onField: GqlRosterPlayer[];
+  bench: GqlRosterPlayer[];
   period: string;
   periodSecond: number;
   onClose: () => void;
@@ -46,7 +46,7 @@ interface GoalModalProps {
 /**
  * Get display name for a player
  */
-function getPlayerDisplayName(player: LineupPlayer): string {
+function getPlayerDisplayName(player: GqlRosterPlayer): string {
   if (player.playerName) {
     return player.playerName;
   }
@@ -62,7 +62,7 @@ function getPlayerDisplayName(player: LineupPlayer): string {
 /**
  * Get jersey number display
  */
-function getJerseyNumber(player: LineupPlayer): string {
+function getJerseyNumber(player: GqlRosterPlayer): string {
   if (player.externalPlayerNumber) {
     return `#${player.externalPlayerNumber}`;
   }
@@ -77,7 +77,7 @@ export const GoalModal = ({
   teamId,
   teamName,
   teamColor,
-  currentOnField,
+  onField,
   bench,
   period: defaultPeriod,
   periodSecond: defaultPeriodSeconds,
@@ -91,7 +91,7 @@ export const GoalModal = ({
   const showAssisterField =
     statsTrackingLevel === StatsTrackingLevel.Full || !statsTrackingLevel;
   const isEditMode = !!editGoal;
-  const hasLineupPlayers = currentOnField.length > 0 || bench.length > 0;
+  const hasGqlRosterPlayers = onField.length > 0 || bench.length > 0;
 
   // Determine initial entry mode based on edit data or lineup availability
   const getInitialEntryMode = (): EntryMode => {
@@ -99,7 +99,7 @@ export const GoalModal = ({
       // If editing and there's a playerId, use lineup mode; otherwise quick mode
       return editGoal.playerId ? 'lineup' : 'quick';
     }
-    return hasLineupPlayers ? 'lineup' : 'quick';
+    return hasGqlRosterPlayers ? 'lineup' : 'quick';
   };
 
   // Get initial scorer ID from edit data
@@ -151,7 +151,7 @@ export const GoalModal = ({
 
   // Players available for selection (always include bench in edit mode for flexibility)
   const availablePlayers =
-    showBench || isEditMode ? [...currentOnField, ...bench] : currentOnField;
+    showBench || isEditMode ? [...onField, ...bench] : onField;
 
   // Exclude selected scorer from assist options
   const assistOptions = availablePlayers.filter((p) => {
@@ -355,7 +355,7 @@ export const GoalModal = ({
         )}
 
         {/* Entry Mode Toggle - only show if lineup players exist and scorer field is shown */}
-        {showScorerField && hasLineupPlayers && (
+        {showScorerField && hasGqlRosterPlayers && (
           <div className="mb-4 flex rounded-lg bg-gray-100 p-1">
             <button
               type="button"
@@ -425,7 +425,7 @@ export const GoalModal = ({
                       player.playerId || player.externalPlayerName || '';
                     const jersey = getJerseyNumber(player);
                     const name = getPlayerDisplayName(player);
-                    const isBench = !player.isOnField;
+                    const isBench = player.position == null;
                     return (
                       <option key={id} value={id}>
                         {jersey ? `${jersey} ` : ''}
@@ -454,7 +454,7 @@ export const GoalModal = ({
                         player.playerId || player.externalPlayerName || '';
                       const jersey = getJerseyNumber(player);
                       const name = getPlayerDisplayName(player);
-                      const isBench = !player.isOnField;
+                      const isBench = player.position == null;
                       return (
                         <option key={id} value={id}>
                           {jersey ? `${jersey} ` : ''}

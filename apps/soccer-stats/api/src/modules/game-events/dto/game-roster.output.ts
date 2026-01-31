@@ -1,7 +1,7 @@
 import { ObjectType, Field, ID } from '@nestjs/graphql';
 
 @ObjectType()
-export class LineupPlayer {
+export class RosterPlayer {
   @Field(() => ID)
   gameEventId: string;
 
@@ -23,33 +23,21 @@ export class LineupPlayer {
   @Field({ nullable: true })
   externalPlayerNumber?: string;
 
-  @Field({ nullable: true })
+  @Field({ nullable: true, description: 'Position on field. null = on bench' })
   position?: string;
-
-  @Field()
-  isOnField: boolean;
 }
 
 @ObjectType()
-export class GameLineup {
+export class GameRoster {
   @Field(() => ID)
   gameTeamId: string;
 
   @Field({ nullable: true })
   formation?: string;
 
-  @Field(() => [LineupPlayer])
-  gameRoster: LineupPlayer[];
+  @Field(() => [RosterPlayer])
+  players: RosterPlayer[];
 
-  @Field(() => [LineupPlayer])
-  starters: LineupPlayer[];
-
-  @Field(() => [LineupPlayer])
-  bench: LineupPlayer[];
-
-  @Field(() => [LineupPlayer])
-  currentOnField: LineupPlayer[];
-
-  @Field(() => [LineupPlayer], { nullable: true })
-  previousPeriodLineup?: LineupPlayer[];
+  @Field(() => [RosterPlayer], { nullable: true })
+  previousPeriodLineup?: RosterPlayer[];
 }

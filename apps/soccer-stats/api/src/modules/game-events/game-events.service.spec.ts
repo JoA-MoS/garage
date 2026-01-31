@@ -38,13 +38,12 @@ describe('GameEventsService', () => {
   };
 
   const mockLineupService = {
-    addPlayerToLineup: jest.fn(),
-    addPlayerToBench: jest.fn(),
     removeFromLineup: jest.fn(),
     updatePlayerPosition: jest.fn(),
     getGameLineup: jest.fn(),
     findEventsByGameTeam: jest.fn(),
     findOne: jest.fn(),
+    addPlayerToGameRoster: jest.fn(),
   };
 
   const mockGoalService = {
@@ -75,6 +74,7 @@ describe('GameEventsService', () => {
     ensureSecondHalfLineupExists: jest.fn(),
     linkOrphanSubInsToSecondHalfPeriodStart: jest.fn(),
     linkFirstHalfStartersToPeriodStart: jest.fn(),
+    createSubInEventsFromRosterStarters: jest.fn(),
   };
 
   const mockEventManagementService = {
@@ -206,24 +206,6 @@ describe('GameEventsService', () => {
   });
 
   describe('facade delegation', () => {
-    it('should delegate addPlayerToLineup to lineupService', async () => {
-      const input = {
-        gameTeamId: 'gt-1',
-        position: 'ST',
-        playerId: 'player-1',
-      };
-      const mockEvent = { id: 'event-1' } as GameEvent;
-      mockLineupService.addPlayerToLineup.mockResolvedValue(mockEvent);
-
-      const result = await service.addPlayerToLineup(input, 'user-1');
-
-      expect(mockLineupService.addPlayerToLineup).toHaveBeenCalledWith(
-        input,
-        'user-1',
-      );
-      expect(result).toBe(mockEvent);
-    });
-
     it('should delegate recordGoal to goalService', async () => {
       const input = {
         gameTeamId: 'gt-1',
@@ -317,6 +299,24 @@ describe('GameEventsService', () => {
 
       expect(mockGoalService.deleteGoal).toHaveBeenCalledWith('goal-1');
       expect(result).toBe(true);
+    });
+
+    it('should delegate addPlayerToGameRoster to lineupService', async () => {
+      const input = {
+        gameTeamId: 'gt-1',
+        playerId: 'player-1',
+        position: 'ST',
+      };
+      const mockEvent = { id: 'roster-1' } as GameEvent;
+      mockLineupService.addPlayerToGameRoster.mockResolvedValue(mockEvent);
+
+      const result = await service.addPlayerToGameRoster(input, 'user-1');
+
+      expect(mockLineupService.addPlayerToGameRoster).toHaveBeenCalledWith(
+        input,
+        'user-1',
+      );
+      expect(result).toBe(mockEvent);
     });
   });
 });
