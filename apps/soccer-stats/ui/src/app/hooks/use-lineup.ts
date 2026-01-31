@@ -66,22 +66,25 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     },
   );
 
+  // Helper to create refetchQueries function that handles undefined gameTeamId
+  // Using a function ensures we get the current value at mutation time
+  const getRefetchQueries = () =>
+    gameTeamId
+      ? [{ query: GetGameRosterDocument, variables: { gameTeamId } }]
+      : [];
+
   // Mutations - all use awaitRefetchQueries to prevent race conditions
   // when multiple mutations are called in sequence
   const [addToGameRosterMutation, { loading: addingToGameRoster }] =
     useMutation(AddPlayerToGameRosterDocument, {
-      refetchQueries: [
-        { query: GetGameRosterDocument, variables: { gameTeamId } },
-      ],
+      refetchQueries: getRefetchQueries,
       awaitRefetchQueries: true,
     });
 
   const [removeFromLineupMutation, { loading: removing }] = useMutation(
     RemoveFromLineupDocument,
     {
-      refetchQueries: [
-        { query: GetGameRosterDocument, variables: { gameTeamId } },
-      ],
+      refetchQueries: getRefetchQueries,
       awaitRefetchQueries: true,
     },
   );
@@ -89,9 +92,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
   const [updatePositionMutation, { loading: updatingPosition }] = useMutation(
     UpdatePlayerPositionDocument,
     {
-      refetchQueries: [
-        { query: GetGameRosterDocument, variables: { gameTeamId } },
-      ],
+      refetchQueries: getRefetchQueries,
       awaitRefetchQueries: true,
     },
   );
@@ -99,43 +100,33 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
   const [substitutePlayerMutation, { loading: substituting }] = useMutation(
     SubstitutePlayerDocument,
     {
-      refetchQueries: [
-        { query: GetGameRosterDocument, variables: { gameTeamId } },
-      ],
+      refetchQueries: getRefetchQueries,
       awaitRefetchQueries: true,
     },
   );
 
   const [recordPositionChangeMutation, { loading: recordingPositionChange }] =
     useMutation(RECORD_POSITION_CHANGE, {
-      refetchQueries: [
-        { query: GetGameRosterDocument, variables: { gameTeamId } },
-      ],
+      refetchQueries: getRefetchQueries,
       awaitRefetchQueries: true,
     });
 
   const [setSecondHalfLineupMutation, { loading: settingSecondHalfLineup }] =
     useMutation(SetSecondHalfLineupDocument, {
-      refetchQueries: [
-        { query: GetGameRosterDocument, variables: { gameTeamId } },
-      ],
+      refetchQueries: getRefetchQueries,
       awaitRefetchQueries: true,
     });
 
   const [bringPlayerOntoFieldMutation, { loading: bringingOntoField }] =
     useMutation(BringPlayerOntoFieldDocument, {
-      refetchQueries: [
-        { query: GetGameRosterDocument, variables: { gameTeamId } },
-      ],
+      refetchQueries: getRefetchQueries,
       awaitRefetchQueries: true,
     });
 
   const [startPeriodMutation, { loading: startingPeriod }] = useMutation(
     StartPeriodDocument,
     {
-      refetchQueries: [
-        { query: GetGameRosterDocument, variables: { gameTeamId } },
-      ],
+      refetchQueries: getRefetchQueries,
       awaitRefetchQueries: true,
     },
   );
@@ -143,9 +134,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
   const [endPeriodMutation, { loading: endingPeriod }] = useMutation(
     EndPeriodDocument,
     {
-      refetchQueries: [
-        { query: GetGameRosterDocument, variables: { gameTeamId } },
-      ],
+      refetchQueries: getRefetchQueries,
       awaitRefetchQueries: true,
     },
   );
@@ -402,7 +391,6 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     players, // All players with current position state
     onField, // Derived: players.filter(p => p.position != null)
     bench, // Derived: players.filter(p => p.position == null)
-    previousPeriodLineup: rosterData?.gameRoster?.previousPeriodLineup,
     teamRoster,
     availableRoster,
 

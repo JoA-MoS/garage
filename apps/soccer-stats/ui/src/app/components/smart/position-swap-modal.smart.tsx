@@ -63,9 +63,11 @@ export const PositionSwapModal = ({
   const [player2EventId, setPlayer2EventId] = useState('');
 
   const [swapPositions, { loading }] = useMutation(SWAP_POSITIONS, {
-    refetchQueries: [
+    refetchQueries: () => [
       { query: GET_GAME_BY_ID, variables: { id: gameId } },
-      { query: GET_GAME_ROSTER, variables: { gameTeamId } },
+      ...(gameTeamId
+        ? [{ query: GET_GAME_ROSTER, variables: { gameTeamId } }]
+        : []),
     ],
   });
 
