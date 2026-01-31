@@ -16,8 +16,6 @@ import { CurrentUser } from '../auth/user.decorator';
 import { AuthenticatedUser } from '../auth/authenticated-user.type';
 
 import { GameEventsService } from './game-events.service';
-import { AddToLineupInput } from './dto/add-to-lineup.input';
-import { AddToBenchInput } from './dto/add-to-bench.input';
 import { SubstitutePlayerInput } from './dto/substitute-player.input';
 import { RecordGoalInput } from './dto/record-goal.input';
 import { UpdateGoalInput } from './dto/update-goal.input';
@@ -28,9 +26,11 @@ import { BatchLineupChangesInput } from './dto/batch-lineup-changes.input';
 import { SetSecondHalfLineupInput } from './dto/set-second-half-lineup.input';
 import { BringPlayerOntoFieldInput } from './dto/bring-player-onto-field.input';
 import { RemovePlayerFromFieldInput } from './dto/remove-player-from-field.input';
+import { AddToGameRosterInput } from './dto/add-to-game-roster.input';
 import { StartPeriodInput } from './dto/start-period.input';
 import { EndPeriodInput } from './dto/end-period.input';
 import { GameLineup } from './dto/game-lineup.output';
+import { GameRoster } from './dto/game-roster.output';
 import { PlayerPositionStats } from './dto/player-position-stats.output';
 import { PlayerFullStats } from './dto/player-full-stats.output';
 import { PlayerStatsInput } from './dto/player-stats.input';
@@ -55,6 +55,16 @@ export class GameEventsResolver {
     return this.gameEventsService.getGameLineup(gameTeamId);
   }
 
+  @Query(() => GameRoster, {
+    description: 'Get current game roster with player positions',
+  })
+  @Public()
+  async gameRoster(
+    @Args('gameTeamId', { type: () => ID }) gameTeamId: string,
+  ): Promise<GameRoster> {
+    return this.gameEventsService.getGameRoster(gameTeamId);
+  }
+
   @Query(() => [GameEvent], { name: 'gameEvents' })
   @Public()
   getGameEvents(
@@ -69,22 +79,6 @@ export class GameEventsResolver {
     @Args('id', { type: () => ID }) id: string,
   ): Promise<GameEvent | null> {
     return this.gameEventsService.findOne(id);
-  }
-
-  @Mutation(() => GameEvent, { name: 'addPlayerToLineup' })
-  addPlayerToLineup(
-    @Args('input') input: AddToLineupInput,
-    @CurrentUser() user: AuthenticatedUser,
-  ): Promise<GameEvent> {
-    return this.gameEventsService.addPlayerToLineup(input, user.id);
-  }
-
-  @Mutation(() => GameEvent, { name: 'addPlayerToBench' })
-  addPlayerToBench(
-    @Args('input') input: AddToBenchInput,
-    @CurrentUser() user: AuthenticatedUser,
-  ): Promise<GameEvent> {
-    return this.gameEventsService.addPlayerToBench(input, user.id);
   }
 
   @Mutation(() => GameEvent, {
@@ -109,6 +103,18 @@ export class GameEventsResolver {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<GameEvent> {
     return this.gameEventsService.removePlayerFromField(input, user.id);
+  }
+
+  @Mutation(() => GameEvent, {
+    name: 'addPlayerToGameRoster',
+    description:
+      'Add a player to the game roster. Creates a GAME_ROSTER event. Without position = bench player (available to sub in). With position = planned starter.',
+  })
+  addPlayerToGameRoster(
+    @Args('input') input: AddToGameRosterInput,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<GameEvent> {
+    return this.gameEventsService.addPlayerToGameRoster(input, user.id);
   }
 
   @Mutation(() => Boolean, { name: 'removeFromLineup' })

@@ -22,8 +22,6 @@ describe('GameTimingService', () => {
 
   // Mock event types
   const mockEventTypes: Partial<EventType>[] = [
-    { id: 'et-game-start', name: 'GAME_START' },
-    { id: 'et-game-end', name: 'GAME_END' },
     { id: 'et-period-start', name: 'PERIOD_START' },
     { id: 'et-period-end', name: 'PERIOD_END' },
     { id: 'et-stoppage-start', name: 'STOPPAGE_START' },
@@ -34,7 +32,7 @@ describe('GameTimingService', () => {
   const createMockEvent = (
     eventTypeName: string,
     createdAt: Date,
-    metadata?: Record<string, unknown>,
+    options?: { period?: string },
   ): Partial<GameEvent> => {
     const eventType = mockEventTypes.find((et) => et.name === eventTypeName);
     return {
@@ -42,7 +40,7 @@ describe('GameTimingService', () => {
       gameId: 'game-1',
       eventTypeId: eventType?.id,
       createdAt,
-      metadata,
+      period: options?.period,
     };
   };
 
@@ -132,21 +130,28 @@ describe('GameTimingService', () => {
       expect(timing).toEqual({});
     });
 
-    it('should compute actualStart from GAME_START event', async () => {
+    it('should compute actualStart from PERIOD_START with period="1"', async () => {
       const startTime = new Date('2024-01-01T10:00:00Z');
-      setupQueryBuilder([createMockEvent('GAME_START', startTime)]);
+      setupQueryBuilder([
+        createMockEvent('PERIOD_START', startTime, { period: '1' }),
+      ]);
 
       const timing = await service.getGameTiming('game-1');
 
       expect(timing.actualStart).toEqual(startTime);
     });
 
-    it('should compute actualEnd from GAME_END event', async () => {
+    it('should compute actualEnd from highest PERIOD_END (period >= 2)', async () => {
       const startTime = new Date('2024-01-01T10:00:00Z');
+      const halfEndTime = new Date('2024-01-01T10:30:00Z');
       const endTime = new Date('2024-01-01T11:00:00Z');
       setupQueryBuilder([
-        createMockEvent('GAME_START', startTime),
-        createMockEvent('GAME_END', endTime),
+        createMockEvent('PERIOD_START', startTime, { period: '1' }),
+        createMockEvent('PERIOD_END', halfEndTime, { period: '1' }),
+        createMockEvent('PERIOD_START', new Date('2024-01-01T10:45:00Z'), {
+          period: '2',
+        }),
+        createMockEvent('PERIOD_END', endTime, { period: '2' }),
       ]);
 
       const timing = await service.getGameTiming('game-1');
@@ -158,7 +163,7 @@ describe('GameTimingService', () => {
       const startTime = new Date('2024-01-01T10:00:00Z');
       const halfEndTime = new Date('2024-01-01T10:30:00Z');
       setupQueryBuilder([
-        createMockEvent('GAME_START', startTime),
+        createMockEvent('PERIOD_START', startTime, { period: '1' }),
         createMockEvent('PERIOD_END', halfEndTime, { period: '1' }),
       ]);
 
@@ -193,7 +198,7 @@ describe('GameTimingService', () => {
       const startTime = new Date('2024-01-01T10:00:00Z');
       const pauseTime = new Date('2024-01-01T10:15:00Z');
       setupQueryBuilder([
-        createMockEvent('GAME_START', startTime),
+        createMockEvent('PERIOD_START', startTime, { period: '1' }),
         createMockEvent('STOPPAGE_START', pauseTime),
       ]);
 
@@ -207,7 +212,7 @@ describe('GameTimingService', () => {
       const pauseTime = new Date('2024-01-01T10:15:00Z');
       const resumeTime = new Date('2024-01-01T10:20:00Z');
       setupQueryBuilder([
-        createMockEvent('GAME_START', startTime),
+        createMockEvent('PERIOD_START', startTime, { period: '1' }),
         createMockEvent('STOPPAGE_START', pauseTime),
         createMockEvent('STOPPAGE_END', resumeTime),
       ]);
@@ -223,9 +228,15 @@ describe('GameTimingService', () => {
       const endTime = new Date('2024-01-01T11:00:00Z');
       // Simulate: game started, paused, then ended (edge case)
       setupQueryBuilder([
-        createMockEvent('GAME_START', startTime),
+        createMockEvent('PERIOD_START', startTime, { period: '1' }),
         createMockEvent('STOPPAGE_START', pauseTime),
-        createMockEvent('GAME_END', endTime),
+        createMockEvent('PERIOD_END', new Date('2024-01-01T10:30:00Z'), {
+          period: '1',
+        }),
+        createMockEvent('PERIOD_START', new Date('2024-01-01T10:45:00Z'), {
+          period: '2',
+        }),
+        createMockEvent('PERIOD_END', endTime, { period: '2' }),
       ]);
 
       const timing = await service.getGameTiming('game-1');
@@ -236,7 +247,6 @@ describe('GameTimingService', () => {
 
     it('should compute full game timing from multiple events', async () => {
       const events = [
-        createMockEvent('GAME_START', new Date('2024-01-01T10:00:00Z')),
         createMockEvent('PERIOD_START', new Date('2024-01-01T10:00:00Z'), {
           period: '1',
         }),
@@ -249,7 +259,6 @@ describe('GameTimingService', () => {
         createMockEvent('PERIOD_END', new Date('2024-01-01T11:15:00Z'), {
           period: '2',
         }),
-        createMockEvent('GAME_END', new Date('2024-01-01T11:15:00Z')),
       ];
       setupQueryBuilder(events);
 
@@ -291,15 +300,33 @@ describe('GameTimingService', () => {
     it('should batch load timing for multiple games', async () => {
       const events = [
         {
-          ...createMockEvent('GAME_START', new Date('2024-01-01T10:00:00Z')),
+          ...createMockEvent('PERIOD_START', new Date('2024-01-01T10:00:00Z'), {
+            period: '1',
+          }),
           gameId: 'game-1',
         },
         {
-          ...createMockEvent('GAME_END', new Date('2024-01-01T11:00:00Z')),
+          ...createMockEvent('PERIOD_END', new Date('2024-01-01T10:30:00Z'), {
+            period: '1',
+          }),
           gameId: 'game-1',
         },
         {
-          ...createMockEvent('GAME_START', new Date('2024-01-01T14:00:00Z')),
+          ...createMockEvent('PERIOD_START', new Date('2024-01-01T10:45:00Z'), {
+            period: '2',
+          }),
+          gameId: 'game-1',
+        },
+        {
+          ...createMockEvent('PERIOD_END', new Date('2024-01-01T11:00:00Z'), {
+            period: '2',
+          }),
+          gameId: 'game-1',
+        },
+        {
+          ...createMockEvent('PERIOD_START', new Date('2024-01-01T14:00:00Z'), {
+            period: '1',
+          }),
           gameId: 'game-2',
         },
       ];
@@ -373,8 +400,14 @@ describe('GameTimingService', () => {
       const startTime = new Date('2024-01-01T10:00:00Z');
       const endTime = new Date('2024-01-01T11:00:00Z'); // 1 hour = 3600 seconds
       setupQueryBuilder([
-        createMockEvent('GAME_START', startTime),
-        createMockEvent('GAME_END', endTime),
+        createMockEvent('PERIOD_START', startTime, { period: '1' }),
+        createMockEvent('PERIOD_END', new Date('2024-01-01T10:30:00Z'), {
+          period: '1',
+        }),
+        createMockEvent('PERIOD_START', new Date('2024-01-01T10:45:00Z'), {
+          period: '2',
+        }),
+        createMockEvent('PERIOD_END', endTime, { period: '2' }),
       ]);
 
       const duration = await service.getGameDurationSeconds('game-1');
@@ -386,7 +419,7 @@ describe('GameTimingService', () => {
       const startTime = new Date('2024-01-01T10:00:00Z');
       const halfEndTime = new Date('2024-01-01T10:30:00Z'); // 30 minutes = 1800 seconds
       setupQueryBuilder([
-        createMockEvent('GAME_START', startTime),
+        createMockEvent('PERIOD_START', startTime, { period: '1' }),
         createMockEvent('PERIOD_END', halfEndTime, { period: '1' }),
       ]);
 
@@ -415,7 +448,9 @@ describe('GameTimingService', () => {
     });
 
     it('should return false when game is not paused', async () => {
-      setupQueryBuilder([createMockEvent('GAME_START', new Date())]);
+      setupQueryBuilder([
+        createMockEvent('PERIOD_START', new Date(), { period: '1' }),
+      ]);
 
       const isPaused = await service.isGamePaused('game-1');
 
@@ -424,7 +459,9 @@ describe('GameTimingService', () => {
 
     it('should return true when game has unmatched STOPPAGE_START', async () => {
       setupQueryBuilder([
-        createMockEvent('GAME_START', new Date('2024-01-01T10:00:00Z')),
+        createMockEvent('PERIOD_START', new Date('2024-01-01T10:00:00Z'), {
+          period: '1',
+        }),
         createMockEvent('STOPPAGE_START', new Date('2024-01-01T10:15:00Z')),
       ]);
 
@@ -435,7 +472,9 @@ describe('GameTimingService', () => {
 
     it('should return false after STOPPAGE_END', async () => {
       setupQueryBuilder([
-        createMockEvent('GAME_START', new Date('2024-01-01T10:00:00Z')),
+        createMockEvent('PERIOD_START', new Date('2024-01-01T10:00:00Z'), {
+          period: '1',
+        }),
         createMockEvent('STOPPAGE_START', new Date('2024-01-01T10:15:00Z')),
         createMockEvent('STOPPAGE_END', new Date('2024-01-01T10:20:00Z')),
       ]);

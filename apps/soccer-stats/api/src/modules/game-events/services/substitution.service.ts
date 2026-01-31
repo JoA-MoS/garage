@@ -143,11 +143,12 @@ export class SubstitutionService {
     }
 
     // 3. Validate that the player is currently on the field
-    const validOnFieldTypes = ['STARTING_LINEUP', 'SUBSTITUTION_IN'];
+    // Note: Players enter the field via SUBSTITUTION_IN events (including starters at period 1, second 0)
+    const validOnFieldTypes = ['SUBSTITUTION_IN'];
     if (!validOnFieldTypes.includes(playerEvent.eventType.name)) {
       throw new BadRequestException(
         `Player event ${input.playerEventId} is not an on-field event type. ` +
-          `Expected STARTING_LINEUP or SUBSTITUTION_IN, got ${playerEvent.eventType.name}`,
+          `Expected SUBSTITUTION_IN, got ${playerEvent.eventType.name}`,
       );
     }
 
@@ -483,13 +484,18 @@ export class SubstitutionService {
       const events = await this.substitutePlayer(subInput, recordedByUserId);
       allEvents.push(...events);
 
-      // Find the SUBSTITUTION_IN event and store its ID for swap references
-      const subInEvent = events.find(
-        (e) => e.eventType?.name === 'SUBSTITUTION_IN',
-      );
-      if (subInEvent) {
-        substitutionEventIds.set(i, subInEvent.id);
+      // substitutePlayer must return exactly [subOut, subIn] - validate this assumption
+      if (events.length !== 2) {
+        throw new BadRequestException(
+          `substitutePlayer returned ${events.length} events, expected exactly 2 [subOut, subIn]. ` +
+            `Substitution index: ${i}. This indicates a bug in substitutePlayer.`,
+        );
       }
+
+      // The second element is the SUB_IN event (we use array index because
+      // returned entities don't have eventType relation loaded)
+      const subInEvent = events[1];
+      substitutionEventIds.set(i, subInEvent.id);
     }
 
     // Process all position swaps, resolving player references

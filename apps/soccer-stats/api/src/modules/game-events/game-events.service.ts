@@ -2,8 +2,6 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 
 import { GameEvent } from '../../entities/game-event.entity';
 
-import { AddToLineupInput } from './dto/add-to-lineup.input';
-import { AddToBenchInput } from './dto/add-to-bench.input';
 import { SubstitutePlayerInput } from './dto/substitute-player.input';
 import { RecordGoalInput } from './dto/record-goal.input';
 import { UpdateGoalInput } from './dto/update-goal.input';
@@ -12,6 +10,7 @@ import { RecordPositionChangeInput } from './dto/record-position-change.input';
 import { SwapPositionsInput } from './dto/swap-positions.input';
 import { BatchLineupChangesInput } from './dto/batch-lineup-changes.input';
 import { GameLineup } from './dto/game-lineup.output';
+import { GameRoster } from './dto/game-roster.output';
 import { PlayerPositionStats } from './dto/player-position-stats.output';
 import { PlayerFullStats } from './dto/player-full-stats.output';
 import { PlayerStatsInput } from './dto/player-stats.input';
@@ -23,6 +22,7 @@ import { EndPeriodInput } from './dto/end-period.input';
 import { PeriodResult } from './dto/period-result.output';
 import { RemovePlayerFromFieldInput } from './dto/remove-player-from-field.input';
 import { BringPlayerOntoFieldInput } from './dto/bring-player-onto-field.input';
+import { AddToGameRosterInput } from './dto/add-to-game-roster.input';
 import {
   EventCoreService,
   LineupService,
@@ -76,20 +76,6 @@ export class GameEventsService implements OnModuleInit {
   // Lineup Operations (LineupService)
   // ========================================
 
-  async addPlayerToLineup(
-    input: AddToLineupInput,
-    recordedByUserId: string,
-  ): Promise<GameEvent> {
-    return this.lineupService.addPlayerToLineup(input, recordedByUserId);
-  }
-
-  async addPlayerToBench(
-    input: AddToBenchInput,
-    recordedByUserId: string,
-  ): Promise<GameEvent> {
-    return this.lineupService.addPlayerToBench(input, recordedByUserId);
-  }
-
   async removeFromLineup(gameEventId: string): Promise<boolean> {
     return this.lineupService.removeFromLineup(gameEventId);
   }
@@ -105,12 +91,31 @@ export class GameEventsService implements OnModuleInit {
     return this.lineupService.getGameLineup(gameTeamId);
   }
 
+  async getGameRoster(gameTeamId: string): Promise<GameRoster> {
+    return this.lineupService.getGameRoster(gameTeamId);
+  }
+
   async findEventsByGameTeam(gameTeamId: string): Promise<GameEvent[]> {
     return this.lineupService.findEventsByGameTeam(gameTeamId);
   }
 
   async findOne(id: string): Promise<GameEvent | null> {
     return this.lineupService.findOne(id);
+  }
+
+  /**
+   * Add a player to the game roster.
+   * Creates a GAME_ROSTER event.
+   *
+   * This replaces the old addToBench and addToLineup mutations:
+   * - Without position: equivalent to addToBench (player on roster, available to sub in)
+   * - With position: equivalent to addToLineup (planned starter with assigned position)
+   */
+  async addPlayerToGameRoster(
+    input: AddToGameRosterInput,
+    recordedByUserId: string,
+  ): Promise<GameEvent> {
+    return this.lineupService.addPlayerToGameRoster(input, recordedByUserId);
   }
 
   // ========================================
@@ -293,6 +298,45 @@ export class GameEventsService implements OnModuleInit {
     return this.periodService.linkFirstHalfStartersToPeriodStart(
       gameTeamId,
       periodStartEventId,
+    );
+  }
+
+  /**
+   * Create SUB_IN events from GAME_ROSTER starters (players with positions).
+   * Called when starting a period to convert GAME_ROSTER events to SUB_IN.
+   *
+   * @param period - The period being started ('1' for first half, '2' for second half)
+   */
+  async createSubInEventsFromRosterStarters(
+    gameTeamId: string,
+    periodStartEventId: string,
+    recordedByUserId: string,
+    period = '1',
+  ): Promise<number> {
+    return this.periodService.createSubInEventsFromRosterStarters(
+      gameTeamId,
+      periodStartEventId,
+      recordedByUserId,
+      period,
+    );
+  }
+
+  /**
+   * Create GAME_ROSTER events for the next period based on players who were on field.
+   * Called at halftime to pre-populate the lineup for the second half.
+   * Uses SUBSTITUTION_OUT children of the PERIOD_END event to determine who was on field.
+   */
+  async createGameRosterForNextPeriod(
+    gameTeamId: string,
+    nextPeriod: string,
+    recordedByUserId: string,
+    periodEndEventId: string,
+  ): Promise<number> {
+    return this.periodService.createGameRosterForNextPeriod(
+      gameTeamId,
+      nextPeriod,
+      recordedByUserId,
+      periodEndEventId,
     );
   }
 

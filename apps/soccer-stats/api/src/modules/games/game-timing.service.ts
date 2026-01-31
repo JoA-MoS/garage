@@ -10,13 +10,13 @@ import { EventType } from '../../entities/event-type.entity';
  * Replaces the legacy timing columns on the Game entity.
  */
 export interface GameTiming {
-  /** When the game actually started (from GAME_START event) */
+  /** When the game actually started (from PERIOD_START with period="1") */
   actualStart?: Date;
   /** When the first half ended (from PERIOD_END with period="1") */
   firstHalfEnd?: Date;
   /** When the second half started (from PERIOD_START with period="2") */
   secondHalfStart?: Date;
-  /** When the game ended (from GAME_END event) */
+  /** When the game ended (from PERIOD_END with the highest period number) */
   actualEnd?: Date;
   /** When the game was paused (from most recent unmatched STOPPAGE_START) */
   pausedAt?: Date;
@@ -24,8 +24,6 @@ export interface GameTiming {
 
 /** Timing event type names for type safety */
 const TIMING_EVENT_NAMES = [
-  'GAME_START',
-  'GAME_END',
   'PERIOD_START',
   'PERIOD_END',
   'STOPPAGE_START',
@@ -39,8 +37,8 @@ type TimingEventName = (typeof TIMING_EVENT_NAMES)[number];
  *
  * This replaces the legacy timing columns (actualStart, firstHalfEnd, etc.)
  * with event-based computation. The source of truth is now timing events:
- * - GAME_START, GAME_END
- * - PERIOD_START, PERIOD_END (with metadata.period)
+ * - PERIOD_START (period="1" = game start, period="2" = second half start)
+ * - PERIOD_END (period="1" = first half end, highest period = game end)
  * - STOPPAGE_START, STOPPAGE_END
  */
 @Injectable()
@@ -197,6 +195,12 @@ export class GameTimingService implements OnModuleInit {
   /**
    * Compute timing from a list of events for a single game.
    * Events must be sorted by createdAt in ascending order.
+   *
+   * Timing is derived from period events:
+   * - actualStart: PERIOD_START with period="1" (game start)
+   * - firstHalfEnd: PERIOD_END with period="1"
+   * - secondHalfStart: PERIOD_START with period="2"
+   * - actualEnd: PERIOD_END with the highest period number (game end)
    */
   private computeTimingFromEvents(events: GameEvent[]): GameTiming {
     const timing: GameTiming = {};
@@ -204,31 +208,37 @@ export class GameTimingService implements OnModuleInit {
     // Track stoppage events to determine if currently paused
     let lastStoppageStart: Date | undefined;
 
+    // Track the highest period PERIOD_END for game end
+    let highestPeriodEnd: { period: number; date: Date } | undefined;
+
     for (const event of events) {
       const eventTypeName = this.eventTypeIdToName.get(event.eventTypeId);
-      const period = (event.metadata as { period?: string } | undefined)
-        ?.period;
+      const period = event.period;
 
       switch (eventTypeName) {
-        case 'GAME_START':
-          timing.actualStart = event.createdAt;
-          break;
-
-        case 'GAME_END':
-          timing.actualEnd = event.createdAt;
-          break;
-
-        case 'PERIOD_END':
-          if (period === '1') {
-            timing.firstHalfEnd = event.createdAt;
-          }
-          break;
-
         case 'PERIOD_START':
-          if (period === '2') {
+          // PERIOD_START with period="1" indicates game start
+          if (period === '1') {
+            timing.actualStart = event.createdAt;
+          } else if (period === '2') {
             timing.secondHalfStart = event.createdAt;
           }
           break;
+
+        case 'PERIOD_END': {
+          if (period === '1') {
+            timing.firstHalfEnd = event.createdAt;
+          }
+          // Track the highest period PERIOD_END as the game end
+          const periodNum = parseInt(period ?? '0', 10);
+          if (
+            periodNum > 0 &&
+            (!highestPeriodEnd || periodNum > highestPeriodEnd.period)
+          ) {
+            highestPeriodEnd = { period: periodNum, date: event.createdAt };
+          }
+          break;
+        }
 
         case 'STOPPAGE_START':
           lastStoppageStart = event.createdAt;
@@ -239,6 +249,12 @@ export class GameTimingService implements OnModuleInit {
           lastStoppageStart = undefined;
           break;
       }
+    }
+
+    // The highest period PERIOD_END serves as game end
+    // Only set actualEnd if it's period 2 or higher (game needs to have progressed past first half)
+    if (highestPeriodEnd && highestPeriodEnd.period >= 2) {
+      timing.actualEnd = highestPeriodEnd.date;
     }
 
     // If there's an unmatched STOPPAGE_START, the game is paused
@@ -301,5 +317,109 @@ export class GameTimingService implements OnModuleInit {
   async isGamePaused(gameId: string): Promise<boolean> {
     const timing = await this.getGameTiming(gameId);
     return timing.pausedAt !== undefined;
+  }
+
+  /**
+   * Get timing info for each period (used by stats calculation).
+   * Returns the duration of each completed period and current period info.
+   */
+  async getPeriodTimingInfo(
+    gameId: string,
+    durationMinutes = 60,
+  ): Promise<{
+    /** Duration of first half in seconds (0 if not started/completed) */
+    period1DurationSeconds: number;
+    /** Duration of second half in seconds (0 if not started/completed) */
+    period2DurationSeconds: number;
+    /** Current period ('1', '2', or undefined if game not started or at halftime) */
+    currentPeriod?: string;
+    /** Seconds elapsed in the current period */
+    currentPeriodSeconds: number;
+  }> {
+    const timing = await this.getGameTiming(gameId);
+    const halfDuration = (durationMinutes / 2) * 60;
+
+    // If game hasn't started
+    if (!timing.actualStart) {
+      return {
+        period1DurationSeconds: 0,
+        period2DurationSeconds: 0,
+        currentPeriod: undefined,
+        currentPeriodSeconds: 0,
+      };
+    }
+
+    // Game is completed
+    if (timing.actualEnd) {
+      const totalSeconds = Math.floor(
+        (timing.actualEnd.getTime() - timing.actualStart.getTime()) / 1000,
+      );
+      // Assume equal halves for completed games without detailed timing
+      const period1Duration = timing.firstHalfEnd
+        ? Math.floor(
+            (timing.firstHalfEnd.getTime() - timing.actualStart.getTime()) /
+              1000,
+          )
+        : Math.min(halfDuration, Math.floor(totalSeconds / 2));
+      const period2Duration = timing.secondHalfStart
+        ? Math.floor(
+            (timing.actualEnd.getTime() - timing.secondHalfStart.getTime()) /
+              1000,
+          )
+        : totalSeconds - period1Duration;
+
+      return {
+        period1DurationSeconds: period1Duration,
+        period2DurationSeconds: period2Duration,
+        currentPeriod: undefined, // Game over
+        currentPeriodSeconds: 0,
+      };
+    }
+
+    // Game in progress
+    if (timing.secondHalfStart) {
+      // In second half
+      const endTime = timing.pausedAt || new Date();
+      const period1Duration = timing.firstHalfEnd
+        ? Math.floor(
+            (timing.firstHalfEnd.getTime() - timing.actualStart.getTime()) /
+              1000,
+          )
+        : halfDuration;
+      const currentPeriodSeconds = Math.floor(
+        (endTime.getTime() - timing.secondHalfStart.getTime()) / 1000,
+      );
+
+      return {
+        period1DurationSeconds: period1Duration,
+        period2DurationSeconds: currentPeriodSeconds,
+        currentPeriod: '2',
+        currentPeriodSeconds,
+      };
+    } else if (timing.firstHalfEnd) {
+      // At halftime
+      const period1Duration = Math.floor(
+        (timing.firstHalfEnd.getTime() - timing.actualStart.getTime()) / 1000,
+      );
+      return {
+        period1DurationSeconds: period1Duration,
+        period2DurationSeconds: 0,
+        currentPeriod: undefined, // Halftime
+        currentPeriodSeconds: 0,
+      };
+    } else {
+      // In first half
+      const endTime = timing.pausedAt || new Date();
+      const currentPeriodSeconds = Math.floor(
+        (endTime.getTime() - timing.actualStart.getTime()) / 1000,
+      );
+
+      return {
+        period1DurationSeconds: currentPeriodSeconds,
+        period2DurationSeconds: 0,
+        currentPeriod: '1',
+        currentPeriodSeconds,
+      };
+    }
   }
 }

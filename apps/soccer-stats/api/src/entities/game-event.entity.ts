@@ -160,7 +160,7 @@ export class GameEvent extends BaseEntity {
    * - Cannot have BOTH playerId and externalPlayerName (ambiguous reference)
    * - Having neither is allowed for event types like GOAL where scorer may be unknown
    * - Service layer enforces player requirements for events that need them
-   *   (STARTING_LINEUP, BENCH, SUBSTITUTION_IN, SUBSTITUTION_OUT).
+   *   (GAME_ROSTER, SUBSTITUTION_IN, SUBSTITUTION_OUT).
    *   POSITION_SWAP events instead reference existing player events and are
    *   validated separately when swapping positions.
    */

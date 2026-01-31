@@ -71,6 +71,8 @@ describe('GamesService', () => {
     ensureSecondHalfLineupExists: jest.fn().mockResolvedValue(undefined),
     linkOrphanSubInsToSecondHalfPeriodStart: jest.fn().mockResolvedValue(0),
     linkFirstHalfStartersToPeriodStart: jest.fn().mockResolvedValue(0),
+    createSubInEventsFromRosterStarters: jest.fn().mockResolvedValue(0),
+    createGameRosterForNextPeriod: jest.fn().mockResolvedValue(0),
     getGameLineup: jest.fn().mockResolvedValue({ currentOnField: [] }),
   };
 
@@ -85,12 +87,6 @@ describe('GamesService', () => {
 
   // Mock event types for timing
   const mockTimingEventTypes: Partial<EventType>[] = [
-    {
-      id: 'et-game-start',
-      name: 'GAME_START',
-      category: EventCategory.GAME_FLOW,
-    },
-    { id: 'et-game-end', name: 'GAME_END', category: EventCategory.GAME_FLOW },
     {
       id: 'et-period-start',
       name: 'PERIOD_START',
@@ -216,35 +212,29 @@ describe('GamesService', () => {
     });
 
     describe('createTimingEventsForStatusChange', () => {
-      it('should create GAME_START and PERIOD_START events when status is FIRST_HALF', async () => {
+      it('should create PERIOD_START event when status is FIRST_HALF', async () => {
         await service.update(
           'game-1',
           { status: GameStatus.FIRST_HALF },
           'user-123',
         );
 
-        // Should have created 2 events: GAME_START and PERIOD_START
-        expect(mockGameEventRepository.create).toHaveBeenCalledTimes(2);
-        expect(mockGameEventRepository.save).toHaveBeenCalledTimes(2);
+        // Should have created 1 event: PERIOD_START (no GAME_START wrapper)
+        expect(mockGameEventRepository.create).toHaveBeenCalledTimes(1);
+        expect(mockGameEventRepository.save).toHaveBeenCalledTimes(1);
 
         const createCalls = mockGameEventRepository.create.mock.calls;
 
-        // First event: GAME_START (parent of PERIOD_START)
+        // PERIOD_START with period 1 (no parent)
         expect(createCalls[0][0]).toMatchObject({
-          gameId: 'game-1',
-          eventTypeId: 'et-game-start',
-          recordedByUserId: 'user-123',
-        });
-
-        // Second event: PERIOD_START with period 1 as child of GAME_START
-        expect(createCalls[1][0]).toMatchObject({
           gameId: 'game-1',
           eventTypeId: 'et-period-start',
           recordedByUserId: 'user-123',
-          metadata: { period: '1' },
+          period: '1',
+          periodSecond: 0,
         });
-        // PERIOD_START should have GAME_START as parent
-        expect(createCalls[1][0].parentEventId).toBeDefined();
+        // PERIOD_START should NOT have a parent
+        expect(createCalls[0][0].parentEventId).toBeUndefined();
       });
 
       it('should create PERIOD_END event when status is HALFTIME', async () => {
@@ -259,7 +249,8 @@ describe('GamesService', () => {
           expect.objectContaining({
             gameId: 'game-1',
             eventTypeId: 'et-period-end',
-            metadata: { period: '1' },
+            period: '1',
+            periodSecond: 0,
           }),
         );
       });
@@ -276,36 +267,31 @@ describe('GamesService', () => {
           expect.objectContaining({
             gameId: 'game-1',
             eventTypeId: 'et-period-start',
-            metadata: { period: '2' },
+            period: '2',
           }),
         );
       });
 
-      it('should create GAME_END and PERIOD_END events when status is COMPLETED', async () => {
+      it('should create PERIOD_END event when status is COMPLETED', async () => {
         await service.update(
           'game-1',
           { status: GameStatus.COMPLETED },
           'user-123',
         );
 
-        expect(mockGameEventRepository.create).toHaveBeenCalledTimes(2);
+        // Should have created 1 event: PERIOD_END (no GAME_END wrapper)
+        expect(mockGameEventRepository.create).toHaveBeenCalledTimes(1);
 
         const createCalls = mockGameEventRepository.create.mock.calls;
 
-        // First event: GAME_END (parent of PERIOD_END)
+        // PERIOD_END with final period (no parent)
         expect(createCalls[0][0]).toMatchObject({
           gameId: 'game-1',
-          eventTypeId: 'et-game-end',
-        });
-
-        // Second event: PERIOD_END with period 2 as child of GAME_END
-        expect(createCalls[1][0]).toMatchObject({
-          gameId: 'game-1',
           eventTypeId: 'et-period-end',
-          metadata: { period: '2' },
+          period: '2',
         });
-        // PERIOD_END should have GAME_END as parent (verified via parentEventId)
-        expect(createCalls[1][0].parentEventId).toBeDefined();
+        // PERIOD_END should NOT have a parent
+        expect(createCalls[0][0].parentEventId).toBeUndefined();
       });
 
       it('should not create events when status is not provided', async () => {
@@ -338,14 +324,11 @@ describe('GamesService', () => {
       });
 
       it('should skip creating duplicate timing events (idempotency)', async () => {
-        // Mock that GAME_START already exists
+        // Mock that PERIOD_START already exists
         const mockSelectQueryBuilder = {
           where: jest.fn().mockReturnThis(),
           andWhere: jest.fn().mockReturnThis(),
-          getOne: jest
-            .fn()
-            .mockResolvedValueOnce({ id: 'existing-event' }) // GAME_START exists
-            .mockResolvedValueOnce(null), // PERIOD_START doesn't exist
+          getOne: jest.fn().mockResolvedValueOnce({ id: 'existing-event' }), // PERIOD_START exists
         };
         mockGameEventRepository.createQueryBuilder.mockReturnValue(
           mockSelectQueryBuilder as any,
@@ -357,9 +340,9 @@ describe('GamesService', () => {
           'user-123',
         );
 
-        // Should only create 1 event (PERIOD_START), not 2
-        expect(mockGameEventRepository.create).toHaveBeenCalledTimes(1);
-        expect(mockGameEventRepository.save).toHaveBeenCalledTimes(1);
+        // Should not create any events since PERIOD_START already exists
+        expect(mockGameEventRepository.create).not.toHaveBeenCalled();
+        expect(mockGameEventRepository.save).not.toHaveBeenCalled();
       });
     });
 
@@ -509,8 +492,6 @@ describe('GamesService', () => {
           'eventTypeId IN (:...timingEventTypeIds)',
           expect.objectContaining({
             timingEventTypeIds: expect.arrayContaining([
-              'et-game-start',
-              'et-game-end',
               'et-period-start',
               'et-period-end',
               'et-stoppage-start',

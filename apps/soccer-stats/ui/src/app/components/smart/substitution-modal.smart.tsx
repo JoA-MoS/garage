@@ -3,7 +3,7 @@ import { useApolloClient, useMutation } from '@apollo/client/react';
 
 import { ModalPortal } from '@garage/soccer-stats/ui-components';
 import {
-  LineupPlayer,
+  RosterPlayer as GqlRosterPlayer,
   BatchSubstitutionInput,
   BatchSwapInput,
 } from '@garage/soccer-stats/graphql-codegen';
@@ -12,7 +12,7 @@ import { fromPeriodSecond } from '@garage/soccer-stats/utils';
 import {
   BATCH_LINEUP_CHANGES,
   GET_GAME_BY_ID,
-  GET_GAME_LINEUP,
+  GET_GAME_ROSTER,
 } from '../../services/games-graphql.service';
 
 interface SubstitutionModalProps {
@@ -20,8 +20,8 @@ interface SubstitutionModalProps {
   gameId: string;
   teamName: string;
   teamColor: string;
-  currentOnField: LineupPlayer[];
-  bench: LineupPlayer[];
+  onField: GqlRosterPlayer[];
+  bench: GqlRosterPlayer[];
   period: string;
   periodSecond: number;
   onClose: () => void;
@@ -32,12 +32,12 @@ interface SubstitutionModalProps {
 type SwapPlayer =
   | {
       source: 'onField';
-      player: LineupPlayer;
+      player: GqlRosterPlayer;
       gameEventId: string;
     }
   | {
       source: 'queuedSub';
-      player: LineupPlayer;
+      player: GqlRosterPlayer;
       queuedSubId: string; // Reference to the queued substitution
     };
 
@@ -46,8 +46,8 @@ type QueuedItem =
   | {
       id: string;
       type: 'substitution';
-      playerOut: LineupPlayer;
-      playerIn: LineupPlayer;
+      playerOut: GqlRosterPlayer;
+      playerIn: GqlRosterPlayer;
     }
   | {
       id: string;
@@ -61,7 +61,7 @@ type ModalMode = 'substitution' | 'swap';
 /**
  * Get display name for a player
  */
-function getPlayerDisplayName(player: LineupPlayer): string {
+function getPlayerDisplayName(player: GqlRosterPlayer): string {
   if (player.playerName) {
     return player.playerName;
   }
@@ -77,7 +77,7 @@ function getPlayerDisplayName(player: LineupPlayer): string {
 /**
  * Get jersey number display
  */
-function getJerseyNumber(player: LineupPlayer): string | null {
+function getJerseyNumber(player: GqlRosterPlayer): string | null {
   if (player.externalPlayerNumber) {
     return player.externalPlayerNumber;
   }
@@ -89,7 +89,7 @@ export const SubstitutionModal = ({
   gameId,
   teamName,
   teamColor,
-  currentOnField,
+  onField,
   bench,
   period,
   periodSecond,
@@ -127,7 +127,7 @@ export const SubstitutionModal = ({
   const [batchLineupChanges] = useMutation(BATCH_LINEUP_CHANGES);
 
   // Helper to get player ID for matching
-  const getPlayerId = (player: LineupPlayer) =>
+  const getPlayerId = (player: GqlRosterPlayer) =>
     player.playerId || player.externalPlayerName || '';
 
   // Get IDs of players already in queue
@@ -163,26 +163,24 @@ export const SubstitutionModal = ({
   );
 
   // IDs of players currently on field (to prevent showing them in bench list)
-  const currentOnFieldPlayerIds = new Set(
-    currentOnField.map((p) => getPlayerId(p)),
-  );
+  const onFieldPlayerIds = new Set(onField.map((p) => getPlayerId(p)));
 
   // Available players (excluding those already in queue or on field)
-  const availableOnField = currentOnField.filter(
+  const availableOnField = onField.filter(
     (p) =>
       !queuedOutIds.has(p.gameEventId) &&
       !queuedSwapPlayerIds.has(getPlayerId(p)),
   );
+  // Bench players already have position == null, so they're not on field
   const availableBench = bench.filter((b) => {
-    if (b.isOnField) return false;
     const id = getPlayerId(b);
     // Exclude if already queued OR if currently on field
-    return !queuedInIds.has(id) && !currentOnFieldPlayerIds.has(id);
+    return !queuedInIds.has(id) && !onFieldPlayerIds.has(id);
   });
 
   // For swaps, show field players not queued out + incoming players from queued subs
   // Excluding those already in a swap
-  const availableOnFieldForSwap = currentOnField.filter(
+  const availableOnFieldForSwap = onField.filter(
     (p) =>
       !queuedOutIds.has(p.gameEventId) &&
       !queuedSwapPlayerIds.has(getPlayerId(p)),
@@ -210,9 +208,7 @@ export const SubstitutionModal = ({
   const handleAddSubToQueue = () => {
     if (!playerOutEventId || !playerInId) return;
 
-    const playerOut = currentOnField.find(
-      (p) => p.gameEventId === playerOutEventId,
-    );
+    const playerOut = onField.find((p) => p.gameEventId === playerOutEventId);
     const playerIn = availableBench.find(
       (p) => (p.playerId || p.externalPlayerName) === playerInId,
     );
@@ -241,7 +237,7 @@ export const SubstitutionModal = ({
     // Resolve player1
     let resolvedPlayer1: SwapPlayer | null = null;
     if (swapPlayer1.source === 'onField') {
-      const player = currentOnField.find(
+      const player = onField.find(
         (p) => p.gameEventId === swapPlayer1.gameEventId,
       );
       if (player) {
@@ -265,7 +261,7 @@ export const SubstitutionModal = ({
     // Resolve player2
     let resolvedPlayer2: SwapPlayer | null = null;
     if (swapPlayer2.source === 'onField') {
-      const player = currentOnField.find(
+      const player = onField.find(
         (p) => p.gameEventId === swapPlayer2.gameEventId,
       );
       if (player) {
@@ -380,7 +376,7 @@ export const SubstitutionModal = ({
           fetchPolicy: 'network-only',
         }),
         client.query({
-          query: GET_GAME_LINEUP,
+          query: GET_GAME_ROSTER,
           variables: { gameTeamId },
           fetchPolicy: 'network-only',
         }),
@@ -677,7 +673,7 @@ export const SubstitutionModal = ({
               </label>
               {availableOnField.length === 0 ? (
                 <p className="text-sm italic text-gray-500">
-                  {currentOnField.length === 0
+                  {onField.length === 0
                     ? 'No players on field'
                     : 'All field players are queued'}
                 </p>
@@ -871,10 +867,10 @@ export const SubstitutionModal = ({
                   <div className="text-center">
                     {swapPlayer1 ? (
                       (() => {
-                        let player: LineupPlayer | undefined;
+                        let player: GqlRosterPlayer | undefined;
                         let isIncoming = false;
                         if (swapPlayer1.source === 'onField') {
-                          player = currentOnField.find(
+                          player = onField.find(
                             (p) => p.gameEventId === swapPlayer1.gameEventId,
                           );
                         } else {
@@ -924,10 +920,10 @@ export const SubstitutionModal = ({
                   <div className="text-center">
                     {swapPlayer2 ? (
                       (() => {
-                        let player: LineupPlayer | undefined;
+                        let player: GqlRosterPlayer | undefined;
                         let isIncoming = false;
                         if (swapPlayer2.source === 'onField') {
-                          player = currentOnField.find(
+                          player = onField.find(
                             (p) => p.gameEventId === swapPlayer2.gameEventId,
                           );
                         } else {

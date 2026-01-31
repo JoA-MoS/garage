@@ -24,7 +24,7 @@ export class RemovePlayerFromFieldInput {
 
   @Field(() => ID, {
     description:
-      'The GameEvent ID of the player to remove (their current on-field event: STARTING_LINEUP or SUBSTITUTION_IN)',
+      'The GameEvent ID of the player to remove (their current on-field event: SUBSTITUTION_IN)',
   })
   @IsUUID()
   playerEventId: string;

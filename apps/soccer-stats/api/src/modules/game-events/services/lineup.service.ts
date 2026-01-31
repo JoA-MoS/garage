@@ -5,9 +5,9 @@ import {
 } from '@nestjs/common';
 
 import { GameEvent } from '../../../entities/game-event.entity';
-import { AddToLineupInput } from '../dto/add-to-lineup.input';
-import { AddToBenchInput } from '../dto/add-to-bench.input';
 import { GameLineup, LineupPlayer } from '../dto/game-lineup.output';
+import { AddToGameRosterInput } from '../dto/add-to-game-roster.input';
+import { GameRoster, RosterPlayer } from '../dto/game-roster.output';
 
 import { EventCoreService } from './event-core.service';
 
@@ -28,89 +28,6 @@ export class LineupService {
     return this.coreService.gameTeamsRepository;
   }
 
-  async addPlayerToLineup(
-    input: AddToLineupInput,
-    recordedByUserId: string,
-  ): Promise<GameEvent> {
-    // Lineup entries require player info
-    this.coreService.ensurePlayerInfoProvided(
-      input.playerId,
-      input.externalPlayerName,
-      'lineup entry',
-    );
-
-    const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
-    const eventType = this.coreService.getEventTypeByName('STARTING_LINEUP');
-
-    // Check if player is already in lineup or bench
-    await this.ensurePlayerNotInRoster(
-      gameTeam.id,
-      input.playerId,
-      input.externalPlayerName,
-    );
-
-    const gameEvent = this.gameEventsRepository.create({
-      gameId: gameTeam.gameId,
-      gameTeamId: input.gameTeamId,
-      eventTypeId: eventType.id,
-      playerId: input.playerId,
-      externalPlayerName: input.externalPlayerName,
-      externalPlayerNumber: input.externalPlayerNumber,
-      position: input.position,
-      recordedByUserId,
-      // Legacy fields (deprecated, kept for migration compatibility)
-      gameMinute: 0,
-      gameSecond: 0,
-      // New period-relative timing
-      period: '1',
-      periodSecond: 0,
-    });
-
-    // Return base entity - field resolvers handle relation loading on-demand
-    return this.gameEventsRepository.save(gameEvent);
-  }
-
-  async addPlayerToBench(
-    input: AddToBenchInput,
-    recordedByUserId: string,
-  ): Promise<GameEvent> {
-    // Bench entries require player info
-    this.coreService.ensurePlayerInfoProvided(
-      input.playerId,
-      input.externalPlayerName,
-      'bench entry',
-    );
-
-    const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
-    const eventType = this.coreService.getEventTypeByName('BENCH');
-
-    // Check if player is already in lineup or bench
-    await this.ensurePlayerNotInRoster(
-      gameTeam.id,
-      input.playerId,
-      input.externalPlayerName,
-    );
-
-    const gameEvent = this.gameEventsRepository.create({
-      gameId: gameTeam.gameId,
-      gameTeamId: input.gameTeamId,
-      eventTypeId: eventType.id,
-      playerId: input.playerId,
-      externalPlayerName: input.externalPlayerName,
-      externalPlayerNumber: input.externalPlayerNumber,
-      recordedByUserId,
-      // Legacy fields (deprecated, kept for migration compatibility)
-      gameMinute: 0,
-      gameSecond: 0,
-      // New period-relative timing
-      period: '1',
-      periodSecond: 0,
-    });
-
-    // Return base entity - field resolvers handle relation loading on-demand
-    return this.gameEventsRepository.save(gameEvent);
-  }
-
   async removeFromLineup(gameEventId: string): Promise<boolean> {
     const gameEvent = await this.gameEventsRepository.findOne({
       where: { id: gameEventId },
@@ -121,10 +38,10 @@ export class LineupService {
       throw new NotFoundException(`GameEvent ${gameEventId} not found`);
     }
 
-    const lineupEventTypes = ['STARTING_LINEUP', 'BENCH', 'SUBSTITUTION_IN'];
+    const lineupEventTypes = ['GAME_ROSTER', 'SUBSTITUTION_IN'];
     if (!lineupEventTypes.includes(gameEvent.eventType.name)) {
       throw new BadRequestException(
-        'Can only remove lineup/bench/substitution events',
+        'Can only remove game roster/substitution events',
       );
     }
 
@@ -158,209 +75,254 @@ export class LineupService {
       throw new NotFoundException(`GameTeam ${gameTeamId} not found`);
     }
 
-    // Sort by createdAt primarily to handle period boundaries correctly
-    // At halftime, period-end SUBSTITUTION_OUT events have higher gameMinute
-    // than new SUBSTITUTION_IN events, but were created earlier
     const events = await this.gameEventsRepository.find({
       where: { gameTeamId },
       relations: ['eventType', 'player'],
       order: { createdAt: 'ASC' },
     });
 
-    const starters: LineupPlayer[] = [];
-    const bench: LineupPlayer[] = [];
-    const currentOnField: Map<string, LineupPlayer> = new Map();
-
-    // Track all players and their current on-field status
-    const playerStatusMap: Map<
-      string,
-      { isOnField: boolean; latestEvent: LineupPlayer }
-    > = new Map();
+    // 1. Build game roster from GAME_ROSTER events
+    const gameRoster: LineupPlayer[] = [];
 
     for (const event of events) {
-      const lineupPlayer: LineupPlayer = {
-        gameEventId: event.id,
-        playerId: event.playerId,
-        playerName: event.player
-          ? `${event.player.firstName || ''} ${
-              event.player.lastName || ''
-            }`.trim() || event.player.email
-          : undefined,
-        firstName: event.player?.firstName,
-        lastName: event.player?.lastName,
-        externalPlayerName: event.externalPlayerName,
-        externalPlayerNumber: event.externalPlayerNumber,
-        position: event.position,
-        isOnField: false,
-      };
+      if (event.eventType.name === 'GAME_ROSTER') {
+        gameRoster.push(this.toLineupPlayer(event));
+      }
+    }
 
-      const playerKey = event.playerId || event.externalPlayerName || event.id;
+    // 2. Track current on-field status and last positions
+    const currentOnField = new Map<string, LineupPlayer>();
+    const lastPositions = new Map<string, string>();
+    const starters: LineupPlayer[] = [];
 
-      switch (event.eventType.name) {
-        case 'STARTING_LINEUP':
-          lineupPlayer.isOnField = true;
-          starters.push(lineupPlayer);
-          currentOnField.set(playerKey, lineupPlayer);
-          playerStatusMap.set(playerKey, {
-            isOnField: true,
-            latestEvent: lineupPlayer,
-          });
-          break;
+    for (const event of events) {
+      const key = this.getPlayerKey(event);
 
-        case 'BENCH':
-          lineupPlayer.isOnField = false;
-          bench.push(lineupPlayer);
-          playerStatusMap.set(playerKey, {
-            isOnField: false,
-            latestEvent: lineupPlayer,
-          });
-          break;
+      if (event.eventType.name === 'SUBSTITUTION_IN') {
+        const player = this.toLineupPlayer(event);
+        player.isOnField = true;
+        currentOnField.set(key, player);
+        lastPositions.set(key, event.position || '');
 
-        case 'SUBSTITUTION_OUT': {
-          // Player going off the field
-          currentOnField.delete(playerKey);
-          // Update their status - they're now off field but still in the game
-          const outStatus = playerStatusMap.get(playerKey);
-          if (outStatus) {
-            outStatus.isOnField = false;
-            outStatus.latestEvent.isOnField = false;
-          }
-          // Add them to bench as available for sub (with the SUB_OUT event info for tracking)
-          lineupPlayer.isOnField = false;
-          bench.push(lineupPlayer);
-          playerStatusMap.set(playerKey, {
-            isOnField: false,
-            latestEvent: lineupPlayer,
-          });
-          break;
+        // Track starters (period 1, second 0)
+        if (event.period === '1' && event.periodSecond === 0) {
+          starters.push(player);
         }
-
-        case 'SUBSTITUTION_IN': {
-          lineupPlayer.isOnField = true;
-          currentOnField.set(playerKey, lineupPlayer);
-
-          // If this is a SUBSTITUTION_IN at period start (0 seconds), treat as a starter
-          // (this happens when STARTING_LINEUP events are converted on game start)
-          if (event.period === '1' && event.periodSecond === 0) {
-            starters.push(lineupPlayer);
-          }
-
-          // Update their status
-          const inStatus = playerStatusMap.get(playerKey);
-          if (inStatus) {
-            inStatus.isOnField = true;
-            inStatus.latestEvent.isOnField = true;
-          }
-          playerStatusMap.set(playerKey, {
-            isOnField: true,
-            latestEvent: lineupPlayer,
-          });
-          break;
-        }
-
-        case 'POSITION_SWAP':
-        case 'POSITION_CHANGE': {
-          // Update the player's position in currentOnField
-          // The event's position field contains the NEW position
-          const existingOnField = currentOnField.get(playerKey);
-          if (existingOnField) {
-            existingOnField.position = event.position;
-          }
-          // Also update the lineupPlayer and status map
-          lineupPlayer.isOnField = true;
-          lineupPlayer.position = event.position;
-          currentOnField.set(playerKey, lineupPlayer);
-          playerStatusMap.set(playerKey, {
-            isOnField: true,
-            latestEvent: lineupPlayer,
-          });
-          break;
+      } else if (event.eventType.name === 'SUBSTITUTION_OUT') {
+        currentOnField.delete(key);
+        lastPositions.set(key, event.position || '');
+      } else if (event.eventType.name === 'POSITION_SWAP') {
+        // Update position for players still on field
+        const existingOnField = currentOnField.get(key);
+        if (existingOnField) {
+          existingOnField.position = event.position;
+          lastPositions.set(key, event.position || '');
         }
       }
     }
 
-    // Final pass: update isOnField for all players based on final status
-    for (const starter of starters) {
-      const key =
-        starter.playerId || starter.externalPlayerName || starter.gameEventId;
-      const status = playerStatusMap.get(key);
-      if (status) {
-        starter.isOnField = status.isOnField;
-      }
-    }
+    // 3. Build bench (roster members not on field)
+    const onFieldKeys = new Set(currentOnField.keys());
+    const bench = gameRoster
+      .filter((p) => !onFieldKeys.has(this.getPlayerKeyFromLineup(p)))
+      .map((p) => {
+        const key = this.getPlayerKeyFromLineup(p);
+        return {
+          ...p,
+          position: lastPositions.get(key) ?? p.position,
+          isOnField: false,
+        };
+      });
 
-    for (const benchPlayer of bench) {
-      const key =
-        benchPlayer.playerId ||
-        benchPlayer.externalPlayerName ||
-        benchPlayer.gameEventId;
-      const status = playerStatusMap.get(key);
-      if (status) {
-        benchPlayer.isOnField = status.isOnField;
-      }
-    }
-
-    // Filter bench to only include players NOT currently on field
-    // (players who were subbed out and then subbed back in should not appear in bench)
-    const filteredBench = bench.filter((player) => {
-      const key =
-        player.playerId || player.externalPlayerName || player.gameEventId;
-      const status = playerStatusMap.get(key);
-      return status && !status.isOnField;
-    });
+    // 4. Get previous period lineup (for halftime pre-fill)
+    const periodEndEvent = events.find(
+      (e) => e.eventType.name === 'PERIOD_END',
+    );
+    const previousPeriodLineup = periodEndEvent
+      ? events
+          .filter(
+            (e) =>
+              e.eventType.name === 'SUBSTITUTION_OUT' &&
+              e.parentEventId === periodEndEvent.id,
+          )
+          .map((e) => this.toLineupPlayer(e))
+      : undefined;
 
     return {
       gameTeamId,
       formation: gameTeam.formation,
+      gameRoster,
       starters,
-      bench: filteredBench,
+      bench,
       currentOnField: Array.from(currentOnField.values()),
+      previousPeriodLineup,
     };
   }
 
   /**
-   * Ensure player is not already in the roster (lineup or bench).
-   * @throws BadRequestException if player is already in roster
+   * Get current game roster with player positions.
+   * Uses SQL window function for efficient single-query retrieval.
+   *
+   * Position logic:
+   * - position != null → player is on field at that position
+   * - position == null → player is on bench
    */
-  async ensurePlayerNotInRoster(
-    gameTeamId: string,
-    playerId?: string,
-    externalPlayerName?: string,
-  ): Promise<void> {
-    // Use cached event types instead of querying the database
-    const lineupEventTypes = [
-      this.coreService.getEventTypeByName('STARTING_LINEUP'),
-      this.coreService.getEventTypeByName('BENCH'),
-      this.coreService.getEventTypeByName('SUBSTITUTION_IN'),
+  async getGameRoster(gameTeamId: string): Promise<GameRoster> {
+    // Get event type IDs for roster-related events
+    const relevantTypes = [
+      'GAME_ROSTER',
+      'SUBSTITUTION_IN',
+      'SUBSTITUTION_OUT',
+      'POSITION_SWAP',
     ];
+    const typeIds = relevantTypes.map(
+      (name) => this.coreService.getEventTypeByName(name).id,
+    );
 
-    const eventTypeIds = lineupEventTypes.map((et) => et.id);
+    // Query current state per player using window function
+    // ROW_NUMBER partitions by player, orders by time DESC to get latest event
+    const players = await this.gameEventsRepository.manager
+      .createQueryBuilder()
+      .select([
+        'sub."gameEventId"',
+        'sub."playerId"',
+        'sub."externalPlayerName"',
+        'sub."externalPlayerNumber"',
+        'sub."position"',
+        'sub."firstName"',
+        'sub."lastName"',
+      ])
+      .from((subQuery) => {
+        return subQuery
+          .select('e.id', 'gameEventId')
+          .addSelect('e.playerId', 'playerId')
+          .addSelect('e.externalPlayerName', 'externalPlayerName')
+          .addSelect('e.externalPlayerNumber', 'externalPlayerNumber')
+          .addSelect(
+            `CASE WHEN et.name = 'SUBSTITUTION_OUT' THEN NULL ELSE e.position END`,
+            'position',
+          )
+          .addSelect('p.firstName', 'firstName')
+          .addSelect('p.lastName', 'lastName')
+          .addSelect(
+            `ROW_NUMBER() OVER (
+            PARTITION BY COALESCE(e."playerId"::text, e."externalPlayerName")
+            ORDER BY e.period DESC, e."periodSecond" DESC, e."createdAt" DESC
+          )`,
+            'rn',
+          )
+          .from('game_events', 'e')
+          .innerJoin('event_types', 'et', 'e."eventTypeId" = et.id')
+          .leftJoin('users', 'p', 'e."playerId" = p.id')
+          .where('e."gameTeamId" = :gameTeamId', { gameTeamId })
+          .andWhere('et.id IN (:...typeIds)', { typeIds });
+      }, 'sub')
+      .where('sub.rn = 1')
+      .setParameters({ gameTeamId, typeIds })
+      .getRawMany();
 
-    let existingEvent: GameEvent | null = null;
+    // Get latest formation from FORMATION_CHANGE events
+    const formationChangeType =
+      this.coreService.getEventTypeByName('FORMATION_CHANGE');
+    const latestFormation = await this.gameEventsRepository
+      .createQueryBuilder('e')
+      .select('e.formation', 'formation')
+      .where('e.gameTeamId = :gameTeamId', { gameTeamId })
+      .andWhere('e.eventTypeId = :eventTypeId', {
+        eventTypeId: formationChangeType.id,
+      })
+      .orderBy('e.period', 'DESC')
+      .addOrderBy('e.periodSecond', 'DESC')
+      .addOrderBy('e.createdAt', 'DESC')
+      .limit(1)
+      .getRawOne();
 
-    if (playerId) {
-      existingEvent = await this.gameEventsRepository
-        .createQueryBuilder('ge')
-        .where('ge.gameTeamId = :gameTeamId', { gameTeamId })
-        .andWhere('ge.playerId = :playerId', { playerId })
-        .andWhere('ge.eventTypeId IN (:...eventTypeIds)', { eventTypeIds })
-        .getOne();
-    } else if (externalPlayerName) {
-      existingEvent = await this.gameEventsRepository
-        .createQueryBuilder('ge')
-        .where('ge.gameTeamId = :gameTeamId', { gameTeamId })
-        .andWhere('ge.externalPlayerName = :externalPlayerName', {
-          externalPlayerName,
-        })
-        .andWhere('ge.eventTypeId IN (:...eventTypeIds)', { eventTypeIds })
-        .getOne();
+    // Get previous period lineup for halftime pre-fill
+    const periodEndType = this.coreService.getEventTypeByName('PERIOD_END');
+    const periodEndEvent = await this.gameEventsRepository.findOne({
+      where: {
+        gameTeamId,
+        eventTypeId: periodEndType.id,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    let previousPeriodLineup: RosterPlayer[] | undefined;
+    if (periodEndEvent) {
+      const subOutType =
+        this.coreService.getEventTypeByName('SUBSTITUTION_OUT');
+      const subOutEvents = await this.gameEventsRepository.find({
+        where: {
+          gameTeamId,
+          eventTypeId: subOutType.id,
+          parentEventId: periodEndEvent.id,
+        },
+        relations: ['player'],
+      });
+      previousPeriodLineup = subOutEvents.map((e) => ({
+        gameEventId: e.id,
+        playerId: e.playerId,
+        playerName: e.player
+          ? `${e.player.firstName || ''} ${e.player.lastName || ''}`.trim()
+          : undefined,
+        firstName: e.player?.firstName,
+        lastName: e.player?.lastName,
+        externalPlayerName: e.externalPlayerName,
+        externalPlayerNumber: e.externalPlayerNumber,
+        position: e.position,
+      }));
     }
 
-    if (existingEvent) {
-      throw new BadRequestException(
-        'Player is already in the lineup or on the bench',
-      );
-    }
+    return {
+      gameTeamId,
+      formation: latestFormation?.formation ?? null,
+      players: players.map((p) => ({
+        gameEventId: p.gameEventId,
+        playerId: p.playerId,
+        externalPlayerName: p.externalPlayerName,
+        externalPlayerNumber: p.externalPlayerNumber,
+        position: p.position,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        playerName:
+          [p.firstName, p.lastName].filter(Boolean).join(' ') || undefined,
+      })),
+      previousPeriodLineup,
+    };
+  }
+
+  /**
+   * Convert a GameEvent to a LineupPlayer object
+   */
+  private toLineupPlayer(event: GameEvent): LineupPlayer {
+    return {
+      gameEventId: event.id,
+      playerId: event.playerId,
+      playerName: event.player
+        ? `${event.player.firstName || ''} ${event.player.lastName || ''}`.trim() ||
+          event.player.email
+        : undefined,
+      firstName: event.player?.firstName,
+      lastName: event.player?.lastName,
+      externalPlayerName: event.externalPlayerName,
+      externalPlayerNumber: event.externalPlayerNumber,
+      position: event.position,
+      isOnField: false,
+    };
+  }
+
+  /**
+   * Get a unique key for a player from a GameEvent
+   */
+  private getPlayerKey(event: GameEvent): string {
+    return event.playerId || event.externalPlayerName || event.id;
+  }
+
+  /**
+   * Get a unique key for a player from a LineupPlayer
+   */
+  private getPlayerKeyFromLineup(player: LineupPlayer): string {
+    return player.playerId || player.externalPlayerName || player.gameEventId;
   }
 
   async findEventsByGameTeam(gameTeamId: string): Promise<GameEvent[]> {
@@ -389,5 +351,92 @@ export class LineupService {
         'childEvents.eventType',
       ],
     });
+  }
+
+  /**
+   * Add a player to the game roster.
+   * Creates a GAME_ROSTER event.
+   *
+   * This replaces the old addToBench and addToLineup mutations:
+   * - Without position: equivalent to addToBench (player on roster, available to sub in)
+   * - With position: equivalent to addToLineup (planned starter with assigned position)
+   *
+   * @param input - The input containing player and optional position info
+   * @param recordedByUserId - The user recording this roster addition
+   * @returns The created GAME_ROSTER event
+   */
+  async addPlayerToGameRoster(
+    input: AddToGameRosterInput,
+    recordedByUserId: string,
+  ): Promise<GameEvent> {
+    this.coreService.ensurePlayerInfoProvided(
+      input.playerId,
+      input.externalPlayerName,
+      'game roster entry',
+    );
+
+    const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
+    const eventType = this.coreService.getEventTypeByName('GAME_ROSTER');
+
+    // Check if player is already in game roster
+    await this.ensurePlayerNotInGameRoster(
+      gameTeam.id,
+      input.playerId,
+      input.externalPlayerName,
+    );
+
+    const gameEvent = this.gameEventsRepository.create({
+      gameId: gameTeam.gameId,
+      gameTeamId: input.gameTeamId,
+      eventTypeId: eventType.id,
+      playerId: input.playerId,
+      externalPlayerName: input.externalPlayerName,
+      externalPlayerNumber: input.externalPlayerNumber,
+      position: input.position,
+      recordedByUserId,
+      gameMinute: 0,
+      gameSecond: 0,
+      period: '1',
+      periodSecond: 0,
+    });
+
+    return this.gameEventsRepository.save(gameEvent);
+  }
+
+  /**
+   * Ensure player is not already in the game roster.
+   * Only checks GAME_ROSTER events (not SUBSTITUTION_IN).
+   * @throws BadRequestException if player is already in game roster
+   */
+  private async ensurePlayerNotInGameRoster(
+    gameTeamId: string,
+    playerId?: string,
+    externalPlayerName?: string,
+  ): Promise<void> {
+    const gameRosterType = this.coreService.getEventTypeByName('GAME_ROSTER');
+
+    let existingEvent: GameEvent | null = null;
+
+    if (playerId) {
+      existingEvent = await this.gameEventsRepository.findOne({
+        where: {
+          gameTeamId,
+          playerId,
+          eventTypeId: gameRosterType.id,
+        },
+      });
+    } else if (externalPlayerName) {
+      existingEvent = await this.gameEventsRepository.findOne({
+        where: {
+          gameTeamId,
+          externalPlayerName,
+          eventTypeId: gameRosterType.id,
+        },
+      });
+    }
+
+    if (existingEvent) {
+      throw new BadRequestException('Player is already in the game roster');
+    }
   }
 }
