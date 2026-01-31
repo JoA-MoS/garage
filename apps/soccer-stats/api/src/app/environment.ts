@@ -96,6 +96,30 @@ export const getDbSynchronize = (): boolean =>
 export const getDbLogging = (): boolean =>
   getEnv('DB_LOGGING') === 'true' || !isProduction();
 /**
+ * Database connection pool configuration.
+ * Defaults are conservative for development, override in production.
+ */
+export function getDbPoolMax(): number {
+  const value = parseInt(getEnv('DB_POOL_MAX', '10')!, 10);
+  return isNaN(value) ? 10 : value;
+}
+
+export function getDbPoolMin(): number {
+  const value = parseInt(getEnv('DB_POOL_MIN', '2')!, 10);
+  return isNaN(value) ? 2 : value;
+}
+
+export function getDbPoolIdleTimeout(): number {
+  const value = parseInt(getEnv('DB_POOL_IDLE_TIMEOUT', '30000')!, 10);
+  return isNaN(value) ? 30000 : value;
+}
+
+export function getDbPoolConnectionTimeout(): number {
+  const value = parseInt(getEnv('DB_POOL_CONNECTION_TIMEOUT', '5000')!, 10);
+  return isNaN(value) ? 5000 : value;
+}
+
+/**
  * Database SSL setting.
  * Enables SSL for PostgreSQL connections (recommended for RDS).
  * Defaults to true in production, false in development (local Docker).

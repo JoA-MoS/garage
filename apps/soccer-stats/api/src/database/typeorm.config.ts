@@ -16,6 +16,10 @@ import {
   getDbSynchronize,
   getDbLogging,
   getDbSsl,
+  getDbPoolMax,
+  getDbPoolMin,
+  getDbPoolIdleTimeout,
+  getDbPoolConnectionTimeout,
 } from '../app/environment';
 
 /**
@@ -38,6 +42,13 @@ export const baseTypeOrmConfig = {
   logging: getDbLogging(),
   ssl: getDbSsl() ? { rejectUnauthorized: false } : false,
   migrationsTableName: MIGRATIONS_TABLE_NAME,
+  // Connection pool configuration for PostgreSQL
+  extra: {
+    max: getDbPoolMax(),
+    min: getDbPoolMin(),
+    idleTimeoutMillis: getDbPoolIdleTimeout(),
+    connectionTimeoutMillis: getDbPoolConnectionTimeout(),
+  },
 };
 
 /**
