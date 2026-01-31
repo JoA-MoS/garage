@@ -10,13 +10,13 @@ import { EventType } from '../../entities/event-type.entity';
  * Replaces the legacy timing columns on the Game entity.
  */
 export interface GameTiming {
-  /** When the game actually started (from GAME_START event) */
+  /** When the game actually started (from PERIOD_START with period="1") */
   actualStart?: Date;
   /** When the first half ended (from PERIOD_END with period="1") */
   firstHalfEnd?: Date;
   /** When the second half started (from PERIOD_START with period="2") */
   secondHalfStart?: Date;
-  /** When the game ended (from GAME_END event) */
+  /** When the game ended (from PERIOD_END with the highest period number) */
   actualEnd?: Date;
   /** When the game was paused (from most recent unmatched STOPPAGE_START) */
   pausedAt?: Date;
@@ -24,8 +24,6 @@ export interface GameTiming {
 
 /** Timing event type names for type safety */
 const TIMING_EVENT_NAMES = [
-  'GAME_START',
-  'GAME_END',
   'PERIOD_START',
   'PERIOD_END',
   'STOPPAGE_START',
@@ -39,8 +37,8 @@ type TimingEventName = (typeof TIMING_EVENT_NAMES)[number];
  *
  * This replaces the legacy timing columns (actualStart, firstHalfEnd, etc.)
  * with event-based computation. The source of truth is now timing events:
- * - GAME_START, GAME_END
- * - PERIOD_START, PERIOD_END (with period column indicating which period)
+ * - PERIOD_START (period="1" = game start, period="2" = second half start)
+ * - PERIOD_END (period="1" = first half end, highest period = game end)
  * - STOPPAGE_START, STOPPAGE_END
  */
 @Injectable()
@@ -197,6 +195,12 @@ export class GameTimingService implements OnModuleInit {
   /**
    * Compute timing from a list of events for a single game.
    * Events must be sorted by createdAt in ascending order.
+   *
+   * Timing is derived from period events:
+   * - actualStart: PERIOD_START with period="1" (game start)
+   * - firstHalfEnd: PERIOD_END with period="1"
+   * - secondHalfStart: PERIOD_START with period="2"
+   * - actualEnd: PERIOD_END with the highest period number (game end)
    */
   private computeTimingFromEvents(events: GameEvent[]): GameTiming {
     const timing: GameTiming = {};
@@ -204,30 +208,37 @@ export class GameTimingService implements OnModuleInit {
     // Track stoppage events to determine if currently paused
     let lastStoppageStart: Date | undefined;
 
+    // Track the highest period PERIOD_END for game end
+    let highestPeriodEnd: { period: number; date: Date } | undefined;
+
     for (const event of events) {
       const eventTypeName = this.eventTypeIdToName.get(event.eventTypeId);
       const period = event.period;
 
       switch (eventTypeName) {
-        case 'GAME_START':
-          timing.actualStart = event.createdAt;
-          break;
-
-        case 'GAME_END':
-          timing.actualEnd = event.createdAt;
-          break;
-
-        case 'PERIOD_END':
-          if (period === '1') {
-            timing.firstHalfEnd = event.createdAt;
-          }
-          break;
-
         case 'PERIOD_START':
-          if (period === '2') {
+          // PERIOD_START with period="1" indicates game start
+          if (period === '1') {
+            timing.actualStart = event.createdAt;
+          } else if (period === '2') {
             timing.secondHalfStart = event.createdAt;
           }
           break;
+
+        case 'PERIOD_END': {
+          if (period === '1') {
+            timing.firstHalfEnd = event.createdAt;
+          }
+          // Track the highest period PERIOD_END as the game end
+          const periodNum = parseInt(period ?? '0', 10);
+          if (
+            periodNum > 0 &&
+            (!highestPeriodEnd || periodNum > highestPeriodEnd.period)
+          ) {
+            highestPeriodEnd = { period: periodNum, date: event.createdAt };
+          }
+          break;
+        }
 
         case 'STOPPAGE_START':
           lastStoppageStart = event.createdAt;
@@ -238,6 +249,12 @@ export class GameTimingService implements OnModuleInit {
           lastStoppageStart = undefined;
           break;
       }
+    }
+
+    // The highest period PERIOD_END serves as game end
+    // Only set actualEnd if it's period 2 or higher (game needs to have progressed past first half)
+    if (highestPeriodEnd && highestPeriodEnd.period >= 2) {
+      timing.actualEnd = highestPeriodEnd.date;
     }
 
     // If there's an unmatched STOPPAGE_START, the game is paused
