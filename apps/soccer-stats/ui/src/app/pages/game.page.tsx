@@ -1038,38 +1038,29 @@ export const GamePage = () => {
   };
 
   // Handle formation change for a team
+  // Always creates a FORMATION_CHANGE event - pre-game uses period 1, second 0
   const handleFormationChange = useCallback(
     async (gameTeamId: string, formation: string, periodSecond?: number) => {
       try {
-        if (periodSecond !== undefined) {
-          // Mid-game: record formation change event
-          await recordFormationChange({
-            variables: {
-              input: {
-                gameTeamId,
-                formation,
-                period: currentPeriod,
-                periodSecond,
-              },
-            },
-          });
-        } else {
-          // Pre-game: just update formation without event
-          await updateGameTeam({
-            variables: {
+        // Always create a FORMATION_CHANGE event
+        // Pre-game: period 1, second 0
+        // Mid-game: current period and second
+        await recordFormationChange({
+          variables: {
+            input: {
               gameTeamId,
-              updateGameTeamInput: {
-                formation,
-              },
+              formation,
+              period: periodSecond !== undefined ? currentPeriod : '1',
+              periodSecond: periodSecond ?? 0,
             },
-          });
-        }
+          },
+        });
       } catch (err) {
         console.error('Failed to update formation:', err);
         throw err; // Re-throw so calling code knows it failed
       }
     },
-    [recordFormationChange, updateGameTeam],
+    [recordFormationChange, currentPeriod],
   );
 
   // Change stats tracking level for a specific team in this game
