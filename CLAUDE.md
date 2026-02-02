@@ -8,14 +8,14 @@ Garage is an Nx monorepo containing multiple full-stack applications and shared 
 
 **Key Technologies:**
 
-- **Build System:** Nx 21.4.1 monorepo with intelligent caching
+- **Build System:** Nx 22.3.3 monorepo with intelligent caching
 - **Package Manager:** pnpm (specified in package.json packageManager field)
 - **Node Version:** v24.4.1 (see .nvmrc)
-- **Frontend:** React 18.3.1 with Vite, Angular 20.1.8
-- **Backend:** NestJS 11.0.0, Express 4.21.2
+- **Frontend:** React 18.3.1 with Vite, Angular 21.0.6
+- **Backend:** NestJS 11.0.0, Express 5.0.0
 - **Database:** PostgreSQL 15 with TypeORM 0.3.17
 - **GraphQL:** Apollo Server/Client with GraphQL Code Generator
-- **Testing:** Vitest 3.2.4, Jest 30.0.5, Playwright
+- **Testing:** Vitest 4.0.9, Jest 30.0.5, Playwright
 - **Styling:** Tailwind CSS 3.4.3 (primary styling approach)
 
 ## Common Development Commands
@@ -140,7 +140,7 @@ pnpm nx serve:dev soccer-stats-api
 - PostgreSQL: `localhost:5432` (user/pass: postgres/postgres, db: soccer_stats)
 - Adminer (web UI): `http://localhost:8080`
 
-**Database Initialization:** SQL scripts in `apps/soccer-stats-api/database/init/` run automatically on first container start.
+**Database Initialization:** SQL scripts in `apps/soccer-stats/api/database/init/` run automatically on first container start.
 
 ### Database Migrations (soccer-stats-api)
 
@@ -193,7 +193,9 @@ This is an Nx monorepo with apps and libraries organized by domain:
 
 ```
 apps/
-├── auth/api/              # Authentication services (Express & NestJS variants)
+├── auth/api/              # Authentication services
+│   ├── express/          # Express variant
+│   └── nest/             # NestJS variant
 ├── campsite-watcher/      # Campsite availability monitoring service
 ├── campsite-watcher-lambda/ # AWS Lambda version
 ├── chore-board/           # Kanban-style chore tracking app
@@ -203,8 +205,11 @@ apps/
 ├── soccer-stats/          # Soccer statistics tracker (primary app)
 │   ├── api/              # NestJS GraphQL backend
 │   ├── api-e2e/          # E2E tests for API
+│   ├── api-infra/        # API infrastructure (Pulumi)
+│   ├── docs/             # Documentation
 │   ├── ui/               # React/Vite frontend
-│   └── ui-e2e/           # E2E tests for UI
+│   ├── ui-e2e/           # E2E tests for UI
+│   └── ui-infra/         # UI infrastructure (Pulumi)
 └── nx-kaniko/             # Docker build utilities
 
 libs/
@@ -214,7 +219,9 @@ libs/
 ├── ng/lib-example/        # Shared Angular components
 ├── soccer-stats/          # Soccer stats shared libraries
 │   ├── graphql-codegen/  # Generated GraphQL types (non-buildable)
-│   └── ui-components/    # Shared React presentation components (buildable)
+│   ├── infra/            # Shared infrastructure utilities
+│   ├── ui-components/    # Shared React presentation components (buildable)
+│   └── utils/            # Shared utility functions
 └── wordle/core/           # Wordle game logic
 ```
 
@@ -251,12 +258,15 @@ entities/                  # TypeORM database entities
 
 modules/                   # Feature modules (NestJS + TypeGraphQL)
 ├── auth/                  # Authentication & authorization
-├── users/                 # User management
-├── teams/                 # Team CRUD & relationships
-├── players/               # Player management
 ├── coaches/               # Coach assignments
+├── dataloaders/           # DataLoader infrastructure for N+1 prevention
+├── event-types/           # Event type definitions
+├── game-events/           # Game event tracking & subscriptions
+├── game-formats/          # Game format configurations
 ├── games/                 # Game tracking
-└── game-formats/          # Game format configurations
+├── players/               # Player management
+├── teams/                 # Team CRUD & relationships
+└── users/                 # User management
 ```
 
 **Frontend Structure (`apps/soccer-stats/ui/src/app/`):**
@@ -407,6 +417,10 @@ TypeScript path aliases are defined in `tsconfig.base.json`:
 "@garage/campsite-watcher/core"           → libs/campsite-watcher/core/src/index.ts
 "@garage/campsite-watcher/recreation-gov" → libs/campsite-watcher/recreation-gov/src/index.ts
 "@garage/ng/lib-example"                  → libs/ng/lib-example/src/index.ts
+"@garage/soccer-stats/graphql-codegen"    → libs/soccer-stats/graphql-codegen/src/index.ts
+"@garage/soccer-stats/infra"              → libs/soccer-stats/infra/src/index.ts
+"@garage/soccer-stats/ui-components"      → libs/soccer-stats/ui-components/src/index.ts
+"@garage/soccer-stats/utils"              → libs/soccer-stats/utils/src/index.ts
 "@garage/wordle/core"                     → libs/wordle/core/src/index.ts
 ```
 
