@@ -7,6 +7,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * - Queries filtering by gameTeamId (most common, used in nearly every game event query)
  * - Queries filtering by eventTypeId (event type filtering)
  * - Queries filtering by gameId (game-scoped queries)
+ * - Queries filtering by parentEventId (parent-child event relationships)
  * - Composite queries filtering by both gameTeamId and eventTypeId
  *
  * See GitHub issue #210 for context.
@@ -30,6 +31,11 @@ export class AddGameEventIndexes1769900000000 implements MigrationInterface {
       CREATE INDEX IF NOT EXISTS "IDX_game_events_gameId" ON "game_events" ("gameId")
     `);
 
+    // Index for parentEventId - used for parent-child event relationships
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS "IDX_game_events_parentEventId" ON "game_events" ("parentEventId")
+    `);
+
     // Composite index for queries filtering by both gameTeamId and eventTypeId
     await queryRunner.query(`
       CREATE INDEX IF NOT EXISTS "IDX_game_events_gameTeamId_eventTypeId" ON "game_events" ("gameTeamId", "eventTypeId")
@@ -45,6 +51,9 @@ export class AddGameEventIndexes1769900000000 implements MigrationInterface {
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_game_teams_gameId"`);
     await queryRunner.query(
       `DROP INDEX IF EXISTS "IDX_game_events_gameTeamId_eventTypeId"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_game_events_parentEventId"`,
     );
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_game_events_gameId"`);
     await queryRunner.query(
