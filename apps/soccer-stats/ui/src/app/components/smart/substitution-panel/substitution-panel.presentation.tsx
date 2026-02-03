@@ -6,6 +6,12 @@ import { fromPeriodSecond } from '@garage/soccer-stats/utils';
 import { SubstitutionPanelPresentationProps, QueuedItem } from './types';
 
 /**
+ * Get player ID for matching - handles both internal and external players
+ */
+const getPlayerId = (player: GqlRosterPlayer) =>
+  player.playerId || player.externalPlayerName || '';
+
+/**
  * Get display name for a player
  */
 function getPlayerDisplayName(player: GqlRosterPlayer): string {
@@ -50,9 +56,6 @@ export const SubstitutionPanelPresentation = ({
 }: SubstitutionPanelPresentationProps) => {
   const { minute, second } = fromPeriodSecond(periodSecond);
   const timeDisplay = `${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
-
-  const getPlayerId = (player: GqlRosterPlayer) =>
-    player.playerId || player.externalPlayerName || '';
 
   // Render collapsed bar
   if (panelState === 'collapsed') {
@@ -381,9 +384,6 @@ function PlayerSelectionTabs({
   const showTabs =
     selection.direction === 'field-first' && selection.fieldPlayer;
 
-  const getPlayerId = (player: GqlRosterPlayer) =>
-    player.playerId || player.externalPlayerName || '';
-
   if (isExecuting) return null;
 
   // Filter on-field players to exclude the selected one
@@ -433,7 +433,8 @@ function PlayerSelectionTabs({
             const playTime = playTimeByPlayer.get(id);
             const isSelected =
               selection.direction === 'bench-first' &&
-              selection.benchPlayer?.playerId === player.playerId;
+              selection.benchPlayer &&
+              getPlayerId(selection.benchPlayer) === getPlayerId(player);
 
             return (
               <button

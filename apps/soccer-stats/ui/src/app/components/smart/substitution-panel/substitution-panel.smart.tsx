@@ -185,6 +185,9 @@ export const SubstitutionPanel = ({
   // Handle field player click
   const handleFieldPlayerClick = useCallback(
     (player: GqlRosterPlayer) => {
+      // Clear any stale error when user starts a new interaction
+      setError(null);
+
       // If no selection, start field-first selection
       if (!selection.direction) {
         setSelection({
@@ -255,6 +258,9 @@ export const SubstitutionPanel = ({
   // Handle bench player click
   const handleBenchPlayerClick = useCallback(
     (player: GqlRosterPlayer) => {
+      // Clear any stale error when user starts a new interaction
+      setError(null);
+
       // If no selection, start bench-first selection
       if (!selection.direction) {
         setSelection({
