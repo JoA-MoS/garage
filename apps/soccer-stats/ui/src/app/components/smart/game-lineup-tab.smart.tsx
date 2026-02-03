@@ -49,6 +49,12 @@ interface GameLineupTabProps {
    * Field player clicks should complete the substitution instead of opening modal.
    */
   hasBenchSelectionActive?: boolean;
+
+  /**
+   * Set of game event IDs for players who are queued for substitution.
+   * Used to show visual indicators on field players.
+   */
+  queuedPlayerIds?: Set<string>;
 }
 
 type ModalMode =
@@ -136,6 +142,7 @@ export const GameLineupTab = memo(function GameLineupTab({
   onFormationChange,
   onFieldPlayerClickForSub,
   hasBenchSelectionActive = false,
+  queuedPlayerIds = new Set(),
 }: GameLineupTabProps) {
   const formations = getFormationsForTeamSize(playersPerTeam);
   const [selectedFormation, setSelectedFormation] = useState<Formation>(() =>
@@ -640,6 +647,7 @@ export const GameLineupTab = memo(function GameLineupTab({
           teamColor={teamColor}
           disabled={mutating}
           highlightClickableAssigned={hasBenchSelectionActive}
+          queuedPlayerIds={queuedPlayerIds}
         />
       </div>
 

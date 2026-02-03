@@ -146,4 +146,10 @@ export interface SubstitutionPanelSmartProps {
    * Called when the external field player to replace has been handled
    */
   onExternalFieldPlayerToReplaceHandled?: () => void;
+
+  /**
+   * Called when the set of queued player IDs changes.
+   * Used to show visual indicators on field players who are already in the queue.
+   */
+  onQueuedPlayerIdsChange?: (queuedOutIds: Set<string>) => void;
 }

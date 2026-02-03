@@ -152,6 +152,11 @@ export const GamePage = () => {
   const [fieldPlayerToReplaceForPanel, setFieldPlayerToReplaceForPanel] =
     useState<GqlRosterPlayer | null>(null);
 
+  // Queued player IDs from substitution panel - used to show indicators on field
+  const [queuedPlayerIds, setQueuedPlayerIds] = useState<Set<string>>(
+    new Set(),
+  );
+
   // Cascade delete state
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
@@ -1486,6 +1491,7 @@ export const GamePage = () => {
                   }
                   onFieldPlayerClickForSub={handleFieldPlayerClickForSub}
                   hasBenchSelectionActive={panelBenchSelection !== null}
+                  queuedPlayerIds={queuedPlayerIds}
                 />
               )}
               {activeTeam === 'away' && awayTeam && (
@@ -1505,6 +1511,7 @@ export const GamePage = () => {
                   }
                   onFieldPlayerClickForSub={handleFieldPlayerClickForSub}
                   hasBenchSelectionActive={panelBenchSelection !== null}
+                  queuedPlayerIds={queuedPlayerIds}
                 />
               )}
             </div>
@@ -2312,6 +2319,7 @@ export const GamePage = () => {
           onExternalFieldPlayerToReplaceHandled={() =>
             setFieldPlayerToReplaceForPanel(null)
           }
+          onQueuedPlayerIdsChange={setQueuedPlayerIds}
         />
       )}
 

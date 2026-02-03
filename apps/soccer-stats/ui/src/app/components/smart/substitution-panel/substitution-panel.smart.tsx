@@ -47,6 +47,7 @@ export const SubstitutionPanel = ({
   onBenchSelectionChange,
   externalFieldPlayerToReplace,
   onExternalFieldPlayerToReplaceHandled,
+  onQueuedPlayerIdsChange,
 }: SubstitutionPanelSmartProps) => {
   // Panel state
   const [panelState, setPanelState] = useState<PanelState>('collapsed');
@@ -70,20 +71,56 @@ export const SubstitutionPanel = ({
   const client = useApolloClient();
   const [batchLineupChanges] = useMutation(BATCH_LINEUP_CHANGES);
 
+  // Get queued player IDs - computed early so useEffects can validate against them
+  const { outIds, inIds, swapPlayerIds } = useMemo(() => {
+    const outIds = new Set<string>();
+    const inIds = new Set<string>();
+    const swapPlayerIds = new Set<string>();
+
+    queue.forEach((item) => {
+      if (item.type === 'substitution') {
+        outIds.add(item.playerOut.gameEventId);
+        inIds.add(getPlayerId(item.playerIn));
+      } else {
+        swapPlayerIds.add(getPlayerId(item.player1.player));
+        swapPlayerIds.add(getPlayerId(item.player2.player));
+      }
+    });
+
+    return { outIds, inIds, swapPlayerIds };
+  }, [queue]);
+
+  // Notify parent when queued player IDs change
+  useEffect(() => {
+    onQueuedPlayerIdsChange?.(outIds);
+  }, [outIds, onQueuedPlayerIdsChange]);
+
   // Handle external field player selection (e.g., from tapping a player on the field view)
   useEffect(() => {
     if (externalFieldPlayerSelection) {
-      // Open panel and set selection to field-first with this player
-      setPanelState('bench-view');
-      setSelection({
-        direction: 'field-first',
-        fieldPlayer: externalFieldPlayerSelection,
-        benchPlayer: null,
-      });
-      // Notify parent that we've handled the selection
+      // Ignore if player is already queued for substitution or swap
+      const isQueued =
+        outIds.has(externalFieldPlayerSelection.gameEventId) ||
+        swapPlayerIds.has(getPlayerId(externalFieldPlayerSelection));
+
+      if (!isQueued) {
+        // Open panel and set selection to field-first with this player
+        setPanelState('bench-view');
+        setSelection({
+          direction: 'field-first',
+          fieldPlayer: externalFieldPlayerSelection,
+          benchPlayer: null,
+        });
+      }
+      // Notify parent that we've handled the selection (even if ignored)
       onExternalSelectionHandled?.();
     }
-  }, [externalFieldPlayerSelection, onExternalSelectionHandled]);
+  }, [
+    externalFieldPlayerSelection,
+    onExternalSelectionHandled,
+    outIds,
+    swapPlayerIds,
+  ]);
 
   // Notify parent when bench selection changes (for routing field clicks)
   useEffect(() => {
@@ -101,16 +138,23 @@ export const SubstitutionPanel = ({
       selection.direction === 'bench-first' &&
       selection.benchPlayer
     ) {
-      // Queue the substitution
-      const subItem: QueuedItem = {
-        id: `sub-${Date.now()}-${Math.random()}`,
-        type: 'substitution',
-        playerOut: externalFieldPlayerToReplace,
-        playerIn: selection.benchPlayer,
-      };
-      setQueue((prev) => [...prev, subItem]);
-      setSelection({ direction: null, fieldPlayer: null, benchPlayer: null });
-      // Notify parent that we've handled the click
+      // Ignore if player is already queued for substitution or swap
+      const isQueued =
+        outIds.has(externalFieldPlayerToReplace.gameEventId) ||
+        swapPlayerIds.has(getPlayerId(externalFieldPlayerToReplace));
+
+      if (!isQueued) {
+        // Queue the substitution
+        const subItem: QueuedItem = {
+          id: `sub-${Date.now()}-${Math.random()}`,
+          type: 'substitution',
+          playerOut: externalFieldPlayerToReplace,
+          playerIn: selection.benchPlayer,
+        };
+        setQueue((prev) => [...prev, subItem]);
+        setSelection({ direction: null, fieldPlayer: null, benchPlayer: null });
+      }
+      // Notify parent that we've handled the click (even if ignored)
       onExternalFieldPlayerToReplaceHandled?.();
     }
   }, [
@@ -118,6 +162,8 @@ export const SubstitutionPanel = ({
     selection.direction,
     selection.benchPlayer,
     onExternalFieldPlayerToReplaceHandled,
+    outIds,
+    swapPlayerIds,
   ]);
 
   // Calculate play time for all players
@@ -142,27 +188,7 @@ export const SubstitutionPanel = ({
     return results;
   }, [onField, bench, gameEvents, period, periodSecond]);
 
-  // Get queued player IDs
-  const getQueuedPlayerIds = useCallback(() => {
-    const outIds = new Set<string>();
-    const inIds = new Set<string>();
-    const swapPlayerIds = new Set<string>();
-
-    queue.forEach((item) => {
-      if (item.type === 'substitution') {
-        outIds.add(item.playerOut.gameEventId);
-        inIds.add(getPlayerId(item.playerIn));
-      } else {
-        swapPlayerIds.add(getPlayerId(item.player1.player));
-        swapPlayerIds.add(getPlayerId(item.player2.player));
-      }
-    });
-
-    return { outIds, inIds, swapPlayerIds };
-  }, [queue]);
-
   // Filter available players
-  const { outIds, inIds, swapPlayerIds } = getQueuedPlayerIds();
   const onFieldPlayerIds = new Set(onField.map(getPlayerId));
 
   const availableOnField = useMemo(
@@ -187,6 +213,14 @@ export const SubstitutionPanel = ({
     (player: GqlRosterPlayer) => {
       // Clear any stale error when user starts a new interaction
       setError(null);
+
+      // Prevent selecting a player already queued for substitution or swap
+      if (
+        outIds.has(player.gameEventId) ||
+        swapPlayerIds.has(getPlayerId(player))
+      ) {
+        return;
+      }
 
       // If no selection, start field-first selection
       if (!selection.direction) {
@@ -252,7 +286,7 @@ export const SubstitutionPanel = ({
         });
       }
     },
-    [selection],
+    [selection, outIds, swapPlayerIds],
   );
 
   // Handle bench player click

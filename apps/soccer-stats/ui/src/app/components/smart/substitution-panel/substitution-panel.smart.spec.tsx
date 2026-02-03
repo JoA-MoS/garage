@@ -320,6 +320,46 @@ describe('SubstitutionPanel Smart Component', () => {
         // Jimmy Brown may appear in queue but not as a clickable bench option
       });
     });
+
+    it('ignores clicks on field players already queued for substitution', async () => {
+      const onExternalSelectionHandled = vi.fn();
+
+      const { rerender } = render(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            externalFieldPlayerSelection: mockPlayer('1', 'Sarah Smith'),
+            onExternalSelectionHandled,
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Jimmy Brown')).toBeTruthy();
+      });
+
+      // Queue first substitution: Sarah out, Jimmy in
+      fireEvent.click(screen.getByText('Jimmy Brown'));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Queued \(1\)/)).toBeTruthy();
+      });
+
+      // Now try to select Sarah again via external field player selection
+      rerender(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            externalFieldPlayerSelection: mockPlayer('1', 'Sarah Smith'),
+            onExternalSelectionHandled,
+          })}
+        />,
+      );
+
+      // Queue should still only have 1 item - Sarah should not be selected again
+      await waitFor(() => {
+        expect(screen.getByText(/Queued \(1\)/)).toBeTruthy();
+        expect(screen.queryByText(/Queued \(2\)/)).toBeFalsy();
+      });
+    });
   });
 
   describe('handleConfirmAll', () => {
