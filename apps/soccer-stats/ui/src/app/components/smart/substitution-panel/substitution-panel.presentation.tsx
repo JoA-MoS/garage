@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond } from '@garage/soccer-stats/utils';
 
@@ -213,95 +215,16 @@ export const SubstitutionPanelPresentation = ({
             </div>
           )}
 
-          {/* Bench players */}
-          {!isExecuting && (
-            <div className="px-4 py-3">
-              <div className="mb-2 text-xs font-medium uppercase text-gray-500">
-                Bench
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {benchPlayers.map((player) => {
-                  const id = getPlayerId(player);
-                  const playTime = playTimeByPlayer.get(id);
-                  const isSelected =
-                    selection.direction === 'bench-first' &&
-                    selection.benchPlayer?.playerId === player.playerId;
-
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => onBenchPlayerClick(player)}
-                      className={`flex flex-col items-start rounded-lg border p-2 transition-colors ${
-                        isSelected
-                          ? 'border-green-500 bg-green-50'
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        {getJerseyNumber(player) && (
-                          <span className="text-xs font-bold text-gray-600">
-                            #{getJerseyNumber(player)}
-                          </span>
-                        )}
-                        <span
-                          className={`text-sm font-medium ${isSelected ? 'text-green-700' : 'text-gray-900'}`}
-                        >
-                          {getPlayerDisplayName(player)}
-                        </span>
-                      </div>
-                      <span className="text-xs text-gray-500">
-                        {playTime?.minutes ?? 0} min
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* On-field players for swaps (only in expanded view with field-first selection) */}
-          {isExpanded &&
-            selection.direction === 'field-first' &&
-            selection.fieldPlayer && (
-              <div className="border-t border-gray-100 px-4 py-3">
-                <div className="mb-2 text-xs font-medium uppercase text-gray-500">
-                  Swap Position With
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {onFieldPlayers
-                    .filter(
-                      (p) =>
-                        p.gameEventId !== selection.fieldPlayer?.gameEventId,
-                    )
-                    .map((player) => {
-                      const id = getPlayerId(player);
-                      return (
-                        <button
-                          key={id}
-                          type="button"
-                          onClick={() => onFieldPlayerClick(player)}
-                          className="flex flex-col items-start rounded-lg border border-purple-200 bg-purple-50 p-2 transition-colors hover:border-purple-300"
-                        >
-                          <div className="flex items-center gap-2">
-                            {getJerseyNumber(player) && (
-                              <span className="text-xs font-bold text-purple-600">
-                                #{getJerseyNumber(player)}
-                              </span>
-                            )}
-                            <span className="text-sm font-medium text-purple-900">
-                              {getPlayerDisplayName(player)}
-                            </span>
-                          </div>
-                          <span className="text-xs text-purple-600">
-                            {player.position || 'No position'}
-                          </span>
-                        </button>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
+          {/* Player selection with tabs when field-first (can sub or swap) */}
+          <PlayerSelectionTabs
+            selection={selection}
+            benchPlayers={benchPlayers}
+            onFieldPlayers={onFieldPlayers}
+            playTimeByPlayer={playTimeByPlayer}
+            onBenchPlayerClick={onBenchPlayerClick}
+            onFieldPlayerClick={onFieldPlayerClick}
+            isExecuting={isExecuting}
+          />
 
           {/* Execution progress */}
           {isExecuting && (
@@ -426,6 +349,154 @@ function QueuedItemRow({
           />
         </svg>
       </button>
+    </div>
+  );
+}
+
+/**
+ * Tabbed player selection component
+ */
+function PlayerSelectionTabs({
+  selection,
+  benchPlayers,
+  onFieldPlayers,
+  playTimeByPlayer,
+  onBenchPlayerClick,
+  onFieldPlayerClick,
+  isExecuting,
+}: {
+  selection: {
+    direction: 'field-first' | 'bench-first' | null;
+    fieldPlayer: GqlRosterPlayer | null;
+    benchPlayer: GqlRosterPlayer | null;
+  };
+  benchPlayers: GqlRosterPlayer[];
+  onFieldPlayers: GqlRosterPlayer[];
+  playTimeByPlayer: Map<string, { minutes: number; isOnField: boolean }>;
+  onBenchPlayerClick: (player: GqlRosterPlayer) => void;
+  onFieldPlayerClick: (player: GqlRosterPlayer) => void;
+  isExecuting: boolean;
+}) {
+  const [activeTab, setActiveTab] = useState<'bench' | 'onField'>('bench');
+  const showTabs =
+    selection.direction === 'field-first' && selection.fieldPlayer;
+
+  const getPlayerId = (player: GqlRosterPlayer) =>
+    player.playerId || player.externalPlayerName || '';
+
+  if (isExecuting) return null;
+
+  // Filter on-field players to exclude the selected one
+  const swappablePlayers = onFieldPlayers.filter(
+    (p) => p.gameEventId !== selection.fieldPlayer?.gameEventId,
+  );
+
+  return (
+    <div className="px-4 py-3">
+      {/* Tab header */}
+      {showTabs ? (
+        <div className="mb-3 flex gap-1 rounded-lg bg-gray-100 p-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab('bench')}
+            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              activeTab === 'bench'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Bench ({benchPlayers.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('onField')}
+            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              activeTab === 'onField'
+                ? 'bg-white text-purple-700 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Swap Position ({swappablePlayers.length})
+          </button>
+        </div>
+      ) : (
+        <div className="mb-2 text-xs font-medium uppercase text-gray-500">
+          Bench
+        </div>
+      )}
+
+      {/* Bench players */}
+      {(!showTabs || activeTab === 'bench') && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {benchPlayers.map((player) => {
+            const id = getPlayerId(player);
+            const playTime = playTimeByPlayer.get(id);
+            const isSelected =
+              selection.direction === 'bench-first' &&
+              selection.benchPlayer?.playerId === player.playerId;
+
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => onBenchPlayerClick(player)}
+                className={`flex flex-col items-start rounded-lg border p-2 transition-colors ${
+                  isSelected
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {player.externalPlayerNumber && (
+                    <span className="text-xs font-bold text-gray-600">
+                      #{player.externalPlayerNumber}
+                    </span>
+                  )}
+                  <span
+                    className={`text-sm font-medium ${isSelected ? 'text-green-700' : 'text-gray-900'}`}
+                  >
+                    {getPlayerDisplayName(player)}
+                  </span>
+                </div>
+                <span className="text-xs text-gray-500">
+                  {playTime?.minutes ?? 0} min
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* On-field players for swaps */}
+      {showTabs && activeTab === 'onField' && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {swappablePlayers.map((player) => {
+            const id = getPlayerId(player);
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => onFieldPlayerClick(player)}
+                className="flex flex-col items-start rounded-lg border border-purple-200 bg-purple-50 p-2 transition-colors hover:border-purple-300"
+              >
+                <div className="flex items-center gap-2">
+                  {player.externalPlayerNumber && (
+                    <span className="text-xs font-bold text-purple-600">
+                      #{player.externalPlayerNumber}
+                    </span>
+                  )}
+                  <span className="text-sm font-medium text-purple-900">
+                    {getPlayerDisplayName(player)}
+                  </span>
+                </div>
+                <span className="text-xs text-purple-600">
+                  {player.position || 'No position'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
