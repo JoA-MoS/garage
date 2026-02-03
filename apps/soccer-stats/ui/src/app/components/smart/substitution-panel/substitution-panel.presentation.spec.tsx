@@ -141,6 +141,34 @@ describe('SubstitutionPanelPresentation', () => {
       expect(screen.getAllByText('Jimmy Brown').length).toBeGreaterThan(0);
     });
 
+    it('shows queued position swaps in expanded view', () => {
+      const props = {
+        ...defaultProps,
+        panelState: 'expanded' as PanelState,
+        queue: [
+          {
+            id: 'q1',
+            type: 'swap' as const,
+            player1: {
+              source: 'onField' as const,
+              player: mockPlayer('1', 'Sarah Smith'),
+              gameEventId: 'event-1',
+            },
+            player2: {
+              source: 'onField' as const,
+              player: mockPlayer('2', 'Alex Jones'),
+              gameEventId: 'event-2',
+            },
+          },
+        ],
+      };
+      render(<SubstitutionPanelPresentation {...props} />);
+      // Position swap shows both players with ↔ symbol
+      expect(screen.getAllByText('Sarah Smith').length).toBeGreaterThan(0);
+      expect(screen.getByText('↔')).toBeTruthy();
+      expect(screen.getAllByText('Alex Jones').length).toBeGreaterThan(0);
+    });
+
     it('calls onRemoveFromQueue when X clicked', () => {
       const onRemoveFromQueue = vi.fn();
       const props = {
@@ -237,6 +265,81 @@ describe('SubstitutionPanelPresentation', () => {
       };
       render(<SubstitutionPanelPresentation {...props} />);
       expect(screen.getByText(/Failed to execute substitutions/)).toBeTruthy();
+    });
+  });
+
+  describe('tab switching', () => {
+    it('shows tabs when field player is selected (field-first)', () => {
+      const props = {
+        ...defaultProps,
+        panelState: 'bench-view' as PanelState,
+        selection: {
+          direction: 'field-first' as const,
+          fieldPlayer: mockPlayer('1', 'Sarah Smith', '7'),
+          benchPlayer: null,
+        },
+      };
+      render(<SubstitutionPanelPresentation {...props} />);
+      // Should show both tabs
+      expect(screen.getByText(/Bench \(\d+\)/)).toBeTruthy();
+      expect(screen.getByText(/Swap Position \(\d+\)/)).toBeTruthy();
+    });
+
+    it('does not show tabs when no selection active', () => {
+      const props = {
+        ...defaultProps,
+        panelState: 'bench-view' as PanelState,
+        selection: { direction: null, fieldPlayer: null, benchPlayer: null },
+      };
+      render(<SubstitutionPanelPresentation {...props} />);
+      // Should only show "Bench" label, not tabs
+      expect(screen.getByText('Bench')).toBeTruthy();
+      expect(screen.queryByText(/Swap Position/)).toBeFalsy();
+    });
+
+    it('switches to swap position tab when clicked', () => {
+      const onFieldPlayerClick = vi.fn();
+      const props = {
+        ...defaultProps,
+        panelState: 'bench-view' as PanelState,
+        selection: {
+          direction: 'field-first' as const,
+          fieldPlayer: mockPlayer('1', 'Sarah Smith', '7'),
+          benchPlayer: null,
+        },
+        onFieldPlayerClick,
+      };
+      render(<SubstitutionPanelPresentation {...props} />);
+
+      // Click swap position tab
+      fireEvent.click(screen.getByText(/Swap Position/));
+
+      // Should show on-field players (Alex Jones, but not Sarah Smith who is selected)
+      expect(screen.getByText('Alex Jones')).toBeTruthy();
+    });
+
+    it('calls onFieldPlayerClick when swap player clicked', () => {
+      const onFieldPlayerClick = vi.fn();
+      const props = {
+        ...defaultProps,
+        panelState: 'bench-view' as PanelState,
+        selection: {
+          direction: 'field-first' as const,
+          fieldPlayer: mockPlayer('1', 'Sarah Smith', '7'),
+          benchPlayer: null,
+        },
+        onFieldPlayerClick,
+      };
+      render(<SubstitutionPanelPresentation {...props} />);
+
+      // Click swap position tab
+      fireEvent.click(screen.getByText(/Swap Position/));
+
+      // Click on Alex Jones to swap
+      fireEvent.click(screen.getByText('Alex Jones'));
+      expect(onFieldPlayerClick).toHaveBeenCalledWith(
+        expect.objectContaining({ playerName: 'Alex Jones' }),
+      );
     });
   });
 });

@@ -11,12 +11,15 @@ export type PanelState = 'collapsed' | 'bench-view' | 'expanded';
 export type SelectionDirection = 'field-first' | 'bench-first' | null;
 
 /**
- * Currently selected player for substitution
+ * Currently selected player for substitution.
+ * Selection order depends on direction:
+ * - field-first: fieldPlayer selected first, then benchPlayer
+ * - bench-first: benchPlayer selected first, then fieldPlayer
  */
 export interface PlayerSelection {
   direction: SelectionDirection;
-  fieldPlayer: GqlRosterPlayer | null; // Player on field (going out)
-  benchPlayer: GqlRosterPlayer | null; // Player on bench (coming in)
+  fieldPlayer: GqlRosterPlayer | null;
+  benchPlayer: GqlRosterPlayer | null;
 }
 
 /**
