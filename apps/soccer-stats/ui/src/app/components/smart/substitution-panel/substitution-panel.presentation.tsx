@@ -83,11 +83,22 @@ export const SubstitutionPanelPresentation = ({
   // Render bench view or expanded
   const isExpanded = panelState === 'expanded';
   const panelHeight = isExpanded ? 'max-h-[60vh]' : 'max-h-[40vh]';
+  const hasActiveSelection = selection.direction !== null;
 
   return (
-    <div
-      className={`fixed bottom-0 left-0 right-0 z-40 flex flex-col overflow-hidden border-t border-gray-200 bg-white shadow-lg ${panelHeight}`}
-    >
+    <>
+      {/* Background overlay - clicking clears selection */}
+      {hasActiveSelection && (
+        <div
+          className="fixed inset-0 z-30"
+          onClick={onClearSelection}
+          aria-hidden="true"
+        />
+      )}
+
+      <div
+        className={`fixed bottom-0 left-0 right-0 z-40 flex flex-col overflow-hidden border-t border-gray-200 bg-white shadow-lg ${panelHeight}`}
+      >
       {/* Header */}
       <div
         className="flex cursor-pointer items-center justify-between border-b border-gray-100 px-4 py-3"
@@ -318,6 +329,7 @@ export const SubstitutionPanelPresentation = ({
         </div>
       )}
     </div>
+    </>
   );
 };
 
