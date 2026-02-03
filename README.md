@@ -1,90 +1,81 @@
 # Garage
 
-This project was generated using [Nx](https://nx.dev).
+An Nx monorepo containing multiple full-stack applications and shared libraries. The workspace includes React/Angular frontends, NestJS/Express backends, AWS Lambda functions, and shared TypeScript libraries.
 
 <p style="text-align: center;"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="450"></p>
 
-🔎 **Smart, Fast and Extensible Build System**
+For detailed development guidelines, see **[CLAUDE.md](./CLAUDE.md)**.
 
-## Adding capabilities to your workspace
+## Quick Start
 
-Nx supports many plugins which add capabilities for developing different types of applications and different tools.
+```bash
+# Use Node.js v24.4.1
+nvm use  # or fnm use
 
-These capabilities include generating applications, libraries, etc as well as the devtools to test, and build projects as well.
+# Enable pnpm
+corepack enable
 
-Below are our core plugins:
+# Install dependencies
+pnpm install --frozen-lockfile --ignore-scripts
+```
 
-- [React](https://reactjs.org)
-  - `pnpm add --save-dev @nx/react`
-- Web (no framework frontends)
-  - `pnpm add --save-dev @nx/web`
-- [Angular](https://angular.io)
-  - `pnpm add --save-dev @nx/angular`
-- [Nest](https://nestjs.com)
-  - `pnpm add --save-dev @nx/nest`
-- [Express](https://expressjs.com)
-  - `pnpm add --save-dev @nx/express`
-- [Node](https://nodejs.org)
-  - `pnpm add --save-dev @nx/node`
+## Key Technologies
 
-There are also many [community plugins](https://nx.dev/community) you could add.
+- **Build System:** Nx 22.3.3
+- **Package Manager:** pnpm
+- **Frontend:** React 18.3.1, Angular 21.0.6
+- **Backend:** NestJS 11.0.0, Express 5.0.0
+- **Database:** PostgreSQL with TypeORM
+- **GraphQL:** Apollo Server/Client
+- **Testing:** Vitest, Jest, Playwright
 
-## Generate an application
+## Common Commands
 
-Run `nx g @nx/react:app my-app` to generate an application.
+```bash
+# Serve applications
+pnpm nx serve soccer-stats-ui    # Full stack soccer stats (starts API too)
+pnpm nx serve chore-board-ui     # Chore board app
+pnpm nx serve ng-example         # Angular example
 
-> You can use any of the plugins above to generate applications as well.
+# Build, test, and lint
+pnpm nx build <project-name>
+pnpm nx test <project-name>
+pnpm nx lint <project-name>
 
-When using Nx, you can create multiple applications and libraries in the same workspace.
+# Run affected commands
+pnpm nx affected -t test
+pnpm nx affected -t build
+pnpm nx affected -t lint
+```
 
-## Generate a library
+## Project Structure
 
-Run `nx g @nx/react:lib my-lib` to generate a library.
+```
+apps/
+├── soccer-stats/          # Primary app: Soccer statistics tracker
+├── chore-board/           # Kanban-style chore tracking
+├── auth/api/              # Authentication services
+├── campsite-watcher/      # Campsite availability monitoring
+└── ng/example/            # Angular example app
 
-> You can also use any of the plugins above to generate libraries as well.
+libs/
+├── soccer-stats/          # Soccer stats shared libraries
+├── campsite-watcher/      # Campsite watcher libraries
+├── ng/lib-example/        # Angular shared components
+└── wordle/core/           # Wordle game logic
+```
 
-Libraries are shareable across libraries and applications. They can be imported from `@garage/mylib`.
+## Visualize the Workspace
 
-## Development server
+```bash
+pnpm nx graph
+```
 
-Run `nx serve my-app` for a dev server. Navigate to http://localhost:4200/. The app will automatically reload if you change any of the source files.
+## Documentation
 
-## Code scaffolding
+- **[CLAUDE.md](./CLAUDE.md)** - Comprehensive development guidelines
+- **[Nx Documentation](https://nx.dev)** - Nx framework docs
 
-Run `nx g @nx/react:component my-component --project=my-app` to generate a new component.
+## Nx Cloud
 
-## Build
-
-Run `nx build my-app` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `--prod` flag for a production build.
-
-## Running unit tests
-
-Run `nx test my-app` to execute the unit tests via [Jest](https://jestjs.io).
-
-Run `nx affected:test` to execute the unit tests affected by a change.
-
-## Running end-to-end tests
-
-Run `ng e2e my-app` to execute the end-to-end tests via [Cypress](https://www.cypress.io).
-
-Run `nx affected:e2e` to execute the end-to-end tests affected by a change.
-
-## Understand your workspace
-
-Run `nx graph` to see a diagram of the dependencies of your projects.
-
-## Further help
-
-Visit the [Nx Documentation](https://nx.dev) to learn more.
-
-## ☁ Nx Cloud
-
-### Distributed Computation Caching & Distributed Task Execution
-
-<p style="text-align: center;"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-cloud-card.png"></p>
-
-Nx Cloud pairs with Nx in order to enable you to build and test code more rapidly, by up to 10 times. Even teams that are new to Nx can connect to Nx Cloud and start saving time instantly.
-
-Teams using Nx gain the advantage of building full-stack applications with their preferred framework alongside Nx’s advanced code generation and project dependency graph, plus a unified experience for both frontend and backend developers.
-
-Visit [Nx Cloud](https://nx.app/) to learn more.
+This workspace uses Nx Cloud for distributed caching. Visit [Nx Cloud](https://nx.app/) to learn more.
