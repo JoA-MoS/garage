@@ -1044,6 +1044,15 @@ export const GamePage = () => {
     }
   };
 
+  // Determine current period based on game status
+  // Defined early so it can be used in callbacks before the early return
+  const currentPeriod =
+    data?.game?.status === GameStatus.SecondHalf
+      ? '2'
+      : data?.game?.status === GameStatus.Halftime
+        ? '2' // At halftime, we're transitioning to period 2
+        : '1';
+
   // Handle formation change for a team
   // Always creates a FORMATION_CHANGE event - pre-game uses period 1, second 0
   const handleFormationChange = useCallback(
@@ -1299,14 +1308,6 @@ export const GamePage = () => {
     (game.format?.durationMinutes || 60) / 2,
   );
   const halftimeDurationSeconds = halftimeDurationMinutes * 60;
-
-  // Determine current period based on game status
-  const currentPeriod =
-    game.status === GameStatus.SecondHalf
-      ? '2'
-      : game.status === GameStatus.Halftime
-        ? '2' // At halftime, we're transitioning to period 2
-        : '1';
 
   // Calculate period-relative seconds
   // In period 1: elapsedSeconds directly
@@ -2296,7 +2297,7 @@ export const GamePage = () => {
                 playerId: e.playerId,
                 externalPlayerName: e.externalPlayerName,
                 eventType: e.eventType,
-                period: e.period,
+                period: e.period ?? '1',
                 periodSecond: e.periodSecond,
                 childEvents: e.childEvents?.map((ce) => ({
                   playerId: ce.playerId,
