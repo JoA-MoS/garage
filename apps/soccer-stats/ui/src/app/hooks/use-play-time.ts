@@ -124,12 +124,14 @@ export function calculatePlayTime(
   let totalSeconds = 0;
   for (const stint of stints) {
     const endTime = stint.offTime ?? currentAbsoluteTime;
-    totalSeconds += endTime - stint.onTime;
+    // Guard against negative values until API-side calculation is implemented
+    totalSeconds += Math.max(0, endTime - stint.onTime);
   }
 
   return {
     playerId,
-    minutes: Math.floor(totalSeconds / 60),
+    // Ensure minutes is never negative
+    minutes: Math.max(0, Math.floor(totalSeconds / 60)),
     isOnField: isCurrentlyOnField,
   };
 }

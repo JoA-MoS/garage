@@ -126,4 +126,21 @@ export interface SubstitutionPanelSmartProps {
    * Called when the external selection has been handled (processed or cleared)
    */
   onExternalSelectionHandled?: () => void;
+
+  /**
+   * Called when bench selection changes - allows parent to know when
+   * field player clicks should be routed to the panel
+   */
+  onBenchSelectionChange?: (benchPlayer: GqlRosterPlayer | null) => void;
+
+  /**
+   * External field player to replace - when set with an active bench selection,
+   * completes the substitution (bench-first flow completion from external click)
+   */
+  externalFieldPlayerToReplace?: GqlRosterPlayer | null;
+
+  /**
+   * Called when the external field player to replace has been handled
+   */
+  onExternalFieldPlayerToReplaceHandled?: () => void;
 }

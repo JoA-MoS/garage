@@ -42,7 +42,6 @@ import {
 import { GameLineupTab } from '../components/smart/game-lineup-tab.smart';
 import { GoalModal, EditGoalData } from '../components/smart/goal-modal.smart';
 import { ManualGoalModal } from '../components/smart/manual-goal-modal.smart';
-import { SubstitutionModal } from '../components/smart/substitution-modal.smart';
 import { SubstitutionPanel } from '../components/smart/substitution-panel';
 import { GameStats } from '../components/smart/game-stats.smart';
 import { GameSummaryPresentation } from '../components/presentation/game-summary.presentation';
@@ -134,9 +133,6 @@ export const GamePage = () => {
     team: 'home' | 'away';
     goal: EditGoalData;
   } | null>(null);
-  const [subModalTeam, setSubModalTeam] = useState<'home' | 'away' | null>(
-    null,
-  );
   const [showGameMenu, setShowGameMenu] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [clearEventsOnReset, setClearEventsOnReset] = useState(false);
@@ -146,6 +142,14 @@ export const GamePage = () => {
   // Field player selection for substitution panel
   // When a player is selected (e.g., from tapping on field), the panel opens with them pre-selected
   const [selectedFieldPlayerForSub, setSelectedFieldPlayerForSub] =
+    useState<GqlRosterPlayer | null>(null);
+
+  // Bench selection from panel - when set, field player clicks complete the substitution
+  const [panelBenchSelection, setPanelBenchSelection] =
+    useState<GqlRosterPlayer | null>(null);
+
+  // Field player clicked while bench selection is active (for completing bench-first subs)
+  const [fieldPlayerToReplaceForPanel, setFieldPlayerToReplaceForPanel] =
     useState<GqlRosterPlayer | null>(null);
 
   // Cascade delete state
@@ -1079,6 +1083,20 @@ export const GamePage = () => {
     [recordFormationChange, currentPeriod],
   );
 
+  // Handle field player click - routes to appropriate substitution flow
+  const handleFieldPlayerClickForSub = useCallback(
+    (player: GqlRosterPlayer) => {
+      if (panelBenchSelection) {
+        // Bench-first flow: complete the substitution
+        setFieldPlayerToReplaceForPanel(player);
+      } else {
+        // Field-first flow: start new substitution with this player
+        setSelectedFieldPlayerForSub(player);
+      }
+    },
+    [panelBenchSelection],
+  );
+
   // Change stats tracking level for a specific team in this game
   const handleTeamStatsTrackingChange = async (
     team: 'home' | 'away',
@@ -1395,7 +1413,6 @@ export const GamePage = () => {
         onEndGame={handleEndGame}
         onShowEndGameConfirm={setShowEndGameConfirm}
         onGoalClick={handleGoalClick}
-        onSubClick={(team) => setSubModalTeam(team)}
       />
 
       {/* Main Tabs */}
@@ -1467,7 +1484,8 @@ export const GamePage = () => {
                   onFormationChange={(formation, periodSecs) =>
                     handleFormationChange(homeTeam.id, formation, periodSecs)
                   }
-                  onFieldPlayerClickForSub={setSelectedFieldPlayerForSub}
+                  onFieldPlayerClickForSub={handleFieldPlayerClickForSub}
+                  hasBenchSelectionActive={panelBenchSelection !== null}
                 />
               )}
               {activeTeam === 'away' && awayTeam && (
@@ -1485,7 +1503,8 @@ export const GamePage = () => {
                   onFormationChange={(formation, periodSecs) =>
                     handleFormationChange(awayTeam.id, formation, periodSecs)
                   }
-                  onFieldPlayerClickForSub={setSelectedFieldPlayerForSub}
+                  onFieldPlayerClickForSub={handleFieldPlayerClickForSub}
+                  hasBenchSelectionActive={panelBenchSelection !== null}
                 />
               )}
             </div>
@@ -2252,29 +2271,8 @@ export const GamePage = () => {
         />
       )}
 
-      {/* Substitution Modal (legacy - keeping for fallback) */}
-      {subModalTeam && (
-        <SubstitutionModal
-          gameTeamId={subModalTeam === 'home' ? homeTeam!.id : awayTeam!.id}
-          gameId={gameId!}
-          teamName={
-            subModalTeam === 'home' ? homeTeam!.team.name : awayTeam!.team.name
-          }
-          teamColor={
-            subModalTeam === 'home'
-              ? homeTeam!.team.homePrimaryColor || '#3B82F6'
-              : awayTeam!.team.homePrimaryColor || '#EF4444'
-          }
-          onField={subModalTeam === 'home' ? homeOnField : awayOnField}
-          bench={subModalTeam === 'home' ? homeBench : awayBench}
-          period={currentPeriod}
-          periodSecond={currentPeriodSeconds}
-          onClose={() => setSubModalTeam(null)}
-        />
-      )}
-
       {/* Inline Substitution Panel */}
-      {game?.status === GameStatus.InProgress && homeTeam && awayTeam && (
+      {isActivePlay && homeTeam && awayTeam && (
         <SubstitutionPanel
           gameTeamId={activeTeam === 'home' ? homeTeam.id : awayTeam.id}
           gameId={gameId!}
@@ -2309,6 +2307,11 @@ export const GamePage = () => {
           }
           externalFieldPlayerSelection={selectedFieldPlayerForSub}
           onExternalSelectionHandled={() => setSelectedFieldPlayerForSub(null)}
+          onBenchSelectionChange={setPanelBenchSelection}
+          externalFieldPlayerToReplace={fieldPlayerToReplaceForPanel}
+          onExternalFieldPlayerToReplaceHandled={() =>
+            setFieldPlayerToReplaceForPanel(null)
+          }
         />
       )}
 
