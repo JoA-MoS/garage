@@ -45,6 +45,8 @@ interface FieldLineupProps {
   disabled?: boolean;
   /** When true, assigned player positions show cursor-pointer to indicate clickability */
   highlightClickableAssigned?: boolean;
+  /** Set of game event IDs for players who are queued for substitution */
+  queuedPlayerIds?: Set<string>;
 }
 
 export function FieldLineup({
@@ -55,6 +57,7 @@ export function FieldLineup({
   isHome = true,
   disabled = false,
   highlightClickableAssigned = false,
+  queuedPlayerIds = new Set(),
 }: FieldLineupProps) {
   // Precompute player assignments for each formation position slot
   // This handles formations with multiple slots sharing the same position code (e.g., two CBs)
@@ -200,6 +203,11 @@ export function FieldLineup({
           const adjustedX = getAdjustedX(pos.x);
           const adjustedY = getAdjustedY(pos.y);
           const positionInfo = POSITIONS[pos.position];
+          const isQueued =
+            assignedPlayer && queuedPlayerIds.has(assignedPlayer.gameEventId);
+          // Don't highlight queued players as clickable (they're already being subbed out)
+          const showHighlight =
+            highlightClickableAssigned && assignedPlayer && !isQueued;
 
           return (
             <button
@@ -207,7 +215,7 @@ export function FieldLineup({
               className={`absolute flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center transition-transform hover:scale-110 ${
                 disabled
                   ? 'cursor-default'
-                  : highlightClickableAssigned && assignedPlayer
+                  : showHighlight
                     ? 'cursor-pointer ring-2 ring-white ring-offset-2 ring-offset-green-600'
                     : 'cursor-pointer'
               }`}
@@ -223,8 +231,12 @@ export function FieldLineup({
             >
               {/* Player marker */}
               <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-xs font-bold text-white shadow-lg sm:h-10 sm:w-10 sm:text-sm ${
-                  assignedPlayer ? '' : 'border-dashed opacity-60'
+                className={`relative flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-bold text-white shadow-lg sm:h-10 sm:w-10 sm:text-sm ${
+                  assignedPlayer
+                    ? isQueued
+                      ? 'border-orange-400 opacity-60'
+                      : 'border-white'
+                    : 'border-dashed border-white opacity-60'
                 }`}
                 style={{
                   backgroundColor: assignedPlayer
@@ -233,6 +245,12 @@ export function FieldLineup({
                 }}
               >
                 {assignedPlayer ? getPlayerInitials(assignedPlayer) : '+'}
+                {/* Queued indicator badge */}
+                {isQueued && (
+                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[8px] font-bold text-white shadow-md">
+                    ↓
+                  </span>
+                )}
               </div>
 
               {/* Position label */}
@@ -242,7 +260,9 @@ export function FieldLineup({
 
               {/* Player name (if assigned) */}
               {assignedPlayer && (
-                <span className="max-w-16 truncate rounded bg-black/50 px-1 text-[8px] text-white sm:max-w-20 sm:text-[10px]">
+                <span
+                  className={`max-w-16 truncate rounded px-1 text-[8px] text-white sm:max-w-20 sm:text-[10px] ${isQueued ? 'bg-orange-500/70' : 'bg-black/50'}`}
+                >
                   {getPlayerDisplayName(assignedPlayer).split(' ').pop()}
                 </span>
               )}

@@ -109,10 +109,15 @@ export const SubstitutionPanelPresentation = ({
       <div
         className={`fixed bottom-0 left-0 right-0 z-40 flex flex-col overflow-hidden border-t border-gray-200 bg-white shadow-lg ${panelHeight}`}
       >
-        {/* Drag handle indicator */}
-        <div className="flex justify-center pt-2">
+        {/* Drag handle indicator - clickable to collapse */}
+        <button
+          type="button"
+          onClick={() => onPanelStateChange('collapsed')}
+          className="flex w-full cursor-pointer justify-center py-2"
+          aria-label="Collapse panel"
+        >
           <div className="h-1 w-10 rounded-full bg-gray-300" />
-        </div>
+        </button>
 
         {/* Header */}
         <div
@@ -137,29 +142,6 @@ export const SubstitutionPanelPresentation = ({
               P{period} {timeDisplay}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onPanelStateChange('collapsed');
-            }}
-            className="p-1 text-gray-400 hover:text-gray-600"
-            aria-label="Collapse panel"
-          >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </button>
         </div>
 
         {/* Selection header */}
