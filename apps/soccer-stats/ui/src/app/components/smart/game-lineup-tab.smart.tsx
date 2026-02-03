@@ -444,7 +444,6 @@ export const GameLineupTab = memo(function GameLineupTab({
       bringPlayerOntoField,
       addPlayerToGameRoster,
       removeFromLineup,
-      refetchRoster,
     ],
   );
 
