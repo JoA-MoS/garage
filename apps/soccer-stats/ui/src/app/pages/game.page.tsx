@@ -1466,6 +1466,7 @@ export const GamePage = () => {
                   onFormationChange={(formation, periodSecs) =>
                     handleFormationChange(homeTeam.id, formation, periodSecs)
                   }
+                  onFieldPlayerClickForSub={setSelectedFieldPlayerForSub}
                 />
               )}
               {activeTeam === 'away' && awayTeam && (
@@ -1483,6 +1484,7 @@ export const GamePage = () => {
                   onFormationChange={(formation, periodSecs) =>
                     handleFormationChange(awayTeam.id, formation, periodSecs)
                   }
+                  onFieldPlayerClickForSub={setSelectedFieldPlayerForSub}
                 />
               )}
             </div>
