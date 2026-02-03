@@ -18,6 +18,7 @@ import {
 import {
   GameStatus,
   StatsTrackingLevel,
+  RosterPlayer as GqlRosterPlayer,
 } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond, toPeriodSecond } from '@garage/soccer-stats/utils';
 
@@ -141,6 +142,11 @@ export const GamePage = () => {
   const [clearEventsOnReset, setClearEventsOnReset] = useState(false);
   const [showReopenConfirm, setShowReopenConfirm] = useState(false);
   const [showManualGoalModal, setShowManualGoalModal] = useState(false);
+
+  // Field player selection for substitution panel
+  // When a player is selected (e.g., from tapping on field), the panel opens with them pre-selected
+  const [selectedFieldPlayerForSub, setSelectedFieldPlayerForSub] =
+    useState<GqlRosterPlayer | null>(null);
 
   // Cascade delete state
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -2298,6 +2304,8 @@ export const GamePage = () => {
               }),
             ) ?? []
           }
+          externalFieldPlayerSelection={selectedFieldPlayerForSub}
+          onExternalSelectionHandled={() => setSelectedFieldPlayerForSub(null)}
         />
       )}
 

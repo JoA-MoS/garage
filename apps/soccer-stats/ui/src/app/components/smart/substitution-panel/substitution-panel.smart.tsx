@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useApolloClient, useMutation } from '@apollo/client/react';
 
 import {
@@ -42,6 +42,8 @@ export const SubstitutionPanel = ({
   periodSecond,
   gameEvents,
   onSubstitutionComplete,
+  externalFieldPlayerSelection,
+  onExternalSelectionHandled,
 }: SubstitutionPanelSmartProps) => {
   // Panel state
   const [panelState, setPanelState] = useState<PanelState>('collapsed');
@@ -64,6 +66,21 @@ export const SubstitutionPanel = ({
   // Apollo
   const client = useApolloClient();
   const [batchLineupChanges] = useMutation(BATCH_LINEUP_CHANGES);
+
+  // Handle external field player selection (e.g., from tapping a player on the field view)
+  useEffect(() => {
+    if (externalFieldPlayerSelection) {
+      // Open panel and set selection to field-first with this player
+      setPanelState('bench-view');
+      setSelection({
+        direction: 'field-first',
+        fieldPlayer: externalFieldPlayerSelection,
+        benchPlayer: null,
+      });
+      // Notify parent that we've handled the selection
+      onExternalSelectionHandled?.();
+    }
+  }, [externalFieldPlayerSelection, onExternalSelectionHandled]);
 
   // Calculate play time for all players
   const playTimeByPlayer = useMemo(() => {

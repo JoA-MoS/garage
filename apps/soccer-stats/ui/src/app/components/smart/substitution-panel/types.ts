@@ -115,4 +115,15 @@ export interface SubstitutionPanelSmartProps {
     }>;
   }>;
   onSubstitutionComplete?: () => void;
+
+  /**
+   * External field player selection - when set, panel opens with this player
+   * selected for replacement (field-first flow)
+   */
+  externalFieldPlayerSelection?: GqlRosterPlayer | null;
+
+  /**
+   * Called when the external selection has been handled (processed or cleared)
+   */
+  onExternalSelectionHandled?: () => void;
 }
