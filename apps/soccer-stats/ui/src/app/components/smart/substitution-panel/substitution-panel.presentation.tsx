@@ -67,7 +67,11 @@ export const SubstitutionPanelPresentation = ({
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && onPanelStateChange('bench-view')}
       >
-        <div className="flex min-h-[44px] items-center justify-between px-4 py-3">
+        {/* Drag handle indicator */}
+        <div className="flex justify-center pt-2">
+          <div className="h-1 w-10 rounded-full bg-gray-300" />
+        </div>
+        <div className="flex min-h-[44px] items-center justify-between px-4 pb-3 pt-1">
           <div className="flex items-center gap-2">
             <div
               className="h-3 w-3 rounded-full"
@@ -105,9 +109,14 @@ export const SubstitutionPanelPresentation = ({
       <div
         className={`fixed bottom-0 left-0 right-0 z-40 flex flex-col overflow-hidden border-t border-gray-200 bg-white shadow-lg ${panelHeight}`}
       >
+        {/* Drag handle indicator */}
+        <div className="flex justify-center pt-2">
+          <div className="h-1 w-10 rounded-full bg-gray-300" />
+        </div>
+
         {/* Header */}
         <div
-          className="flex cursor-pointer items-center justify-between border-b border-gray-100 px-4 py-3"
+          className="flex cursor-pointer items-center justify-between border-b border-gray-100 px-4 pb-3 pt-1"
           onClick={() =>
             onPanelStateChange(isExpanded ? 'bench-view' : 'expanded')
           }

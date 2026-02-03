@@ -70,6 +70,15 @@ describe('SubstitutionPanelPresentation', () => {
       render(<SubstitutionPanelPresentation {...props} />);
       expect(screen.getByText('1')).toBeTruthy();
     });
+
+    it('shows drag handle indicator', () => {
+      const { container } = render(
+        <SubstitutionPanelPresentation {...defaultProps} />,
+      );
+      // Drag handle is a small rounded pill element
+      const dragHandle = container.querySelector('.h-1.w-10.rounded-full');
+      expect(dragHandle).toBeTruthy();
+    });
   });
 
   describe('bench-view state', () => {
@@ -101,6 +110,15 @@ describe('SubstitutionPanelPresentation', () => {
       // Check that the replacement text appears with the player name
       expect(screen.getByText(/Replacing:/)).toBeTruthy();
       expect(screen.getByText('Sarah Smith')).toBeTruthy();
+    });
+
+    it('shows drag handle indicator in expanded panel', () => {
+      const props = { ...defaultProps, panelState: 'bench-view' as PanelState };
+      const { container } = render(
+        <SubstitutionPanelPresentation {...props} />,
+      );
+      const dragHandle = container.querySelector('.h-1.w-10.rounded-full');
+      expect(dragHandle).toBeTruthy();
     });
   });
 
