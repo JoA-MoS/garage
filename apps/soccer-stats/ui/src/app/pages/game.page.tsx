@@ -42,6 +42,7 @@ import { GameLineupTab } from '../components/smart/game-lineup-tab.smart';
 import { GoalModal, EditGoalData } from '../components/smart/goal-modal.smart';
 import { ManualGoalModal } from '../components/smart/manual-goal-modal.smart';
 import { SubstitutionModal } from '../components/smart/substitution-modal.smart';
+import { SubstitutionPanel } from '../components/smart/substitution-panel';
 import { GameStats } from '../components/smart/game-stats.smart';
 import { GameSummaryPresentation } from '../components/presentation/game-summary.presentation';
 import { useGameEventSubscription } from '../hooks/use-game-event-subscription';
@@ -2242,7 +2243,7 @@ export const GamePage = () => {
         />
       )}
 
-      {/* Substitution Modal */}
+      {/* Substitution Modal (legacy - keeping for fallback) */}
       {subModalTeam && (
         <SubstitutionModal
           gameTeamId={subModalTeam === 'home' ? homeTeam!.id : awayTeam!.id}
@@ -2260,6 +2261,43 @@ export const GamePage = () => {
           period={currentPeriod}
           periodSecond={currentPeriodSeconds}
           onClose={() => setSubModalTeam(null)}
+        />
+      )}
+
+      {/* Inline Substitution Panel */}
+      {game?.status === GameStatus.InProgress && homeTeam && awayTeam && (
+        <SubstitutionPanel
+          gameTeamId={activeTeam === 'home' ? homeTeam.id : awayTeam.id}
+          gameId={gameId!}
+          teamName={
+            activeTeam === 'home' ? homeTeam.team.name : awayTeam.team.name
+          }
+          teamColor={
+            activeTeam === 'home'
+              ? homeTeam.team.homePrimaryColor || '#3B82F6'
+              : awayTeam.team.homePrimaryColor || '#EF4444'
+          }
+          onField={activeTeam === 'home' ? homeOnField : awayOnField}
+          bench={activeTeam === 'home' ? homeBench : awayBench}
+          period={currentPeriod}
+          periodSecond={currentPeriodSeconds}
+          gameEvents={
+            (activeTeam === 'home' ? homeTeam.events : awayTeam.events)?.map(
+              (e) => ({
+                id: e.id,
+                playerId: e.playerId,
+                externalPlayerName: e.externalPlayerName,
+                eventType: e.eventType,
+                period: e.period,
+                periodSecond: e.periodSecond,
+                childEvents: e.childEvents?.map((ce) => ({
+                  playerId: ce.playerId,
+                  externalPlayerName: ce.externalPlayerName,
+                  eventType: ce.eventType,
+                })),
+              }),
+            ) ?? []
+          }
         />
       )}
 
