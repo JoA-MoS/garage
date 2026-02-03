@@ -38,6 +38,11 @@ interface GameLineupTabProps {
     formation: string,
     periodSecond?: number,
   ) => Promise<void>;
+  /**
+   * Called when a field player is clicked during an in-progress game.
+   * Used to trigger the inline substitution panel with this player pre-selected.
+   */
+  onFieldPlayerClickForSub?: (player: GqlRosterPlayer) => void;
 }
 
 type ModalMode =
@@ -123,6 +128,7 @@ export const GameLineupTab = memo(function GameLineupTab({
   currentPeriod = '1',
   currentPeriodSeconds = 0,
   onFormationChange,
+  onFieldPlayerClickForSub,
 }: GameLineupTabProps) {
   const formations = getFormationsForTeamSize(playersPerTeam);
   const [selectedFormation, setSelectedFormation] = useState<Formation>(() =>
@@ -328,6 +334,16 @@ export const GameLineupTab = memo(function GameLineupTab({
   const handlePositionClick = useCallback(
     (position: FormationPosition, assignedPlayer?: GqlRosterPlayer) => {
       if (assignedPlayer) {
+        // During in-progress games, trigger the inline substitution panel for quick subs
+        if (
+          gameStatus === GameStatus.InProgress &&
+          onFieldPlayerClickForSub &&
+          bench.length > 0
+        ) {
+          onFieldPlayerClickForSub(assignedPlayer);
+          return;
+        }
+        // Otherwise, show the player options modal
         setModalMode({
           type: 'player-options',
           player: assignedPlayer,
@@ -337,7 +353,7 @@ export const GameLineupTab = memo(function GameLineupTab({
         setModalMode({ type: 'assign-position', position });
       }
     },
-    [],
+    [gameStatus, onFieldPlayerClickForSub, bench.length],
   );
 
   // Assign roster player to a position
