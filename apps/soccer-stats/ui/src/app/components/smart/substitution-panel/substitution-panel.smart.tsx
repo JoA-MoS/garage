@@ -44,6 +44,9 @@ export const SubstitutionPanel = ({
   onSubstitutionComplete,
   externalFieldPlayerSelection,
   onExternalSelectionHandled,
+  onBenchSelectionChange,
+  externalFieldPlayerToReplace,
+  onExternalFieldPlayerToReplaceHandled,
 }: SubstitutionPanelSmartProps) => {
   // Panel state
   const [panelState, setPanelState] = useState<PanelState>('collapsed');
@@ -81,6 +84,41 @@ export const SubstitutionPanel = ({
       onExternalSelectionHandled?.();
     }
   }, [externalFieldPlayerSelection, onExternalSelectionHandled]);
+
+  // Notify parent when bench selection changes (for routing field clicks)
+  useEffect(() => {
+    if (selection.direction === 'bench-first' && selection.benchPlayer) {
+      onBenchSelectionChange?.(selection.benchPlayer);
+    } else {
+      onBenchSelectionChange?.(null);
+    }
+  }, [selection.direction, selection.benchPlayer, onBenchSelectionChange]);
+
+  // Handle external field player click to complete bench-first substitution
+  useEffect(() => {
+    if (
+      externalFieldPlayerToReplace &&
+      selection.direction === 'bench-first' &&
+      selection.benchPlayer
+    ) {
+      // Queue the substitution
+      const subItem: QueuedItem = {
+        id: `sub-${Date.now()}-${Math.random()}`,
+        type: 'substitution',
+        playerOut: externalFieldPlayerToReplace,
+        playerIn: selection.benchPlayer,
+      };
+      setQueue((prev) => [...prev, subItem]);
+      setSelection({ direction: null, fieldPlayer: null, benchPlayer: null });
+      // Notify parent that we've handled the click
+      onExternalFieldPlayerToReplaceHandled?.();
+    }
+  }, [
+    externalFieldPlayerToReplace,
+    selection.direction,
+    selection.benchPlayer,
+    onExternalFieldPlayerToReplaceHandled,
+  ]);
 
   // Calculate play time for all players
   const playTimeByPlayer = useMemo(() => {
@@ -130,8 +168,7 @@ export const SubstitutionPanel = ({
   const availableOnField = useMemo(
     () =>
       onField.filter(
-        (p) =>
-          !outIds.has(p.gameEventId) && !swapPlayerIds.has(getPlayerId(p)),
+        (p) => !outIds.has(p.gameEventId) && !swapPlayerIds.has(getPlayerId(p)),
       ),
     [onField, outIds, swapPlayerIds],
   );

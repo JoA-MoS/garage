@@ -43,6 +43,8 @@ interface FieldLineupProps {
   teamColor?: string;
   isHome?: boolean;
   disabled?: boolean;
+  /** When true, assigned player positions show cursor-pointer to indicate clickability */
+  highlightClickableAssigned?: boolean;
 }
 
 export function FieldLineup({
@@ -52,6 +54,7 @@ export function FieldLineup({
   teamColor = '#3B82F6',
   isHome = true,
   disabled = false,
+  highlightClickableAssigned = false,
 }: FieldLineupProps) {
   // Precompute player assignments for each formation position slot
   // This handles formations with multiple slots sharing the same position code (e.g., two CBs)
@@ -202,7 +205,11 @@ export function FieldLineup({
             <button
               key={`${pos.position}-${index}`}
               className={`absolute flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center transition-transform hover:scale-110 ${
-                disabled ? 'cursor-default' : 'cursor-pointer'
+                disabled
+                  ? 'cursor-default'
+                  : highlightClickableAssigned && assignedPlayer
+                    ? 'cursor-pointer ring-2 ring-white ring-offset-2 ring-offset-green-600'
+                    : 'cursor-pointer'
               }`}
               style={{
                 left: `${adjustedX}%`,

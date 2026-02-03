@@ -43,6 +43,12 @@ interface GameLineupTabProps {
    * Used to trigger the inline substitution panel with this player pre-selected.
    */
   onFieldPlayerClickForSub?: (player: GqlRosterPlayer) => void;
+
+  /**
+   * When true, a bench player is selected in the substitution panel.
+   * Field player clicks should complete the substitution instead of opening modal.
+   */
+  hasBenchSelectionActive?: boolean;
 }
 
 type ModalMode =
@@ -129,6 +135,7 @@ export const GameLineupTab = memo(function GameLineupTab({
   currentPeriodSeconds = 0,
   onFormationChange,
   onFieldPlayerClickForSub,
+  hasBenchSelectionActive = false,
 }: GameLineupTabProps) {
   const formations = getFormationsForTeamSize(playersPerTeam);
   const [selectedFormation, setSelectedFormation] = useState<Formation>(() =>
@@ -330,19 +337,28 @@ export const GameLineupTab = memo(function GameLineupTab({
     currentPeriodSeconds,
   ]);
 
+  // Check if game is in active play
+  const isActivePlay =
+    gameStatus === GameStatus.FirstHalf ||
+    gameStatus === GameStatus.SecondHalf ||
+    gameStatus === GameStatus.InProgress;
+
   // Handle position click on field
   const handlePositionClick = useCallback(
     (position: FormationPosition, assignedPlayer?: GqlRosterPlayer) => {
       if (assignedPlayer) {
-        // During in-progress games, trigger the inline substitution panel for quick subs
-        if (
-          gameStatus === GameStatus.InProgress &&
-          onFieldPlayerClickForSub &&
-          bench.length > 0
-        ) {
+        // Priority 1: If bench selection is active, complete the substitution
+        if (hasBenchSelectionActive && onFieldPlayerClickForSub) {
           onFieldPlayerClickForSub(assignedPlayer);
           return;
         }
+
+        // Priority 2: During active play, trigger the inline substitution panel
+        if (isActivePlay && onFieldPlayerClickForSub && bench.length > 0) {
+          onFieldPlayerClickForSub(assignedPlayer);
+          return;
+        }
+
         // Otherwise, show the player options modal
         setModalMode({
           type: 'player-options',
@@ -353,7 +369,12 @@ export const GameLineupTab = memo(function GameLineupTab({
         setModalMode({ type: 'assign-position', position });
       }
     },
-    [gameStatus, onFieldPlayerClickForSub, bench.length],
+    [
+      isActivePlay,
+      hasBenchSelectionActive,
+      onFieldPlayerClickForSub,
+      bench.length,
+    ],
   );
 
   // Assign roster player to a position
@@ -619,6 +640,7 @@ export const GameLineupTab = memo(function GameLineupTab({
           onPositionClick={handlePositionClick}
           teamColor={teamColor}
           disabled={mutating}
+          highlightClickableAssigned={hasBenchSelectionActive}
         />
       </div>
 
