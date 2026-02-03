@@ -67,7 +67,7 @@ export const SubstitutionPanelPresentation = ({
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && onPanelStateChange('bench-view')}
       >
-        <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex min-h-[44px] items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
             <div
               className="h-3 w-3 rounded-full"
@@ -85,7 +85,7 @@ export const SubstitutionPanelPresentation = ({
     );
   }
 
-  // Render bench view or expanded
+  // Render bench-view or expanded panel
   const isExpanded = panelState === 'expanded';
   const panelHeight = isExpanded ? 'max-h-[60vh]' : 'max-h-[40vh]';
   const hasActiveSelection = selection.direction !== null;
