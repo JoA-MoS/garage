@@ -319,7 +319,12 @@ export const SubstitutionPanel = ({
 
   // Confirm all queued changes
   const handleConfirmAll = useCallback(async () => {
-    if (queue.length === 0) return;
+    if (queue.length === 0) {
+      console.warn(
+        '[SubstitutionPanel] handleConfirmAll called with empty queue',
+      );
+      return;
+    }
 
     setIsExecuting(true);
     setExecutionProgress(0);
@@ -372,27 +377,48 @@ export const SubstitutionPanel = ({
         },
       });
 
+      // Mutation succeeded - update progress and clear queue immediately
+      // This ensures we don't lose track of successful operations
       setExecutionProgress(queue.length);
-
-      // Refetch queries
-      await Promise.all([
-        client.query({
-          query: GET_GAME_BY_ID,
-          variables: { id: gameId },
-          fetchPolicy: 'network-only',
-        }),
-        client.query({
-          query: GET_GAME_ROSTER,
-          variables: { gameTeamId },
-          fetchPolicy: 'network-only',
-        }),
-      ]);
-
-      // Clear queue and reset
       setQueue([]);
+
+      // Refetch queries in a separate try-catch - these are best-effort refreshes
+      // The mutation already succeeded, so we don't want refetch failures to show errors
+      try {
+        await Promise.all([
+          client.query({
+            query: GET_GAME_BY_ID,
+            variables: { id: gameId },
+            fetchPolicy: 'network-only',
+          }),
+          client.query({
+            query: GET_GAME_ROSTER,
+            variables: { gameTeamId },
+            fetchPolicy: 'network-only',
+          }),
+        ]);
+      } catch (refetchErr) {
+        // Log but don't show error to user - the mutation succeeded
+        console.warn(
+          '[SubstitutionPanel] Refetch failed after successful mutation:',
+          refetchErr,
+        );
+      }
+
+      // Close panel and notify parent
       setPanelState('collapsed');
-      onSubstitutionComplete?.();
+
+      // Wrap callback invocation to prevent parent errors from affecting our state
+      try {
+        onSubstitutionComplete?.();
+      } catch (callbackErr) {
+        console.error(
+          '[SubstitutionPanel] onSubstitutionComplete callback threw:',
+          callbackErr,
+        );
+      }
     } catch (err) {
+      // This now only catches mutation failures, not refetch failures
       console.error('Failed to execute batch changes:', err);
       const message =
         err instanceof Error ? err.message : 'An unexpected error occurred';
