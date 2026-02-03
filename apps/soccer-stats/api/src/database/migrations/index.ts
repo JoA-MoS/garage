@@ -25,6 +25,7 @@ import { AddGameRosterEventType1769500000000 } from './1769500000000-AddGameRost
 import { ConvertBenchToGameRoster1769600000000 } from './1769600000000-ConvertBenchToGameRoster';
 import { RemoveUnusedEventTypes1769700000000 } from './1769700000000-RemoveUnusedEventTypes';
 import { RemoveGameStartEndEvents1769800000000 } from './1769800000000-RemoveGameStartEndEvents';
+import { AddGameEventIndexes1769900000000 } from './1769900000000-AddGameEventIndexes';
 
 /**
  * All migrations in chronological order.
@@ -47,4 +48,5 @@ export const migrations = [
   ConvertBenchToGameRoster1769600000000,
   RemoveUnusedEventTypes1769700000000,
   RemoveGameStartEndEvents1769800000000,
+  AddGameEventIndexes1769900000000,
 ];
