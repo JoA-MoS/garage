@@ -46,6 +46,7 @@ import { SubstitutionPanel } from '../components/smart/substitution-panel';
 import { GameStats } from '../components/smart/game-stats.smart';
 import { GameSummaryPresentation } from '../components/presentation/game-summary.presentation';
 import { useGameEventSubscription } from '../hooks/use-game-event-subscription';
+import { useSyncedGameTime } from '../hooks/use-synced-game-time';
 
 import { computeScore, GameHeader, StickyScoreBar } from './game';
 
@@ -124,7 +125,6 @@ export const GamePage = () => {
     [navigate, gameId],
   );
   const [activeTeam, setActiveTeam] = useState<'home' | 'away'>('home');
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
   const [goalModalTeam, setGoalModalTeam] = useState<'home' | 'away' | null>(
     null,
@@ -193,12 +193,6 @@ export const GamePage = () => {
     }>;
   } | null>(null);
 
-  // Use ref to track timer base time without causing effect re-runs
-  const timerBaseRef = useRef<{
-    startTime: number;
-    baseElapsed: number;
-  } | null>(null);
-
   // Track if we've set the initial tab based on game status (for completed games)
   const initialTabSetRef = useRef(false);
   // Track previous game status to detect completion
@@ -214,6 +208,17 @@ export const GamePage = () => {
     notifyOnNetworkStatusChange: false,
     fetchPolicy: 'cache-first',
   });
+
+  // Server-synced game time - keeps multiple clients in sync
+  const syncedTime = useSyncedGameTime(
+    data?.game
+      ? {
+          currentPeriod: data.game.currentPeriod,
+          currentPeriodSecond: data.game.currentPeriodSecond,
+          serverTimestamp: data.game.serverTimestamp,
+        }
+      : null,
+  );
 
   // Debug: Log when loading spinner is displayed (for E2E testing)
   // Only logs in development/test environments to avoid polluting production console
@@ -731,13 +736,8 @@ export const GamePage = () => {
           pausedAt: () => (gameUpdate.pausedAt as string) ?? null,
         },
       });
-
-      // Reset timer state when game is reset to scheduled
-      if (gameUpdate.status === GameStatus.Scheduled) {
-        setElapsedSeconds(0);
-        timerBaseRef.current = null;
-        timerHalfRef.current = null;
-      }
+      // Note: Timer state is now derived from server sync data,
+      // so no need to manually reset here
     },
     [apolloClient],
   );
@@ -792,9 +792,10 @@ export const GamePage = () => {
   // via createTimingEventsForStatusChange when status changes to HALFTIME
   const handleEndFirstHalf = async () => {
     try {
-      // Send the current game time from the frontend timer for accurate event timing
-      const gameMinute = Math.floor(elapsedSeconds / 60);
-      const gameSecond = elapsedSeconds % 60;
+      // Use server-synced time for accurate event timing
+      // In period 1, periodSecond equals total game seconds
+      const gameMinute = Math.floor(syncedTime.periodSecond / 60);
+      const gameSecond = syncedTime.periodSecond % 60;
 
       await updateGame({
         variables: {
@@ -837,9 +838,16 @@ export const GamePage = () => {
   // via createTimingEventsForStatusChange when status changes to COMPLETED
   const handleEndGame = async () => {
     try {
-      // Send the current game time from the frontend timer for accurate event timing
-      const gameMinute = Math.floor(elapsedSeconds / 60);
-      const gameSecond = elapsedSeconds % 60;
+      // Use server-synced time for accurate event timing
+      // In period 2, total game time = half duration + period seconds
+      const halfDurationSecs =
+        ((data?.game?.format?.durationMinutes || 60) / 2) * 60;
+      const totalSeconds =
+        syncedTime.period === '2'
+          ? halfDurationSecs + syncedTime.periodSecond
+          : syncedTime.periodSecond;
+      const gameMinute = Math.floor(totalSeconds / 60);
+      const gameSecond = totalSeconds % 60;
 
       await updateGame({
         variables: {
@@ -1019,8 +1027,7 @@ export const GamePage = () => {
       setShowResetConfirm(false);
       setShowGameMenu(false);
       setClearEventsOnReset(false);
-      setElapsedSeconds(0);
-      timerBaseRef.current = null;
+      // Note: Timer state is derived from server sync data
     } catch (err) {
       console.error('Failed to reset game:', err);
     }
@@ -1058,14 +1065,15 @@ export const GamePage = () => {
     }
   };
 
-  // Determine current period based on game status
-  // Defined early so it can be used in callbacks before the early return
+  // Determine current period - use server-synced time when available
+  // Falls back to status-based calculation for games that haven't started
   const currentPeriod =
-    data?.game?.status === GameStatus.SecondHalf
+    syncedTime.period ??
+    (data?.game?.status === GameStatus.SecondHalf
       ? '2'
       : data?.game?.status === GameStatus.Halftime
         ? '2' // At halftime, we're transitioning to period 2
-        : '1';
+        : '1');
 
   // Handle formation change for a team
   // Always creates a FORMATION_CHANGE event - pre-game uses period 1, second 0
@@ -1156,23 +1164,15 @@ export const GamePage = () => {
       const gameTeam = game?.teams?.find((gt) => gt.teamType === team);
       if (!gameTeam || !game) return;
 
-      // Calculate period and period-relative seconds
-      const halftimeDurationSeconds =
-        Math.floor((game.format?.durationMinutes || 60) / 2) * 60;
-      const isSecondHalf = game.status === GameStatus.SecondHalf;
-      const period = isSecondHalf ? '2' : '1';
-      const periodSecs = isSecondHalf
-        ? Math.max(0, elapsedSeconds - halftimeDurationSeconds)
-        : elapsedSeconds;
-
       try {
         // Call mutation - subscription will update cache for all connected clients
+        // Use server-synced time for consistent timing across clients
         await recordGoalDirect({
           variables: {
             input: {
               gameTeamId: gameTeam.id,
-              period,
-              periodSecond: periodSecs,
+              period: currentPeriod,
+              periodSecond: syncedTime.periodSecond,
             },
           },
         });
@@ -1185,100 +1185,8 @@ export const GamePage = () => {
     }
   };
 
-  // Track which half the timer was initialized for
-  const timerHalfRef = useRef<'first' | 'second' | null>(null);
-
-  // Game clock effect - runs during first or second half
-  useEffect(() => {
-    const game = data?.game;
-    // Treat legacy IN_PROGRESS as FIRST_HALF
-    const isFirstHalf =
-      game?.status === GameStatus.FirstHalf ||
-      game?.status === GameStatus.InProgress;
-    const isSecondHalf = game?.status === GameStatus.SecondHalf;
-
-    if (!game || (!isFirstHalf && !isSecondHalf)) {
-      // Reset timer tracking when not in play
-      timerHalfRef.current = null;
-      return;
-    }
-
-    // Calculate half duration in seconds
-    const halfDurationSeconds = ((game.format?.durationMinutes || 60) / 2) * 60;
-
-    // Determine which half we should be tracking
-    const currentHalf = isFirstHalf ? 'first' : 'second';
-
-    // Reinitialize if we're in a different half than before
-    if (timerHalfRef.current !== currentHalf) {
-      timerHalfRef.current = currentHalf;
-
-      if (isFirstHalf) {
-        // First half starts at 0:00
-        const halfStartTime = game.actualStart
-          ? new Date(game.actualStart).getTime()
-          : Date.now();
-        const initialElapsed = Math.floor((Date.now() - halfStartTime) / 1000);
-        timerBaseRef.current = {
-          startTime: Date.now(),
-          baseElapsed: initialElapsed,
-        };
-      } else {
-        // Second half starts at half duration (e.g., 30:00 for 60-min game)
-        const halfStartTime = game.secondHalfStart
-          ? new Date(game.secondHalfStart).getTime()
-          : Date.now();
-        const secondsIntoSecondHalf = Math.floor(
-          (Date.now() - halfStartTime) / 1000,
-        );
-        timerBaseRef.current = {
-          startTime: Date.now(),
-          baseElapsed: halfDurationSeconds + secondsIntoSecondHalf,
-        };
-      }
-    }
-
-    // Ensure we have a valid timer base
-    if (!timerBaseRef.current) {
-      return;
-    }
-
-    // If game is paused, calculate elapsed time up to pause point and don't start interval
-    if (game.pausedAt) {
-      const pausedAtTime = new Date(game.pausedAt).getTime();
-      const { startTime, baseElapsed } = timerBaseRef.current;
-      const additionalSeconds = Math.floor((pausedAtTime - startTime) / 1000);
-      setElapsedSeconds(Math.max(0, baseElapsed + additionalSeconds));
-      return; // Don't start the interval - clock is frozen
-    }
-
-    const { startTime, baseElapsed } = timerBaseRef.current;
-
-    const updateClock = () => {
-      const now = Date.now();
-      const additionalSeconds = Math.floor((now - startTime) / 1000);
-      setElapsedSeconds(baseElapsed + additionalSeconds);
-    };
-
-    updateClock();
-    const interval = setInterval(updateClock, 1000);
-    return () => clearInterval(interval);
-  }, [
-    data?.game?.status,
-    data?.game?.actualStart,
-    data?.game?.secondHalfStart,
-    data?.game?.format?.durationMinutes,
-    data?.game?.pausedAt,
-  ]);
-
-  // Reset clock state when game status changes to scheduled
-  useEffect(() => {
-    const game = data?.game;
-    if (game?.status === GameStatus.Scheduled) {
-      setElapsedSeconds(0);
-      timerBaseRef.current = null;
-    }
-  }, [data?.game?.status]);
+  // Note: Game clock is now managed by useSyncedGameTime hook
+  // which provides server-synchronized timing across all clients
 
   if (!gameId) {
     return <Navigate to="/games" replace />;
@@ -1337,15 +1245,17 @@ export const GamePage = () => {
   );
   const halftimeDurationSeconds = halftimeDurationMinutes * 60;
 
-  // Calculate period-relative seconds
-  // In period 1: elapsedSeconds directly
-  // In period 2 or after halftime: elapsedSeconds minus first half duration
-  const currentPeriodSeconds =
-    game.status === GameStatus.Halftime
-      ? 0 // At halftime, period 2 hasn't started
-      : game.status === GameStatus.SecondHalf
-        ? Math.max(0, elapsedSeconds - halftimeDurationSeconds)
-        : elapsedSeconds;
+  // Current period seconds - use server-synced time
+  // The hook handles ticking locally between server updates
+  const currentPeriodSeconds = syncedTime.periodSecond;
+
+  // Derive total elapsed seconds from synced time for components that need it
+  // Period 1: elapsedSeconds = periodSecond
+  // Period 2: elapsedSeconds = halfDuration + periodSecond
+  const elapsedSeconds =
+    syncedTime.period === '2'
+      ? halftimeDurationSeconds + syncedTime.periodSecond
+      : syncedTime.periodSecond;
 
   // Compute compact half indicator for sticky header
   const halfIndicator =
