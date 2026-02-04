@@ -653,17 +653,19 @@ export const GamePage = () => {
         },
       });
 
-      // Refetch lineup when lineup-affecting events are received
-      // These events change who is on the field, so the computed lineup must be recalculated
-      const lineupAffectingEvents = [
+      // Refetch data when lineup/stats-affecting events are received
+      // These events change who is on the field and player stats (time, isOnField, lastEntryPeriodSecond)
+      const statsAffectingEvents = [
         'SUBSTITUTION_IN',
         'SUBSTITUTION_OUT',
         'PERIOD_START',
         'PERIOD_END',
       ];
-      if (lineupAffectingEvents.includes(event.eventType.name)) {
+      if (statsAffectingEvents.includes(event.eventType.name)) {
         apolloClient.refetchQueries({
-          include: [GET_GAME_ROSTER],
+          // GET_GAME_ROSTER: Updates lineup positions (who's on field vs bench)
+          // GET_GAME_BY_ID: Updates player stats including isOnField, lastEntryPeriodSecond for live time
+          include: [GET_GAME_ROSTER, GET_GAME_BY_ID],
         });
       }
 
@@ -1520,20 +1522,26 @@ export const GamePage = () => {
                 {/* Stats Content - Now using GameStats component */}
                 {activeTeam === 'home' && homeTeam && (
                   <GameStats
-                    gameId={gameId!}
-                    teamId={homeTeam.team.id}
                     teamName={homeTeam.team.name}
                     teamColor={homeTeam.team.homePrimaryColor || '#3B82F6'}
-                    elapsedSeconds={isActivePlay ? elapsedSeconds : undefined}
+                    players={homeTeam.players || []}
+                    serverTimestamp={data?.game?.serverTimestamp}
+                    currentPeriodSecond={
+                      isActivePlay ? data?.game?.currentPeriodSecond : undefined
+                    }
+                    isLoading={loading}
                   />
                 )}
                 {activeTeam === 'away' && awayTeam && (
                   <GameStats
-                    gameId={gameId!}
-                    teamId={awayTeam.team.id}
                     teamName={awayTeam.team.name}
                     teamColor={awayTeam.team.homePrimaryColor || '#EF4444'}
-                    elapsedSeconds={isActivePlay ? elapsedSeconds : undefined}
+                    players={awayTeam.players || []}
+                    serverTimestamp={data?.game?.serverTimestamp}
+                    currentPeriodSecond={
+                      isActivePlay ? data?.game?.currentPeriodSecond : undefined
+                    }
+                    isLoading={loading}
                   />
                 )}
               </div>
@@ -1929,17 +1937,13 @@ export const GamePage = () => {
                     }`.trim();
                     return name || player.email || 'Unknown';
                   }
-                  // Priority 4: Fallback to team roster lookup
-                  if (playerId && team?.team.roster) {
-                    const rosterPlayer = team.team.roster.find(
-                      (tp) => tp.teamMember.user.id === playerId,
+                  // Priority 4: Fallback to game players lookup
+                  if (playerId && team?.players) {
+                    const gamePlayer = team.players.find(
+                      (p) => p.playerId === playerId,
                     );
-                    if (rosterPlayer?.teamMember?.user) {
-                      const name =
-                        `${rosterPlayer.teamMember.user.firstName || ''} ${
-                          rosterPlayer.teamMember.user.lastName || ''
-                        }`.trim();
-                      return name || rosterPlayer.teamMember.user.email;
+                    if (gamePlayer?.playerName) {
+                      return gamePlayer.playerName;
                     }
                   }
                   return 'Unknown';

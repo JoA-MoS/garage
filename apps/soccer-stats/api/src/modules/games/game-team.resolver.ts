@@ -5,6 +5,10 @@ import { Game } from '../../entities/game.entity';
 import { Team } from '../../entities/team.entity';
 import { GameEvent } from '../../entities/game-event.entity';
 import { GraphQLContext } from '../dataloaders';
+import { PlayerFullStats } from '../game-events/dto/player-full-stats.output';
+import { LineupPlayer } from '../game-events/dto/game-lineup.output';
+import { StatsService } from '../game-events/services/stats.service';
+import { LineupService } from '../game-events/services/lineup.service';
 
 /**
  * Resolver for GameTeam entity field-level data loading.
@@ -14,6 +18,11 @@ import { GraphQLContext } from '../dataloaders';
  */
 @Resolver(() => GameTeam)
 export class GameTeamResolver {
+  constructor(
+    private readonly statsService: StatsService,
+    private readonly lineupService: LineupService,
+  ) {}
+
   /**
    * Resolves the 'game' field on GameTeam.
    * Uses DataLoader to batch multiple game lookups into a single query.
@@ -73,5 +82,62 @@ export class GameTeamResolver {
     }
     // Otherwise, use DataLoader to batch the query
     return context.loaders.gameEventsByGameTeamLoader.load(gameTeam.id);
+  }
+
+  /**
+   * Resolves player stats for this team in this game (flat array).
+   * Returns real-time playtime calculated at request time.
+   * Use game.currentPeriod, game.currentPeriodSecond, and game.serverTimestamp
+   * for client-side time interpolation.
+   * @deprecated Use players.stats for nested structure
+   */
+  @ResolveField(() => [PlayerFullStats], {
+    description: 'Player statistics for this team in this game',
+    deprecationReason: 'Use players.stats for nested structure',
+  })
+  async playerStats(@Parent() gameTeam: GameTeam): Promise<PlayerFullStats[]> {
+    return this.statsService.getPlayerStats({
+      teamId: gameTeam.teamId,
+      gameId: gameTeam.gameId,
+    });
+  }
+
+  /**
+   * Resolves players in the game roster for this team.
+   * Each player has an optional stats field for detailed statistics.
+   * Merges on-field status from currentOnField into gameRoster.
+   */
+  @ResolveField(() => [LineupPlayer], {
+    description: 'Players in the game roster for this team',
+  })
+  async players(@Parent() gameTeam: GameTeam): Promise<LineupPlayer[]> {
+    const lineup = await this.lineupService.getGameLineup(gameTeam.id);
+
+    // Build a set of on-field player keys
+    const onFieldKeys = new Set<string>();
+    const onFieldPositions = new Map<string, string>();
+
+    for (const player of lineup.currentOnField) {
+      const key =
+        player.playerId || player.externalPlayerName || player.gameEventId;
+      onFieldKeys.add(key);
+      if (player.position) {
+        onFieldPositions.set(key, player.position);
+      }
+    }
+
+    // Merge on-field status into game roster
+    return lineup.gameRoster.map((player) => {
+      const key =
+        player.playerId || player.externalPlayerName || player.gameEventId;
+      const isOnField = onFieldKeys.has(key);
+      return {
+        ...player,
+        isOnField,
+        position: isOnField
+          ? (onFieldPositions.get(key) ?? player.position)
+          : player.position,
+      };
+    });
   }
 }
