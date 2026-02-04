@@ -66,6 +66,9 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
       notes
       venue
       weatherConditions
+      currentPeriod
+      currentPeriodSecond
+      serverTimestamp
       format {
         id
         name

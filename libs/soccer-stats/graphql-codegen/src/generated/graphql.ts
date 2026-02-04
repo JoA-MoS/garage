@@ -217,6 +217,10 @@ export type Game = {
   actualEnd?: Maybe<Scalars['DateTime']['output']>;
   actualStart?: Maybe<Scalars['DateTime']['output']>;
   createdAt: Scalars['DateTime']['output'];
+  /** Current period of the game (null if not started or at halftime) */
+  currentPeriod?: Maybe<Scalars['String']['output']>;
+  /** Seconds elapsed in the current period */
+  currentPeriodSecond: Scalars['Int']['output'];
   /** Override for game duration in minutes (null = use game format default) */
   durationMinutes?: Maybe<Scalars['Float']['output']>;
   /** Effective game duration in minutes (game override or format default) */
@@ -232,6 +236,8 @@ export type Game = {
   pausedAt?: Maybe<Scalars['DateTime']['output']>;
   scheduledStart?: Maybe<Scalars['DateTime']['output']>;
   secondHalfStart?: Maybe<Scalars['DateTime']['output']>;
+  /** Unix timestamp (ms) when response was generated - for client time sync */
+  serverTimestamp: Scalars['Float']['output'];
   /** Override for stats tracking level (null = use team default) */
   statsTrackingLevel?: Maybe<StatsTrackingLevel>;
   status: GameStatus;
@@ -1675,6 +1681,9 @@ export type GetGameByIdQuery = {
     notes?: string | null;
     venue?: string | null;
     weatherConditions?: string | null;
+    currentPeriod?: string | null;
+    currentPeriodSecond: number;
+    serverTimestamp: number;
     createdAt: any;
     updatedAt: any;
     format: {
@@ -4669,6 +4678,18 @@ export const GetGameByIdDocument = {
                 {
                   kind: 'Field',
                   name: { kind: 'Name', value: 'weatherConditions' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'currentPeriod' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'currentPeriodSecond' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'serverTimestamp' },
                 },
                 {
                   kind: 'Field',
