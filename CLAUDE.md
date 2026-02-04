@@ -60,9 +60,8 @@ The soccer-stats projects use GraphQL Code Generator to create TypeScript types 
 # Generate types once (run from workspace root)
 pnpm nx run soccer-stats-graphql-codegen:codegen
 
-# Or use the root-level scripts
-pnpm codegen
-pnpm codegen:watch
+# Or run with watch mode
+pnpm nx run soccer-stats-graphql-codegen:codegen-watch
 ```
 
 **Generated Files Location:** `libs/soccer-stats/graphql-codegen/src/generated/`
@@ -201,6 +200,7 @@ apps/
 ├── chore-board/           # Kanban-style chore tracking app
 │   ├── api/              # NestJS backend
 │   └── ui/               # React frontend with drag-drop
+├── gitlab-mcp-server/     # GitLab MCP server integration
 ├── ng/example/            # Angular example application
 ├── soccer-stats/          # Soccer statistics tracker (primary app)
 │   ├── api/              # NestJS GraphQL backend
@@ -277,9 +277,12 @@ pages/                     # Route-level page components
 router/                    # React Router configuration
 services/                  # API integration services
 providers/                 # React context providers
-generated/                 # GraphQL codegen output (auto-generated)
+context/                   # React context definitions
+hooks/                     # Custom React hooks
 types/                     # TypeScript type definitions
 ```
+
+**Note:** Generated GraphQL types are imported from `@garage/soccer-stats/graphql-codegen`, not from a local folder.
 
 **GraphQL Integration:**
 
@@ -428,7 +431,7 @@ Use these aliases when importing from shared libraries.
 
 ### Soccer Stats Shared Libraries
 
-The soccer-stats domain has two shared libraries with distinct purposes:
+The soccer-stats domain has shared libraries with distinct purposes:
 
 **`@garage/soccer-stats/graphql-codegen`** (non-buildable)
 
@@ -488,6 +491,16 @@ import { StatsTrackingLevel } from '@garage/soccer-stats/graphql-codegen';
 2. Add `index.ts` that exports the component and its props type
 3. Add export to `components/index.ts` barrel file
 4. If new types are needed, add UI-prefixed types to `types/index.ts`
+
+**`@garage/soccer-stats/utils`**
+
+- Shared utility functions for soccer-stats domain
+- Pure TypeScript utilities without framework dependencies
+
+**`@garage/soccer-stats/infra`**
+
+- Shared infrastructure utilities for Pulumi deployments
+- Used by `api-infra` and `ui-infra` projects
 
 ## Styling with Tailwind CSS
 
