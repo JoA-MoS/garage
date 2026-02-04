@@ -152,4 +152,10 @@ export interface SubstitutionPanelSmartProps {
    * Used to show visual indicators on field players who are already in the queue.
    */
   onQueuedPlayerIdsChange?: (queuedOutIds: Set<string>) => void;
+
+  /**
+   * Called when the selected field player changes (field-first flow).
+   * Used to show a visual indicator on the field for the player being replaced.
+   */
+  onSelectedFieldPlayerChange?: (gameEventId: string | null) => void;
 }

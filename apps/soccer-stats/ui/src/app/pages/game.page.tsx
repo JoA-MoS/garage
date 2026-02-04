@@ -157,6 +157,11 @@ export const GamePage = () => {
     new Set(),
   );
 
+  // Selected field player ID from substitution panel - used to show selection indicator
+  const [selectedFieldPlayerId, setSelectedFieldPlayerId] = useState<
+    string | null
+  >(null);
+
   // Cascade delete state
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
@@ -1492,6 +1497,7 @@ export const GamePage = () => {
                   onFieldPlayerClickForSub={handleFieldPlayerClickForSub}
                   hasBenchSelectionActive={panelBenchSelection !== null}
                   queuedPlayerIds={queuedPlayerIds}
+                  selectedFieldPlayerId={selectedFieldPlayerId}
                 />
               )}
               {activeTeam === 'away' && awayTeam && (
@@ -1512,6 +1518,7 @@ export const GamePage = () => {
                   onFieldPlayerClickForSub={handleFieldPlayerClickForSub}
                   hasBenchSelectionActive={panelBenchSelection !== null}
                   queuedPlayerIds={queuedPlayerIds}
+                  selectedFieldPlayerId={selectedFieldPlayerId}
                 />
               )}
             </div>
@@ -2320,6 +2327,7 @@ export const GamePage = () => {
             setFieldPlayerToReplaceForPanel(null)
           }
           onQueuedPlayerIdsChange={setQueuedPlayerIds}
+          onSelectedFieldPlayerChange={setSelectedFieldPlayerId}
         />
       )}
 

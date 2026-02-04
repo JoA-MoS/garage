@@ -55,6 +55,12 @@ interface GameLineupTabProps {
    * Used to show visual indicators on field players.
    */
   queuedPlayerIds?: Set<string>;
+
+  /**
+   * Game event ID of the currently selected field player (field-first flow).
+   * Used to show a visual indicator on the field for the player being replaced.
+   */
+  selectedFieldPlayerId?: string | null;
 }
 
 type ModalMode =
@@ -143,6 +149,7 @@ export const GameLineupTab = memo(function GameLineupTab({
   onFieldPlayerClickForSub,
   hasBenchSelectionActive = false,
   queuedPlayerIds = new Set(),
+  selectedFieldPlayerId = null,
 }: GameLineupTabProps) {
   const formations = getFormationsForTeamSize(playersPerTeam);
   const [selectedFormation, setSelectedFormation] = useState<Formation>(() =>
@@ -648,6 +655,7 @@ export const GameLineupTab = memo(function GameLineupTab({
           disabled={mutating}
           highlightClickableAssigned={hasBenchSelectionActive}
           queuedPlayerIds={queuedPlayerIds}
+          selectedFieldPlayerId={selectedFieldPlayerId}
         />
       </div>
 

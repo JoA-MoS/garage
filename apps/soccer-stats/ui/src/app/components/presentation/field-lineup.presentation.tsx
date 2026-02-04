@@ -47,6 +47,8 @@ interface FieldLineupProps {
   highlightClickableAssigned?: boolean;
   /** Set of game event IDs for players who are queued for substitution */
   queuedPlayerIds?: Set<string>;
+  /** Game event ID of the currently selected field player (field-first flow) */
+  selectedFieldPlayerId?: string | null;
 }
 
 export function FieldLineup({
@@ -58,6 +60,7 @@ export function FieldLineup({
   disabled = false,
   highlightClickableAssigned = false,
   queuedPlayerIds = new Set(),
+  selectedFieldPlayerId = null,
 }: FieldLineupProps) {
   // Precompute player assignments for each formation position slot
   // This handles formations with multiple slots sharing the same position code (e.g., two CBs)
@@ -205,6 +208,9 @@ export function FieldLineup({
           const positionInfo = POSITIONS[pos.position];
           const isQueued =
             assignedPlayer && queuedPlayerIds.has(assignedPlayer.gameEventId);
+          const isSelected =
+            assignedPlayer &&
+            selectedFieldPlayerId === assignedPlayer.gameEventId;
           // Don't highlight queued players as clickable (they're already being subbed out)
           const showHighlight =
             highlightClickableAssigned && assignedPlayer && !isQueued;
@@ -233,9 +239,11 @@ export function FieldLineup({
               <div
                 className={`relative flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-bold text-white shadow-lg sm:h-10 sm:w-10 sm:text-sm ${
                   assignedPlayer
-                    ? isQueued
-                      ? 'border-orange-400 opacity-60'
-                      : 'border-white'
+                    ? isSelected
+                      ? 'border-blue-400 ring-2 ring-blue-400 ring-offset-1 ring-offset-green-600'
+                      : isQueued
+                        ? 'border-orange-400 opacity-60'
+                        : 'border-white'
                     : 'border-dashed border-white opacity-60'
                 }`}
                 style={{
@@ -261,7 +269,13 @@ export function FieldLineup({
               {/* Player name (if assigned) */}
               {assignedPlayer && (
                 <span
-                  className={`max-w-16 truncate rounded px-1 text-[8px] text-white sm:max-w-20 sm:text-[10px] ${isQueued ? 'bg-orange-500/70' : 'bg-black/50'}`}
+                  className={`max-w-16 truncate rounded px-1 text-[8px] text-white sm:max-w-20 sm:text-[10px] ${
+                    isSelected
+                      ? 'bg-blue-500/80'
+                      : isQueued
+                        ? 'bg-orange-500/70'
+                        : 'bg-black/50'
+                  }`}
                 >
                   {getPlayerDisplayName(assignedPlayer).split(' ').pop()}
                 </span>
