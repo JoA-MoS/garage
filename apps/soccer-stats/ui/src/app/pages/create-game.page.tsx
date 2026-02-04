@@ -257,7 +257,7 @@ export const CreateGamePage = () => {
           {/* Opponent Team */}
           <div>
             <label
-              htmlFor="opponent"
+              htmlFor={gameForm.useExistingManagedTeam ? 'opponentTeam' : 'opponentName'}
               className="mb-1 block text-sm font-medium text-gray-700"
             >
               Opponent
@@ -268,7 +268,7 @@ export const CreateGamePage = () => {
               <div className="space-y-2">
                 <input
                   type="text"
-                  id="opponent"
+                  id="opponentName"
                   value={gameForm.opponentName}
                   onChange={(e) =>
                     handleFormChange('opponentName', e.target.value)
@@ -291,7 +291,7 @@ export const CreateGamePage = () => {
               // Alternative: Select from managed teams
               <div className="space-y-2">
                 <select
-                  id="opponent"
+                  id="opponentTeam"
                   value={gameForm.awayTeamId}
                   onChange={(e) =>
                     handleFormChange('awayTeamId', e.target.value)

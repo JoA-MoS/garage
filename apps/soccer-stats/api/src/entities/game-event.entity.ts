@@ -1,6 +1,7 @@
 import {
   Entity,
   Column,
+  Index,
   ManyToOne,
   OneToMany,
   JoinColumn,
@@ -17,12 +18,15 @@ import { EventType } from './event-type.entity';
 
 @ObjectType()
 @Entity('game_events')
+@Index('IDX_game_events_gameTeamId_eventTypeId', ['gameTeamId', 'eventTypeId'])
 export class GameEvent extends BaseEntity {
   @Field(() => ID)
+  @Index('IDX_game_events_gameId')
   @Column('uuid')
   gameId: string;
 
   @Field(() => ID)
+  @Index('IDX_game_events_eventTypeId')
   @Column('uuid')
   eventTypeId: string;
 
@@ -43,10 +47,12 @@ export class GameEvent extends BaseEntity {
   recordedByUserId: string;
 
   @Field(() => ID)
+  @Index('IDX_game_events_gameTeamId')
   @Column('uuid')
   gameTeamId: string;
 
   @Field(() => ID, { nullable: true })
+  @Index('IDX_game_events_parentEventId')
   @Column('uuid', { nullable: true })
   parentEventId?: string;
 
