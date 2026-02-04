@@ -1,18 +1,43 @@
-import { useQuery } from '@apollo/client/react';
-import { useEffect, useRef, useState, useMemo, memo } from 'react';
+import { useMemo, useState, useEffect, memo } from 'react';
 
-import { GET_PLAYER_STATS } from '../../services/games-graphql.service';
 import {
   PlayerStatsTablePresentation,
   ColumnKey,
 } from '../presentation/player-stats-table.presentation';
 
+// Type for player with nested stats from game query
+interface PlayerWithStats {
+  gameEventId: string;
+  playerId?: string | null;
+  playerName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  externalPlayerName?: string | null;
+  externalPlayerNumber?: string | null;
+  position?: string | null;
+  isOnField: boolean;
+  stats?: {
+    totalSeconds: number;
+    positionTimes: Array<{
+      position: string;
+      minutes: number;
+      seconds: number;
+    }>;
+    goals: number;
+    assists: number;
+    lastEntryPeriodSecond?: number | null;
+  } | null;
+}
+
 interface GameStatsProps {
-  gameId: string;
-  teamId: string;
   teamName: string;
   teamColor?: string;
-  elapsedSeconds?: number;
+  players: PlayerWithStats[];
+  /** Server timestamp from game query for time interpolation */
+  serverTimestamp?: number | null;
+  /** Current period second for real-time display */
+  currentPeriodSecond?: number | null;
+  isLoading?: boolean;
 }
 
 // Columns to show for game-level stats
@@ -25,94 +50,85 @@ const GAME_STATS_COLUMNS: ColumnKey[] = [
 ];
 
 export const GameStats = memo(function GameStats({
-  gameId,
-  teamId,
   teamName,
   teamColor,
-  elapsedSeconds,
+  players,
+  serverTimestamp,
+  currentPeriodSecond,
+  isLoading,
 }: GameStatsProps) {
-  // Track the elapsed seconds at the time the query data was received
-  const [queryTimeElapsedSeconds, setQueryTimeElapsedSeconds] =
-    useState<number>(0);
+  // Transform players with nested stats to flat stats format for presentation
+  const stats = useMemo(() => {
+    return players
+      .filter((p) => p.stats) // Only include players with stats
+      .map((player) => {
+        const s = player.stats!;
+        return {
+          playerId: player.playerId,
+          playerName: player.playerName,
+          externalPlayerName: player.externalPlayerName,
+          externalPlayerNumber: player.externalPlayerNumber,
+          totalMinutes: Math.floor(s.totalSeconds / 60),
+          totalSeconds: s.totalSeconds % 60,
+          positionTimes: s.positionTimes,
+          goals: s.goals,
+          assists: s.assists,
+          gamesPlayed: 1, // Single game context
+          isOnField: player.isOnField, // Use player-level isOnField (single source of truth)
+          lastEntryGameSeconds: s.lastEntryPeriodSecond,
+        };
+      });
+  }, [players]);
 
-  // Track previous elapsedSeconds to detect clock jumps (e.g., halftime to second half)
-  const prevElapsedSecondsRef = useRef<number>(0);
+  // Tick counter for real-time updates
+  const [tickCount, setTickCount] = useState(0);
 
-  const { data, loading, error } = useQuery(GET_PLAYER_STATS, {
-    variables: {
-      input: {
-        teamId,
-        gameId,
-      },
-    },
-    fetchPolicy: 'cache-and-network',
-  });
+  // Calculate initial elapsed seconds since server timestamp
+  const initialElapsed = useMemo(() => {
+    if (!serverTimestamp) return 0;
+    return Math.floor((Date.now() - serverTimestamp) / 1000);
+  }, [serverTimestamp]);
 
-  // Create a stable key from the data to detect when stats actually change
-  // We use totalSeconds sum as a fingerprint since that's what changes during play
-  const dataFingerprint = useMemo(() => {
-    if (!data?.playerStats) return '';
-    return data.playerStats
-      .map(
-        (s) =>
-          `${s.playerId || s.externalPlayerName}:${s.totalMinutes}:${
-            s.totalSeconds
-          }`,
-      )
-      .join(',');
-  }, [data]);
-
-  // Track the previous fingerprint
-  const prevFingerprintRef = useRef<string>('');
-
-  // Update query time when data actually changes (new stats values)
+  // Reset tick count when server timestamp changes
   useEffect(() => {
-    if (
-      dataFingerprint &&
-      dataFingerprint !== prevFingerprintRef.current &&
-      elapsedSeconds !== undefined
-    ) {
-      setQueryTimeElapsedSeconds(elapsedSeconds);
-      prevFingerprintRef.current = dataFingerprint;
-    }
-  }, [dataFingerprint, elapsedSeconds]);
+    setTickCount(0);
+  }, [serverTimestamp]);
 
-  // Detect clock jumps (e.g., when transitioning from halftime to second half)
-  // If elapsedSeconds jumps by more than 60 seconds, reset queryTimeElapsedSeconds
-  // This fixes the bug where stats show inflated times after second half starts
+  // Tick the clock every second when game is active
   useEffect(() => {
-    if (elapsedSeconds === undefined) return;
-
-    const jump = elapsedSeconds - prevElapsedSecondsRef.current;
-
-    // If clock jumped forward by more than 60 seconds, it's a period transition
-    // Reset queryTimeElapsedSeconds to current time to avoid inflated delta
-    if (jump > 60) {
-      setQueryTimeElapsedSeconds(elapsedSeconds);
+    if (currentPeriodSecond === null || currentPeriodSecond === undefined) {
+      return;
     }
 
-    prevElapsedSecondsRef.current = elapsedSeconds;
-  }, [elapsedSeconds]);
+    const interval = setInterval(() => {
+      setTickCount((prev) => prev + 1);
+    }, 1000);
 
-  if (error) {
-    return (
-      <div className="rounded-lg bg-red-50 py-8 text-center text-red-500">
-        Error loading statistics: {error.message}
-      </div>
-    );
-  }
+    return () => clearInterval(interval);
+  }, [currentPeriodSecond, serverTimestamp]);
+
+  // Current elapsed period seconds for live time calculation.
+  // This is PERIOD-RELATIVE: currentPeriodSecond from server + client-side ticks since fetch.
+  // Used to calculate live time for on-field players:
+  //   liveTime = bankedTime + (elapsedSeconds - lastEntryPeriodSecond)
+  // Note: This is NOT the game clock display time (which adds halfDuration for period 2).
+  const elapsedSeconds = useMemo(() => {
+    if (currentPeriodSecond === null || currentPeriodSecond === undefined) {
+      return undefined;
+    }
+    return currentPeriodSecond + initialElapsed + tickCount;
+  }, [currentPeriodSecond, initialElapsed, tickCount]);
 
   return (
     <PlayerStatsTablePresentation
-      stats={data?.playerStats || []}
+      stats={stats}
       columns={GAME_STATS_COLUMNS}
       title={`${teamName} Player Statistics`}
       emptyMessage="No player statistics for this game yet"
-      isLoading={loading}
+      isLoading={isLoading}
       teamColor={teamColor}
       defaultSort={{ column: 'time', direction: 'desc' }}
       elapsedSeconds={elapsedSeconds}
-      queryTimeElapsedSeconds={queryTimeElapsedSeconds}
     />
   );
 });

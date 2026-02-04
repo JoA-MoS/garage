@@ -89,23 +89,6 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
           homePrimaryColor
           homeSecondaryColor
           isManaged
-          roster {
-            id
-            role
-            jerseyNumber
-            primaryPosition
-            teamMember {
-              id
-              userId
-              isActive
-              user {
-                id
-                email
-                firstName
-                lastName
-              }
-            }
-          }
         }
         events {
           id
@@ -147,6 +130,28 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
               id
               name
             }
+          }
+        }
+        players {
+          gameEventId
+          playerId
+          playerName
+          firstName
+          lastName
+          externalPlayerName
+          externalPlayerNumber
+          position
+          isOnField
+          stats {
+            totalSeconds
+            positionTimes {
+              position
+              minutes
+              seconds
+            }
+            goals
+            assists
+            lastEntryPeriodSecond
           }
         }
       }

@@ -28,8 +28,8 @@ interface PlayerStatsTablePresentationProps {
   emptyMessage?: string;
   isLoading?: boolean;
   teamColor?: string;
+  /** Current period seconds (for calculating on-field player live time) */
   elapsedSeconds?: number;
-  queryTimeElapsedSeconds?: number;
 }
 
 // Format time as MM:SS
@@ -52,29 +52,39 @@ const getJerseyNumber = (stat: PlayerFullStats): string | null => {
   return stat.externalPlayerNumber || null;
 };
 
-// Calculate live time for on-field players
-// For on-field players, we add the time elapsed since the query was made
-// Formula: baseSeconds + (currentElapsed - queryTimeElapsed)
+// Calculate live time for on-field players.
+//
+// Time is PERIOD-RELATIVE (each period starts at 0):
+// - Backend returns "banked" time = sum of (SUB_OUT.periodSecond - SUB_IN.periodSecond) for closed stints
+// - For on-field players, we add current stint: (elapsedPeriodSecond - lastEntryPeriodSecond)
+//
+// This correctly handles stoppage time:
+// - Period 1 might go to 1920 sec (32 min with stoppage), all captured as banked time
+// - Period 2 starts fresh at 0, player gets new SUB_IN at periodSecond=0
+// - Total play time = period1_banked + period2_banked + current_stint
 const calculateDisplayTime = (
   stat: PlayerFullStats,
   elapsedSeconds?: number,
-  queryTimeElapsedSeconds?: number,
 ): { totalSeconds: number; isLive: boolean } => {
   const baseSeconds = stat.totalMinutes * 60 + stat.totalSeconds;
 
-  // If player is on field and we have both current and query-time elapsed seconds,
-  // calculate live time by adding the delta since the query was made
+  // If player is on field and we have current elapsed seconds and their entry time,
+  // calculate live time by adding their current stint
   if (
     stat.isOnField &&
     elapsedSeconds !== undefined &&
-    queryTimeElapsedSeconds !== undefined &&
-    elapsedSeconds > 0
+    elapsedSeconds > 0 &&
+    stat.lastEntryGameSeconds !== undefined &&
+    stat.lastEntryGameSeconds !== null
   ) {
-    // Delta = time elapsed since the stats query was made
-    const delta = Math.max(0, elapsedSeconds - queryTimeElapsedSeconds);
+    // Current stint = time from when they entered to now
+    const currentStint = Math.max(
+      0,
+      elapsedSeconds - stat.lastEntryGameSeconds,
+    );
 
-    // Live time = base time from query + delta since query
-    const liveSeconds = baseSeconds + delta;
+    // Live time = banked time + current stint
+    const liveSeconds = baseSeconds + currentStint;
 
     return {
       totalSeconds: liveSeconds,
@@ -98,7 +108,6 @@ export const PlayerStatsTablePresentation = ({
   isLoading = false,
   teamColor,
   elapsedSeconds,
-  queryTimeElapsedSeconds,
 }: PlayerStatsTablePresentationProps) => {
   const [sortConfig, setSortConfig] = useState<SortConfig>(defaultSort);
 
@@ -314,7 +323,6 @@ export const PlayerStatsTablePresentation = ({
                         const { totalSeconds, isLive } = calculateDisplayTime(
                           stat,
                           elapsedSeconds,
-                          queryTimeElapsedSeconds,
                         );
                         const mins = Math.floor(totalSeconds / 60);
                         const secs = totalSeconds % 60;

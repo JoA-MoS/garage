@@ -2,6 +2,9 @@ import { ObjectType, Field, ID } from '@nestjs/graphql';
 
 @ObjectType()
 export class LineupPlayer {
+  // Internal field for stats resolver context - not exposed in GraphQL
+  gameTeamId: string;
+
   @Field(() => ID)
   gameEventId: string;
 
