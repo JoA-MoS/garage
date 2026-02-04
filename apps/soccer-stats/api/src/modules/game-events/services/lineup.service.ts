@@ -168,6 +168,12 @@ export class LineupService {
    * - position == null → player is on bench
    */
   async getGameRoster(gameTeamId: string): Promise<GameRoster> {
+    // Get gameTeam with team configuration for default formation fallback
+    const gameTeam = await this.gameTeamsRepository.findOne({
+      where: { id: gameTeamId },
+      relations: ['team', 'team.teamConfiguration'],
+    });
+
     // Get event type IDs for roster-related events
     const relevantTypes = [
       'GAME_ROSTER',
@@ -275,7 +281,11 @@ export class LineupService {
 
     return {
       gameTeamId,
-      formation: latestFormation?.formation ?? null,
+      // Priority: FORMATION_CHANGE event > team's default formation
+      formation:
+        latestFormation?.formation ??
+        gameTeam?.team?.teamConfiguration?.defaultFormation ??
+        null,
       players: players.map((p) => ({
         gameEventId: p.gameEventId,
         playerId: p.playerId,

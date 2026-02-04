@@ -16,7 +16,6 @@ export interface ScoreDisplayProps {
   halfIndicator: string;
   highlightedScore: 'home' | 'away' | null;
   onGoalClick: (team: 'home' | 'away') => void;
-  onSubClick: (team: 'home' | 'away') => void;
 }
 
 /**
@@ -35,7 +34,6 @@ export function ScoreDisplay({
   halfIndicator,
   highlightedScore,
   onGoalClick,
-  onSubClick,
 }: ScoreDisplayProps) {
   return (
     <div className="grid grid-cols-3 items-center gap-4">
@@ -52,7 +50,7 @@ export function ScoreDisplay({
           {homeTeam.score}
         </div>
         {isActivePlay && (
-          <div className="score-action-buttons mt-2 flex justify-center gap-2">
+          <div className="score-action-buttons mt-2 flex justify-center">
             <button
               onClick={() => onGoalClick('home')}
               disabled={recordingGoal}
@@ -73,26 +71,6 @@ export function ScoreDisplay({
                 />
               </svg>
               Goal
-            </button>
-            <button
-              onClick={() => onSubClick('home')}
-              className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
-              type="button"
-            >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                />
-              </svg>
-              Sub
             </button>
           </div>
         )}
@@ -130,7 +108,7 @@ export function ScoreDisplay({
           {awayTeam.score}
         </div>
         {isActivePlay && (
-          <div className="score-action-buttons mt-2 flex justify-center gap-2">
+          <div className="score-action-buttons mt-2 flex justify-center">
             <button
               onClick={() => onGoalClick('away')}
               disabled={recordingGoal}
@@ -151,26 +129,6 @@ export function ScoreDisplay({
                 />
               </svg>
               Goal
-            </button>
-            <button
-              onClick={() => onSubClick('away')}
-              className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
-              type="button"
-            >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                />
-              </svg>
-              Sub
             </button>
           </div>
         )}
