@@ -46,7 +46,6 @@ export interface StickyScoreBarProps {
   onEndGame: () => void;
   onShowEndGameConfirm: (show: boolean) => void;
   onGoalClick: (team: 'home' | 'away') => void;
-  onSubClick: (team: 'home' | 'away') => void;
 }
 
 /**
@@ -87,7 +86,6 @@ export function StickyScoreBar({
   onEndGame,
   onShowEndGameConfirm,
   onGoalClick,
-  onSubClick,
 }: StickyScoreBarProps) {
   const [isStuck, setIsStuck] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -262,7 +260,6 @@ export function StickyScoreBar({
         halfIndicator={halfIndicator}
         highlightedScore={highlightedScore}
         onGoalClick={onGoalClick}
-        onSubClick={onSubClick}
       />
 
       {/* Compact Goal Buttons (hidden when not stuck) */}

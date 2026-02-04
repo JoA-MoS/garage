@@ -18,6 +18,7 @@ import {
 import {
   GameStatus,
   StatsTrackingLevel,
+  RosterPlayer as GqlRosterPlayer,
 } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond, toPeriodSecond } from '@garage/soccer-stats/utils';
 
@@ -41,7 +42,7 @@ import {
 import { GameLineupTab } from '../components/smart/game-lineup-tab.smart';
 import { GoalModal, EditGoalData } from '../components/smart/goal-modal.smart';
 import { ManualGoalModal } from '../components/smart/manual-goal-modal.smart';
-import { SubstitutionModal } from '../components/smart/substitution-modal.smart';
+import { SubstitutionPanel } from '../components/smart/substitution-panel';
 import { GameStats } from '../components/smart/game-stats.smart';
 import { GameSummaryPresentation } from '../components/presentation/game-summary.presentation';
 import { useGameEventSubscription } from '../hooks/use-game-event-subscription';
@@ -132,14 +133,34 @@ export const GamePage = () => {
     team: 'home' | 'away';
     goal: EditGoalData;
   } | null>(null);
-  const [subModalTeam, setSubModalTeam] = useState<'home' | 'away' | null>(
-    null,
-  );
   const [showGameMenu, setShowGameMenu] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [clearEventsOnReset, setClearEventsOnReset] = useState(false);
   const [showReopenConfirm, setShowReopenConfirm] = useState(false);
   const [showManualGoalModal, setShowManualGoalModal] = useState(false);
+
+  // Field player selection for substitution panel
+  // When a player is selected (e.g., from tapping on field), the panel opens with them pre-selected
+  const [selectedFieldPlayerForSub, setSelectedFieldPlayerForSub] =
+    useState<GqlRosterPlayer | null>(null);
+
+  // Bench selection from panel - when set, field player clicks complete the substitution
+  const [panelBenchSelection, setPanelBenchSelection] =
+    useState<GqlRosterPlayer | null>(null);
+
+  // Field player clicked while bench selection is active (for completing bench-first subs)
+  const [fieldPlayerToReplaceForPanel, setFieldPlayerToReplaceForPanel] =
+    useState<GqlRosterPlayer | null>(null);
+
+  // Queued player IDs from substitution panel - used to show indicators on field
+  const [queuedPlayerIds, setQueuedPlayerIds] = useState<Set<string>>(
+    new Set(),
+  );
+
+  // Selected field player ID from substitution panel - used to show selection indicator
+  const [selectedFieldPlayerId, setSelectedFieldPlayerId] = useState<
+    string | null
+  >(null);
 
   // Cascade delete state
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -1037,39 +1058,53 @@ export const GamePage = () => {
     }
   };
 
+  // Determine current period based on game status
+  // Defined early so it can be used in callbacks before the early return
+  const currentPeriod =
+    data?.game?.status === GameStatus.SecondHalf
+      ? '2'
+      : data?.game?.status === GameStatus.Halftime
+        ? '2' // At halftime, we're transitioning to period 2
+        : '1';
+
   // Handle formation change for a team
+  // Always creates a FORMATION_CHANGE event - pre-game uses period 1, second 0
   const handleFormationChange = useCallback(
     async (gameTeamId: string, formation: string, periodSecond?: number) => {
       try {
-        if (periodSecond !== undefined) {
-          // Mid-game: record formation change event
-          await recordFormationChange({
-            variables: {
-              input: {
-                gameTeamId,
-                formation,
-                period: currentPeriod,
-                periodSecond,
-              },
-            },
-          });
-        } else {
-          // Pre-game: just update formation without event
-          await updateGameTeam({
-            variables: {
+        // Always create a FORMATION_CHANGE event
+        // Pre-game: period 1, second 0
+        // Mid-game: current period and second
+        await recordFormationChange({
+          variables: {
+            input: {
               gameTeamId,
-              updateGameTeamInput: {
-                formation,
-              },
+              formation,
+              period: periodSecond !== undefined ? currentPeriod : '1',
+              periodSecond: periodSecond ?? 0,
             },
-          });
-        }
+          },
+        });
       } catch (err) {
         console.error('Failed to update formation:', err);
         throw err; // Re-throw so calling code knows it failed
       }
     },
-    [recordFormationChange, updateGameTeam],
+    [recordFormationChange, currentPeriod],
+  );
+
+  // Handle field player click - routes to appropriate substitution flow
+  const handleFieldPlayerClickForSub = useCallback(
+    (player: GqlRosterPlayer) => {
+      if (panelBenchSelection) {
+        // Bench-first flow: complete the substitution
+        setFieldPlayerToReplaceForPanel(player);
+      } else {
+        // Field-first flow: start new substitution with this player
+        setSelectedFieldPlayerForSub(player);
+      }
+    },
+    [panelBenchSelection],
   );
 
   // Change stats tracking level for a specific team in this game
@@ -1302,14 +1337,6 @@ export const GamePage = () => {
   );
   const halftimeDurationSeconds = halftimeDurationMinutes * 60;
 
-  // Determine current period based on game status
-  const currentPeriod =
-    game.status === GameStatus.SecondHalf
-      ? '2'
-      : game.status === GameStatus.Halftime
-        ? '2' // At halftime, we're transitioning to period 2
-        : '1';
-
   // Calculate period-relative seconds
   // In period 1: elapsedSeconds directly
   // In period 2 or after halftime: elapsedSeconds minus first half duration
@@ -1396,7 +1423,6 @@ export const GamePage = () => {
         onEndGame={handleEndGame}
         onShowEndGameConfirm={setShowEndGameConfirm}
         onGoalClick={handleGoalClick}
-        onSubClick={(team) => setSubModalTeam(team)}
       />
 
       {/* Main Tabs */}
@@ -1468,6 +1494,10 @@ export const GamePage = () => {
                   onFormationChange={(formation, periodSecs) =>
                     handleFormationChange(homeTeam.id, formation, periodSecs)
                   }
+                  onFieldPlayerClickForSub={handleFieldPlayerClickForSub}
+                  hasBenchSelectionActive={panelBenchSelection !== null}
+                  queuedPlayerIds={queuedPlayerIds}
+                  selectedFieldPlayerId={selectedFieldPlayerId}
                 />
               )}
               {activeTeam === 'away' && awayTeam && (
@@ -1485,6 +1515,10 @@ export const GamePage = () => {
                   onFormationChange={(formation, periodSecs) =>
                     handleFormationChange(awayTeam.id, formation, periodSecs)
                   }
+                  onFieldPlayerClickForSub={handleFieldPlayerClickForSub}
+                  hasBenchSelectionActive={panelBenchSelection !== null}
+                  queuedPlayerIds={queuedPlayerIds}
+                  selectedFieldPlayerId={selectedFieldPlayerId}
                 />
               )}
             </div>
@@ -2251,24 +2285,49 @@ export const GamePage = () => {
         />
       )}
 
-      {/* Substitution Modal */}
-      {subModalTeam && (
-        <SubstitutionModal
-          gameTeamId={subModalTeam === 'home' ? homeTeam!.id : awayTeam!.id}
+      {/* Inline Substitution Panel */}
+      {isActivePlay && homeTeam && awayTeam && (
+        <SubstitutionPanel
+          gameTeamId={activeTeam === 'home' ? homeTeam.id : awayTeam.id}
           gameId={gameId!}
           teamName={
-            subModalTeam === 'home' ? homeTeam!.team.name : awayTeam!.team.name
+            activeTeam === 'home' ? homeTeam.team.name : awayTeam.team.name
           }
           teamColor={
-            subModalTeam === 'home'
-              ? homeTeam!.team.homePrimaryColor || '#3B82F6'
-              : awayTeam!.team.homePrimaryColor || '#EF4444'
+            activeTeam === 'home'
+              ? homeTeam.team.homePrimaryColor || '#3B82F6'
+              : awayTeam.team.homePrimaryColor || '#EF4444'
           }
-          onField={subModalTeam === 'home' ? homeOnField : awayOnField}
-          bench={subModalTeam === 'home' ? homeBench : awayBench}
+          onField={activeTeam === 'home' ? homeOnField : awayOnField}
+          bench={activeTeam === 'home' ? homeBench : awayBench}
           period={currentPeriod}
           periodSecond={currentPeriodSeconds}
-          onClose={() => setSubModalTeam(null)}
+          gameEvents={
+            (activeTeam === 'home' ? homeTeam.events : awayTeam.events)?.map(
+              (e) => ({
+                id: e.id,
+                playerId: e.playerId,
+                externalPlayerName: e.externalPlayerName,
+                eventType: e.eventType,
+                period: e.period ?? '1',
+                periodSecond: e.periodSecond,
+                childEvents: e.childEvents?.map((ce) => ({
+                  playerId: ce.playerId,
+                  externalPlayerName: ce.externalPlayerName,
+                  eventType: ce.eventType,
+                })),
+              }),
+            ) ?? []
+          }
+          externalFieldPlayerSelection={selectedFieldPlayerForSub}
+          onExternalSelectionHandled={() => setSelectedFieldPlayerForSub(null)}
+          onBenchSelectionChange={setPanelBenchSelection}
+          externalFieldPlayerToReplace={fieldPlayerToReplaceForPanel}
+          onExternalFieldPlayerToReplaceHandled={() =>
+            setFieldPlayerToReplaceForPanel(null)
+          }
+          onQueuedPlayerIdsChange={setQueuedPlayerIds}
+          onSelectedFieldPlayerChange={setSelectedFieldPlayerId}
         />
       )}
 

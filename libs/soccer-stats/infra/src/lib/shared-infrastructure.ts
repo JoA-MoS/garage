@@ -31,7 +31,9 @@ export function createSharedInfrastructure(
   // ===========================================================================
   const vpcCidr = config.vpcCidr || '10.0.0.0/16';
   const azCount = config.azCount || 2;
-  const enableNatGateway = config.enableNatGateway ?? stack === 'prod';
+  // NAT Gateway disabled by default - public subnets with security groups provide
+  // equivalent security for this use case while saving ~$32+/month
+  const enableNatGateway = config.enableNatGateway ?? false;
   const containerPort = config.containerPort || 3333;
 
   // Database configuration

@@ -189,10 +189,10 @@ export const taskDefinition = new aws.ecs.TaskDefinition(`${namePrefix}-task`, {
 // =============================================================================
 // ECS Service
 // =============================================================================
-// Determine which subnets to use based on NAT gateway availability
-// In dev (no NAT), tasks must be in public subnets with public IPs
-// In prod (with NAT), tasks should be in private subnets
-const usePrivateSubnets = stack === 'prod';
+// Always use public subnets with public IPs - security groups block all inbound
+// traffic except from ALB, providing equivalent security to private subnets
+// without the ~$32+/month NAT Gateway cost
+const usePrivateSubnets = false;
 
 export const service = new aws.ecs.Service(`${namePrefix}-service`, {
   name: namePrefix,
