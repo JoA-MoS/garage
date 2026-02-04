@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
+import { Entity, Column, Index, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
 
 import { BaseEntity } from './base.entity';
@@ -11,6 +11,7 @@ import { StatsTrackingLevel } from './team-configuration.entity';
 @Entity('game_teams')
 export class GameTeam extends BaseEntity {
   @Field(() => ID)
+  @Index('IDX_game_teams_gameId')
   @Column('uuid')
   gameId: string;
 
