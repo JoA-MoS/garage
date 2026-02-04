@@ -48,6 +48,7 @@ export const SubstitutionPanel = ({
   externalFieldPlayerToReplace,
   onExternalFieldPlayerToReplaceHandled,
   onQueuedPlayerIdsChange,
+  onSelectedFieldPlayerChange,
 }: SubstitutionPanelSmartProps) => {
   // Panel state
   const [panelState, setPanelState] = useState<PanelState>('collapsed');
@@ -94,6 +95,15 @@ export const SubstitutionPanel = ({
   useEffect(() => {
     onQueuedPlayerIdsChange?.(outIds);
   }, [outIds, onQueuedPlayerIdsChange]);
+
+  // Notify parent when selected field player changes (for visual indicator on field)
+  useEffect(() => {
+    const selectedId =
+      selection.direction === 'field-first' && selection.fieldPlayer
+        ? selection.fieldPlayer.gameEventId
+        : null;
+    onSelectedFieldPlayerChange?.(selectedId);
+  }, [selection.direction, selection.fieldPlayer, onSelectedFieldPlayerChange]);
 
   // Handle external field player selection (e.g., from tapping a player on the field view)
   useEffect(() => {
