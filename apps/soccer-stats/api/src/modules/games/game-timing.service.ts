@@ -335,7 +335,12 @@ export class GameTimingService implements OnModuleInit {
     currentPeriod?: string;
     /** Seconds elapsed in the current period */
     currentPeriodSeconds: number;
+    /** Server timestamp when this data was generated (ms since epoch) */
+    serverTimestamp: number;
   }> {
+    // Capture server timestamp early for accuracy
+    const serverTimestamp = Date.now();
+
     const timing = await this.getGameTiming(gameId);
     const halfDuration = (durationMinutes / 2) * 60;
 
@@ -346,6 +351,7 @@ export class GameTimingService implements OnModuleInit {
         period2DurationSeconds: 0,
         currentPeriod: undefined,
         currentPeriodSeconds: 0,
+        serverTimestamp,
       };
     }
 
@@ -373,6 +379,7 @@ export class GameTimingService implements OnModuleInit {
         period2DurationSeconds: period2Duration,
         currentPeriod: undefined, // Game over
         currentPeriodSeconds: 0,
+        serverTimestamp,
       };
     }
 
@@ -395,6 +402,7 @@ export class GameTimingService implements OnModuleInit {
         period2DurationSeconds: currentPeriodSeconds,
         currentPeriod: '2',
         currentPeriodSeconds,
+        serverTimestamp,
       };
     } else if (timing.firstHalfEnd) {
       // At halftime
@@ -406,6 +414,7 @@ export class GameTimingService implements OnModuleInit {
         period2DurationSeconds: 0,
         currentPeriod: undefined, // Halftime
         currentPeriodSeconds: 0,
+        serverTimestamp,
       };
     } else {
       // In first half
@@ -419,6 +428,7 @@ export class GameTimingService implements OnModuleInit {
         period2DurationSeconds: 0,
         currentPeriod: '1',
         currentPeriodSeconds,
+        serverTimestamp,
       };
     }
   }
