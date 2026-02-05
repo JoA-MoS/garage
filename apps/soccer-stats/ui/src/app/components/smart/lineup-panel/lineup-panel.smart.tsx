@@ -3,6 +3,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 
 import { useLineup, RosterPlayer as TeamRosterPlayer } from '../../../hooks/use-lineup';
+import { calculatePlayTime } from '../../../hooks/use-play-time';
 import { getFormationsForTeamSize } from '../../../utils/formations';
 import { LineupPanelPresentation } from './lineup-panel.presentation';
 import {
@@ -70,6 +71,7 @@ export const LineupPanel = ({
     addPlayerToGameRoster,
     updatePosition,
     removeFromLineup,
+    setSecondHalfLineup,
     refetchRoster,
   } = useLineup({ gameTeamId, gameId });
 
@@ -108,6 +110,31 @@ export const LineupPanel = ({
     // TODO: Derive from formation string in a later task
     return [] as string[];
   }, [formation]);
+
+  // Calculate play time for all players (halftime only)
+  const playTimeByPlayer = useMemo(() => {
+    if (gameStatus !== 'HALFTIME' || !gameEvents) return undefined;
+
+    const allPlayerIds = [
+      ...onField.map(getPlayerId),
+      ...bench.map(getPlayerId),
+    ];
+    const results = new Map<string, { minutes: number; isOnField: boolean }>();
+
+    for (const playerId of allPlayerIds) {
+      // Use period 1 for first half stats
+      const result = calculatePlayTime(playerId, gameEvents, {
+        period: '1',
+        periodSecond: 0,
+      });
+      results.set(playerId, {
+        minutes: result.minutes,
+        isOnField: result.isOnField,
+      });
+    }
+
+    return results;
+  }, [gameStatus, gameEvents, onField, bench]);
 
   // Notify parent when queued positions change
   useEffect(() => {
@@ -316,7 +343,7 @@ export const LineupPanel = ({
 
   // Confirm all queued changes
   const handleConfirmAll = useCallback(async () => {
-    if (queue.length === 0) {
+    if (queue.length === 0 && gameStatus !== 'HALFTIME') {
       console.warn('[LineupPanel] handleConfirmAll called with empty queue');
       return;
     }
@@ -326,40 +353,87 @@ export const LineupPanel = ({
     setError(null);
 
     try {
-      // Process queue items sequentially to avoid race conditions
-      for (let i = 0; i < queue.length; i++) {
-        const item = queue[i];
-        setExecutionProgress(i);
+      if (gameStatus === 'HALFTIME') {
+        // At halftime, build complete lineup and use setSecondHalfLineup
+        // Start with current on-field players
+        const lineupMap = new Map<string, {
+          playerId?: string;
+          externalPlayerName?: string;
+          externalPlayerNumber?: string;
+          position: string;
+        }>();
 
-        if (item.type === 'assignment') {
-          // For roster players, we need to use their oduserId as playerId
-          const playerId = 'oduserId' in item.player ? item.player.oduserId : item.player.playerId;
-          const externalPlayerName = 'externalPlayerName' in item.player ? item.player.externalPlayerName : undefined;
-          const externalPlayerNumber = 'externalPlayerNumber' in item.player ? item.player.externalPlayerNumber : undefined;
+        // Add current on-field players
+        onField.forEach((player) => {
+          if (player.position) {
+            lineupMap.set(player.position, {
+              playerId: player.playerId || undefined,
+              externalPlayerName: player.externalPlayerName || undefined,
+              externalPlayerNumber: player.externalPlayerNumber || undefined,
+              position: player.position,
+            });
+          }
+        });
 
-          await addPlayerToGameRoster({
-            playerId: playerId || undefined,
-            externalPlayerName: externalPlayerName || undefined,
-            externalPlayerNumber: externalPlayerNumber || undefined,
-            position: item.position,
-          });
-        } else if (item.type === 'position-change') {
-          await updatePosition(item.player.gameEventId, item.toPosition);
-        } else if (item.type === 'removal') {
-          await removeFromLineup(item.player.gameEventId);
+        // Apply queued changes
+        queue.forEach((item) => {
+          if (item.type === 'assignment') {
+            const playerId = 'oduserId' in item.player ? item.player.oduserId : item.player.playerId;
+            const externalPlayerName = 'externalPlayerName' in item.player ? item.player.externalPlayerName : undefined;
+            const externalPlayerNumber = 'externalPlayerNumber' in item.player ? item.player.externalPlayerNumber : undefined;
+
+            lineupMap.set(item.position, {
+              playerId: playerId || undefined,
+              externalPlayerName: externalPlayerName || undefined,
+              externalPlayerNumber: externalPlayerNumber || undefined,
+              position: item.position,
+            });
+          } else if (item.type === 'position-change') {
+            // Remove from old position
+            lineupMap.delete(item.fromPosition);
+            // Add to new position
+            lineupMap.set(item.toPosition, {
+              playerId: item.player.playerId || undefined,
+              externalPlayerName: item.player.externalPlayerName || undefined,
+              externalPlayerNumber: item.player.externalPlayerNumber || undefined,
+              position: item.toPosition,
+            });
+          } else if (item.type === 'removal') {
+            lineupMap.delete(item.position);
+          }
+        });
+
+        const lineup = Array.from(lineupMap.values());
+        await setSecondHalfLineup(lineup);
+      } else {
+        // Pre-game: process queue items sequentially
+        for (let i = 0; i < queue.length; i++) {
+          const item = queue[i];
+          setExecutionProgress(i);
+
+          if (item.type === 'assignment') {
+            const playerId = 'oduserId' in item.player ? item.player.oduserId : item.player.playerId;
+            const externalPlayerName = 'externalPlayerName' in item.player ? item.player.externalPlayerName : undefined;
+            const externalPlayerNumber = 'externalPlayerNumber' in item.player ? item.player.externalPlayerNumber : undefined;
+
+            await addPlayerToGameRoster({
+              playerId: playerId || undefined,
+              externalPlayerName: externalPlayerName || undefined,
+              externalPlayerNumber: externalPlayerNumber || undefined,
+              position: item.position,
+            });
+          } else if (item.type === 'position-change') {
+            await updatePosition(item.player.gameEventId, item.toPosition);
+          } else if (item.type === 'removal') {
+            await removeFromLineup(item.player.gameEventId);
+          }
         }
       }
 
       setExecutionProgress(queue.length);
       setQueue([]);
-
-      // Refetch roster to get updated state
       await refetchRoster();
-
-      // Close panel
       setPanelState('collapsed');
-
-      // Notify parent
       onLineupComplete?.();
     } catch (err) {
       console.error('[LineupPanel] Failed to execute lineup changes:', err);
@@ -370,9 +444,12 @@ export const LineupPanel = ({
     }
   }, [
     queue,
+    gameStatus,
+    onField,
     addPlayerToGameRoster,
     updatePosition,
     removeFromLineup,
+    setSecondHalfLineup,
     refetchRoster,
     onLineupComplete,
   ]);
@@ -380,9 +457,32 @@ export const LineupPanel = ({
   // Keep same lineup (halftime shortcut)
   const handleKeepSameLineup = useCallback(async () => {
     if (gameStatus !== 'HALFTIME') return;
-    // TODO: Implement in Task 8
-    console.log('Keep same lineup');
-  }, [gameStatus]);
+
+    setIsExecuting(true);
+    setError(null);
+
+    try {
+      // Build lineup array from current on-field players
+      const lineup = onField.map((player) => ({
+        playerId: player.playerId || undefined,
+        externalPlayerName: player.externalPlayerName || undefined,
+        externalPlayerNumber: player.externalPlayerNumber || undefined,
+        position: player.position!,
+      }));
+
+      await setSecondHalfLineup(lineup);
+      await refetchRoster();
+
+      setPanelState('collapsed');
+      onLineupComplete?.();
+    } catch (err) {
+      console.error('[LineupPanel] Failed to keep same lineup:', err);
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(message);
+    } finally {
+      setIsExecuting(false);
+    }
+  }, [gameStatus, onField, setSecondHalfLineup, refetchRoster, onLineupComplete]);
 
   return (
     <LineupPanelPresentation
@@ -396,6 +496,7 @@ export const LineupPanel = ({
       onFieldPlayers={onField}
       benchPlayers={bench}
       availableRoster={availableRoster}
+      playTimeByPlayer={playTimeByPlayer}
       availableFormations={availableFormations}
       onFormationChange={onFormationChange}
       selection={selection}
