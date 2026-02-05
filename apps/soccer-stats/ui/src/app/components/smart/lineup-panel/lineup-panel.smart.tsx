@@ -13,6 +13,14 @@ import {
 } from './types';
 
 /**
+ * Get player ID for matching
+ */
+const getPlayerId = (player: GqlRosterPlayer | TeamRosterPlayer): string => {
+  if ('playerId' in player) return player.playerId || player.externalPlayerName || '';
+  return player.oduserId;
+};
+
+/**
  * Smart component for lineup panel - manages state and mutations
  */
 export const LineupPanel = ({
@@ -135,24 +143,157 @@ export const LineupPanel = ({
     });
   }, []);
 
-  // Handle position click (placeholder - full implementation in later task)
-  const handlePositionClick = useCallback((position: string) => {
-    setError(null);
-    // TODO: Implement in Task 5
-    console.log('Position clicked:', position);
-  }, []);
+  // Handle position click (position-first flow)
+  const handlePositionClick = useCallback(
+    (position: string) => {
+      setError(null);
 
-  // Handle player click (placeholder - full implementation in later task)
+      // If no selection, start position-first selection
+      if (!selection.direction) {
+        setSelection({
+          direction: 'position-first',
+          position,
+          player: null,
+          playerSource: null,
+        });
+        setPanelState('bench-view');
+        return;
+      }
+
+      // If player-first, complete the assignment
+      if (selection.direction === 'player-first' && selection.player && selection.playerSource) {
+        // Check if position is already filled by someone on field (not in queue)
+        const existingPlayer = onField.find((p) => p.position === position);
+
+        const assignmentItem: QueuedLineupItem = {
+          id: `assign-${Date.now()}-${Math.random()}`,
+          type: 'assignment',
+          position,
+          player: selection.player,
+          playerSource: selection.playerSource as 'bench' | 'roster',
+          replacingPlayer: existingPlayer,
+        };
+
+        setQueue((prev) => [...prev, assignmentItem]);
+        setSelection({ direction: null, position: null, player: null, playerSource: null });
+        return;
+      }
+
+      // If position-first and clicking same position, deselect
+      if (selection.direction === 'position-first' && selection.position === position) {
+        setSelection({ direction: null, position: null, player: null, playerSource: null });
+        return;
+      }
+
+      // If position-first and clicking different position, switch
+      if (selection.direction === 'position-first') {
+        setSelection({
+          direction: 'position-first',
+          position,
+          player: null,
+          playerSource: null,
+        });
+      }
+    },
+    [selection, onField]
+  );
+
+  // Handle player click
   const handlePlayerClick = useCallback(
     (
       player: GqlRosterPlayer | TeamRosterPlayer,
       source: 'onField' | 'bench' | 'roster'
     ) => {
       setError(null);
-      // TODO: Implement in Task 5
-      console.log('Player clicked:', player, source);
+      const playerId = getPlayerId(player);
+
+      // Check if player is already queued
+      const isQueued = queue.some((item) => {
+        if (item.type === 'assignment') {
+          return getPlayerId(item.player) === playerId;
+        }
+        if (item.type === 'position-change') {
+          return getPlayerId(item.player) === playerId;
+        }
+        if (item.type === 'removal') {
+          return getPlayerId(item.player) === playerId;
+        }
+        return false;
+      });
+
+      if (isQueued) {
+        return; // Don't allow selecting already-queued players
+      }
+
+      // If no selection, start player-first selection
+      if (!selection.direction) {
+        // If clicking on-field player, could be for position change or removal
+        if (source === 'onField') {
+          // For now, treat as position change start (can select new position)
+          setSelection({
+            direction: 'player-first',
+            position: null,
+            player: player as GqlRosterPlayer,
+            playerSource: source,
+          });
+          return;
+        }
+
+        // Bench or roster player - start player-first flow
+        setSelection({
+          direction: 'player-first',
+          position: null,
+          player,
+          playerSource: source,
+        });
+        return;
+      }
+
+      // If player-first and clicking same player, deselect
+      if (
+        selection.direction === 'player-first' &&
+        selection.player &&
+        getPlayerId(selection.player) === playerId
+      ) {
+        setSelection({ direction: null, position: null, player: null, playerSource: null });
+        return;
+      }
+
+      // If player-first and clicking different player, switch selection
+      if (selection.direction === 'player-first') {
+        setSelection({
+          direction: 'player-first',
+          position: null,
+          player,
+          playerSource: source,
+        });
+        return;
+      }
+
+      // If position-first, complete the assignment
+      if (selection.direction === 'position-first' && selection.position) {
+        // Can't assign on-field players via position-first (they already have positions)
+        if (source === 'onField') {
+          return;
+        }
+
+        // Check if position is already filled
+        const existingPlayer = onField.find((p) => p.position === selection.position);
+
+        const assignmentItem: QueuedLineupItem = {
+          id: `assign-${Date.now()}-${Math.random()}`,
+          type: 'assignment',
+          position: selection.position,
+          player,
+          playerSource: source as 'bench' | 'roster',
+          replacingPlayer: existingPlayer,
+        };
+
+        setQueue((prev) => [...prev, assignmentItem]);
+        setSelection({ direction: null, position: null, player: null, playerSource: null });
+      }
     },
-    []
+    [selection, queue, onField]
   );
 
   // Remove from queue
