@@ -723,6 +723,7 @@ export type PeriodResult = {
 export type PlayerFullStats = {
   __typename?: 'PlayerFullStats';
   assists: Scalars['Int']['output'];
+  currentPosition?: Maybe<Scalars['String']['output']>;
   externalPlayerName?: Maybe<Scalars['String']['output']>;
   externalPlayerNumber?: Maybe<Scalars['String']['output']>;
   gamesPlayed: Scalars['Int']['output'];
@@ -742,6 +743,7 @@ export type PlayerFullStats = {
 export type PlayerGameStats = {
   __typename?: 'PlayerGameStats';
   assists: Scalars['Int']['output'];
+  currentPosition?: Maybe<Scalars['String']['output']>;
   goals: Scalars['Int']['output'];
   lastEntryPeriodSecond?: Maybe<Scalars['Int']['output']>;
   positionTimes: Array<PositionTime>;
@@ -1789,6 +1791,7 @@ export type GetGameByIdQuery = {
           goals: number;
           assists: number;
           lastEntryPeriodSecond?: number | null;
+          currentPosition?: string | null;
           positionTimes: Array<{
             __typename?: 'PositionTime';
             position: string;
@@ -5098,6 +5101,13 @@ export const GetGameByIdDocument = {
                                     name: {
                                       kind: 'Name',
                                       value: 'lastEntryPeriodSecond',
+                                    },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: {
+                                      kind: 'Name',
+                                      value: 'currentPosition',
                                     },
                                   },
                                 ],

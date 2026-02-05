@@ -27,8 +27,8 @@ import {
 @Module({
   imports: [
     TypeOrmModule.forFeature([GameEvent, EventType, GameTeam, Game, Team]),
-    AuthModule,
-    UsersModule,
+    forwardRef(() => AuthModule), // forwardRef needed due to DataLoadersModule dependency chain
+    forwardRef(() => UsersModule), // forwardRef needed due to AuthModule re-exporting UsersModule
     forwardRef(() => GamesModule), // Circular dependency with GamesModule
   ],
   providers: [

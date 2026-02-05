@@ -6,8 +6,6 @@ import { GameTeam } from '../../entities/game-team.entity';
 import { GameEvent } from '../../entities/game-event.entity';
 import { GraphQLContext } from '../dataloaders';
 
-import { GameTimingService } from './game-timing.service';
-
 /**
  * Resolver for Game entity field-level data loading.
  *
@@ -20,7 +18,6 @@ import { GameTimingService } from './game-timing.service';
  */
 @Resolver(() => Game)
 export class GameFieldsResolver {
-  constructor(private readonly gameTimingService: GameTimingService) {}
   /**
    * Resolves the 'format' field on Game.
    * Uses DataLoader to batch multiple format lookups into a single query.
@@ -178,6 +175,22 @@ export class GameFieldsResolver {
   // Live Timing Field Resolvers (for client time sync)
   // ============================================================
 
+  // ============================================================
+  // Time Sync Field Resolvers
+  // ============================================================
+  // Uses periodTimingInfoLoader DataLoader to share a single getPeriodTimingInfo
+  // call when multiple timing fields are queried together. The composite key
+  // "gameId:durationMinutes" ensures proper caching per game configuration.
+  // ============================================================
+
+  /**
+   * Helper to get timing info via DataLoader.
+   * Uses composite key "gameId:durationMinutes" for proper caching.
+   */
+  private getTimingInfoKey(game: Game): string {
+    return `${game.id}:${game.durationMinutes ?? 60}`;
+  }
+
   /**
    * Current period of the game.
    * Returns '1' for first half, '2' for second half, or undefined if
@@ -188,10 +201,12 @@ export class GameFieldsResolver {
     description:
       'Current period of the game (null if not started or at halftime)',
   })
-  async currentPeriod(@Parent() game: Game): Promise<string | undefined> {
-    const timingInfo = await this.gameTimingService.getPeriodTimingInfo(
-      game.id,
-      game.durationMinutes,
+  async currentPeriod(
+    @Parent() game: Game,
+    @Context() context: GraphQLContext,
+  ): Promise<string | undefined> {
+    const timingInfo = await context.loaders.periodTimingInfoLoader.load(
+      this.getTimingInfoKey(game),
     );
     return timingInfo.currentPeriod;
   }
@@ -203,10 +218,12 @@ export class GameFieldsResolver {
   @ResolveField('currentPeriodSecond', () => Int, {
     description: 'Seconds elapsed in the current period',
   })
-  async currentPeriodSecond(@Parent() game: Game): Promise<number> {
-    const timingInfo = await this.gameTimingService.getPeriodTimingInfo(
-      game.id,
-      game.durationMinutes,
+  async currentPeriodSecond(
+    @Parent() game: Game,
+    @Context() context: GraphQLContext,
+  ): Promise<number> {
+    const timingInfo = await context.loaders.periodTimingInfoLoader.load(
+      this.getTimingInfoKey(game),
     );
     return timingInfo.currentPeriodSeconds;
   }
@@ -220,10 +237,12 @@ export class GameFieldsResolver {
     description:
       'Unix timestamp (ms) when response was generated - for client time sync',
   })
-  async serverTimestamp(@Parent() game: Game): Promise<number> {
-    const timingInfo = await this.gameTimingService.getPeriodTimingInfo(
-      game.id,
-      game.durationMinutes,
+  async serverTimestamp(
+    @Parent() game: Game,
+    @Context() context: GraphQLContext,
+  ): Promise<number> {
+    const timingInfo = await context.loaders.periodTimingInfoLoader.load(
+      this.getTimingInfoKey(game),
     );
     return timingInfo.serverTimestamp;
   }

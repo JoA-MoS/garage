@@ -139,6 +139,9 @@ export const GamePage = () => {
   const [showReopenConfirm, setShowReopenConfirm] = useState(false);
   const [showManualGoalModal, setShowManualGoalModal] = useState(false);
 
+  // Action error state - displayed as dismissible banner
+  const [actionError, setActionError] = useState<string | null>(null);
+
   // Field player selection for substitution panel
   // When a player is selected (e.g., from tapping on field), the panel opens with them pre-selected
   const [selectedFieldPlayerForSub, setSelectedFieldPlayerForSub] =
@@ -757,6 +760,9 @@ export const GamePage = () => {
         setConflictData(null);
       } catch (err) {
         console.error('Failed to resolve conflict:', err);
+        setActionError(
+          err instanceof Error ? err.message : 'Failed to resolve conflict',
+        );
       }
     },
     [resolveConflict],
@@ -786,6 +792,9 @@ export const GamePage = () => {
       });
     } catch (err) {
       console.error('Failed to start first half:', err);
+      setActionError(
+        err instanceof Error ? err.message : 'Failed to start first half',
+      );
     }
   };
 
@@ -812,6 +821,9 @@ export const GamePage = () => {
       });
     } catch (err) {
       console.error('Failed to end first half:', err);
+      setActionError(
+        err instanceof Error ? err.message : 'Failed to end first half',
+      );
     }
   };
 
@@ -832,6 +844,9 @@ export const GamePage = () => {
       });
     } catch (err) {
       console.error('Failed to start second half:', err);
+      setActionError(
+        err instanceof Error ? err.message : 'Failed to start second half',
+      );
     }
   };
 
@@ -865,6 +880,7 @@ export const GamePage = () => {
       setShowEndGameConfirm(false);
     } catch (err) {
       console.error('Failed to end game:', err);
+      setActionError(err instanceof Error ? err.message : 'Failed to end game');
     }
   };
 
@@ -876,6 +892,9 @@ export const GamePage = () => {
       });
     } catch (err) {
       console.error('Failed to delete goal:', err);
+      setActionError(
+        err instanceof Error ? err.message : 'Failed to delete goal',
+      );
     }
   };
 
@@ -887,6 +906,9 @@ export const GamePage = () => {
       });
     } catch (err) {
       console.error('Failed to delete substitution:', err);
+      setActionError(
+        err instanceof Error ? err.message : 'Failed to delete substitution',
+      );
     }
   };
 
@@ -898,6 +920,9 @@ export const GamePage = () => {
       });
     } catch (err) {
       console.error('Failed to delete position swap:', err);
+      setActionError(
+        err instanceof Error ? err.message : 'Failed to delete position swap',
+      );
     }
   };
 
@@ -909,6 +934,9 @@ export const GamePage = () => {
       });
     } catch (err) {
       console.error('Failed to delete starter entry:', err);
+      setActionError(
+        err instanceof Error ? err.message : 'Failed to delete starter entry',
+      );
     }
   };
 
@@ -935,6 +963,9 @@ export const GamePage = () => {
       }
     } catch (err) {
       console.error('Failed to check dependent events:', err);
+      setActionError(
+        err instanceof Error ? err.message : 'Failed to check dependent events',
+      );
       setDeleteTarget(null);
     }
   };
@@ -972,6 +1003,9 @@ export const GamePage = () => {
       setDeleteTarget(null);
     } catch (err) {
       console.error('Failed to cascade delete:', err);
+      setActionError(
+        err instanceof Error ? err.message : 'Failed to delete event',
+      );
     }
   };
 
@@ -1011,6 +1045,9 @@ export const GamePage = () => {
       setShowGameMenu(false);
     } catch (err) {
       console.error('Failed to toggle pause:', err);
+      setActionError(
+        err instanceof Error ? err.message : 'Failed to toggle pause',
+      );
     }
   };
 
@@ -1032,6 +1069,9 @@ export const GamePage = () => {
       // Note: Timer state is derived from server sync data
     } catch (err) {
       console.error('Failed to reset game:', err);
+      setActionError(
+        err instanceof Error ? err.message : 'Failed to reset game',
+      );
     }
   };
 
@@ -1047,6 +1087,9 @@ export const GamePage = () => {
       setShowGameMenu(false);
     } catch (err) {
       console.error('Failed to reopen game:', err);
+      setActionError(
+        err instanceof Error ? err.message : 'Failed to reopen game',
+      );
     }
   };
 
@@ -1064,6 +1107,9 @@ export const GamePage = () => {
       setShowGameMenu(false);
     } catch (err) {
       console.error('Failed to update stats tracking level:', err);
+      setActionError(
+        err instanceof Error ? err.message : 'Failed to update stats tracking',
+      );
     }
   };
 
@@ -1097,6 +1143,9 @@ export const GamePage = () => {
         });
       } catch (err) {
         console.error('Failed to update formation:', err);
+        setActionError(
+          err instanceof Error ? err.message : 'Failed to update formation',
+        );
         throw err; // Re-throw so calling code knows it failed
       }
     },
@@ -1136,6 +1185,11 @@ export const GamePage = () => {
       });
     } catch (err) {
       console.error('Failed to update team stats tracking level:', err);
+      setActionError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to update team stats tracking',
+      );
     }
   };
 
@@ -1180,6 +1234,9 @@ export const GamePage = () => {
         });
       } catch (err) {
         console.error('Failed to record goal:', err);
+        setActionError(
+          err instanceof Error ? err.message : 'Failed to record goal',
+        );
       }
     } else {
       // Open modal for FULL or SCORER_ONLY modes
@@ -1274,6 +1331,34 @@ export const GamePage = () => {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      {/* Action Error Banner */}
+      {actionError && (
+        <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+          <span>
+            <span className="font-medium">Error:</span> {actionError}
+          </span>
+          <button
+            onClick={() => setActionError(null)}
+            className="ml-4 text-red-500 hover:text-red-700"
+            aria-label="Dismiss error"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Game Header */}
       <GameHeader
         gameName={game.name || 'Game Details'}
@@ -1525,9 +1610,8 @@ export const GamePage = () => {
                     teamName={homeTeam.team.name}
                     teamColor={homeTeam.team.homePrimaryColor || '#3B82F6'}
                     players={homeTeam.players || []}
-                    serverTimestamp={data?.game?.serverTimestamp}
-                    currentPeriodSecond={
-                      isActivePlay ? data?.game?.currentPeriodSecond : undefined
+                    elapsedSeconds={
+                      isActivePlay ? syncedTime.periodSecond : undefined
                     }
                     isLoading={loading}
                   />
@@ -1537,9 +1621,8 @@ export const GamePage = () => {
                     teamName={awayTeam.team.name}
                     teamColor={awayTeam.team.homePrimaryColor || '#EF4444'}
                     players={awayTeam.players || []}
-                    serverTimestamp={data?.game?.serverTimestamp}
-                    currentPeriodSecond={
-                      isActivePlay ? data?.game?.currentPeriodSecond : undefined
+                    elapsedSeconds={
+                      isActivePlay ? syncedTime.periodSecond : undefined
                     }
                     isLoading={loading}
                   />

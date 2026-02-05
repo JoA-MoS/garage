@@ -152,6 +152,7 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
             goals
             assists
             lastEntryPeriodSecond
+            currentPosition
           }
         }
       }
