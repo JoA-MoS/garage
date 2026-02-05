@@ -485,6 +485,118 @@ describe('GameTimingService', () => {
     });
   });
 
+  describe('getPeriodTimingInfo', () => {
+    const setupQueryBuilder = (events: Partial<GameEvent>[]) => {
+      const mockQueryBuilder = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue(events),
+      };
+      mockGameEventRepository.createQueryBuilder.mockReturnValue(
+        mockQueryBuilder as any,
+      );
+    };
+
+    beforeEach(async () => {
+      await service.onModuleInit();
+    });
+
+    it('should include serverTimestamp in response', async () => {
+      setupQueryBuilder([]);
+
+      const beforeCall = Date.now();
+      const result = await service.getPeriodTimingInfo('game-123');
+      const afterCall = Date.now();
+
+      expect(result.serverTimestamp).toBeDefined();
+      expect(result.serverTimestamp).toBeGreaterThanOrEqual(beforeCall);
+      expect(result.serverTimestamp).toBeLessThanOrEqual(afterCall);
+    });
+
+    it('should include serverTimestamp when game is in progress', async () => {
+      const startTime = new Date('2024-01-01T10:00:00Z');
+      setupQueryBuilder([
+        createMockEvent('PERIOD_START', startTime, { period: '1' }),
+      ]);
+
+      const beforeCall = Date.now();
+      const result = await service.getPeriodTimingInfo('game-123');
+      const afterCall = Date.now();
+
+      expect(result.serverTimestamp).toBeDefined();
+      expect(result.serverTimestamp).toBeGreaterThanOrEqual(beforeCall);
+      expect(result.serverTimestamp).toBeLessThanOrEqual(afterCall);
+    });
+
+    it('should include serverTimestamp when game is completed', async () => {
+      setupQueryBuilder([
+        createMockEvent('PERIOD_START', new Date('2024-01-01T10:00:00Z'), {
+          period: '1',
+        }),
+        createMockEvent('PERIOD_END', new Date('2024-01-01T10:30:00Z'), {
+          period: '1',
+        }),
+        createMockEvent('PERIOD_START', new Date('2024-01-01T10:45:00Z'), {
+          period: '2',
+        }),
+        createMockEvent('PERIOD_END', new Date('2024-01-01T11:15:00Z'), {
+          period: '2',
+        }),
+      ]);
+
+      const beforeCall = Date.now();
+      const result = await service.getPeriodTimingInfo('game-123');
+      const afterCall = Date.now();
+
+      expect(result.serverTimestamp).toBeDefined();
+      expect(result.serverTimestamp).toBeGreaterThanOrEqual(beforeCall);
+      expect(result.serverTimestamp).toBeLessThanOrEqual(afterCall);
+    });
+
+    it('should include serverTimestamp at halftime', async () => {
+      setupQueryBuilder([
+        createMockEvent('PERIOD_START', new Date('2024-01-01T10:00:00Z'), {
+          period: '1',
+        }),
+        createMockEvent('PERIOD_END', new Date('2024-01-01T10:30:00Z'), {
+          period: '1',
+        }),
+      ]);
+
+      const beforeCall = Date.now();
+      const result = await service.getPeriodTimingInfo('game-123');
+      const afterCall = Date.now();
+
+      expect(result.serverTimestamp).toBeDefined();
+      expect(result.serverTimestamp).toBeGreaterThanOrEqual(beforeCall);
+      expect(result.serverTimestamp).toBeLessThanOrEqual(afterCall);
+    });
+
+    it('should include serverTimestamp in second half', async () => {
+      setupQueryBuilder([
+        createMockEvent('PERIOD_START', new Date('2024-01-01T10:00:00Z'), {
+          period: '1',
+        }),
+        createMockEvent('PERIOD_END', new Date('2024-01-01T10:30:00Z'), {
+          period: '1',
+        }),
+        createMockEvent('PERIOD_START', new Date('2024-01-01T10:45:00Z'), {
+          period: '2',
+        }),
+      ]);
+
+      const beforeCall = Date.now();
+      const result = await service.getPeriodTimingInfo('game-123');
+      const afterCall = Date.now();
+
+      expect(result.serverTimestamp).toBeDefined();
+      expect(result.serverTimestamp).toBeGreaterThanOrEqual(beforeCall);
+      expect(result.serverTimestamp).toBeLessThanOrEqual(afterCall);
+    });
+  });
+
   describe('error handling', () => {
     beforeEach(async () => {
       await service.onModuleInit();

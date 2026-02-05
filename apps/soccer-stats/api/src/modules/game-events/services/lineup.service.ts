@@ -75,10 +75,11 @@ export class LineupService {
       throw new NotFoundException(`GameTeam ${gameTeamId} not found`);
     }
 
+    // Order by period, periodSecond, then createdAt to match stats service ordering
     const events = await this.gameEventsRepository.find({
       where: { gameTeamId },
       relations: ['eventType', 'player'],
-      order: { createdAt: 'ASC' },
+      order: { period: 'ASC', periodSecond: 'ASC', createdAt: 'ASC' },
     });
 
     // 1. Build game roster from GAME_ROSTER events
@@ -306,6 +307,7 @@ export class LineupService {
    */
   private toLineupPlayer(event: GameEvent): LineupPlayer {
     return {
+      gameTeamId: event.gameTeamId,
       gameEventId: event.id,
       playerId: event.playerId,
       playerName: event.player

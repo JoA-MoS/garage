@@ -207,6 +207,8 @@ export const service = new aws.ecs.Service(`${namePrefix}-service`, {
   capacityProviderStrategies: [
     { capacityProvider: 'FARGATE_SPOT', weight: 1, base: 1 },
   ],
+  // Required when capacity provider strategy is modified
+  forceNewDeployment: true,
   networkConfiguration: {
     subnets: usePrivateSubnets ? privateSubnetIds : publicSubnetIds,
     securityGroups: [ecsSecurityGroupId],

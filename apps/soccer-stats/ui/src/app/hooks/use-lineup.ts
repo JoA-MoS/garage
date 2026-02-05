@@ -5,6 +5,8 @@ import {
   GetGameRosterDocument,
   GetGameByIdDocument,
   GetGameByIdQuery,
+  GetTeamByIdDocument,
+  GetTeamByIdQuery,
   AddPlayerToGameRosterDocument,
   RemoveFromLineupDocument,
   UpdatePlayerPositionDocument,
@@ -18,13 +20,10 @@ import {
 
 import { RECORD_POSITION_CHANGE } from '../services/games-graphql.service';
 
-// Extract TeamPlayer type from query result
-type GameTeamFromQuery = NonNullable<
-  NonNullable<GetGameByIdQuery['game']['teams']>[number]
->;
+// Extract TeamPlayer type from team query result
 type TeamPlayerFromQuery = NonNullable<
-  NonNullable<GameTeamFromQuery['team']['roster']>[number]
->;
+  NonNullable<GetTeamByIdQuery['team']>['roster']
+>[number];
 
 export interface UseLineupOptions {
   gameTeamId: string;
@@ -57,12 +56,28 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     fetchPolicy: 'cache-and-network',
   });
 
-  // Fetch game data for roster (if gameId provided)
+  // Fetch game data to get team ID (if gameId provided)
   const { data: gameData, loading: gameLoading } = useQuery(
     GetGameByIdDocument,
     {
       variables: { id: gameId! },
       skip: !gameId,
+    },
+  );
+
+  // Get team ID from game data
+  const teamId = useMemo(() => {
+    if (!gameData?.game?.teams) return null;
+    const gameTeam = gameData.game.teams.find((gt) => gt.id === gameTeamId);
+    return gameTeam?.team?.id ?? null;
+  }, [gameData, gameTeamId]);
+
+  // Fetch team roster separately (only when we have team ID)
+  const { data: teamData, loading: teamLoading } = useQuery(
+    GetTeamByIdDocument,
+    {
+      variables: { id: teamId! },
+      skip: !teamId,
     },
   );
 
@@ -139,17 +154,11 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     },
   );
 
-  // Get the team roster from game data
+  // Get the team roster from team data (fetched separately for performance)
   const teamRoster = useMemo((): RosterPlayer[] => {
-    if (!gameData?.game?.teams) return [];
+    if (!teamData?.team?.roster) return [];
 
-    const gameTeam = gameData.game.teams.find(
-      (gt: GameTeamFromQuery) => gt.id === gameTeamId,
-    );
-
-    if (!gameTeam?.team?.roster) return [];
-
-    return gameTeam.team.roster
+    return teamData.team.roster
       .filter(
         (tp: TeamPlayerFromQuery) =>
           tp.teamMember.isActive && !!tp.teamMember.user,
@@ -163,7 +172,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
         lastName: tp.teamMember.user.lastName,
         email: tp.teamMember.user.email,
       }));
-  }, [gameData, gameTeamId]);
+  }, [teamData]);
 
   // Get all players from the game roster
   const players = useMemo(
@@ -441,7 +450,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     availableRoster,
 
     // Loading states
-    loading: rosterLoading || gameLoading,
+    loading: rosterLoading || gameLoading || teamLoading,
     mutating:
       addingToGameRoster ||
       removing ||

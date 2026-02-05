@@ -217,6 +217,10 @@ export type Game = {
   actualEnd?: Maybe<Scalars['DateTime']['output']>;
   actualStart?: Maybe<Scalars['DateTime']['output']>;
   createdAt: Scalars['DateTime']['output'];
+  /** Current period of the game (null if not started or at halftime) */
+  currentPeriod?: Maybe<Scalars['String']['output']>;
+  /** Seconds elapsed in the current period */
+  currentPeriodSecond: Scalars['Int']['output'];
   /** Override for game duration in minutes (null = use game format default) */
   durationMinutes?: Maybe<Scalars['Float']['output']>;
   /** Effective game duration in minutes (game override or format default) */
@@ -232,6 +236,8 @@ export type Game = {
   pausedAt?: Maybe<Scalars['DateTime']['output']>;
   scheduledStart?: Maybe<Scalars['DateTime']['output']>;
   secondHalfStart?: Maybe<Scalars['DateTime']['output']>;
+  /** Unix timestamp (ms) when response was generated - for client time sync */
+  serverTimestamp: Scalars['Float']['output'];
   /** Override for stats tracking level (null = use team default) */
   statsTrackingLevel?: Maybe<StatsTrackingLevel>;
   status: GameStatus;
@@ -348,6 +354,13 @@ export type GameTeam = {
   game: Game;
   gameId: Scalars['ID']['output'];
   id: Scalars['ID']['output'];
+  /**
+   * Player statistics for this team in this game
+   * @deprecated Use players.stats for nested structure
+   */
+  playerStats: Array<PlayerFullStats>;
+  /** Players in the game roster for this team */
+  players: Array<LineupPlayer>;
   /** Override stats tracking level for this team in this game (null = use game or team default) */
   statsTrackingLevel?: Maybe<StatsTrackingLevel>;
   tacticalNotes?: Maybe<Scalars['String']['output']>;
@@ -374,6 +387,8 @@ export type LineupPlayer = {
   playerId?: Maybe<Scalars['ID']['output']>;
   playerName?: Maybe<Scalars['String']['output']>;
   position?: Maybe<Scalars['String']['output']>;
+  /** Player statistics for this game (only fetched when queried) */
+  stats?: Maybe<PlayerGameStats>;
 };
 
 export type Mutation = {
@@ -708,6 +723,7 @@ export type PeriodResult = {
 export type PlayerFullStats = {
   __typename?: 'PlayerFullStats';
   assists: Scalars['Int']['output'];
+  currentPosition?: Maybe<Scalars['String']['output']>;
   externalPlayerName?: Maybe<Scalars['String']['output']>;
   externalPlayerNumber?: Maybe<Scalars['String']['output']>;
   gamesPlayed: Scalars['Int']['output'];
@@ -722,6 +738,16 @@ export type PlayerFullStats = {
   totalMinutes: Scalars['Int']['output'];
   totalSeconds: Scalars['Int']['output'];
   yellowCards?: Maybe<Scalars['Int']['output']>;
+};
+
+export type PlayerGameStats = {
+  __typename?: 'PlayerGameStats';
+  assists: Scalars['Int']['output'];
+  currentPosition?: Maybe<Scalars['String']['output']>;
+  goals: Scalars['Int']['output'];
+  lastEntryPeriodSecond?: Maybe<Scalars['Int']['output']>;
+  positionTimes: Array<PositionTime>;
+  totalSeconds: Scalars['Int']['output'];
 };
 
 export type PlayerPositionStats = {
@@ -1675,6 +1701,9 @@ export type GetGameByIdQuery = {
     notes?: string | null;
     venue?: string | null;
     weatherConditions?: string | null;
+    currentPeriod?: string | null;
+    currentPeriodSecond: number;
+    serverTimestamp: number;
     createdAt: any;
     updatedAt: any;
     format: {
@@ -1700,26 +1729,6 @@ export type GetGameByIdQuery = {
         homePrimaryColor?: string | null;
         homeSecondaryColor?: string | null;
         isManaged: boolean;
-        roster: Array<{
-          __typename?: 'TeamMemberRole';
-          id: string;
-          role: TeamRole;
-          jerseyNumber?: string | null;
-          primaryPosition?: string | null;
-          teamMember: {
-            __typename?: 'TeamMember';
-            id: string;
-            userId: string;
-            isActive: boolean;
-            user: {
-              __typename?: 'User';
-              id: string;
-              email?: string | null;
-              firstName: string;
-              lastName: string;
-            };
-          };
-        }>;
       };
       events?: Array<{
         __typename?: 'GameEvent';
@@ -1765,6 +1774,32 @@ export type GetGameByIdQuery = {
           eventType: { __typename?: 'EventType'; id: string; name: string };
         }>;
       }> | null;
+      players: Array<{
+        __typename?: 'LineupPlayer';
+        gameEventId: string;
+        playerId?: string | null;
+        playerName?: string | null;
+        firstName?: string | null;
+        lastName?: string | null;
+        externalPlayerName?: string | null;
+        externalPlayerNumber?: string | null;
+        position?: string | null;
+        isOnField: boolean;
+        stats?: {
+          __typename?: 'PlayerGameStats';
+          totalSeconds: number;
+          goals: number;
+          assists: number;
+          lastEntryPeriodSecond?: number | null;
+          currentPosition?: string | null;
+          positionTimes: Array<{
+            __typename?: 'PositionTime';
+            position: string;
+            minutes: number;
+            seconds: number;
+          }>;
+        } | null;
+      }>;
     }> | null;
   };
 };
@@ -4672,6 +4707,18 @@ export const GetGameByIdDocument = {
                 },
                 {
                   kind: 'Field',
+                  name: { kind: 'Name', value: 'currentPeriod' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'currentPeriodSecond' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'serverTimestamp' },
+                },
+                {
+                  kind: 'Field',
                   name: { kind: 'Name', value: 'format' },
                   selectionSet: {
                     kind: 'SelectionSet',
@@ -4748,101 +4795,6 @@ export const GetGameByIdDocument = {
                             {
                               kind: 'Field',
                               name: { kind: 'Name', value: 'isManaged' },
-                            },
-                            {
-                              kind: 'Field',
-                              name: { kind: 'Name', value: 'roster' },
-                              selectionSet: {
-                                kind: 'SelectionSet',
-                                selections: [
-                                  {
-                                    kind: 'Field',
-                                    name: { kind: 'Name', value: 'id' },
-                                  },
-                                  {
-                                    kind: 'Field',
-                                    name: { kind: 'Name', value: 'role' },
-                                  },
-                                  {
-                                    kind: 'Field',
-                                    name: {
-                                      kind: 'Name',
-                                      value: 'jerseyNumber',
-                                    },
-                                  },
-                                  {
-                                    kind: 'Field',
-                                    name: {
-                                      kind: 'Name',
-                                      value: 'primaryPosition',
-                                    },
-                                  },
-                                  {
-                                    kind: 'Field',
-                                    name: { kind: 'Name', value: 'teamMember' },
-                                    selectionSet: {
-                                      kind: 'SelectionSet',
-                                      selections: [
-                                        {
-                                          kind: 'Field',
-                                          name: { kind: 'Name', value: 'id' },
-                                        },
-                                        {
-                                          kind: 'Field',
-                                          name: {
-                                            kind: 'Name',
-                                            value: 'userId',
-                                          },
-                                        },
-                                        {
-                                          kind: 'Field',
-                                          name: {
-                                            kind: 'Name',
-                                            value: 'isActive',
-                                          },
-                                        },
-                                        {
-                                          kind: 'Field',
-                                          name: { kind: 'Name', value: 'user' },
-                                          selectionSet: {
-                                            kind: 'SelectionSet',
-                                            selections: [
-                                              {
-                                                kind: 'Field',
-                                                name: {
-                                                  kind: 'Name',
-                                                  value: 'id',
-                                                },
-                                              },
-                                              {
-                                                kind: 'Field',
-                                                name: {
-                                                  kind: 'Name',
-                                                  value: 'email',
-                                                },
-                                              },
-                                              {
-                                                kind: 'Field',
-                                                name: {
-                                                  kind: 'Name',
-                                                  value: 'firstName',
-                                                },
-                                              },
-                                              {
-                                                kind: 'Field',
-                                                name: {
-                                                  kind: 'Name',
-                                                  value: 'lastName',
-                                                },
-                                              },
-                                            ],
-                                          },
-                                        },
-                                      ],
-                                    },
-                                  },
-                                ],
-                              },
                             },
                           ],
                         },
@@ -5034,6 +4986,128 @@ export const GetGameByIdDocument = {
                                           name: { kind: 'Name', value: 'name' },
                                         },
                                       ],
+                                    },
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'players' },
+                        selectionSet: {
+                          kind: 'SelectionSet',
+                          selections: [
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'gameEventId' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'playerId' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'playerName' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'firstName' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'lastName' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: {
+                                kind: 'Name',
+                                value: 'externalPlayerName',
+                              },
+                            },
+                            {
+                              kind: 'Field',
+                              name: {
+                                kind: 'Name',
+                                value: 'externalPlayerNumber',
+                              },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'position' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'isOnField' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'stats' },
+                              selectionSet: {
+                                kind: 'SelectionSet',
+                                selections: [
+                                  {
+                                    kind: 'Field',
+                                    name: {
+                                      kind: 'Name',
+                                      value: 'totalSeconds',
+                                    },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: {
+                                      kind: 'Name',
+                                      value: 'positionTimes',
+                                    },
+                                    selectionSet: {
+                                      kind: 'SelectionSet',
+                                      selections: [
+                                        {
+                                          kind: 'Field',
+                                          name: {
+                                            kind: 'Name',
+                                            value: 'position',
+                                          },
+                                        },
+                                        {
+                                          kind: 'Field',
+                                          name: {
+                                            kind: 'Name',
+                                            value: 'minutes',
+                                          },
+                                        },
+                                        {
+                                          kind: 'Field',
+                                          name: {
+                                            kind: 'Name',
+                                            value: 'seconds',
+                                          },
+                                        },
+                                      ],
+                                    },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'goals' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'assists' },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: {
+                                      kind: 'Name',
+                                      value: 'lastEntryPeriodSecond',
+                                    },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: {
+                                      kind: 'Name',
+                                      value: 'currentPosition',
                                     },
                                   },
                                 ],

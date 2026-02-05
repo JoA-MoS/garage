@@ -60,9 +60,8 @@ The soccer-stats projects use GraphQL Code Generator to create TypeScript types 
 # Generate types once (run from workspace root)
 pnpm nx run soccer-stats-graphql-codegen:codegen
 
-# Or use the root-level scripts
-pnpm codegen
-pnpm codegen:watch
+# Or run with watch mode
+pnpm nx run soccer-stats-graphql-codegen:codegen-watch
 ```
 
 **Generated Files Location:** `libs/soccer-stats/graphql-codegen/src/generated/`
@@ -201,6 +200,7 @@ apps/
 ├── chore-board/           # Kanban-style chore tracking app
 │   ├── api/              # NestJS backend
 │   └── ui/               # React frontend with drag-drop
+├── gitlab-mcp-server/     # GitLab MCP server integration
 ├── ng/example/            # Angular example application
 ├── soccer-stats/          # Soccer statistics tracker (primary app)
 │   ├── api/              # NestJS GraphQL backend
@@ -277,9 +277,12 @@ pages/                     # Route-level page components
 router/                    # React Router configuration
 services/                  # API integration services
 providers/                 # React context providers
-generated/                 # GraphQL codegen output (auto-generated)
+context/                   # React context definitions
+hooks/                     # Custom React hooks
 types/                     # TypeScript type definitions
 ```
+
+**Note:** Generated GraphQL types are imported from `@garage/soccer-stats/graphql-codegen`, not from a local folder.
 
 **GraphQL Integration:**
 
@@ -428,7 +431,7 @@ Use these aliases when importing from shared libraries.
 
 ### Soccer Stats Shared Libraries
 
-The soccer-stats domain has two shared libraries with distinct purposes:
+The soccer-stats domain has shared libraries with distinct purposes:
 
 **`@garage/soccer-stats/graphql-codegen`** (non-buildable)
 
@@ -488,6 +491,16 @@ import { StatsTrackingLevel } from '@garage/soccer-stats/graphql-codegen';
 2. Add `index.ts` that exports the component and its props type
 3. Add export to `components/index.ts` barrel file
 4. If new types are needed, add UI-prefixed types to `types/index.ts`
+
+**`@garage/soccer-stats/utils`**
+
+- Shared utility functions for soccer-stats domain
+- Pure TypeScript utilities without framework dependencies
+
+**`@garage/soccer-stats/infra`**
+
+- Shared infrastructure utilities for Pulumi deployments
+- Used by `api-infra` and `ui-infra` projects
 
 ## Styling with Tailwind CSS
 
@@ -613,6 +626,141 @@ const GetPlayersQuery = graphql(`
 **Anti-pattern:** Smart components making their own `useQuery` calls. This creates multiple independent requests and defeats the purpose of the fragment architecture.
 
 See `.github/instructions/react-component-patterns.instructions.md` for detailed examples and rules.
+
+### Query-Then-Subscribe Pattern (Required for Real-Time Features)
+
+**All real-time features must use the Query-Then-Subscribe pattern.** This ensures efficient data loading with minimal network overhead for updates.
+
+**The Pattern:**
+
+1. **Initial Query** - Use `useQuery` to fetch the complete dataset on page load
+2. **Subscribe After Load** - Attach subscription via `subscribeToMore` on the query result
+3. **Delta Updates** - Subscription sends only changes (CREATED/UPDATED/DELETED), not full state
+4. **Cache Merge** - Subscription handler updates Apollo cache; UI re-renders automatically
+
+```typescript
+// ✅ CORRECT: Query-Then-Subscribe with subscribeToMore
+function GamePage({ gameId }: { gameId: string }) {
+  const { data, loading, subscribeToMore } = useQuery(GET_GAME_BY_ID, {
+    variables: { gameId },
+  });
+
+  // Subscribe to updates AFTER query loads, tied to query lifecycle
+  useEffect(() => {
+    if (!data) return;
+
+    const unsubscribe = subscribeToMore({
+      document: GAME_EVENT_CHANGED,
+      variables: { gameId },
+      updateQuery: (prev, { subscriptionData }) => {
+        const payload = subscriptionData.data?.gameEventChanged;
+        if (!payload) return prev;
+
+        switch (payload.action) {
+          case 'CREATED':
+            // Merge new event into cache
+            return {
+              ...prev,
+              game: {
+                ...prev.game,
+                events: [...prev.game.events, payload.event],
+              },
+            };
+          case 'DELETED':
+            // Remove event from cache
+            return {
+              ...prev,
+              game: {
+                ...prev.game,
+                events: prev.game.events.filter((e) => e.id !== payload.deletedEventId),
+              },
+            };
+          default:
+            return prev;
+        }
+      },
+    });
+
+    return () => unsubscribe();
+  }, [data, gameId, subscribeToMore]);
+
+  // ... render using data
+}
+```
+
+**Why This Pattern:**
+
+| Benefit             | Explanation                                        |
+| ------------------- | -------------------------------------------------- |
+| Single initial load | Full data fetched once via query                   |
+| Minimal bandwidth   | Subscriptions send only deltas, not full state     |
+| Automatic cleanup   | `subscribeToMore` unsubscribes when query unmounts |
+| No race conditions  | Subscription starts after data exists in cache     |
+| Cache consistency   | Updates merge into same cache entry as query       |
+
+**Backend Subscription Design:**
+
+Subscriptions must emit action-based payloads with minimal data:
+
+```typescript
+// ✅ CORRECT: Action-based delta payload
+@ObjectType()
+export class GameEventSubscriptionPayload {
+  @Field(() => GameEventAction)
+  action: GameEventAction; // CREATED | UPDATED | DELETED
+
+  @Field(() => GameEvent, { nullable: true })
+  event?: GameEvent; // The created/updated event
+
+  @Field(() => ID, { nullable: true })
+  deletedEventId?: string; // Only for DELETED action
+}
+```
+
+**Anti-patterns to Avoid:**
+
+```typescript
+// ❌ WRONG: Independent useSubscription (no query coordination)
+const { data: queryData } = useQuery(GET_GAME);
+const { data: subData } = useSubscription(GAME_EVENTS);  // Race condition risk!
+
+// ❌ WRONG: Subscription pushes full state
+subscription GameEvents($gameId: ID!) {
+  gameEvents(gameId: $gameId) {
+    # Don't send ALL events every time one changes
+    allEvents { id name ... }
+  }
+}
+
+// ❌ WRONG: Refetching query when subscription fires
+onSubscriptionData: () => {
+  refetch();  // Defeats the purpose - just use polling instead
+}
+
+// ❌ WRONG: Managing subscription data in React state
+const [events, setEvents] = useState([]);
+useSubscription(GAME_EVENTS, {
+  onData: ({ data }) => setEvents(prev => [...prev, data.event])  // Duplicates cache!
+});
+```
+
+**When to Refetch Instead of Cache Update:**
+
+Some updates affect derived/computed fields that the client can't calculate. Use selective refetch for these:
+
+```typescript
+// Stats-affecting events require server recalculation
+const STATS_AFFECTING_EVENTS = ['SUBSTITUTION_IN', 'PERIOD_START', 'PERIOD_END'];
+
+if (STATS_AFFECTING_EVENTS.includes(payload.event.eventType.name)) {
+  // Refetch specific queries that have computed fields
+  apolloClient.refetchQueries({ include: [GET_GAME_ROSTER] });
+}
+```
+
+**Current Implementation Status:**
+
+The game page (`apps/soccer-stats/ui/src/app/pages/game.page.tsx`) uses independent `useSubscription` hooks with callback-based cache updates. This works but should be refactored to use `subscribeToMore` for better lifecycle management. New real-time features must use the `subscribeToMore` pattern from the start.
 
 ## Important Notes
 

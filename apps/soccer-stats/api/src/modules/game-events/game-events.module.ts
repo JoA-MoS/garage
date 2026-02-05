@@ -13,6 +13,7 @@ import { GamesModule } from '../games/games.module';
 import { GameEventsService } from './game-events.service';
 import { GameEventsResolver } from './game-events.resolver';
 import { GameEventFieldsResolver } from './game-event-fields.resolver';
+import { LineupPlayerResolver } from './lineup-player.resolver';
 import {
   EventCoreService,
   LineupService,
@@ -26,8 +27,8 @@ import {
 @Module({
   imports: [
     TypeOrmModule.forFeature([GameEvent, EventType, GameTeam, Game, Team]),
-    AuthModule,
-    UsersModule,
+    forwardRef(() => AuthModule), // forwardRef needed due to DataLoadersModule dependency chain
+    forwardRef(() => UsersModule), // forwardRef needed due to AuthModule re-exporting UsersModule
     forwardRef(() => GamesModule), // Circular dependency with GamesModule
   ],
   providers: [
@@ -45,7 +46,8 @@ import {
     // GraphQL resolvers
     GameEventsResolver,
     GameEventFieldsResolver,
+    LineupPlayerResolver,
   ],
-  exports: [GameEventsService],
+  exports: [GameEventsService, StatsService, LineupService],
 })
 export class GameEventsModule {}

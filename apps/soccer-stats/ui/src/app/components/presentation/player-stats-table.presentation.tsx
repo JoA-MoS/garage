@@ -28,8 +28,8 @@ interface PlayerStatsTablePresentationProps {
   emptyMessage?: string;
   isLoading?: boolean;
   teamColor?: string;
+  /** Current period seconds (for calculating on-field player live time) */
   elapsedSeconds?: number;
-  queryTimeElapsedSeconds?: number;
 }
 
 // Format time as MM:SS
@@ -52,32 +52,44 @@ const getJerseyNumber = (stat: PlayerFullStats): string | null => {
   return stat.externalPlayerNumber || null;
 };
 
-// Calculate live time for on-field players
-// For on-field players, we add the time elapsed since the query was made
-// Formula: baseSeconds + (currentElapsed - queryTimeElapsed)
-const calculateDisplayTime = (
+// Calculate current stint seconds for on-field players.
+// Returns the seconds of the current stint, or 0 if not on field.
+const calculateCurrentStint = (
   stat: PlayerFullStats,
   elapsedSeconds?: number,
-  queryTimeElapsedSeconds?: number,
-): { totalSeconds: number; isLive: boolean } => {
-  const baseSeconds = stat.totalMinutes * 60 + stat.totalSeconds;
-
-  // If player is on field and we have both current and query-time elapsed seconds,
-  // calculate live time by adding the delta since the query was made
+): number => {
   if (
     stat.isOnField &&
     elapsedSeconds !== undefined &&
-    queryTimeElapsedSeconds !== undefined &&
-    elapsedSeconds > 0
+    elapsedSeconds > 0 &&
+    stat.lastEntryGameSeconds !== undefined &&
+    stat.lastEntryGameSeconds !== null
   ) {
-    // Delta = time elapsed since the stats query was made
-    const delta = Math.max(0, elapsedSeconds - queryTimeElapsedSeconds);
+    return Math.max(0, elapsedSeconds - stat.lastEntryGameSeconds);
+  }
+  return 0;
+};
 
-    // Live time = base time from query + delta since query
-    const liveSeconds = baseSeconds + delta;
+// Calculate live time for on-field players.
+//
+// Time is PERIOD-RELATIVE (each period starts at 0):
+// - Backend returns "banked" time = sum of (SUB_OUT.periodSecond - SUB_IN.periodSecond) for closed stints
+// - For on-field players, we add current stint: (elapsedPeriodSecond - lastEntryPeriodSecond)
+//
+// This correctly handles stoppage time:
+// - Period 1 might go to 1920 sec (32 min with stoppage), all captured as banked time
+// - Period 2 starts fresh at 0, player gets new SUB_IN at periodSecond=0
+// - Total play time = period1_banked + period2_banked + current_stint
+const calculateDisplayTime = (
+  stat: PlayerFullStats,
+  elapsedSeconds?: number,
+): { totalSeconds: number; isLive: boolean } => {
+  const baseSeconds = stat.totalMinutes * 60 + stat.totalSeconds;
+  const currentStint = calculateCurrentStint(stat, elapsedSeconds);
 
+  if (currentStint > 0) {
     return {
-      totalSeconds: liveSeconds,
+      totalSeconds: baseSeconds + currentStint,
       isLive: true,
     };
   }
@@ -86,6 +98,67 @@ const calculateDisplayTime = (
     totalSeconds: baseSeconds,
     isLive: false,
   };
+};
+
+// Calculate live position times for display.
+// Adds current stint to the player's current position if they're on field.
+// If the current position isn't in positionTimes yet (player just subbed in),
+// we add it as a new entry with only the live time.
+const calculateLivePositionTimes = (
+  stat: PlayerFullStats,
+  elapsedSeconds?: number,
+): Array<{
+  position: string;
+  minutes: number;
+  seconds: number;
+  isLive: boolean;
+}> => {
+  const currentStint = calculateCurrentStint(stat, elapsedSeconds);
+  const currentPosition = stat.currentPosition;
+
+  // Map existing position times, adding live time to current position if it exists
+  const result = stat.positionTimes.map((pt) => {
+    const baseSeconds = pt.minutes * 60 + pt.seconds;
+
+    // Add current stint to the current position
+    if (
+      currentStint > 0 &&
+      currentPosition &&
+      pt.position === currentPosition
+    ) {
+      const totalSeconds = baseSeconds + currentStint;
+      return {
+        position: pt.position,
+        minutes: Math.floor(totalSeconds / 60),
+        seconds: totalSeconds % 60,
+        isLive: true,
+      };
+    }
+
+    return {
+      position: pt.position,
+      minutes: pt.minutes,
+      seconds: pt.seconds,
+      isLive: false,
+    };
+  });
+
+  // If current position isn't in the list yet (player just subbed in, no banked time),
+  // add it as a new entry with only the live stint time
+  if (
+    currentStint > 0 &&
+    currentPosition &&
+    !stat.positionTimes.some((pt) => pt.position === currentPosition)
+  ) {
+    result.push({
+      position: currentPosition,
+      minutes: Math.floor(currentStint / 60),
+      seconds: currentStint % 60,
+      isLive: true,
+    });
+  }
+
+  return result;
 };
 
 export const PlayerStatsTablePresentation = ({
@@ -98,7 +171,6 @@ export const PlayerStatsTablePresentation = ({
   isLoading = false,
   teamColor,
   elapsedSeconds,
-  queryTimeElapsedSeconds,
 }: PlayerStatsTablePresentationProps) => {
   const [sortConfig, setSortConfig] = useState<SortConfig>(defaultSort);
 
@@ -120,14 +192,21 @@ export const PlayerStatsTablePresentation = ({
         case 'player':
           comparison = getPlayerName(a).localeCompare(getPlayerName(b));
           break;
-        case 'time':
+        case 'time': {
+          // Use calculateDisplayTime to include live time for on-field players
+          const aTime = calculateDisplayTime(a, elapsedSeconds).totalSeconds;
+          const bTime = calculateDisplayTime(b, elapsedSeconds).totalSeconds;
+          comparison = aTime - bTime;
+          break;
+        }
         case 'avgTime': {
+          // Average time uses banked time only (no live calculation)
           const aTime =
-            sortConfig.column === 'avgTime' && a.gamesPlayed > 0
+            a.gamesPlayed > 0
               ? (a.totalMinutes * 60 + a.totalSeconds) / a.gamesPlayed
               : a.totalMinutes * 60 + a.totalSeconds;
           const bTime =
-            sortConfig.column === 'avgTime' && b.gamesPlayed > 0
+            b.gamesPlayed > 0
               ? (b.totalMinutes * 60 + b.totalSeconds) / b.gamesPlayed
               : b.totalMinutes * 60 + b.totalSeconds;
           comparison = aTime - bTime;
@@ -149,7 +228,7 @@ export const PlayerStatsTablePresentation = ({
       return sortConfig.direction === 'asc' ? comparison : -comparison;
     });
     return sorted;
-  }, [stats, sortConfig]);
+  }, [stats, sortConfig, elapsedSeconds]);
 
   const getSortIcon = (column: ColumnKey) => {
     if (!sortable) return null;
@@ -314,7 +393,6 @@ export const PlayerStatsTablePresentation = ({
                         const { totalSeconds, isLive } = calculateDisplayTime(
                           stat,
                           elapsedSeconds,
-                          queryTimeElapsedSeconds,
                         );
                         const mins = Math.floor(totalSeconds / 60);
                         const secs = totalSeconds % 60;
@@ -340,18 +418,28 @@ export const PlayerStatsTablePresentation = ({
                   {columns.includes('positions') && (
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap gap-1">
-                        {stat.positionTimes.map((pt) => (
-                          <span
-                            key={pt.position}
-                            className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800"
-                            title={`${formatTime(pt.minutes, pt.seconds)}`}
-                          >
-                            {pt.position}
-                            <span className="ml-1 text-gray-500">
-                              {formatTime(pt.minutes, pt.seconds)}
+                        {calculateLivePositionTimes(stat, elapsedSeconds).map(
+                          (pt) => (
+                            <span
+                              key={pt.position}
+                              className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800"
+                              title={`${formatTime(pt.minutes, pt.seconds)}`}
+                            >
+                              {pt.position}
+                              <span
+                                className={`ml-1 ${pt.isLive ? 'text-green-600' : 'text-gray-500'}`}
+                              >
+                                {formatTime(pt.minutes, pt.seconds)}
+                                {pt.isLive && (
+                                  <span
+                                    className="ml-1 inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-green-500"
+                                    title="Currently playing this position"
+                                  ></span>
+                                )}
+                              </span>
                             </span>
-                          </span>
-                        ))}
+                          ),
+                        )}
                       </div>
                     </td>
                   )}
