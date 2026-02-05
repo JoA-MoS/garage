@@ -317,6 +317,7 @@ export class StatsService {
       // For live time tracking (only relevant when filtering by single gameId)
       isOnField?: boolean;
       lastEntryGameSeconds?: number;
+      currentPosition?: string;
     };
 
     const playerStatsMap: Map<string, PlayerAggregatedStats> = new Map();
@@ -490,30 +491,22 @@ export class StatsService {
         }
       }
 
-      // Close any open spans at end of game using period-specific end time
+      // For players with open spans (still on field), DON'T add live time here.
+      // Only record their lastEntryPeriodSecond so the UI can calculate live time.
+      // This ensures the stats service doesn't disagree with the lineup service
+      // about who is "on field" - the lineup service is the single source of truth.
+      //
+      // The value is PERIOD-RELATIVE (seconds into the current period when they entered).
+      // Period transitions create SUB_OUT at period end and SUB_IN at period start,
+      // so a player who played both periods will have lastEntryPeriodSecond=0 for period 2.
       for (const [playerKey, openSpan] of playerOpenSpans) {
         if (openSpan) {
           const playerStats = playerStatsMap.get(playerKey);
-          if (playerStats) {
-            // Use period-specific end time, not total game time
-            const periodEndSeconds = getPeriodEndSeconds(openSpan.period);
-            const duration = Math.max(
-              0,
-              periodEndSeconds - openSpan.startSeconds,
-            );
-            playerStats.totalSeconds += duration;
-            const currentPositionTime =
-              playerStats.positionSecondsMap.get(openSpan.position) || 0;
-            playerStats.positionSecondsMap.set(
-              openSpan.position,
-              currentPositionTime + duration,
-            );
-            // Track that this player is still on field (for single-game stats)
-            // Only meaningful when filtering by a single gameId
-            if (input.gameId) {
-              playerStats.isOnField = true;
-              playerStats.lastEntryGameSeconds = openSpan.startSeconds;
-            }
+          if (playerStats && input.gameId) {
+            // Record when they entered (period-relative seconds) and their current position
+            // UI calculates: bankedTime + (currentPeriodSecond - lastEntryPeriodSecond) + ticks
+            playerStats.lastEntryGameSeconds = openSpan.startSeconds;
+            playerStats.currentPosition = openSpan.position;
           }
         }
       }
@@ -551,8 +544,9 @@ export class StatsService {
         goals: playerStats.goals,
         assists: playerStats.assists,
         gamesPlayed: playerStats.gamesPlayed.size,
-        isOnField: playerStats.isOnField,
+        isOnField: playerStats.isOnField ?? false, // Explicitly false if not set
         lastEntryGameSeconds: playerStats.lastEntryGameSeconds,
+        currentPosition: playerStats.currentPosition,
       });
     }
 
@@ -565,5 +559,26 @@ export class StatsService {
     );
 
     return results;
+  }
+
+  /**
+   * Get player stats by gameTeamId.
+   * Convenience method that looks up teamId/gameId from the GameTeam.
+   */
+  async getPlayerStatsByGameTeamId(
+    gameTeamId: string,
+  ): Promise<PlayerFullStats[]> {
+    const gameTeam = await this.gameTeamsRepository.findOne({
+      where: { id: gameTeamId },
+    });
+
+    if (!gameTeam) {
+      throw new NotFoundException(`GameTeam ${gameTeamId} not found`);
+    }
+
+    return this.getPlayerStats({
+      teamId: gameTeam.teamId,
+      gameId: gameTeam.gameId,
+    });
   }
 }

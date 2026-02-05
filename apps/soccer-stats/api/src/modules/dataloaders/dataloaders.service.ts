@@ -14,8 +14,24 @@ import { TeamMember } from '../../entities/team-member.entity';
 import { TeamMemberRole } from '../../entities/team-member-role.entity';
 import { GameTimingService, GameTiming } from '../games/game-timing.service';
 import { ObservabilityService } from '../observability/observability.service';
+import { LineupService } from '../game-events/services/lineup.service';
+import { StatsService } from '../game-events/services/stats.service';
+import { GameLineup } from '../game-events/dto/game-lineup.output';
+import { PlayerFullStats } from '../game-events/dto/player-full-stats.output';
 
 import { createInstrumentedDataLoader } from './instrumented-dataloader';
+
+/**
+ * Period timing info returned by getPeriodTimingInfo.
+ * Used for time sync fields on Game type.
+ */
+export interface PeriodTimingInfo {
+  period1DurationSeconds: number;
+  period2DurationSeconds: number;
+  currentPeriod?: string;
+  currentPeriodSeconds: number;
+  serverTimestamp: number;
+}
 
 /**
  * Interface for all DataLoaders available in GraphQL context.
@@ -33,6 +49,14 @@ export interface IDataLoaders {
   gameEventsByGameTeamLoader: DataLoader<string, GameEvent[]>;
   childEventsByParentIdLoader: DataLoader<string, GameEvent[]>;
   gameTimingLoader: DataLoader<string, GameTiming>;
+
+  // Game lineup and stats loaders
+  /** Loads game lineup (roster, starters, bench, on-field) by gameTeamId */
+  lineupByGameTeamLoader: DataLoader<string, GameLineup>;
+  /** Loads player stats for a game team by gameTeamId */
+  playerStatsByGameTeamLoader: DataLoader<string, PlayerFullStats[]>;
+  /** Loads period timing info by composite key "gameId:durationMinutes" */
+  periodTimingInfoLoader: DataLoader<string, PeriodTimingInfo>;
 
   // Reference data loaders
   eventTypeLoader: DataLoader<string, EventType>;
@@ -77,6 +101,8 @@ export class DataLoadersService {
     @InjectRepository(TeamMemberRole)
     private readonly teamMemberRoleRepository: Repository<TeamMemberRole>,
     private readonly gameTimingService: GameTimingService,
+    private readonly lineupService: LineupService,
+    private readonly statsService: StatsService,
     @Optional()
     private readonly observabilityService?: ObservabilityService,
   ) {}
@@ -115,6 +141,11 @@ export class DataLoadersService {
       gameEventsByGameTeamLoader: this.createGameEventsByGameTeamLoader(),
       childEventsByParentIdLoader: this.createChildEventsByParentIdLoader(),
       gameTimingLoader: this.createGameTimingLoader(),
+
+      // Game lineup and stats loaders
+      lineupByGameTeamLoader: this.createLineupByGameTeamLoader(),
+      playerStatsByGameTeamLoader: this.createPlayerStatsByGameTeamLoader(),
+      periodTimingInfoLoader: this.createPeriodTimingInfoLoader(),
 
       // Reference data loaders
       eventTypeLoader: this.createEventTypeLoader(),
@@ -392,6 +423,113 @@ export class DataLoadersService {
 
         // Return timing for each game, defaulting to empty object if not found
         return gameIds.map((id) => timingMap.get(id) || {});
+      },
+    );
+  }
+
+  // ============================================================
+  // Game Lineup and Stats DataLoaders
+  // ============================================================
+
+  /**
+   * Batch loads game lineups by gameTeamId.
+   * Each lineup includes game roster, starters, bench, and current on-field players.
+   *
+   * Note: This loader provides request-scoped memoization. Multiple calls with
+   * the same gameTeamId will return the cached result from the first call.
+   */
+  private createLineupByGameTeamLoader(): DataLoader<string, GameLineup> {
+    return this.createLoader<string, GameLineup>(
+      'lineupByGameTeamLoader',
+      async (gameTeamIds) => {
+        // Load lineups in parallel
+        const results = await Promise.allSettled(
+          gameTeamIds.map((id) => this.lineupService.getGameLineup(id)),
+        );
+
+        return results.map((result, idx) => {
+          if (result.status === 'fulfilled') {
+            return result.value;
+          }
+          return new Error(
+            `Failed to load lineup for gameTeam ${gameTeamIds[idx]}: ${result.reason}`,
+          );
+        });
+      },
+    );
+  }
+
+  /**
+   * Batch loads player stats by gameTeamId.
+   * Returns full player statistics including playing time, goals, and assists.
+   *
+   * Note: This loader provides request-scoped memoization. Multiple calls with
+   * the same gameTeamId will return the cached result from the first call.
+   */
+  private createPlayerStatsByGameTeamLoader(): DataLoader<
+    string,
+    PlayerFullStats[]
+  > {
+    return this.createLoader<string, PlayerFullStats[]>(
+      'playerStatsByGameTeamLoader',
+      async (gameTeamIds) => {
+        // Load stats in parallel
+        const results = await Promise.allSettled(
+          gameTeamIds.map((id) =>
+            this.statsService.getPlayerStatsByGameTeamId(id),
+          ),
+        );
+
+        return results.map((result, idx) => {
+          if (result.status === 'fulfilled') {
+            return result.value;
+          }
+          // Return empty array on error instead of throwing
+          // This allows partial success when some teams have issues
+          return [];
+        });
+      },
+    );
+  }
+
+  /**
+   * Batch loads period timing info by composite key "gameId:durationMinutes".
+   *
+   * This loader is used by the three timing field resolvers (currentPeriod,
+   * currentPeriodSecond, serverTimestamp) to share a single service call
+   * when all three fields are queried together.
+   */
+  private createPeriodTimingInfoLoader(): DataLoader<string, PeriodTimingInfo> {
+    return this.createLoader<string, PeriodTimingInfo>(
+      'periodTimingInfoLoader',
+      async (keys) => {
+        // Parse composite keys and load timing info in parallel
+        const results = await Promise.allSettled(
+          keys.map((key) => {
+            const [gameId, durationStr] = key.split(':');
+            const durationMinutes = durationStr
+              ? parseInt(durationStr, 10)
+              : 60;
+            return this.gameTimingService.getPeriodTimingInfo(
+              gameId,
+              durationMinutes,
+            );
+          }),
+        );
+
+        return results.map((result, idx) => {
+          if (result.status === 'fulfilled') {
+            return result.value;
+          }
+          // Return default timing info on error
+          return {
+            period1DurationSeconds: 0,
+            period2DurationSeconds: 0,
+            currentPeriod: undefined,
+            currentPeriodSeconds: 0,
+            serverTimestamp: Date.now(),
+          };
+        });
       },
     );
   }
