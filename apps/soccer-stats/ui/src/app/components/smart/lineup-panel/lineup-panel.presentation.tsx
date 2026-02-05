@@ -256,6 +256,8 @@ export const LineupPanelPresentation = ({
   executionProgress,
   error,
   filledPositions,
+  availableFormations,
+  onFormationChange,
 }: LineupPanelPresentationProps) => {
   const filledCount = filledPositions.size;
   const totalPositions = playersPerTeam;
@@ -316,26 +318,44 @@ export const LineupPanelPresentation = ({
       </button>
 
       {/* Header */}
-      <div
-        className="flex cursor-pointer items-center justify-between border-b border-gray-100 px-4 pb-3 pt-1"
-        onClick={() =>
-          onPanelStateChange(isExpanded ? 'bench-view' : 'expanded')
-        }
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) =>
-          e.key === 'Enter' &&
-          onPanelStateChange(isExpanded ? 'bench-view' : 'expanded')
-        }
-      >
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between border-b border-gray-100 px-4 pb-3 pt-1">
+        <div
+          className="flex cursor-pointer items-center gap-2"
+          onClick={() =>
+            onPanelStateChange(isExpanded ? 'bench-view' : 'expanded')
+          }
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) =>
+            e.key === 'Enter' &&
+            onPanelStateChange(isExpanded ? 'bench-view' : 'expanded')
+          }
+        >
           <div
             className="h-3 w-3 rounded-full"
             style={{ backgroundColor: teamColor }}
           />
           <span className="font-medium text-gray-900">{teamName}</span>
+        </div>
+
+        {/* Formation selector */}
+        <div className="flex items-center gap-2">
+          <select
+            value={formation || ''}
+            onChange={(e) => onFormationChange(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            disabled={isExecuting}
+          >
+            <option value="">No formation</option>
+            {availableFormations.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
           <span className="text-sm text-gray-500">
-            {formation || 'No formation'} • {filledCount}/{totalPositions}
+            {filledCount}/{totalPositions}
           </span>
         </div>
       </div>
