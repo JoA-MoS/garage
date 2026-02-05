@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 
 import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 
-import { RosterPlayer as TeamRosterPlayer } from '../../../hooks/use-lineup';
+import { useLineup, RosterPlayer as TeamRosterPlayer } from '../../../hooks/use-lineup';
 import { getFormationsForTeamSize } from '../../../utils/formations';
 import { LineupPanelPresentation } from './lineup-panel.presentation';
 import {
@@ -64,6 +64,14 @@ export const LineupPanel = ({
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionProgress, setExecutionProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  // Use lineup hook for mutations
+  const {
+    addPlayerToGameRoster,
+    updatePosition,
+    removeFromLineup,
+    refetchRoster,
+  } = useLineup({ gameTeamId, gameId });
 
   // Get available formations for team size
   const availableFormations = useMemo(
@@ -306,11 +314,68 @@ export const LineupPanel = ({
     setQueue([]);
   }, []);
 
-  // Confirm all (placeholder - full implementation in later task)
+  // Confirm all queued changes
   const handleConfirmAll = useCallback(async () => {
-    // TODO: Implement in Task 7
-    console.log('Confirm all:', queue);
-  }, [queue]);
+    if (queue.length === 0) {
+      console.warn('[LineupPanel] handleConfirmAll called with empty queue');
+      return;
+    }
+
+    setIsExecuting(true);
+    setExecutionProgress(0);
+    setError(null);
+
+    try {
+      // Process queue items sequentially to avoid race conditions
+      for (let i = 0; i < queue.length; i++) {
+        const item = queue[i];
+        setExecutionProgress(i);
+
+        if (item.type === 'assignment') {
+          // For roster players, we need to use their oduserId as playerId
+          const playerId = 'oduserId' in item.player ? item.player.oduserId : item.player.playerId;
+          const externalPlayerName = 'externalPlayerName' in item.player ? item.player.externalPlayerName : undefined;
+          const externalPlayerNumber = 'externalPlayerNumber' in item.player ? item.player.externalPlayerNumber : undefined;
+
+          await addPlayerToGameRoster({
+            playerId: playerId || undefined,
+            externalPlayerName: externalPlayerName || undefined,
+            externalPlayerNumber: externalPlayerNumber || undefined,
+            position: item.position,
+          });
+        } else if (item.type === 'position-change') {
+          await updatePosition(item.player.gameEventId, item.toPosition);
+        } else if (item.type === 'removal') {
+          await removeFromLineup(item.player.gameEventId);
+        }
+      }
+
+      setExecutionProgress(queue.length);
+      setQueue([]);
+
+      // Refetch roster to get updated state
+      await refetchRoster();
+
+      // Close panel
+      setPanelState('collapsed');
+
+      // Notify parent
+      onLineupComplete?.();
+    } catch (err) {
+      console.error('[LineupPanel] Failed to execute lineup changes:', err);
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(message);
+    } finally {
+      setIsExecuting(false);
+    }
+  }, [
+    queue,
+    addPlayerToGameRoster,
+    updatePosition,
+    removeFromLineup,
+    refetchRoster,
+    onLineupComplete,
+  ]);
 
   // Keep same lineup (halftime shortcut)
   const handleKeepSameLineup = useCallback(async () => {
