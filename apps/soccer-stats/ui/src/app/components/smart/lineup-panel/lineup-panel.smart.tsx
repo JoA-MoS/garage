@@ -5,6 +5,7 @@ import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-co
 import { useLineup, RosterPlayer as TeamRosterPlayer } from '../../../hooks/use-lineup';
 import { calculatePlayTime } from '../../../hooks/use-play-time';
 import { getFormationsForTeamSize } from '../../../utils/formations';
+
 import { LineupPanelPresentation } from './lineup-panel.presentation';
 import {
   LineupPanelSmartProps,

@@ -43,6 +43,7 @@ import { GameLineupTab } from '../components/smart/game-lineup-tab.smart';
 import { GoalModal, EditGoalData } from '../components/smart/goal-modal.smart';
 import { ManualGoalModal } from '../components/smart/manual-goal-modal.smart';
 import { SubstitutionPanel } from '../components/smart/substitution-panel';
+import { LineupPanel } from '../components/smart/lineup-panel';
 import { GameStats } from '../components/smart/game-stats.smart';
 import { GameSummaryPresentation } from '../components/presentation/game-summary.presentation';
 import { useGameEventSubscription } from '../hooks/use-game-event-subscription';
@@ -162,6 +163,17 @@ export const GamePage = () => {
 
   // Selected field player ID from substitution panel - used to show selection indicator
   const [selectedFieldPlayerId, setSelectedFieldPlayerId] = useState<
+    string | null
+  >(null);
+
+  // Lineup panel state
+  const [selectedPositionForLineup, setSelectedPositionForLineup] = useState<
+    string | null
+  >(null);
+  const [lineupQueuedPositions, setLineupQueuedPositions] = useState<
+    Set<string>
+  >(new Set());
+  const [lineupSelectedPosition, setLineupSelectedPosition] = useState<
     string | null
   >(null);
 
@@ -1297,6 +1309,11 @@ export const GamePage = () => {
     game.status === GameStatus.SecondHalf ||
     game.status === GameStatus.InProgress;
 
+  // Check if game is in lineup setup phase (lineup panel should show)
+  const isLineupSetupPhase =
+    game.status === GameStatus.Scheduled ||
+    game.status === GameStatus.Halftime;
+
   // Get current game time in minutes and seconds for goal recording
   // During HALFTIME, use the end-of-first-half time (half of total duration)
   const halftimeDurationMinutes = Math.floor(
@@ -2279,6 +2296,69 @@ export const GamePage = () => {
             statsTrackingLevel: getEffectiveTrackingLevel('away'),
           }}
           onClose={() => setShowManualGoalModal(false)}
+        />
+      )}
+
+      {/* Lineup Panel - shown during SCHEDULED and HALFTIME */}
+      {isLineupSetupPhase && homeTeam && awayTeam && (
+        <LineupPanel
+          gameId={gameId!}
+          gameTeamId={activeTeam === 'home' ? homeTeam.id : awayTeam.id}
+          gameStatus={
+            game.status === GameStatus.Scheduled ? 'SCHEDULED' : 'HALFTIME'
+          }
+          teamName={
+            activeTeam === 'home' ? homeTeam.team.name : awayTeam.team.name
+          }
+          teamColor={
+            activeTeam === 'home'
+              ? homeTeam.team.homePrimaryColor || '#3B82F6'
+              : awayTeam.team.homePrimaryColor || '#EF4444'
+          }
+          playersPerTeam={game?.format?.playersPerTeam || 5}
+          formation={
+            (activeTeam === 'home' ? homeTeam.formation : awayTeam.formation) ??
+            null
+          }
+          onField={activeTeam === 'home' ? homeOnField : awayOnField}
+          bench={activeTeam === 'home' ? homeBench : awayBench}
+          availableRoster={[]}
+          firstHalfLineup={
+            game.status === GameStatus.Halftime
+              ? activeTeam === 'home'
+                ? homeOnField
+                : awayOnField
+              : undefined
+          }
+          gameEvents={
+            (activeTeam === 'home' ? homeTeam.events : awayTeam.events)?.map(
+              (e) => ({
+                id: e.id,
+                playerId: e.playerId,
+                externalPlayerName: e.externalPlayerName,
+                eventType: e.eventType,
+                period: e.period ?? '1',
+                periodSecond: e.periodSecond,
+                childEvents: e.childEvents?.map((ce) => ({
+                  playerId: ce.playerId,
+                  externalPlayerName: ce.externalPlayerName,
+                  eventType: ce.eventType,
+                })),
+              })
+            ) ?? []
+          }
+          onFormationChange={(formation) => {
+            updateGameTeam({
+              variables: {
+                gameTeamId: activeTeam === 'home' ? homeTeam.id : awayTeam.id,
+                updateGameTeamInput: { formation },
+              },
+            });
+          }}
+          externalPositionSelection={selectedPositionForLineup}
+          onExternalPositionHandled={() => setSelectedPositionForLineup(null)}
+          onQueuedPositionsChange={setLineupQueuedPositions}
+          onSelectedPositionChange={setLineupSelectedPosition}
         />
       )}
 
