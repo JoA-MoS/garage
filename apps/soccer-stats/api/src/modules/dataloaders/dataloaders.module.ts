@@ -11,6 +11,7 @@ import { User } from '../../entities/user.entity';
 import { TeamMember } from '../../entities/team-member.entity';
 import { TeamMemberRole } from '../../entities/team-member-role.entity';
 import { GamesModule } from '../games/games.module';
+import { GameEventsModule } from '../game-events/game-events.module';
 
 import { DataLoadersService } from './dataloaders.service';
 
@@ -37,6 +38,7 @@ import { DataLoadersService } from './dataloaders.service';
       TeamMemberRole,
     ]),
     forwardRef(() => GamesModule), // For GameTimingService
+    forwardRef(() => GameEventsModule), // For LineupService and StatsService
   ],
   providers: [DataLoadersService],
   exports: [DataLoadersService],

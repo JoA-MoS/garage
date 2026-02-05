@@ -45,6 +45,9 @@ export class PlayerFullStats {
   @Field(() => Int, { nullable: true })
   lastEntryGameSeconds?: number;
 
+  @Field({ nullable: true })
+  currentPosition?: string;
+
   // Future extensibility (nullable)
   @Field(() => Int, { nullable: true })
   yellowCards?: number;

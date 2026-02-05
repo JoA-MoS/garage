@@ -1,31 +1,37 @@
-import { Resolver, ResolveField, Parent } from '@nestjs/graphql';
+import { Resolver, ResolveField, Parent, Context } from '@nestjs/graphql';
+
+import { GraphQLContext } from '../dataloaders';
 
 import { LineupPlayer } from './dto/game-lineup.output';
 import { PlayerGameStats } from './dto/player-game-stats.output';
-import { StatsService } from './services/stats.service';
 
 /**
  * Resolver for LineupPlayer field-level data loading.
  * Provides optional stats field that's only computed when queried.
+ *
+ * Uses DataLoader for batched stats fetching - multiple players from the same
+ * team share a single service call via request-scoped memoization.
  */
 @Resolver(() => LineupPlayer)
 export class LineupPlayerResolver {
-  constructor(private readonly statsService: StatsService) {}
-
   /**
    * Resolves stats for a specific player in a game.
    * Only computed when the stats field is explicitly queried.
    *
-   * Note: This currently fetches all player stats and filters.
-   * Could be optimized with a DataLoader if N+1 becomes an issue.
+   * Uses playerStatsByGameTeamLoader DataLoader for request-scoped caching:
+   * - Multiple players from the same team share a single getPlayerStatsByGameTeamId call
+   * - Stats are loaded once per gameTeamId, then filtered for each player
    */
   @ResolveField(() => PlayerGameStats, {
     nullable: true,
     description: 'Player statistics for this game (only fetched when queried)',
   })
-  async stats(@Parent() player: LineupPlayer): Promise<PlayerGameStats | null> {
-    // Get all player stats for this game team
-    const allStats = await this.statsService.getPlayerStatsByGameTeamId(
+  async stats(
+    @Parent() player: LineupPlayer,
+    @Context() ctx: GraphQLContext,
+  ): Promise<PlayerGameStats | null> {
+    // Get all player stats for this game team (batched via DataLoader)
+    const allStats = await ctx.loaders.playerStatsByGameTeamLoader.load(
       player.gameTeamId,
     );
 
@@ -55,6 +61,7 @@ export class LineupPlayerResolver {
       goals: playerStats.goals,
       assists: playerStats.assists,
       lastEntryPeriodSecond: playerStats.lastEntryGameSeconds,
+      currentPosition: playerStats.currentPosition,
     };
   }
 }

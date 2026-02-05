@@ -8,7 +8,6 @@ import { GraphQLContext } from '../dataloaders';
 import { PlayerFullStats } from '../game-events/dto/player-full-stats.output';
 import { LineupPlayer } from '../game-events/dto/game-lineup.output';
 import { StatsService } from '../game-events/services/stats.service';
-import { LineupService } from '../game-events/services/lineup.service';
 
 /**
  * Resolver for GameTeam entity field-level data loading.
@@ -18,10 +17,7 @@ import { LineupService } from '../game-events/services/lineup.service';
  */
 @Resolver(() => GameTeam)
 export class GameTeamResolver {
-  constructor(
-    private readonly statsService: StatsService,
-    private readonly lineupService: LineupService,
-  ) {}
+  constructor(private readonly statsService: StatsService) {}
 
   /**
    * Resolves the 'game' field on GameTeam.
@@ -106,12 +102,21 @@ export class GameTeamResolver {
    * Resolves players in the game roster for this team.
    * Each player has an optional stats field for detailed statistics.
    * Merges on-field status from currentOnField into gameRoster.
+   *
+   * Uses lineupByGameTeamLoader DataLoader for request-scoped caching:
+   * - Multiple teams in the same request share batched lineup fetching
+   * - Each gameTeamId is only looked up once per GraphQL request
    */
   @ResolveField(() => [LineupPlayer], {
     description: 'Players in the game roster for this team',
   })
-  async players(@Parent() gameTeam: GameTeam): Promise<LineupPlayer[]> {
-    const lineup = await this.lineupService.getGameLineup(gameTeam.id);
+  async players(
+    @Parent() gameTeam: GameTeam,
+    @Context() context: GraphQLContext,
+  ): Promise<LineupPlayer[]> {
+    const lineup = await context.loaders.lineupByGameTeamLoader.load(
+      gameTeam.id,
+    );
 
     // Build a set of on-field player keys
     const onFieldKeys = new Set<string>();

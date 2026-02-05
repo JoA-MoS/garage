@@ -23,4 +23,7 @@ export class PlayerGameStats {
 
   @Field(() => Int, { nullable: true })
   lastEntryPeriodSecond?: number;
+
+  @Field({ nullable: true })
+  currentPosition?: string;
 }

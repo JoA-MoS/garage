@@ -317,6 +317,7 @@ export class StatsService {
       // For live time tracking (only relevant when filtering by single gameId)
       isOnField?: boolean;
       lastEntryGameSeconds?: number;
+      currentPosition?: string;
     };
 
     const playerStatsMap: Map<string, PlayerAggregatedStats> = new Map();
@@ -502,9 +503,10 @@ export class StatsService {
         if (openSpan) {
           const playerStats = playerStatsMap.get(playerKey);
           if (playerStats && input.gameId) {
-            // Record when they entered (period-relative seconds)
+            // Record when they entered (period-relative seconds) and their current position
             // UI calculates: bankedTime + (currentPeriodSecond - lastEntryPeriodSecond) + ticks
             playerStats.lastEntryGameSeconds = openSpan.startSeconds;
+            playerStats.currentPosition = openSpan.position;
           }
         }
       }
@@ -544,6 +546,7 @@ export class StatsService {
         gamesPlayed: playerStats.gamesPlayed.size,
         isOnField: playerStats.isOnField ?? false, // Explicitly false if not set
         lastEntryGameSeconds: playerStats.lastEntryGameSeconds,
+        currentPosition: playerStats.currentPosition,
       });
     }
 
