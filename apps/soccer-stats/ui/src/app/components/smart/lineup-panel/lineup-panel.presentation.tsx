@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 
 import { RosterPlayer as TeamRosterPlayer } from '../../../hooks/use-lineup';
@@ -12,14 +14,17 @@ import {
  * Get player ID for matching
  */
 const getPlayerId = (player: GqlRosterPlayer | TeamRosterPlayer) => {
-  if ('playerId' in player) return player.playerId || player.externalPlayerName || '';
+  if ('playerId' in player)
+    return player.playerId || player.externalPlayerName || '';
   return player.oduserId;
 };
 
 /**
  * Get display name for a player
  */
-function getPlayerDisplayName(player: GqlRosterPlayer | TeamRosterPlayer): string {
+function getPlayerDisplayName(
+  player: GqlRosterPlayer | TeamRosterPlayer,
+): string {
   if ('playerName' in player && player.playerName) return player.playerName;
   if ('firstName' in player || 'lastName' in player) {
     const first = 'firstName' in player ? player.firstName : '';
@@ -35,8 +40,11 @@ function getPlayerDisplayName(player: GqlRosterPlayer | TeamRosterPlayer): strin
 /**
  * Get jersey number
  */
-function getJerseyNumber(player: GqlRosterPlayer | TeamRosterPlayer): string | null {
-  if ('externalPlayerNumber' in player) return player.externalPlayerNumber || null;
+function getJerseyNumber(
+  player: GqlRosterPlayer | TeamRosterPlayer,
+): string | null {
+  if ('externalPlayerNumber' in player)
+    return player.externalPlayerNumber || null;
   if ('jerseyNumber' in player) return player.jerseyNumber || null;
   return null;
 }
@@ -65,6 +73,12 @@ function QueuedItemRow({
         return (
           <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-purple-100 text-xs font-medium text-purple-600">
             P
+          </span>
+        );
+      case 'swap':
+        return (
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-amber-100 text-xs font-medium text-amber-600">
+            S
           </span>
         );
       case 'removal':
@@ -97,7 +111,21 @@ function QueuedItemRow({
             <span className="text-gray-400">: </span>
             <span className="text-gray-500">{item.fromPosition}</span>
             <span className="text-purple-500"> → </span>
-            <span className="font-medium text-purple-600">{item.toPosition}</span>
+            <span className="font-medium text-purple-600">
+              {item.toPosition}
+            </span>
+          </>
+        );
+      case 'swap':
+        return (
+          <>
+            <span className="text-gray-900">
+              {getPlayerDisplayName(item.player1)}
+            </span>
+            <span className="text-amber-500"> ⇄ </span>
+            <span className="text-gray-900">
+              {getPlayerDisplayName(item.player2)}
+            </span>
           </>
         );
       case 'removal':
@@ -145,9 +173,10 @@ function QueuedItemRow({
 }
 
 /**
- * Section component for a group of players
+ * Collapsible player section - used for both Bench and Team Roster.
+ * Shows a count header with chevron; expands to show player grid.
  */
-function PlayerSection({
+function CollapsiblePlayerSection({
   title,
   players,
   source,
@@ -155,7 +184,9 @@ function PlayerSection({
   onPlayerClick,
   playTimeByPlayer,
   isExecuting,
+  defaultExpanded,
   emptyMessage,
+  actionButton,
 }: {
   title: string;
   players: (GqlRosterPlayer | TeamRosterPlayer)[];
@@ -163,22 +194,67 @@ function PlayerSection({
   selection: LineupSelection;
   onPlayerClick: (
     player: GqlRosterPlayer | TeamRosterPlayer,
-    source: 'onField' | 'bench' | 'roster'
+    source: 'onField' | 'bench' | 'roster',
   ) => void;
   playTimeByPlayer?: Map<string, { minutes: number; isOnField: boolean }>;
   isExecuting: boolean;
+  defaultExpanded: boolean;
   emptyMessage?: string;
+  /** Optional action button shown in place of the toggle header */
+  actionButton?: { label: string; onClick: () => void };
 }) {
-  if (players.length === 0 && !emptyMessage) return null;
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+
+  if (players.length === 0 && !emptyMessage && !actionButton) return null;
 
   return (
     <div className="mb-4">
-      <div className="mb-2 text-xs font-medium uppercase text-gray-500">
-        {title} ({players.length})
+      {/* Header - always visible */}
+      <div className="mb-2 flex items-center gap-2">
+        {actionButton ? (
+          <button
+            type="button"
+            onClick={actionButton.onClick}
+            disabled={isExecuting}
+            className="flex flex-1 items-center justify-between rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 px-3 py-2 text-left transition-colors hover:border-blue-400 hover:bg-blue-100 disabled:opacity-50"
+          >
+            <span className="text-xs font-medium uppercase text-blue-600">
+              {title} ({players.length})
+            </span>
+            <span className="text-xs text-blue-500">{actionButton.label}</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsExpanded(!isExpanded)}
+            disabled={isExecuting}
+            className="flex flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-left transition-colors hover:bg-gray-100 disabled:opacity-50"
+          >
+            <span className="text-xs font-medium uppercase text-gray-500">
+              {title} ({players.length})
+            </span>
+            <svg
+              className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+        )}
       </div>
-      {players.length === 0 ? (
+
+      {/* Expanded content */}
+      {isExpanded && players.length === 0 && emptyMessage && (
         <p className="text-sm italic text-gray-400">{emptyMessage}</p>
-      ) : (
+      )}
+      {isExpanded && players.length > 0 && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {players.map((player) => {
             const id = getPlayerId(player);
@@ -186,7 +262,6 @@ function PlayerSection({
             const isSelected =
               selection.player && getPlayerId(selection.player) === id;
             const jerseyNumber = getJerseyNumber(player);
-            const position = 'position' in player ? player.position : null;
 
             return (
               <button
@@ -197,9 +272,7 @@ function PlayerSection({
                 className={`flex flex-col items-start rounded-lg border p-2 text-left transition-colors disabled:opacity-50 ${
                   isSelected
                     ? 'border-blue-500 bg-blue-50'
-                    : source === 'onField'
-                      ? 'border-green-200 bg-green-50 hover:border-green-300'
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -216,12 +289,11 @@ function PlayerSection({
                     {getPlayerDisplayName(player)}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  {position && <span className="font-medium">{position}</span>}
-                  {playTime !== undefined && (
-                    <span>{playTime.minutes} min</span>
-                  )}
-                </div>
+                {playTime !== undefined && (
+                  <span className="text-xs text-gray-500">
+                    {playTime.minutes} min
+                  </span>
+                )}
               </button>
             );
           })}
@@ -240,7 +312,6 @@ export const LineupPanelPresentation = ({
   gameStatus,
   teamName,
   teamColor,
-  formation,
   playersPerTeam,
   onFieldPlayers,
   benchPlayers,
@@ -254,14 +325,13 @@ export const LineupPanelPresentation = ({
   onConfirmAll,
   onClearQueue,
   onKeepSameLineup,
+  onAddToBench,
   isExecuting,
   executionProgress,
   error,
   filledPositions,
-  availableFormations,
-  onFormationChange,
+  filledCount,
 }: LineupPanelPresentationProps) => {
-  const filledCount = filledPositions.size;
   const totalPositions = playersPerTeam;
   const statusLabel =
     gameStatus === 'SCHEDULED' ? 'Starting Lineup' : 'Second Half Lineup';
@@ -340,26 +410,9 @@ export const LineupPanelPresentation = ({
           <span className="font-medium text-gray-900">{teamName}</span>
         </div>
 
-        {/* Formation selector */}
-        <div className="flex items-center gap-2">
-          <select
-            value={formation || ''}
-            onChange={(e) => onFormationChange(e.target.value)}
-            onClick={(e) => e.stopPropagation()}
-            className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            disabled={isExecuting}
-          >
-            <option value="">No formation</option>
-            {availableFormations.map((f) => (
-              <option key={f} value={f}>
-                {f}
-              </option>
-            ))}
-          </select>
-          <span className="text-sm text-gray-500">
-            {filledCount}/{totalPositions}
-          </span>
-        </div>
+        <span className="text-sm text-gray-500">
+          {filledCount}/{totalPositions}
+        </span>
       </div>
 
       {/* Content area */}
@@ -391,7 +444,10 @@ export const LineupPanelPresentation = ({
                   <span className="font-medium text-blue-600">
                     {getPlayerDisplayName(selection.player)}
                   </span>
-                  <span className="text-gray-500"> — tap position on field</span>
+                  <span className="text-gray-500">
+                    {' '}
+                    — tap position on field
+                  </span>
                 </span>
                 <button
                   type="button"
@@ -436,19 +492,7 @@ export const LineupPanelPresentation = ({
 
         {/* Player sections */}
         <div className="px-4 py-3">
-          {onFieldPlayers.length > 0 && (
-            <PlayerSection
-              title="On Field"
-              players={onFieldPlayers}
-              source="onField"
-              selection={selection}
-              onPlayerClick={onPlayerClick}
-              playTimeByPlayer={playTimeByPlayer}
-              isExecuting={isExecuting}
-            />
-          )}
-
-          <PlayerSection
+          <CollapsiblePlayerSection
             title="Bench"
             players={benchPlayers}
             source="bench"
@@ -456,16 +500,30 @@ export const LineupPanelPresentation = ({
             onPlayerClick={onPlayerClick}
             playTimeByPlayer={playTimeByPlayer}
             isExecuting={isExecuting}
-            emptyMessage="No players on bench"
+            defaultExpanded={gameStatus === 'HALFTIME'}
+            actionButton={
+              selection.direction === 'player-first' &&
+              selection.player !== null &&
+              selection.playerSource !== 'bench'
+                ? {
+                    label:
+                      selection.playerSource === 'onField'
+                        ? 'Move to bench'
+                        : 'Add to bench',
+                    onClick: onAddToBench,
+                  }
+                : undefined
+            }
           />
 
-          <PlayerSection
-            title="Available from Roster"
+          <CollapsiblePlayerSection
+            title="Team Roster"
             players={availableRoster}
             source="roster"
             selection={selection}
             onPlayerClick={onPlayerClick}
             isExecuting={isExecuting}
+            defaultExpanded={gameStatus === 'SCHEDULED'}
             emptyMessage="All roster players assigned"
           />
         </div>
@@ -516,8 +574,8 @@ export const LineupPanelPresentation = ({
           {queue.length === 0 &&
             !(gameStatus === 'HALFTIME' && onKeepSameLineup) && (
               <div className="text-center text-sm text-gray-500">
-                {filledPositions.size < playersPerTeam
-                  ? `${playersPerTeam - filledPositions.size} positions remaining`
+                {filledCount < playersPerTeam
+                  ? `${playersPerTeam - filledCount} positions remaining`
                   : 'Lineup complete'}
               </div>
             )}

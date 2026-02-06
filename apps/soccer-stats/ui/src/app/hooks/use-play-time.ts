@@ -75,10 +75,13 @@ export function calculatePlayTime(
       event.periodSecond,
       periodLengthSeconds,
     );
+    const eventName = event.eventType.name;
 
-    // Check if this player started
+    // --- Player entered the field ---
+
+    // Case 1: Direct SUBSTITUTION_IN (mid-game sub - player is the main event)
     if (
-      event.eventType.category === 'STARTER' &&
+      eventName === 'SUBSTITUTION_IN' &&
       (event.playerId === playerId || event.externalPlayerName === playerId)
     ) {
       stints.push({ onTime: eventTime, offTime: null });
@@ -86,25 +89,59 @@ export function calculatePlayTime(
       continue;
     }
 
-    // Check if this player came on as a substitute
+    // Case 2: SUBSTITUTION_IN as child of PERIOD_START (player enters at period start)
+    if (eventName === 'PERIOD_START' && event.childEvents) {
+      const subIn = event.childEvents.find(
+        (ce) =>
+          ce.eventType.name === 'SUBSTITUTION_IN' &&
+          (ce.playerId === playerId || ce.externalPlayerName === playerId),
+      );
+      if (subIn) {
+        stints.push({ onTime: eventTime, offTime: null });
+        isCurrentlyOnField = true;
+        continue;
+      }
+    }
+
+    // --- Player left the field ---
+
+    // Case 1: Standalone SUBSTITUTION_OUT (removePlayerFromField - no parent)
     if (
-      event.eventType.category === 'SUBSTITUTION' &&
+      eventName === 'SUBSTITUTION_OUT' &&
       (event.playerId === playerId || event.externalPlayerName === playerId)
     ) {
-      stints.push({ onTime: eventTime, offTime: null });
-      isCurrentlyOnField = true;
+      const lastStint = stints[stints.length - 1];
+      if (lastStint && lastStint.offTime === null) {
+        lastStint.offTime = eventTime;
+      }
+      isCurrentlyOnField = false;
       continue;
     }
 
-    // Check if this player was substituted out (in childEvents)
-    if (event.eventType.category === 'SUBSTITUTION' && event.childEvents) {
+    // Case 2: SUBSTITUTION_OUT as child of SUBSTITUTION_IN (paired substitution)
+    if (eventName === 'SUBSTITUTION_IN' && event.childEvents) {
       const subOut = event.childEvents.find(
         (ce) =>
           ce.eventType.name === 'SUBSTITUTION_OUT' &&
           (ce.playerId === playerId || ce.externalPlayerName === playerId),
       );
       if (subOut) {
-        // Close the last open stint
+        const lastStint = stints[stints.length - 1];
+        if (lastStint && lastStint.offTime === null) {
+          lastStint.offTime = eventTime;
+        }
+        isCurrentlyOnField = false;
+      }
+    }
+
+    // Case 3: SUBSTITUTION_OUT as child of PERIOD_END (period ends, all players leave)
+    if (eventName === 'PERIOD_END' && event.childEvents) {
+      const subOut = event.childEvents.find(
+        (ce) =>
+          ce.eventType.name === 'SUBSTITUTION_OUT' &&
+          (ce.playerId === playerId || ce.externalPlayerName === playerId),
+      );
+      if (subOut) {
         const lastStint = stints[stints.length - 1];
         if (lastStint && lastStint.offTime === null) {
           lastStint.offTime = eventTime;

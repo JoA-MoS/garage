@@ -86,7 +86,6 @@ export interface Goal {
   scoringTeamId: string; // Which team scored
   scorerId: string; // Player who scored
   assistId?: string; // Player who assisted (optional)
-  gameMinute: number; // When in the game it happened
   timestamp: string; // Real-world timestamp
 
   // Relationships
@@ -120,7 +119,6 @@ export interface Substitution {
   teamId: string;
   playerOutId: string;
   playerInId: string;
-  gameMinute: number;
   timestamp: string;
 
   // Relationships

@@ -48,6 +48,7 @@ export const SubstitutionPanelPresentation = ({
   queue,
   onRemoveFromQueue,
   onConfirmAll,
+  onRequestRemoval,
   isExecuting,
   executionProgress,
   error,
@@ -238,16 +239,30 @@ export const SubstitutionPanelPresentation = ({
           )}
         </div>
 
-        {/* Footer with confirm button */}
-        {queue.length > 0 && !isExecuting && (
-          <div className="border-t border-gray-100 bg-gray-50 px-4 py-3">
-            <button
-              type="button"
-              onClick={onConfirmAll}
-              className="w-full rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-blue-700"
-            >
-              Confirm All ({queue.length})
-            </button>
+        {/* Footer */}
+        {!isExecuting && (
+          <div className="space-y-2 border-t border-gray-100 bg-gray-50 px-4 py-3">
+            {/* Confirm button */}
+            {queue.length > 0 && (
+              <button
+                type="button"
+                onClick={onConfirmAll}
+                className="w-full rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-blue-700"
+              >
+                Confirm All ({queue.length})
+              </button>
+            )}
+
+            {/* Remove from field - shown when a field player is selected */}
+            {selection.direction === 'field-first' && selection.fieldPlayer && (
+              <button
+                type="button"
+                onClick={() => onRequestRemoval(selection.fieldPlayer!)}
+                className="w-full rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
+              >
+                Remove from Field (No Sub)
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -267,6 +282,43 @@ function QueuedItemRow({
   onRemove: () => void;
   disabled: boolean;
 }) {
+  if (item.type === 'removal') {
+    return (
+      <div className="flex items-center justify-between rounded-lg border border-red-200 bg-white p-2">
+        <div className="flex items-center gap-2 text-sm">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-red-100 text-xs font-medium text-red-600">
+            R
+          </span>
+          <span className="text-red-600">
+            {getPlayerDisplayName(item.playerOut)}
+          </span>
+          <span className="text-gray-400">off</span>
+        </div>
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={disabled}
+          className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+          aria-label="Remove from queue"
+        >
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
+    );
+  }
+
   if (item.type === 'substitution') {
     return (
       <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-white p-2">

@@ -91,10 +91,6 @@ export class PeriodService {
       gameTeamId: input.gameTeamId,
       eventTypeId: periodStartType.id,
       recordedByUserId,
-      // Legacy fields (deprecated, kept for migration compatibility)
-      gameMinute: Math.floor(periodSecond / 60),
-      gameSecond: periodSecond % 60,
-      // New period-relative timing
       period: periodString,
       periodSecond,
     });
@@ -115,10 +111,6 @@ export class PeriodService {
         externalPlayerNumber: player.externalPlayerNumber,
         position: player.position,
         recordedByUserId,
-        // Legacy fields (deprecated, kept for migration compatibility)
-        gameMinute: Math.floor(periodSecond / 60),
-        gameSecond: periodSecond % 60,
-        // New period-relative timing
         period: periodString,
         periodSecond,
         parentEventId: savedPeriodEvent.id,
@@ -218,10 +210,6 @@ export class PeriodService {
       gameTeamId: input.gameTeamId,
       eventTypeId: periodEndType.id,
       recordedByUserId,
-      // Legacy fields (deprecated, kept for migration compatibility)
-      gameMinute: Math.floor(periodSecond / 60),
-      gameSecond: periodSecond % 60,
-      // New period-relative timing
       period: periodString,
       periodSecond,
     });
@@ -245,10 +233,6 @@ export class PeriodService {
         externalPlayerNumber: player.externalPlayerNumber,
         position: player.position,
         recordedByUserId,
-        // Legacy fields (deprecated, kept for migration compatibility)
-        gameMinute: Math.floor(periodSecond / 60),
-        gameSecond: periodSecond % 60,
-        // New period-relative timing
         period: periodString,
         periodSecond,
         parentEventId: savedPeriodEvent.id,
@@ -276,9 +260,6 @@ export class PeriodService {
         externalPlayerNumber: player.externalPlayerNumber,
         position: player.position, // Preserve their position for next period
         recordedByUserId,
-        // Next period roster starts at periodSecond 0
-        gameMinute: 0,
-        gameSecond: 0,
         period: nextPeriod,
         periodSecond: 0,
       }),
@@ -407,10 +388,6 @@ export class PeriodService {
         externalPlayerName: player.externalPlayerName,
         externalPlayerNumber: player.externalPlayerNumber,
         recordedByUserId,
-        // Legacy fields (deprecated, kept for migration compatibility)
-        gameMinute: 0,
-        gameSecond: 0,
-        // New period-relative timing
         period: secondHalfPeriod,
         periodSecond: secondHalfPeriodSeconds,
         position: player.position,
@@ -480,7 +457,7 @@ export class PeriodService {
 
   /**
    * Calculate the halftime minute based on game timing.
-   * Used when starting period 2 without explicit gameMinute.
+   * Used when starting period 2 without explicit timing.
    */
   private async calculateHalftimeMinute(game: Game): Promise<number> {
     const totalDuration =
@@ -544,7 +521,7 @@ export class PeriodService {
     );
 
     // Check if SUB_IN events already exist as children of PERIOD_START period 2
-    // This is more robust than checking gameMinute, which fails for short games
+    // This is more robust than checking time fields, which fails for short games
     if (periodStart2) {
       const existingSecondHalfSubIns = await this.gameEventsRepository.find({
         where: {
@@ -568,7 +545,7 @@ export class PeriodService {
     }
 
     // Find the PERIOD_END (period='1') event first, then get its child SUB_OUT events
-    // This is more robust than matching by gameMinute, which can be affected by timing calculations
+    // This is more robust than matching by time, which can be affected by timing calculations
     const periodEndType = this.coreService.getEventTypeByName('PERIOD_END');
     const subOutType = this.coreService.getEventTypeByName('SUBSTITUTION_OUT');
 
@@ -597,7 +574,7 @@ export class PeriodService {
     }
 
     this.logger.log(
-      `[ensureSecondHalfLineupExists] Found PERIOD_END event: id=${periodEndEvent.id}, gameMinute=${periodEndEvent.gameMinute}`,
+      `[ensureSecondHalfLineupExists] Found PERIOD_END event: id=${periodEndEvent.id}, period=${periodEndEvent.period}`,
     );
 
     // Find SUB_OUT events that are children of the PERIOD_END event (halftime subs)
@@ -628,10 +605,6 @@ export class PeriodService {
         externalPlayerNumber: subOut.externalPlayerNumber,
         position: subOut.position, // Preserve their position from first half
         recordedByUserId,
-        // Legacy fields (deprecated, kept for migration compatibility)
-        gameMinute: 0,
-        gameSecond: 0,
-        // New period-relative timing
         period: '2',
         periodSecond: secondHalfPeriodSeconds,
         parentEventId,
@@ -813,9 +786,6 @@ export class PeriodService {
         externalPlayerNumber: starter.externalPlayerNumber,
         position: starter.position,
         recordedByUserId,
-        // Starters enter at the start of the period (periodSecond 0)
-        gameMinute: 0,
-        gameSecond: 0,
         period,
         periodSecond: 0,
         parentEventId: periodStartEventId,
@@ -889,9 +859,6 @@ export class PeriodService {
           externalPlayerNumber: subOutEvent.externalPlayerNumber,
           position: subOutEvent.position,
           recordedByUserId,
-          // Next period roster starts at periodSecond 0
-          gameMinute: 0,
-          gameSecond: 0,
           period: nextPeriod,
           periodSecond: 0,
         }),

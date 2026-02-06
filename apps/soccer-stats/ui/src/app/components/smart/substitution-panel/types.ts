@@ -52,6 +52,11 @@ export type QueuedItem =
       type: 'swap';
       player1: SwapPlayer;
       player2: SwapPlayer;
+    }
+  | {
+      id: string;
+      type: 'removal';
+      playerOut: GqlRosterPlayer;
     };
 
 /**
@@ -82,6 +87,9 @@ export interface SubstitutionPanelPresentationProps {
   onRemoveFromQueue: (queueId: string) => void;
   onConfirmAll: () => void;
 
+  // Removal flow
+  onRequestRemoval: (player: GqlRosterPlayer) => void;
+
   // Execution state
   isExecuting: boolean;
   executionProgress: number;
@@ -104,6 +112,12 @@ export interface SubstitutionPanelSmartProps {
   bench: GqlRosterPlayer[];
   period: string;
   periodSecond: number;
+
+  /**
+   * When true, substitutions execute immediately instead of queueing.
+   * Used at halftime where the current field state IS the second half lineup.
+   */
+  executeImmediately?: boolean;
   gameEvents: Array<{
     id: string;
     playerId?: string | null;
@@ -146,6 +160,17 @@ export interface SubstitutionPanelSmartProps {
    * Called when the external field player to replace has been handled
    */
   onExternalFieldPlayerToReplaceHandled?: () => void;
+
+  /**
+   * Empty position clicked on the field while bench-first selection is active.
+   * Triggers immediate bringPlayerOntoField (no queue).
+   */
+  externalEmptyPosition?: string | null;
+
+  /**
+   * Called when the external empty position has been handled.
+   */
+  onExternalEmptyPositionHandled?: () => void;
 
   /**
    * Called when the set of queued player IDs changes.

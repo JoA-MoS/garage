@@ -70,10 +70,6 @@ export class EventManagementService {
       gameTeamId: input.gameTeamId,
       eventTypeId: formationEventType.id,
       recordedByUserId,
-      // Legacy fields (deprecated, kept for migration compatibility)
-      gameMinute: Math.floor(input.periodSecond / 60),
-      gameSecond: input.periodSecond % 60,
-      // New period-relative timing
       period: input.period,
       periodSecond: input.periodSecond,
       formation: input.formation,
@@ -170,10 +166,6 @@ export class EventManagementService {
       externalPlayerName: playerEntryEvent.externalPlayerName,
       externalPlayerNumber: playerEntryEvent.externalPlayerNumber,
       recordedByUserId,
-      // Legacy fields (deprecated, kept for migration compatibility)
-      gameMinute: Math.floor(input.periodSecond / 60),
-      gameSecond: input.periodSecond % 60,
-      // New period-relative timing
       period: input.period,
       periodSecond: input.periodSecond,
       position: input.newPosition,
@@ -248,10 +240,6 @@ export class EventManagementService {
       externalPlayerName: player1Event.externalPlayerName,
       externalPlayerNumber: player1Event.externalPlayerNumber,
       recordedByUserId,
-      // Legacy fields (deprecated, kept for migration compatibility)
-      gameMinute: Math.floor(input.periodSecond / 60),
-      gameSecond: input.periodSecond % 60,
-      // New period-relative timing
       period: input.period,
       periodSecond: input.periodSecond,
       position: player2Event.position, // Player 1 gets player 2's position
@@ -268,10 +256,6 @@ export class EventManagementService {
       externalPlayerName: player2Event.externalPlayerName,
       externalPlayerNumber: player2Event.externalPlayerNumber,
       recordedByUserId,
-      // Legacy fields (deprecated, kept for migration compatibility)
-      gameMinute: Math.floor(input.periodSecond / 60),
-      gameSecond: input.periodSecond % 60,
-      // New period-relative timing
       period: input.period,
       periodSecond: input.periodSecond,
       position: player1Event.position, // Player 2 gets player 1's position

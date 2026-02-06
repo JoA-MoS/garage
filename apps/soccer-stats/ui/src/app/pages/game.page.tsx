@@ -19,6 +19,9 @@ import {
   GameStatus,
   StatsTrackingLevel,
   RosterPlayer as GqlRosterPlayer,
+  GameEventChangedDocument,
+  GameEventAction,
+  GameUpdatedDocument,
 } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond, toPeriodSecond } from '@garage/soccer-stats/utils';
 
@@ -46,7 +49,6 @@ import { SubstitutionPanel } from '../components/smart/substitution-panel';
 import { LineupPanel } from '../components/smart/lineup-panel';
 import { GameStats } from '../components/smart/game-stats.smart';
 import { GameSummaryPresentation } from '../components/presentation/game-summary.presentation';
-import { useGameEventSubscription } from '../hooks/use-game-event-subscription';
 import { useSyncedGameTime } from '../hooks/use-synced-game-time';
 
 import { computeScore, GameHeader, StickyScoreBar } from './game';
@@ -166,6 +168,11 @@ export const GamePage = () => {
     string | null
   >(null);
 
+  // Empty position for sub panel - when bench player is selected and empty position is clicked
+  const [emptyPositionForSub, setEmptyPositionForSub] = useState<string | null>(
+    null,
+  );
+
   // Lineup panel state
   const [selectedPositionForLineup, setSelectedPositionForLineup] = useState<
     string | null
@@ -176,6 +183,9 @@ export const GamePage = () => {
   const [lineupSelectedPosition, setLineupSelectedPosition] = useState<
     string | null
   >(null);
+  const [lineupHasPlayerSelected, setLineupHasPlayerSelected] = useState(false);
+  const [selectedFieldPlayerForLineup, setSelectedFieldPlayerForLineup] =
+    useState<GqlRosterPlayer | null>(null);
 
   // Cascade delete state
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -215,7 +225,7 @@ export const GamePage = () => {
 
   const apolloClient = useApolloClient();
 
-  const { data, loading, error } = useQuery(GET_GAME_BY_ID, {
+  const { data, loading, error, subscribeToMore } = useQuery(GET_GAME_BY_ID, {
     variables: { id: gameId! },
     skip: !gameId,
     // Prevent loading state from becoming true during cache updates or background refetches
@@ -521,29 +531,35 @@ export const GamePage = () => {
 
   // Derive on-field and bench players from roster data
   // position != null = on field, position == null = bench
+  // Depend on players array directly (not entire query result) to avoid
+  // recomputation when Apollo creates new result wrapper objects on refetch
+  const homeRosterPlayers = homeLineupData?.gameRoster?.players;
+  const awayRosterPlayers = awayLineupData?.gameRoster?.players;
+
   const homeOnField = useMemo(
-    () =>
-      homeLineupData?.gameRoster?.players?.filter((p) => p.position != null) ??
-      [],
-    [homeLineupData],
+    () => homeRosterPlayers?.filter((p) => p.position != null) ?? [],
+    [homeRosterPlayers],
   );
   const homeBench = useMemo(
-    () =>
-      homeLineupData?.gameRoster?.players?.filter((p) => p.position == null) ??
-      [],
-    [homeLineupData],
+    () => homeRosterPlayers?.filter((p) => p.position == null) ?? [],
+    [homeRosterPlayers],
   );
   const awayOnField = useMemo(
-    () =>
-      awayLineupData?.gameRoster?.players?.filter((p) => p.position != null) ??
-      [],
-    [awayLineupData],
+    () => awayRosterPlayers?.filter((p) => p.position != null) ?? [],
+    [awayRosterPlayers],
   );
   const awayBench = useMemo(
-    () =>
-      awayLineupData?.gameRoster?.players?.filter((p) => p.position == null) ??
-      [],
-    [awayLineupData],
+    () => awayRosterPlayers?.filter((p) => p.position == null) ?? [],
+    [awayRosterPlayers],
+  );
+
+  // Track highlighted event IDs for new-event animations
+  const [highlightedEventIds, setHighlightedEventIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const isEventHighlighted = useCallback(
+    (eventId: string) => highlightedEventIds.has(eventId),
+    [highlightedEventIds],
   );
 
   // Track score highlights for animations
@@ -555,6 +571,11 @@ export const GamePage = () => {
   // Using refs to avoid triggering useEffect on initialization
   const prevHomeScoreRef = useRef(homeScore);
   const prevAwayScoreRef = useRef(awayScore);
+
+  // Debounce roster refetches for stats-affecting events
+  // Accumulates affected gameTeamIds and refetches once after events settle
+  const rosterRefetchTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const pendingRosterRefetchIds = useRef<Set<string>>(new Set());
 
   // Trigger score animation when score actually changes (not on subscription message)
   // This ensures animation is synchronized with the displayed score update
@@ -581,6 +602,13 @@ export const GamePage = () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [awayScore]);
+
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      clearTimeout(rosterRefetchTimerRef.current);
+    };
+  }, []);
 
   // Subscribe to real-time game events
   // Update Apollo cache directly instead of refetching to prevent flickering
@@ -668,8 +696,10 @@ export const GamePage = () => {
         },
       });
 
-      // Refetch data when lineup/stats-affecting events are received
-      // These events change who is on the field and player stats (time, isOnField, lastEntryPeriodSecond)
+      // Debounced refetch for stats-affecting events
+      // These events change who is on the field and player stats
+      // A single substitution generates 2 events (IN + OUT) within ms of each other,
+      // so we debounce to collapse them into a single refetch per affected team
       const statsAffectingEvents = [
         'SUBSTITUTION_IN',
         'SUBSTITUTION_OUT',
@@ -677,11 +707,19 @@ export const GamePage = () => {
         'PERIOD_END',
       ];
       if (statsAffectingEvents.includes(event.eventType.name)) {
-        apolloClient.refetchQueries({
-          // GET_GAME_ROSTER: Updates lineup positions (who's on field vs bench)
-          // GET_GAME_BY_ID: Updates player stats including isOnField, lastEntryPeriodSecond for live time
-          include: [GET_GAME_ROSTER, GET_GAME_BY_ID],
-        });
+        pendingRosterRefetchIds.current.add(event.gameTeamId);
+        clearTimeout(rosterRefetchTimerRef.current);
+        rosterRefetchTimerRef.current = setTimeout(() => {
+          const teamIds = [...pendingRosterRefetchIds.current];
+          pendingRosterRefetchIds.current.clear();
+          teamIds.forEach((gameTeamId) => {
+            apolloClient.query({
+              query: GET_GAME_ROSTER,
+              variables: { gameTeamId },
+              fetchPolicy: 'network-only',
+            });
+          });
+        }, 150);
       }
 
       // Note: Score highlight animations are now triggered by useEffect watching
@@ -726,38 +764,115 @@ export const GamePage = () => {
     [],
   );
 
-  // Handle game state changes from subscription (start, pause, half-time, end, reset)
-  const handleGameStateChanged = useCallback(
-    (gameUpdate: {
-      id: string;
-      name?: string | null;
-      status: GameStatus;
-      actualStart?: unknown;
-      firstHalfEnd?: unknown;
-      secondHalfStart?: unknown;
-      actualEnd?: unknown;
-      pausedAt?: unknown;
-    }) => {
-      // Update the game in the Apollo cache
-      apolloClient.cache.modify({
-        id: apolloClient.cache.identify({
-          __typename: 'Game',
-          id: gameUpdate.id,
-        }),
-        fields: {
-          status: () => gameUpdate.status,
-          actualStart: () => (gameUpdate.actualStart as string) ?? null,
-          firstHalfEnd: () => (gameUpdate.firstHalfEnd as string) ?? null,
-          secondHalfStart: () => (gameUpdate.secondHalfStart as string) ?? null,
-          actualEnd: () => (gameUpdate.actualEnd as string) ?? null,
-          pausedAt: () => (gameUpdate.pausedAt as string) ?? null,
-        },
-      });
-      // Note: Timer state is now derived from server sync data,
-      // so no need to manually reset here
-    },
-    [apolloClient],
-  );
+  // Refs for subscription callbacks - keeps subscriptions stable across re-renders.
+  // Without refs, every cache update creates new callback references, which would
+  // tear down and re-establish the WebSocket subscriptions on every event.
+  const handleEventCreatedRef = useRef(handleEventCreated);
+  handleEventCreatedRef.current = handleEventCreated;
+  const handleEventDeletedRef = useRef(handleEventDeleted);
+  handleEventDeletedRef.current = handleEventDeleted;
+  const handleConflictDetectedRef = useRef(handleConflictDetected);
+  handleConflictDetectedRef.current = handleConflictDetected;
+
+  // Subscribe to real-time game events via subscribeToMore
+  // Tied to query lifecycle - auto-unsubscribes when query unmounts
+  const hasGameData = !!data?.game;
+  useEffect(() => {
+    if (!hasGameData || !gameId) return;
+
+    const unsubscribe = subscribeToMore({
+      document: GameEventChangedDocument,
+      variables: { gameId },
+      updateQuery: (prev, { subscriptionData }) => {
+        const payload = subscriptionData.data?.gameEventChanged;
+        if (!payload) return prev;
+
+        switch (payload.action) {
+          case GameEventAction.Created:
+            if (payload.event) {
+              handleEventCreatedRef.current(payload.event);
+              setHighlightedEventIds((ids) =>
+                new Set(ids).add(payload.event!.id),
+              );
+              setTimeout(() => {
+                setHighlightedEventIds((ids) => {
+                  const newSet = new Set(ids);
+                  newSet.delete(payload.event!.id);
+                  return newSet;
+                });
+              }, 3000);
+            }
+            break;
+
+          case GameEventAction.Updated:
+            // Events updated in cache via normal Apollo normalization
+            break;
+
+          case GameEventAction.Deleted:
+            if (payload.deletedEventId) {
+              handleEventDeletedRef.current(payload.deletedEventId);
+            }
+            break;
+
+          case GameEventAction.ConflictDetected:
+            if (payload.conflict) {
+              handleConflictDetectedRef.current(payload.conflict);
+            }
+            break;
+
+          default:
+            break;
+        }
+
+        // Return prev unchanged - we handle cache updates manually via cache.modify
+        return prev;
+      },
+    });
+
+    return unsubscribe;
+  }, [hasGameData, gameId, subscribeToMore]);
+
+  // Subscribe to game state changes (start, pause, halftime, end) via subscribeToMore
+  // Tied to query lifecycle - auto-unsubscribes when query unmounts
+  useEffect(() => {
+    if (!hasGameData || !gameId) return;
+
+    const unsubscribe = subscribeToMore({
+      document: GameUpdatedDocument,
+      variables: { gameId },
+      updateQuery: (prev, { subscriptionData }) => {
+        const gameUpdate = subscriptionData.data?.gameUpdated;
+        if (!gameUpdate || !prev.game) return prev;
+
+        return {
+          ...prev,
+          game: {
+            ...prev.game,
+            status: gameUpdate.status,
+            actualStart:
+              (gameUpdate.actualStart as string) ?? prev.game.actualStart,
+            firstHalfEnd:
+              (gameUpdate.firstHalfEnd as string) ?? prev.game.firstHalfEnd,
+            secondHalfStart:
+              (gameUpdate.secondHalfStart as string) ??
+              prev.game.secondHalfStart,
+            actualEnd: (gameUpdate.actualEnd as string) ?? prev.game.actualEnd,
+            pausedAt: (gameUpdate.pausedAt as string) ?? prev.game.pausedAt,
+            currentPeriod: gameUpdate.currentPeriod ?? null,
+            currentPeriodSecond:
+              gameUpdate.currentPeriodSecond ?? prev.game.currentPeriodSecond,
+            serverTimestamp:
+              gameUpdate.serverTimestamp ?? prev.game.serverTimestamp,
+          },
+        };
+      },
+    });
+
+    return unsubscribe;
+  }, [hasGameData, gameId, subscribeToMore]);
+
+  // Subscriptions are active when data is loaded (both subscribeToMore effects run)
+  const isConnected = !!data?.game && !!gameId;
 
   const handleResolveConflict = useCallback(
     async (conflictId: string, selectedEventId: string, keepAll: boolean) => {
@@ -779,14 +894,6 @@ export const GamePage = () => {
     },
     [resolveConflict],
   );
-
-  const { isConnected, isEventHighlighted } = useGameEventSubscription({
-    gameId: gameId || '',
-    onEventCreated: handleEventCreated,
-    onEventDeleted: handleEventDeleted,
-    onConflictDetected: handleConflictDetected,
-    onGameStateChanged: handleGameStateChanged,
-  });
 
   // Start first half
   // Note: The backend's updateGame automatically creates PERIOD_START and SUB_IN events
@@ -815,19 +922,13 @@ export const GamePage = () => {
   // via createTimingEventsForStatusChange when status changes to HALFTIME
   const handleEndFirstHalf = async () => {
     try {
-      // Use server-synced time for accurate event timing
-      // In period 1, periodSecond equals total game seconds
-      const gameMinute = Math.floor(syncedTime.periodSecond / 60);
-      const gameSecond = syncedTime.periodSecond % 60;
-
       await updateGame({
         variables: {
           id: gameId!,
           updateGameInput: {
             status: GameStatus.Halftime,
             firstHalfEnd: new Date().toISOString(),
-            gameMinute,
-            gameSecond,
+            periodSecond: syncedTime.periodSecond,
           },
         },
       });
@@ -867,25 +968,13 @@ export const GamePage = () => {
   // via createTimingEventsForStatusChange when status changes to COMPLETED
   const handleEndGame = async () => {
     try {
-      // Use server-synced time for accurate event timing
-      // In period 2, total game time = half duration + period seconds
-      const halfDurationSecs =
-        ((data?.game?.format?.durationMinutes || 60) / 2) * 60;
-      const totalSeconds =
-        syncedTime.period === '2'
-          ? halfDurationSecs + syncedTime.periodSecond
-          : syncedTime.periodSecond;
-      const gameMinute = Math.floor(totalSeconds / 60);
-      const gameSecond = totalSeconds % 60;
-
       await updateGame({
         variables: {
           id: gameId!,
           updateGameInput: {
             status: GameStatus.Completed,
             actualEnd: new Date().toISOString(),
-            gameMinute,
-            gameSecond,
+            periodSecond: syncedTime.periodSecond,
           },
         },
       });
@@ -1310,9 +1399,10 @@ export const GamePage = () => {
     game.status === GameStatus.InProgress;
 
   // Check if game is in lineup setup phase (lineup panel should show)
+  // SCHEDULED: initial lineup before game starts
+  // HALFTIME: rearrange positions for second half, batch SUB_IN on period start
   const isLineupSetupPhase =
-    game.status === GameStatus.Scheduled ||
-    game.status === GameStatus.Halftime;
+    game.status === GameStatus.Scheduled || game.status === GameStatus.Halftime;
 
   // Get current game time in minutes and seconds for goal recording
   // During HALFTIME, use the end-of-first-half time (half of total duration)
@@ -1510,8 +1600,20 @@ export const GamePage = () => {
                   }
                   onFieldPlayerClickForSub={handleFieldPlayerClickForSub}
                   hasBenchSelectionActive={panelBenchSelection !== null}
+                  onEmptyPositionClickForSub={
+                    isActivePlay ? setEmptyPositionForSub : undefined
+                  }
                   queuedPlayerIds={queuedPlayerIds}
                   selectedFieldPlayerId={selectedFieldPlayerId}
+                  hasLineupPanelPlayerSelected={
+                    isLineupSetupPhase && lineupHasPlayerSelected
+                  }
+                  onEmptyPositionClick={setSelectedPositionForLineup}
+                  onFieldPlayerClickForLineup={
+                    isLineupSetupPhase
+                      ? setSelectedFieldPlayerForLineup
+                      : undefined
+                  }
                 />
               )}
               {activeTeam === 'away' && awayTeam && (
@@ -1531,8 +1633,20 @@ export const GamePage = () => {
                   }
                   onFieldPlayerClickForSub={handleFieldPlayerClickForSub}
                   hasBenchSelectionActive={panelBenchSelection !== null}
+                  onEmptyPositionClickForSub={
+                    isActivePlay ? setEmptyPositionForSub : undefined
+                  }
                   queuedPlayerIds={queuedPlayerIds}
                   selectedFieldPlayerId={selectedFieldPlayerId}
+                  hasLineupPanelPlayerSelected={
+                    isLineupSetupPhase && lineupHasPlayerSelected
+                  }
+                  onEmptyPositionClick={setSelectedPositionForLineup}
+                  onFieldPlayerClickForLineup={
+                    isLineupSetupPhase
+                      ? setSelectedFieldPlayerForLineup
+                      : undefined
+                  }
                 />
               )}
             </div>
@@ -2322,7 +2436,6 @@ export const GamePage = () => {
           }
           onField={activeTeam === 'home' ? homeOnField : awayOnField}
           bench={activeTeam === 'home' ? homeBench : awayBench}
-          availableRoster={[]}
           firstHalfLineup={
             game.status === GameStatus.Halftime
               ? activeTeam === 'home'
@@ -2344,25 +2457,24 @@ export const GamePage = () => {
                   externalPlayerName: ce.externalPlayerName,
                   eventType: ce.eventType,
                 })),
-              })
+              }),
             ) ?? []
           }
-          onFormationChange={(formation) => {
-            updateGameTeam({
-              variables: {
-                gameTeamId: activeTeam === 'home' ? homeTeam.id : awayTeam.id,
-                updateGameTeamInput: { formation },
-              },
-            });
-          }}
           externalPositionSelection={selectedPositionForLineup}
           onExternalPositionHandled={() => setSelectedPositionForLineup(null)}
+          externalFieldPlayerSelection={selectedFieldPlayerForLineup}
+          onExternalFieldPlayerHandled={() =>
+            setSelectedFieldPlayerForLineup(null)
+          }
           onQueuedPositionsChange={setLineupQueuedPositions}
           onSelectedPositionChange={setLineupSelectedPosition}
+          onPlayerSelectionChange={setLineupHasPlayerSelected}
+          onSelectedFieldPlayerIdChange={setSelectedFieldPlayerId}
+          onQueuedPlayerIdsChange={setQueuedPlayerIds}
         />
       )}
 
-      {/* Inline Substitution Panel */}
+      {/* Inline Substitution Panel - show during active play only */}
       {isActivePlay && homeTeam && awayTeam && (
         <SubstitutionPanel
           gameTeamId={activeTeam === 'home' ? homeTeam.id : awayTeam.id}
@@ -2379,6 +2491,7 @@ export const GamePage = () => {
           bench={activeTeam === 'home' ? homeBench : awayBench}
           period={currentPeriod}
           periodSecond={currentPeriodSeconds}
+          executeImmediately={false}
           gameEvents={
             (activeTeam === 'home' ? homeTeam.events : awayTeam.events)?.map(
               (e) => ({
@@ -2403,6 +2516,8 @@ export const GamePage = () => {
           onExternalFieldPlayerToReplaceHandled={() =>
             setFieldPlayerToReplaceForPanel(null)
           }
+          externalEmptyPosition={emptyPositionForSub}
+          onExternalEmptyPositionHandled={() => setEmptyPositionForSub(null)}
           onQueuedPlayerIdsChange={setQueuedPlayerIds}
           onSelectedFieldPlayerChange={setSelectedFieldPlayerId}
         />
