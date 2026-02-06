@@ -2,9 +2,11 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 
 import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 
-import { useLineup, RosterPlayer as TeamRosterPlayer } from '../../../hooks/use-lineup';
+import {
+  useLineup,
+  RosterPlayer as TeamRosterPlayer,
+} from '../../../hooks/use-lineup';
 import { calculatePlayTime } from '../../../hooks/use-play-time';
-import { getFormationsForTeamSize } from '../../../utils/formations';
 
 import { LineupPanelPresentation } from './lineup-panel.presentation';
 import {
@@ -18,7 +20,8 @@ import {
  * Get player ID for matching
  */
 const getPlayerId = (player: GqlRosterPlayer | TeamRosterPlayer): string => {
-  if ('playerId' in player) return player.playerId || player.externalPlayerName || '';
+  if ('playerId' in player)
+    return player.playerId || player.externalPlayerName || '';
   return player.oduserId;
 };
 
@@ -35,20 +38,23 @@ export const LineupPanel = ({
   formation,
   onField,
   bench,
-  availableRoster,
   firstHalfLineup,
   gameEvents,
   onLineupComplete,
-  onFormationChange,
   externalPositionSelection,
   onExternalPositionHandled,
+  externalFieldPlayerSelection,
+  onExternalFieldPlayerHandled,
   onQueuedPositionsChange,
   onSelectedPositionChange,
+  onPlayerSelectionChange,
+  onSelectedFieldPlayerIdChange,
+  onQueuedPlayerIdsChange,
 }: LineupPanelSmartProps) => {
   // Panel state - auto-expand if lineup incomplete (pre-game) or at halftime
   const shouldAutoExpand = gameStatus === 'HALFTIME' || onField.length === 0;
   const [panelState, setPanelState] = useState<PanelState>(
-    shouldAutoExpand ? 'bench-view' : 'collapsed'
+    shouldAutoExpand ? 'bench-view' : 'collapsed',
   );
 
   // Selection state
@@ -67,43 +73,45 @@ export const LineupPanel = ({
   const [executionProgress, setExecutionProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  // Use lineup hook for mutations
+  // Use lineup hook for mutations and available roster
   const {
     addPlayerToGameRoster,
     updatePosition,
     removeFromLineup,
     setSecondHalfLineup,
     refetchRoster,
+    availableRoster,
   } = useLineup({ gameTeamId, gameId });
 
-  // Get available formations for team size
-  const availableFormations = useMemo(
-    () => getFormationsForTeamSize(playersPerTeam),
-    [playersPerTeam]
-  );
-
-  // Calculate filled positions (current + queued assignments - queued removals)
-  const filledPositions = useMemo(() => {
+  // Calculate filled positions (Set for highlighting) and filled count (for counter)
+  // These are separate because a Set deduplicates positions (e.g., two CMs count as one),
+  // but the counter needs the actual number of players with positions assigned.
+  const { filledPositions, filledCount } = useMemo(() => {
     const positions = new Set<string>();
+    let count = onField.filter((p) => p.position).length;
 
-    // Add current on-field positions
+    // Add current on-field positions to Set
     onField.forEach((p) => {
       if (p.position) positions.add(p.position);
     });
 
-    // Add queued assignments
+    // Apply queued changes to both Set and count
     queue.forEach((item) => {
       if (item.type === 'assignment') {
         positions.add(item.position);
+        count++;
       } else if (item.type === 'position-change') {
         positions.delete(item.fromPosition);
         positions.add(item.toPosition);
+        // count stays the same — player just moved positions
       } else if (item.type === 'removal') {
         positions.delete(item.position);
+        count--;
       }
+      // swap: count and positions stay the same
     });
 
-    return positions;
+    return { filledPositions: positions, filledCount: count };
   }, [onField, queue]);
 
   // Get required positions from formation (placeholder - will derive from formation)
@@ -116,6 +124,13 @@ export const LineupPanel = ({
   const playTimeByPlayer = useMemo(() => {
     if (gameStatus !== 'HALFTIME' || !gameEvents) return undefined;
 
+    // Find the PERIOD_END event to get the actual first half duration
+    const periodEndEvent = gameEvents.find(
+      (e) => e.eventType.name === 'PERIOD_END' && e.period === '1',
+    );
+    // Use the PERIOD_END time, or fall back to a reasonable default
+    const firstHalfEndSecond = periodEndEvent?.periodSecond ?? 1500;
+
     const allPlayerIds = [
       ...onField.map(getPlayerId),
       ...bench.map(getPlayerId),
@@ -123,10 +138,9 @@ export const LineupPanel = ({
     const results = new Map<string, { minutes: number; isOnField: boolean }>();
 
     for (const playerId of allPlayerIds) {
-      // Use period 1 for first half stats
       const result = calculatePlayTime(playerId, gameEvents, {
         period: '1',
-        periodSecond: 0,
+        periodSecond: firstHalfEndSecond,
       });
       results.set(playerId, {
         minutes: result.minutes,
@@ -143,7 +157,7 @@ export const LineupPanel = ({
     queue.forEach((item) => {
       if (item.type === 'assignment' || item.type === 'position-change') {
         queuedPositions.add(
-          item.type === 'assignment' ? item.position : item.toPosition
+          item.type === 'assignment' ? item.position : item.toPosition,
         );
       }
     });
@@ -155,19 +169,127 @@ export const LineupPanel = ({
     onSelectedPositionChange?.(selection.position);
   }, [selection.position, onSelectedPositionChange]);
 
+  // Notify parent when player selection changes (for player-first flow coordination)
+  useEffect(() => {
+    const hasPlayerSelected =
+      selection.direction === 'player-first' && selection.player !== null;
+    onPlayerSelectionChange?.(hasPlayerSelected);
+  }, [selection.direction, selection.player, onPlayerSelectionChange]);
+
+  // Notify parent of selected on-field player (for field highlighting - blue ring)
+  useEffect(() => {
+    const selectedId =
+      selection.direction === 'player-first' &&
+      selection.playerSource === 'onField' &&
+      selection.player &&
+      'gameEventId' in selection.player
+        ? selection.player.gameEventId
+        : null;
+    onSelectedFieldPlayerIdChange?.(selectedId);
+  }, [
+    selection.direction,
+    selection.playerSource,
+    selection.player,
+    onSelectedFieldPlayerIdChange,
+  ]);
+
+  // Notify parent of queued player IDs (for field highlighting - orange indicators)
+  useEffect(() => {
+    const queuedIds = new Set<string>();
+    queue.forEach((item) => {
+      if (item.type === 'swap') {
+        queuedIds.add(item.player1.gameEventId);
+        queuedIds.add(item.player2.gameEventId);
+      } else if (item.type === 'position-change') {
+        queuedIds.add(item.player.gameEventId);
+      } else if (item.type === 'removal') {
+        queuedIds.add(item.player.gameEventId);
+      } else if (item.type === 'assignment' && item.replacingPlayer) {
+        queuedIds.add(item.replacingPlayer.gameEventId);
+      }
+    });
+    onQueuedPlayerIdsChange?.(queuedIds);
+  }, [queue, onQueuedPlayerIdsChange]);
+
   // Handle external position selection (from field visualization click)
   useEffect(() => {
-    if (externalPositionSelection) {
-      setPanelState('bench-view');
+    if (!externalPositionSelection) return;
+
+    const position = externalPositionSelection;
+    onExternalPositionHandled?.();
+
+    // If we have a player selected (player-first mode), complete the assignment
+    if (
+      selection.direction === 'player-first' &&
+      selection.player &&
+      selection.playerSource
+    ) {
+      const player = selection.player;
+      const source = selection.playerSource;
+
+      // Clear selection immediately
       setSelection({
-        direction: 'position-first',
-        position: externalPositionSelection,
+        direction: null,
+        position: null,
         player: null,
         playerSource: null,
       });
-      onExternalPositionHandled?.();
+
+      // Execute the assignment
+      const executeAssignment = async () => {
+        // If player is from bench or on-field, they're already in game roster
+        if (
+          (source === 'bench' || source === 'onField') &&
+          'gameEventId' in player &&
+          player.gameEventId
+        ) {
+          await updatePosition(player.gameEventId, position);
+        } else {
+          // Player is from team roster - add them to game roster
+          const playerId =
+            'oduserId' in player ? player.oduserId : player.playerId;
+          const externalPlayerName =
+            'externalPlayerName' in player
+              ? player.externalPlayerName
+              : undefined;
+          const externalPlayerNumber =
+            'externalPlayerNumber' in player
+              ? player.externalPlayerNumber
+              : undefined;
+
+          await addPlayerToGameRoster({
+            playerId: playerId || undefined,
+            externalPlayerName: externalPlayerName || undefined,
+            externalPlayerNumber: externalPlayerNumber || undefined,
+            position,
+          });
+        }
+      };
+
+      executeAssignment().catch((err) => {
+        console.error('[LineupPanel] Failed to assign player:', err);
+        const message =
+          err instanceof Error ? err.message : 'Failed to assign player';
+        setError(message);
+      });
+      return;
     }
-  }, [externalPositionSelection, onExternalPositionHandled]);
+
+    // Otherwise, start position-first flow
+    setPanelState('bench-view');
+    setSelection({
+      direction: 'position-first',
+      position,
+      player: null,
+      playerSource: null,
+    });
+  }, [
+    externalPositionSelection,
+    onExternalPositionHandled,
+    selection,
+    addPlayerToGameRoster,
+    updatePosition,
+  ]);
 
   // Clear selection
   const handleClearSelection = useCallback(() => {
@@ -181,7 +303,7 @@ export const LineupPanel = ({
 
   // Handle position click (position-first flow)
   const handlePositionClick = useCallback(
-    (position: string) => {
+    async (position: string) => {
       setError(null);
 
       // If no selection, start position-first selection
@@ -196,28 +318,72 @@ export const LineupPanel = ({
         return;
       }
 
-      // If player-first, complete the assignment
-      if (selection.direction === 'player-first' && selection.player && selection.playerSource) {
-        // Check if position is already filled by someone on field (not in queue)
-        const existingPlayer = onField.find((p) => p.position === position);
+      // If player-first, complete the assignment immediately
+      if (
+        selection.direction === 'player-first' &&
+        selection.player &&
+        selection.playerSource
+      ) {
+        const player = selection.player;
+        const source = selection.playerSource;
 
-        const assignmentItem: QueuedLineupItem = {
-          id: `assign-${Date.now()}-${Math.random()}`,
-          type: 'assignment',
-          position,
-          player: selection.player,
-          playerSource: selection.playerSource as 'bench' | 'roster',
-          replacingPlayer: existingPlayer,
-        };
+        // Clear selection immediately for responsive UI
+        setSelection({
+          direction: null,
+          position: null,
+          player: null,
+          playerSource: null,
+        });
 
-        setQueue((prev) => [...prev, assignmentItem]);
-        setSelection({ direction: null, position: null, player: null, playerSource: null });
+        try {
+          // If player is from bench or on-field, they're already in game roster
+          // Use updatePosition to change their position
+          if (
+            (source === 'bench' || source === 'onField') &&
+            'gameEventId' in player &&
+            player.gameEventId
+          ) {
+            await updatePosition(player.gameEventId, position);
+          } else {
+            // Player is from team roster - add them to game roster
+            const playerId =
+              'oduserId' in player ? player.oduserId : player.playerId;
+            const externalPlayerName =
+              'externalPlayerName' in player
+                ? player.externalPlayerName
+                : undefined;
+            const externalPlayerNumber =
+              'externalPlayerNumber' in player
+                ? player.externalPlayerNumber
+                : undefined;
+
+            await addPlayerToGameRoster({
+              playerId: playerId || undefined,
+              externalPlayerName: externalPlayerName || undefined,
+              externalPlayerNumber: externalPlayerNumber || undefined,
+              position,
+            });
+          }
+        } catch (err) {
+          console.error('[LineupPanel] Failed to assign player:', err);
+          const message =
+            err instanceof Error ? err.message : 'Failed to assign player';
+          setError(message);
+        }
         return;
       }
 
       // If position-first and clicking same position, deselect
-      if (selection.direction === 'position-first' && selection.position === position) {
-        setSelection({ direction: null, position: null, player: null, playerSource: null });
+      if (
+        selection.direction === 'position-first' &&
+        selection.position === position
+      ) {
+        setSelection({
+          direction: null,
+          position: null,
+          player: null,
+          playerSource: null,
+        });
         return;
       }
 
@@ -231,35 +397,17 @@ export const LineupPanel = ({
         });
       }
     },
-    [selection, onField]
+    [selection, addPlayerToGameRoster],
   );
 
   // Handle player click
   const handlePlayerClick = useCallback(
-    (
+    async (
       player: GqlRosterPlayer | TeamRosterPlayer,
-      source: 'onField' | 'bench' | 'roster'
+      source: 'onField' | 'bench' | 'roster',
     ) => {
       setError(null);
       const playerId = getPlayerId(player);
-
-      // Check if player is already queued
-      const isQueued = queue.some((item) => {
-        if (item.type === 'assignment') {
-          return getPlayerId(item.player) === playerId;
-        }
-        if (item.type === 'position-change') {
-          return getPlayerId(item.player) === playerId;
-        }
-        if (item.type === 'removal') {
-          return getPlayerId(item.player) === playerId;
-        }
-        return false;
-      });
-
-      if (isQueued) {
-        return; // Don't allow selecting already-queued players
-      }
 
       // If no selection, start player-first selection
       if (!selection.direction) {
@@ -291,7 +439,137 @@ export const LineupPanel = ({
         selection.player &&
         getPlayerId(selection.player) === playerId
       ) {
-        setSelection({ direction: null, position: null, player: null, playerSource: null });
+        setSelection({
+          direction: null,
+          position: null,
+          player: null,
+          playerSource: null,
+        });
+        return;
+      }
+
+      // If player-first from on-field and clicking another on-field player, swap positions
+      if (
+        selection.direction === 'player-first' &&
+        selection.playerSource === 'onField' &&
+        source === 'onField' &&
+        selection.player
+      ) {
+        const player1 = selection.player as GqlRosterPlayer;
+        const player2 = player as GqlRosterPlayer;
+
+        // Clear selection immediately
+        setSelection({
+          direction: null,
+          position: null,
+          player: null,
+          playerSource: null,
+        });
+
+        if (gameStatus === 'SCHEDULED') {
+          // Pre-game: execute immediately - swap position fields on both events
+          try {
+            const pos1 = player1.position;
+            const pos2 = player2.position;
+            if (pos1 && pos2) {
+              await updatePosition(player1.gameEventId, pos2);
+              await updatePosition(player2.gameEventId, pos1);
+            }
+          } catch (err) {
+            console.error('[LineupPanel] Failed to swap positions:', err);
+            const message =
+              err instanceof Error ? err.message : 'Failed to swap positions';
+            setError(message);
+          }
+        } else {
+          // Halftime: queue the swap for batch execution
+          setQueue((prev) => [
+            ...prev,
+            {
+              id: `swap-${Date.now()}-${Math.random()}`,
+              type: 'swap' as const,
+              player1,
+              player1Position: player1.position!,
+              player2,
+              player2Position: player2.position!,
+            },
+          ]);
+        }
+        return;
+      }
+
+      // If player-first from bench/roster and clicking on-field player, replace them
+      if (
+        selection.direction === 'player-first' &&
+        (selection.playerSource === 'bench' ||
+          selection.playerSource === 'roster') &&
+        source === 'onField' &&
+        selection.player
+      ) {
+        const selectedPlayer = selection.player;
+        const onFieldPlayer = player as GqlRosterPlayer;
+        const position = onFieldPlayer.position;
+
+        // Clear selection immediately
+        setSelection({
+          direction: null,
+          position: null,
+          player: null,
+          playerSource: null,
+        });
+
+        if (!position) return;
+
+        if (gameStatus === 'SCHEDULED') {
+          // Pre-game: execute immediately
+          try {
+            if (
+              selection.playerSource === 'bench' &&
+              'gameEventId' in selectedPlayer &&
+              selectedPlayer.gameEventId
+            ) {
+              await updatePosition(selectedPlayer.gameEventId, position);
+            } else {
+              const pid =
+                'oduserId' in selectedPlayer
+                  ? selectedPlayer.oduserId
+                  : selectedPlayer.playerId;
+              const extName =
+                'externalPlayerName' in selectedPlayer
+                  ? selectedPlayer.externalPlayerName
+                  : undefined;
+              const extNum =
+                'externalPlayerNumber' in selectedPlayer
+                  ? selectedPlayer.externalPlayerNumber
+                  : undefined;
+
+              await addPlayerToGameRoster({
+                playerId: pid || undefined,
+                externalPlayerName: extName || undefined,
+                externalPlayerNumber: extNum || undefined,
+                position,
+              });
+            }
+          } catch (err) {
+            console.error('[LineupPanel] Failed to replace player:', err);
+            const message =
+              err instanceof Error ? err.message : 'Failed to replace player';
+            setError(message);
+          }
+        } else {
+          // Halftime: queue the assignment with replacement
+          setQueue((prev) => [
+            ...prev,
+            {
+              id: `assignment-${Date.now()}-${Math.random()}`,
+              type: 'assignment' as const,
+              position,
+              player: selectedPlayer,
+              playerSource: selection.playerSource as 'bench' | 'roster',
+              replacingPlayer: onFieldPlayer,
+            },
+          ]);
+        }
         return;
       }
 
@@ -306,31 +584,84 @@ export const LineupPanel = ({
         return;
       }
 
-      // If position-first, complete the assignment
+      // If position-first, complete the assignment immediately
       if (selection.direction === 'position-first' && selection.position) {
         // Can't assign on-field players via position-first (they already have positions)
         if (source === 'onField') {
           return;
         }
 
-        // Check if position is already filled
-        const existingPlayer = onField.find((p) => p.position === selection.position);
+        const position = selection.position;
 
-        const assignmentItem: QueuedLineupItem = {
-          id: `assign-${Date.now()}-${Math.random()}`,
-          type: 'assignment',
-          position: selection.position,
-          player,
-          playerSource: source as 'bench' | 'roster',
-          replacingPlayer: existingPlayer,
-        };
+        // Clear selection immediately for responsive UI
+        setSelection({
+          direction: null,
+          position: null,
+          player: null,
+          playerSource: null,
+        });
 
-        setQueue((prev) => [...prev, assignmentItem]);
-        setSelection({ direction: null, position: null, player: null, playerSource: null });
+        try {
+          // If player is from bench, they're already in game roster
+          // Use updatePosition to change their position
+          if (
+            source === 'bench' &&
+            'gameEventId' in player &&
+            player.gameEventId
+          ) {
+            await updatePosition(player.gameEventId, position);
+          } else {
+            // Player is from team roster - add them to game roster
+            const playerIdToAssign =
+              'oduserId' in player ? player.oduserId : player.playerId;
+            const externalPlayerName =
+              'externalPlayerName' in player
+                ? player.externalPlayerName
+                : undefined;
+            const externalPlayerNumber =
+              'externalPlayerNumber' in player
+                ? player.externalPlayerNumber
+                : undefined;
+
+            await addPlayerToGameRoster({
+              playerId: playerIdToAssign || undefined,
+              externalPlayerName: externalPlayerName || undefined,
+              externalPlayerNumber: externalPlayerNumber || undefined,
+              position,
+            });
+          }
+        } catch (err) {
+          console.error('[LineupPanel] Failed to assign player:', err);
+          const message =
+            err instanceof Error ? err.message : 'Failed to assign player';
+          setError(message);
+        }
       }
     },
-    [selection, queue, onField]
+    [selection, gameStatus, addPlayerToGameRoster, updatePosition],
   );
+
+  // Handle external field player selection (from field visualization click at halftime)
+  // Placed after handlePlayerClick so we can delegate to it for swap/deselect logic
+  useEffect(() => {
+    if (!externalFieldPlayerSelection) return;
+
+    const player = externalFieldPlayerSelection;
+    onExternalFieldPlayerHandled?.();
+
+    // Ensure panel is visible
+    if (panelState === 'collapsed') {
+      setPanelState('bench-view');
+    }
+
+    // Delegate to handlePlayerClick which handles swaps, deselection, etc.
+    handlePlayerClick(player, 'onField');
+  }, [
+    externalFieldPlayerSelection,
+    onExternalFieldPlayerHandled,
+    handlePlayerClick,
+    panelState,
+  ]);
 
   // Remove from queue
   const handleRemoveFromQueue = useCallback((queueId: string) => {
@@ -357,12 +688,15 @@ export const LineupPanel = ({
       if (gameStatus === 'HALFTIME') {
         // At halftime, build complete lineup and use setSecondHalfLineup
         // Start with current on-field players
-        const lineupMap = new Map<string, {
-          playerId?: string;
-          externalPlayerName?: string;
-          externalPlayerNumber?: string;
-          position: string;
-        }>();
+        const lineupMap = new Map<
+          string,
+          {
+            playerId?: string;
+            externalPlayerName?: string;
+            externalPlayerNumber?: string;
+            position: string;
+          }
+        >();
 
         // Add current on-field players
         onField.forEach((player) => {
@@ -379,9 +713,18 @@ export const LineupPanel = ({
         // Apply queued changes
         queue.forEach((item) => {
           if (item.type === 'assignment') {
-            const playerId = 'oduserId' in item.player ? item.player.oduserId : item.player.playerId;
-            const externalPlayerName = 'externalPlayerName' in item.player ? item.player.externalPlayerName : undefined;
-            const externalPlayerNumber = 'externalPlayerNumber' in item.player ? item.player.externalPlayerNumber : undefined;
+            const playerId =
+              'oduserId' in item.player
+                ? item.player.oduserId
+                : item.player.playerId;
+            const externalPlayerName =
+              'externalPlayerName' in item.player
+                ? item.player.externalPlayerName
+                : undefined;
+            const externalPlayerNumber =
+              'externalPlayerNumber' in item.player
+                ? item.player.externalPlayerNumber
+                : undefined;
 
             lineupMap.set(item.position, {
               playerId: playerId || undefined,
@@ -396,9 +739,24 @@ export const LineupPanel = ({
             lineupMap.set(item.toPosition, {
               playerId: item.player.playerId || undefined,
               externalPlayerName: item.player.externalPlayerName || undefined,
-              externalPlayerNumber: item.player.externalPlayerNumber || undefined,
+              externalPlayerNumber:
+                item.player.externalPlayerNumber || undefined,
               position: item.toPosition,
             });
+          } else if (item.type === 'swap') {
+            // Swap: get both entries, exchange their positions
+            const entry1 = lineupMap.get(item.player1Position);
+            const entry2 = lineupMap.get(item.player2Position);
+            if (entry1 && entry2) {
+              lineupMap.set(item.player1Position, {
+                ...entry2,
+                position: item.player1Position,
+              });
+              lineupMap.set(item.player2Position, {
+                ...entry1,
+                position: item.player2Position,
+              });
+            }
           } else if (item.type === 'removal') {
             lineupMap.delete(item.position);
           }
@@ -413,9 +771,18 @@ export const LineupPanel = ({
           setExecutionProgress(i);
 
           if (item.type === 'assignment') {
-            const playerId = 'oduserId' in item.player ? item.player.oduserId : item.player.playerId;
-            const externalPlayerName = 'externalPlayerName' in item.player ? item.player.externalPlayerName : undefined;
-            const externalPlayerNumber = 'externalPlayerNumber' in item.player ? item.player.externalPlayerNumber : undefined;
+            const playerId =
+              'oduserId' in item.player
+                ? item.player.oduserId
+                : item.player.playerId;
+            const externalPlayerName =
+              'externalPlayerName' in item.player
+                ? item.player.externalPlayerName
+                : undefined;
+            const externalPlayerNumber =
+              'externalPlayerNumber' in item.player
+                ? item.player.externalPlayerNumber
+                : undefined;
 
             await addPlayerToGameRoster({
               playerId: playerId || undefined,
@@ -425,6 +792,15 @@ export const LineupPanel = ({
             });
           } else if (item.type === 'position-change') {
             await updatePosition(item.player.gameEventId, item.toPosition);
+          } else if (item.type === 'swap') {
+            await updatePosition(
+              item.player1.gameEventId,
+              item.player2Position,
+            );
+            await updatePosition(
+              item.player2.gameEventId,
+              item.player1Position,
+            );
           } else if (item.type === 'removal') {
             await removeFromLineup(item.player.gameEventId);
           }
@@ -438,7 +814,8 @@ export const LineupPanel = ({
       onLineupComplete?.();
     } catch (err) {
       console.error('[LineupPanel] Failed to execute lineup changes:', err);
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      const message =
+        err instanceof Error ? err.message : 'An unexpected error occurred';
       setError(message);
     } finally {
       setIsExecuting(false);
@@ -454,6 +831,81 @@ export const LineupPanel = ({
     refetchRoster,
     onLineupComplete,
   ]);
+
+  // Add player to bench (no position) or move on-field player to bench
+  const handleAddToBench = useCallback(async () => {
+    if (
+      selection.direction !== 'player-first' ||
+      !selection.player ||
+      !selection.playerSource
+    ) {
+      return;
+    }
+
+    setError(null);
+    const player = selection.player;
+    const source = selection.playerSource;
+
+    // Clear selection immediately for responsive UI
+    setSelection({
+      direction: null,
+      position: null,
+      player: null,
+      playerSource: null,
+    });
+
+    // On-field player → move to bench (remove from position)
+    if (source === 'onField' && 'gameEventId' in player && player.gameEventId) {
+      if (gameStatus === 'HALFTIME') {
+        // Queue a removal for batch execution
+        setQueue((prev) => [
+          ...prev,
+          {
+            id: `removal-${Date.now()}-${Math.random()}`,
+            type: 'removal' as const,
+            player: player as GqlRosterPlayer,
+            position: (player as GqlRosterPlayer).position!,
+          },
+        ]);
+      } else {
+        // SCHEDULED: execute immediately
+        try {
+          await removeFromLineup(player.gameEventId);
+        } catch (err) {
+          console.error('[LineupPanel] Failed to move player to bench:', err);
+          const message =
+            err instanceof Error
+              ? err.message
+              : 'Failed to move player to bench';
+          setError(message);
+        }
+      }
+      return;
+    }
+
+    // Roster player → add to game roster with no position
+    try {
+      const playerId = 'oduserId' in player ? player.oduserId : player.playerId;
+      const externalPlayerName =
+        'externalPlayerName' in player ? player.externalPlayerName : undefined;
+      const externalPlayerNumber =
+        'externalPlayerNumber' in player
+          ? player.externalPlayerNumber
+          : undefined;
+
+      await addPlayerToGameRoster({
+        playerId: playerId || undefined,
+        externalPlayerName: externalPlayerName || undefined,
+        externalPlayerNumber: externalPlayerNumber || undefined,
+        position: null, // No position = bench
+      });
+    } catch (err) {
+      console.error('[LineupPanel] Failed to add player to bench:', err);
+      const message =
+        err instanceof Error ? err.message : 'Failed to add player to bench';
+      setError(message);
+    }
+  }, [selection, gameStatus, addPlayerToGameRoster, removeFromLineup]);
 
   // Keep same lineup (halftime shortcut)
   const handleKeepSameLineup = useCallback(async () => {
@@ -478,12 +930,19 @@ export const LineupPanel = ({
       onLineupComplete?.();
     } catch (err) {
       console.error('[LineupPanel] Failed to keep same lineup:', err);
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      const message =
+        err instanceof Error ? err.message : 'An unexpected error occurred';
       setError(message);
     } finally {
       setIsExecuting(false);
     }
-  }, [gameStatus, onField, setSecondHalfLineup, refetchRoster, onLineupComplete]);
+  }, [
+    gameStatus,
+    onField,
+    setSecondHalfLineup,
+    refetchRoster,
+    onLineupComplete,
+  ]);
 
   return (
     <LineupPanelPresentation
@@ -492,14 +951,11 @@ export const LineupPanel = ({
       gameStatus={gameStatus}
       teamName={teamName}
       teamColor={teamColor}
-      formation={formation}
       playersPerTeam={playersPerTeam}
       onFieldPlayers={onField}
       benchPlayers={bench}
       availableRoster={availableRoster}
       playTimeByPlayer={playTimeByPlayer}
-      availableFormations={availableFormations}
-      onFormationChange={onFormationChange}
       selection={selection}
       onPositionClick={handlePositionClick}
       onPlayerClick={handlePlayerClick}
@@ -508,11 +964,15 @@ export const LineupPanel = ({
       onRemoveFromQueue={handleRemoveFromQueue}
       onConfirmAll={handleConfirmAll}
       onClearQueue={handleClearQueue}
-      onKeepSameLineup={gameStatus === 'HALFTIME' ? handleKeepSameLineup : undefined}
+      onKeepSameLineup={
+        gameStatus === 'HALFTIME' ? handleKeepSameLineup : undefined
+      }
+      onAddToBench={handleAddToBench}
       isExecuting={isExecuting}
       executionProgress={executionProgress}
       error={error}
       filledPositions={filledPositions}
+      filledCount={filledCount}
       requiredPositions={requiredPositions}
     />
   );

@@ -16,22 +16,12 @@ export class UpdateGameInput extends PartialType(CreateGameInput) {
   @Field(() => Int, {
     nullable: true,
     description:
-      'Current game minute when status changes (used for timing events)',
+      'Period-relative seconds when status changes (used for timing events)',
   })
   @IsOptional()
   @IsInt()
   @Min(0)
-  gameMinute?: number;
-
-  @Field(() => Int, {
-    nullable: true,
-    description:
-      'Current game second when status changes (used for timing events)',
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  gameSecond?: number;
+  periodSecond?: number;
 
   @Field({ nullable: true })
   @IsOptional()

@@ -45,6 +45,14 @@ export type QueuedLineupItem =
     }
   | {
       id: string;
+      type: 'swap';
+      player1: GqlRosterPlayer;
+      player1Position: string;
+      player2: GqlRosterPlayer;
+      player2Position: string;
+    }
+  | {
+      id: string;
       type: 'removal';
       player: GqlRosterPlayer;
       position: string;
@@ -62,7 +70,6 @@ export interface LineupPanelPresentationProps {
   gameStatus: 'SCHEDULED' | 'HALFTIME';
   teamName: string;
   teamColor: string;
-  formation: string | null;
   playersPerTeam: number;
 
   // Player data
@@ -71,16 +78,12 @@ export interface LineupPanelPresentationProps {
   availableRoster: TeamRosterPlayer[];
   playTimeByPlayer?: Map<string, { minutes: number; isOnField: boolean }>;
 
-  // Formation
-  availableFormations: string[];
-  onFormationChange: (formation: string) => void;
-
   // Selection state
   selection: LineupSelection;
   onPositionClick: (position: string) => void;
   onPlayerClick: (
     player: GqlRosterPlayer | TeamRosterPlayer,
-    source: 'onField' | 'bench' | 'roster'
+    source: 'onField' | 'bench' | 'roster',
   ) => void;
   onClearSelection: () => void;
 
@@ -93,6 +96,9 @@ export interface LineupPanelPresentationProps {
   // Quick actions (halftime only)
   onKeepSameLineup?: () => void;
 
+  // Add to bench (when player selected but no position needed)
+  onAddToBench: () => void;
+
   // Execution state
   isExecuting: boolean;
   executionProgress: number;
@@ -100,6 +106,7 @@ export interface LineupPanelPresentationProps {
 
   // Positions info
   filledPositions: Set<string>;
+  filledCount: number;
   requiredPositions: string[];
 }
 
@@ -114,11 +121,10 @@ export interface LineupPanelSmartProps {
   teamColor: string;
   playersPerTeam: number;
 
-  // Current lineup data (from useLineup hook)
+  // Current lineup data
   formation: string | null;
   onField: GqlRosterPlayer[];
   bench: GqlRosterPlayer[];
-  availableRoster: TeamRosterPlayer[];
 
   // First half lineup for halftime comparison
   firstHalfLineup?: GqlRosterPlayer[];
@@ -140,13 +146,19 @@ export interface LineupPanelSmartProps {
 
   // Callbacks
   onLineupComplete?: () => void;
-  onFormationChange: (formation: string) => void;
 
   // External coordination (from field visualization clicks)
   externalPositionSelection?: string | null;
   onExternalPositionHandled?: () => void;
+  externalFieldPlayerSelection?: GqlRosterPlayer | null;
+  onExternalFieldPlayerHandled?: () => void;
 
   // Notify parent of state changes
   onQueuedPositionsChange?: (positions: Set<string>) => void;
   onSelectedPositionChange?: (position: string | null) => void;
+  onPlayerSelectionChange?: (hasPlayerSelected: boolean) => void;
+
+  // Field highlighting coordination
+  onSelectedFieldPlayerIdChange?: (gameEventId: string | null) => void;
+  onQueuedPlayerIdsChange?: (queuedIds: Set<string>) => void;
 }

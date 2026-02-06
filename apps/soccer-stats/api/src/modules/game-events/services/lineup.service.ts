@@ -8,6 +8,7 @@ import { GameEvent } from '../../../entities/game-event.entity';
 import { GameLineup, LineupPlayer } from '../dto/game-lineup.output';
 import { AddToGameRosterInput } from '../dto/add-to-game-roster.input';
 import { GameRoster, RosterPlayer } from '../dto/game-roster.output';
+import { GameEventAction } from '../dto/game-event-subscription.output';
 
 import { EventCoreService } from './event-core.service';
 
@@ -45,7 +46,16 @@ export class LineupService {
       );
     }
 
+    const gameId = gameEvent.gameId;
     await this.gameEventsRepository.remove(gameEvent);
+
+    await this.coreService.publishGameEvent(
+      gameId,
+      GameEventAction.DELETED,
+      undefined,
+      gameEventId,
+    );
+
     return true;
   }
 
@@ -63,7 +73,15 @@ export class LineupService {
     }
 
     gameEvent.position = position;
-    return this.gameEventsRepository.save(gameEvent);
+    const savedEvent = await this.gameEventsRepository.save(gameEvent);
+
+    await this.coreService.publishGameEvent(
+      savedEvent.gameId,
+      GameEventAction.UPDATED,
+      savedEvent,
+    );
+
+    return savedEvent;
   }
 
   async getGameLineup(gameTeamId: string): Promise<GameLineup> {
@@ -112,7 +130,10 @@ export class LineupService {
       } else if (event.eventType.name === 'SUBSTITUTION_OUT') {
         currentOnField.delete(key);
         lastPositions.set(key, event.position || '');
-      } else if (event.eventType.name === 'POSITION_SWAP') {
+      } else if (
+        event.eventType.name === 'POSITION_SWAP' ||
+        event.eventType.name === 'POSITION_CHANGE'
+      ) {
         // Update position for players still on field
         const existingOnField = currentOnField.get(key);
         if (existingOnField) {
@@ -181,6 +202,7 @@ export class LineupService {
       'SUBSTITUTION_IN',
       'SUBSTITUTION_OUT',
       'POSITION_SWAP',
+      'POSITION_CHANGE',
     ];
     const typeIds = relevantTypes.map(
       (name) => this.coreService.getEventTypeByName(name).id,
@@ -406,13 +428,19 @@ export class LineupService {
       externalPlayerNumber: input.externalPlayerNumber,
       position: input.position,
       recordedByUserId,
-      gameMinute: 0,
-      gameSecond: 0,
       period: '1',
       periodSecond: 0,
     });
 
-    return this.gameEventsRepository.save(gameEvent);
+    const savedEvent = await this.gameEventsRepository.save(gameEvent);
+
+    await this.coreService.publishGameEvent(
+      gameTeam.gameId,
+      GameEventAction.CREATED,
+      savedEvent,
+    );
+
+    return savedEvent;
   }
 
   /**

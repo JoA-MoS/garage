@@ -11,8 +11,7 @@ describe('isHalftimeEvent', () => {
     return {
       id: 'test-id',
       createdAt: new Date().toISOString(),
-      gameMinute: 45,
-      gameSecond: 0,
+      periodSecond: 2700,
       eventType: {
         name: eventTypeName,
         category: 'GAME_FLOW',
@@ -123,8 +122,7 @@ describe('isHalftimeEvent', () => {
       const event: GameEvent = {
         id: 'test-id',
         createdAt: new Date().toISOString(),
-        gameMinute: 45,
-        gameSecond: 0,
+        periodSecond: 2700,
         eventType: null,
       };
 
@@ -135,8 +133,7 @@ describe('isHalftimeEvent', () => {
       const event: GameEvent = {
         id: 'test-id',
         createdAt: new Date().toISOString(),
-        gameMinute: 45,
-        gameSecond: 0,
+        periodSecond: 2700,
         eventType: undefined,
       };
 

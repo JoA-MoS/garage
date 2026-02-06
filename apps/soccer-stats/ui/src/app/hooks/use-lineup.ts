@@ -13,6 +13,7 @@ import {
   SubstitutePlayerDocument,
   SetSecondHalfLineupDocument,
   BringPlayerOntoFieldDocument,
+  RemovePlayerFromFieldDocument,
   StartPeriodDocument,
   EndPeriodDocument,
   RosterPlayer as GqlRosterPlayer,
@@ -134,6 +135,12 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
 
   const [bringPlayerOntoFieldMutation, { loading: bringingOntoField }] =
     useMutation(BringPlayerOntoFieldDocument, {
+      refetchQueries: getRefetchQueries,
+      awaitRefetchQueries: true,
+    });
+
+  const [removePlayerFromFieldMutation, { loading: removingFromField }] =
+    useMutation(RemovePlayerFromFieldDocument, {
       refetchQueries: getRefetchQueries,
       awaitRefetchQueries: true,
     });
@@ -387,6 +394,32 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     [gameTeamId, bringPlayerOntoFieldMutation],
   );
 
+  // Remove a player from the field without replacement (injury, red card, tactical)
+  const removePlayerFromField = useCallback(
+    async (params: {
+      playerEventId: string;
+      period: string;
+      periodSecond?: number;
+    }) => {
+      try {
+        return await removePlayerFromFieldMutation({
+          variables: {
+            input: {
+              gameTeamId,
+              playerEventId: params.playerEventId,
+              period: params.period,
+              periodSecond: params.periodSecond ?? 0,
+            },
+          },
+        });
+      } catch (error) {
+        console.error('[useLineup] removePlayerFromField failed:', error);
+        throw error;
+      }
+    },
+    [gameTeamId, removePlayerFromFieldMutation],
+  );
+
   // Start a period - creates PERIOD_START event with SUB_IN events as children
   const startPeriod = useCallback(
     async (params: {
@@ -459,6 +492,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       recordingPositionChange ||
       settingSecondHalfLineup ||
       bringingOntoField ||
+      removingFromField ||
       startingPeriod ||
       endingPeriod,
 
@@ -473,6 +507,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     recordPositionChange,
     setSecondHalfLineup,
     bringPlayerOntoField,
+    removePlayerFromField,
     startPeriod,
     endPeriod,
     refetchRoster,

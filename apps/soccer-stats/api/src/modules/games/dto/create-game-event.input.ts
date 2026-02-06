@@ -1,11 +1,8 @@
-import { InputType, Field, ID, Int } from '@nestjs/graphql';
+import { InputType, Field, ID } from '@nestjs/graphql';
 import {
   IsUUID,
   IsOptional,
-  IsInt,
   IsString,
-  Min,
-  Max,
   MinLength,
   MaxLength,
   ValidateIf,
@@ -53,18 +50,6 @@ export class CreateGameEventInput {
   @IsOptional()
   @IsUUID()
   parentEventId?: string;
-
-  @Field(() => Int)
-  @IsInt()
-  @Min(0)
-  @Max(999)
-  gameMinute: number;
-
-  @Field(() => Int)
-  @IsInt()
-  @Min(0)
-  @Max(59)
-  gameSecond: number;
 
   @Field({ nullable: true })
   @IsOptional()

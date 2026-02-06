@@ -9,6 +9,9 @@ import {
 
 import {
   BATCH_LINEUP_CHANGES,
+  SWAP_POSITIONS,
+  REMOVE_PLAYER_FROM_FIELD,
+  BRING_PLAYER_ONTO_FIELD,
   GET_GAME_BY_ID,
   GET_GAME_ROSTER,
 } from '../../../services/games-graphql.service';
@@ -40,6 +43,7 @@ export const SubstitutionPanel = ({
   bench,
   period,
   periodSecond,
+  executeImmediately = false,
   gameEvents,
   onSubstitutionComplete,
   externalFieldPlayerSelection,
@@ -47,6 +51,8 @@ export const SubstitutionPanel = ({
   onBenchSelectionChange,
   externalFieldPlayerToReplace,
   onExternalFieldPlayerToReplaceHandled,
+  externalEmptyPosition,
+  onExternalEmptyPositionHandled,
   onQueuedPlayerIdsChange,
   onSelectedFieldPlayerChange,
 }: SubstitutionPanelSmartProps) => {
@@ -71,6 +77,83 @@ export const SubstitutionPanel = ({
   // Apollo
   const client = useApolloClient();
   const [batchLineupChanges] = useMutation(BATCH_LINEUP_CHANGES);
+  const [swapPositions] = useMutation(SWAP_POSITIONS);
+  const [removePlayerFromFieldMutation] = useMutation(REMOVE_PLAYER_FROM_FIELD);
+  const [bringPlayerOntoFieldMutation] = useMutation(BRING_PLAYER_ONTO_FIELD);
+
+  // Execute a single substitution immediately (used when executeImmediately=true)
+  // Defined early so useEffects can reference it
+  const executeSubstitutionNow = useCallback(
+    async (playerOut: GqlRosterPlayer, playerIn: GqlRosterPlayer) => {
+      setError(null);
+
+      try {
+        await batchLineupChanges({
+          variables: {
+            input: {
+              gameTeamId,
+              period,
+              periodSecond,
+              substitutions: [
+                {
+                  playerOutEventId: playerOut.gameEventId,
+                  playerInId: playerIn.playerId || undefined,
+                  externalPlayerInName:
+                    playerIn.externalPlayerName || undefined,
+                  externalPlayerInNumber:
+                    playerIn.externalPlayerNumber || undefined,
+                },
+              ],
+              swaps: [],
+            },
+          },
+          refetchQueries: [
+            { query: GET_GAME_ROSTER, variables: { gameTeamId } },
+          ],
+          awaitRefetchQueries: true,
+        });
+      } catch (err) {
+        console.error('Failed to execute substitution:', err);
+        const message =
+          err instanceof Error ? err.message : 'Failed to execute substitution';
+        setError(message);
+      }
+    },
+    [gameTeamId, period, periodSecond, batchLineupChanges],
+  );
+
+  // Execute a single position swap immediately (used when executeImmediately=true)
+  const executeSwapNow = useCallback(
+    async (player1: GqlRosterPlayer, player2: GqlRosterPlayer) => {
+      setError(null);
+
+      try {
+        await swapPositions({
+          variables: {
+            input: {
+              gameTeamId,
+              player1EventId: player1.gameEventId,
+              player2EventId: player2.gameEventId,
+              period,
+              periodSecond,
+            },
+          },
+          refetchQueries: [
+            { query: GET_GAME_ROSTER, variables: { gameTeamId } },
+          ],
+          awaitRefetchQueries: true,
+        });
+      } catch (err) {
+        console.error('Failed to execute position swap:', err);
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'Failed to execute position swap';
+        setError(message);
+      }
+    },
+    [gameTeamId, period, periodSecond, swapPositions],
+  );
 
   // Get queued player IDs - computed early so useEffects can validate against them
   const { outIds, inIds, swapPlayerIds } = useMemo(() => {
@@ -82,6 +165,8 @@ export const SubstitutionPanel = ({
       if (item.type === 'substitution') {
         outIds.add(item.playerOut.gameEventId);
         inIds.add(getPlayerId(item.playerIn));
+      } else if (item.type === 'removal') {
+        outIds.add(item.playerOut.gameEventId);
       } else {
         swapPlayerIds.add(getPlayerId(item.player1.player));
         swapPlayerIds.add(getPlayerId(item.player2.player));
@@ -154,15 +239,21 @@ export const SubstitutionPanel = ({
         swapPlayerIds.has(getPlayerId(externalFieldPlayerToReplace));
 
       if (!isQueued) {
-        // Queue the substitution
-        const subItem: QueuedItem = {
-          id: `sub-${Date.now()}-${Math.random()}`,
-          type: 'substitution',
-          playerOut: externalFieldPlayerToReplace,
-          playerIn: selection.benchPlayer,
-        };
-        setQueue((prev) => [...prev, subItem]);
+        const playerOut = externalFieldPlayerToReplace;
+        const playerIn = selection.benchPlayer;
         setSelection({ direction: null, fieldPlayer: null, benchPlayer: null });
+
+        if (executeImmediately) {
+          executeSubstitutionNow(playerOut, playerIn);
+        } else {
+          const subItem: QueuedItem = {
+            id: `sub-${Date.now()}-${Math.random()}`,
+            type: 'substitution',
+            playerOut,
+            playerIn,
+          };
+          setQueue((prev) => [...prev, subItem]);
+        }
       }
       // Notify parent that we've handled the click (even if ignored)
       onExternalFieldPlayerToReplaceHandled?.();
@@ -174,6 +265,8 @@ export const SubstitutionPanel = ({
     onExternalFieldPlayerToReplaceHandled,
     outIds,
     swapPlayerIds,
+    executeImmediately,
+    executeSubstitutionNow,
   ]);
 
   // Calculate play time for all players
@@ -256,47 +349,66 @@ export const SubstitutionPanel = ({
           return;
         }
 
-        // Queue position swap
-        const swapItem: QueuedItem = {
-          id: `swap-${Date.now()}-${Math.random()}`,
-          type: 'swap',
-          player1: {
-            source: 'onField',
-            player: selection.fieldPlayer,
-            gameEventId: selection.fieldPlayer.gameEventId,
-          },
-          player2: {
-            source: 'onField',
-            player,
-            gameEventId: player.gameEventId,
-          },
-        };
-        setQueue((prev) => [...prev, swapItem]);
+        const fieldPlayer = selection.fieldPlayer;
         setSelection({
           direction: null,
           fieldPlayer: null,
           benchPlayer: null,
         });
+
+        if (executeImmediately) {
+          executeSwapNow(fieldPlayer, player);
+        } else {
+          // Queue position swap
+          const swapItem: QueuedItem = {
+            id: `swap-${Date.now()}-${Math.random()}`,
+            type: 'swap',
+            player1: {
+              source: 'onField',
+              player: fieldPlayer,
+              gameEventId: fieldPlayer.gameEventId,
+            },
+            player2: {
+              source: 'onField',
+              player,
+              gameEventId: player.gameEventId,
+            },
+          };
+          setQueue((prev) => [...prev, swapItem]);
+        }
         return;
       }
 
       // If bench-first, complete the substitution
       if (selection.direction === 'bench-first' && selection.benchPlayer) {
-        const subItem: QueuedItem = {
-          id: `sub-${Date.now()}-${Math.random()}`,
-          type: 'substitution',
-          playerOut: player,
-          playerIn: selection.benchPlayer,
-        };
-        setQueue((prev) => [...prev, subItem]);
+        const benchPlayer = selection.benchPlayer;
         setSelection({
           direction: null,
           fieldPlayer: null,
           benchPlayer: null,
         });
+
+        if (executeImmediately) {
+          executeSubstitutionNow(player, benchPlayer);
+        } else {
+          const subItem: QueuedItem = {
+            id: `sub-${Date.now()}-${Math.random()}`,
+            type: 'substitution',
+            playerOut: player,
+            playerIn: benchPlayer,
+          };
+          setQueue((prev) => [...prev, subItem]);
+        }
       }
     },
-    [selection, outIds, swapPlayerIds],
+    [
+      selection,
+      outIds,
+      swapPlayerIds,
+      executeImmediately,
+      executeSubstitutionNow,
+      executeSwapNow,
+    ],
   );
 
   // Handle bench player click
@@ -340,22 +452,127 @@ export const SubstitutionPanel = ({
 
       // If field-first, complete the substitution
       if (selection.direction === 'field-first' && selection.fieldPlayer) {
-        const subItem: QueuedItem = {
-          id: `sub-${Date.now()}-${Math.random()}`,
-          type: 'substitution',
-          playerOut: selection.fieldPlayer,
-          playerIn: player,
-        };
-        setQueue((prev) => [...prev, subItem]);
+        const fieldPlayer = selection.fieldPlayer;
         setSelection({
           direction: null,
           fieldPlayer: null,
           benchPlayer: null,
         });
+
+        if (executeImmediately) {
+          executeSubstitutionNow(fieldPlayer, player);
+        } else {
+          const subItem: QueuedItem = {
+            id: `sub-${Date.now()}-${Math.random()}`,
+            type: 'substitution',
+            playerOut: fieldPlayer,
+            playerIn: player,
+          };
+          setQueue((prev) => [...prev, subItem]);
+        }
       }
     },
-    [selection],
+    [selection, executeImmediately, executeSubstitutionNow],
   );
+
+  // Handle removal request (field player leaves, no replacement)
+  const handleRequestRemoval = useCallback(
+    (player: GqlRosterPlayer) => {
+      setSelection({ direction: null, fieldPlayer: null, benchPlayer: null });
+
+      if (executeImmediately) {
+        // Execute immediately (halftime mode - unlikely but handle for consistency)
+        removePlayerFromFieldMutation({
+          variables: {
+            input: {
+              gameTeamId,
+              playerEventId: player.gameEventId,
+              period,
+              periodSecond,
+            },
+          },
+          refetchQueries: [
+            { query: GET_GAME_ROSTER, variables: { gameTeamId } },
+          ],
+          awaitRefetchQueries: true,
+        }).catch((err) => {
+          console.error('Failed to remove player from field:', err);
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Failed to remove player from field',
+          );
+        });
+      } else {
+        const removalItem: QueuedItem = {
+          id: `removal-${Date.now()}-${Math.random()}`,
+          type: 'removal',
+          playerOut: player,
+        };
+        setQueue((prev) => [...prev, removalItem]);
+      }
+    },
+    [
+      executeImmediately,
+      gameTeamId,
+      period,
+      periodSecond,
+      removePlayerFromFieldMutation,
+    ],
+  );
+
+  // Handle external empty position click (fill empty position during bench-first flow)
+  useEffect(() => {
+    if (
+      externalEmptyPosition &&
+      selection.direction === 'bench-first' &&
+      selection.benchPlayer
+    ) {
+      const benchPlayer = selection.benchPlayer;
+      const position = externalEmptyPosition;
+
+      // Clear selection immediately
+      setSelection({ direction: null, fieldPlayer: null, benchPlayer: null });
+
+      // Execute immediately - filling an empty position is urgent/tactical
+      bringPlayerOntoFieldMutation({
+        variables: {
+          input: {
+            gameTeamId,
+            playerId: benchPlayer.playerId || undefined,
+            externalPlayerName: benchPlayer.externalPlayerName || undefined,
+            externalPlayerNumber: benchPlayer.externalPlayerNumber || undefined,
+            position,
+            period,
+            periodSecond,
+          },
+        },
+        refetchQueries: [{ query: GET_GAME_ROSTER, variables: { gameTeamId } }],
+        awaitRefetchQueries: true,
+      }).catch((err) => {
+        console.error('Failed to bring player onto field:', err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to bring player onto field',
+        );
+      });
+
+      onExternalEmptyPositionHandled?.();
+    } else if (externalEmptyPosition) {
+      // No bench selection active - just clear
+      onExternalEmptyPositionHandled?.();
+    }
+  }, [
+    externalEmptyPosition,
+    selection.direction,
+    selection.benchPlayer,
+    onExternalEmptyPositionHandled,
+    gameTeamId,
+    period,
+    periodSecond,
+    bringPlayerOntoFieldMutation,
+  ]);
 
   // Clear selection
   const handleClearSelection = useCallback(() => {
@@ -387,6 +604,10 @@ export const SubstitutionPanel = ({
     const swaps = queue.filter(
       (q): q is Extract<QueuedItem, { type: 'swap' }> => q.type === 'swap',
     );
+    const removals = queue.filter(
+      (q): q is Extract<QueuedItem, { type: 'removal' }> =>
+        q.type === 'removal',
+    );
 
     const subIdToIndex = new Map<string, number>();
     subs.forEach((sub, index) => {
@@ -415,19 +636,36 @@ export const SubstitutionPanel = ({
         return { player1, player2 };
       });
 
-      await batchLineupChanges({
-        variables: {
-          input: {
-            gameTeamId,
-            period,
-            periodSecond,
-            substitutions: substitutionInputs,
-            swaps: swapInputs,
+      // Execute batch substitutions and swaps (if any)
+      if (substitutionInputs.length > 0 || swapInputs.length > 0) {
+        await batchLineupChanges({
+          variables: {
+            input: {
+              gameTeamId,
+              period,
+              periodSecond,
+              substitutions: substitutionInputs,
+              swaps: swapInputs,
+            },
           },
-        },
-      });
+        });
+      }
 
-      // Mutation succeeded - update progress and clear queue immediately
+      // Execute removals (each is a separate mutation)
+      for (const removal of removals) {
+        await removePlayerFromFieldMutation({
+          variables: {
+            input: {
+              gameTeamId,
+              playerEventId: removal.playerOut.gameEventId,
+              period,
+              periodSecond,
+            },
+          },
+        });
+      }
+
+      // All mutations succeeded - update progress and clear queue immediately
       // This ensures we don't lose track of successful operations
       setExecutionProgress(queue.length);
       setQueue([]);
@@ -483,6 +721,7 @@ export const SubstitutionPanel = ({
     period,
     periodSecond,
     batchLineupChanges,
+    removePlayerFromFieldMutation,
     client,
     onSubstitutionComplete,
   ]);
@@ -503,6 +742,7 @@ export const SubstitutionPanel = ({
       queue={queue}
       onRemoveFromQueue={handleRemoveFromQueue}
       onConfirmAll={handleConfirmAll}
+      onRequestRemoval={handleRequestRemoval}
       isExecuting={isExecuting}
       executionProgress={executionProgress}
       error={error}
