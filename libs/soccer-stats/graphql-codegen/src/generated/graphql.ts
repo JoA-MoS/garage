@@ -261,10 +261,6 @@ export type GameEvent = {
   formation?: Maybe<Scalars['String']['output']>;
   game: Game;
   gameId: Scalars['ID']['output'];
-  /** @deprecated Use period and periodSecond instead */
-  gameMinute: Scalars['Int']['output'];
-  /** @deprecated Use period and periodSecond instead */
-  gameSecond: Scalars['Int']['output'];
   gameTeam: GameTeam;
   gameTeamId: Scalars['ID']['output'];
   id: Scalars['ID']['output'];
@@ -1252,13 +1248,11 @@ export type UpdateGameInput = {
   duration?: InputMaybe<Scalars['Int']['input']>;
   firstHalfEnd?: InputMaybe<Scalars['DateTime']['input']>;
   gameFormatId?: InputMaybe<Scalars['ID']['input']>;
-  /** Current game minute when status changes (used for timing events) */
-  gameMinute?: InputMaybe<Scalars['Int']['input']>;
-  /** Current game second when status changes (used for timing events) */
-  gameSecond?: InputMaybe<Scalars['Int']['input']>;
   homeTeamId?: InputMaybe<Scalars['ID']['input']>;
   /** When the game clock was paused (null to unpause) */
   pausedAt?: InputMaybe<Scalars['DateTime']['input']>;
+  /** Period-relative seconds when status changes (used for timing events) */
+  periodSecond?: InputMaybe<Scalars['Int']['input']>;
   /** If true, resets the game to SCHEDULED status and clears all timestamps */
   resetGame?: InputMaybe<Scalars['Boolean']['input']>;
   secondHalfStart?: InputMaybe<Scalars['DateTime']['input']>;
@@ -1734,8 +1728,6 @@ export type GetGameByIdQuery = {
         __typename?: 'GameEvent';
         id: string;
         createdAt: any;
-        gameMinute: number;
-        gameSecond: number;
         period?: string | null;
         periodSecond: number;
         position?: string | null;
@@ -1998,8 +1990,6 @@ export type AddPlayerToGameRosterMutation = {
   addPlayerToGameRoster: {
     __typename?: 'GameEvent';
     id: string;
-    gameMinute: number;
-    gameSecond: number;
     period?: string | null;
     periodSecond: number;
     position?: string | null;
@@ -2042,8 +2032,6 @@ export type SubstitutePlayerMutation = {
   substitutePlayer: Array<{
     __typename?: 'GameEvent';
     id: string;
-    gameMinute: number;
-    gameSecond: number;
     period?: string | null;
     periodSecond: number;
     position?: string | null;
@@ -2063,8 +2051,6 @@ export type RecordFormationChangeMutation = {
   recordFormationChange: {
     __typename?: 'GameEvent';
     id: string;
-    gameMinute: number;
-    gameSecond: number;
     period?: string | null;
     periodSecond: number;
     eventType: { __typename?: 'EventType'; id: string; name: string };
@@ -2080,8 +2066,6 @@ export type RecordPositionChangeMutation = {
   recordPositionChange: {
     __typename?: 'GameEvent';
     id: string;
-    gameMinute: number;
-    gameSecond: number;
     period?: string | null;
     periodSecond: number;
     position?: string | null;
@@ -2098,8 +2082,6 @@ export type RecordGoalMutation = {
   recordGoal: {
     __typename?: 'GameEvent';
     id: string;
-    gameMinute: number;
-    gameSecond: number;
     period?: string | null;
     periodSecond: number;
     playerId?: string | null;
@@ -2199,8 +2181,6 @@ export type ResolveEventConflictMutation = {
   resolveEventConflict: {
     __typename?: 'GameEvent';
     id: string;
-    gameMinute: number;
-    gameSecond: number;
     period?: string | null;
     periodSecond: number;
     playerId?: string | null;
@@ -2220,8 +2200,6 @@ export type UpdateGoalMutation = {
   updateGoal: {
     __typename?: 'GameEvent';
     id: string;
-    gameMinute: number;
-    gameSecond: number;
     period?: string | null;
     periodSecond: number;
     playerId?: string | null;
@@ -2250,8 +2228,6 @@ export type SwapPositionsMutation = {
   swapPositions: Array<{
     __typename?: 'GameEvent';
     id: string;
-    gameMinute: number;
-    gameSecond: number;
     period?: string | null;
     periodSecond: number;
     position?: string | null;
@@ -2271,8 +2247,6 @@ export type BatchLineupChangesMutation = {
   batchLineupChanges: Array<{
     __typename?: 'GameEvent';
     id: string;
-    gameMinute: number;
-    gameSecond: number;
     period?: string | null;
     periodSecond: number;
     position?: string | null;
@@ -2352,8 +2326,6 @@ export type GameEventChangedSubscription = {
       __typename?: 'GameEvent';
       id: string;
       gameTeamId: string;
-      gameMinute: number;
-      gameSecond: number;
       period?: string | null;
       periodSecond: number;
       position?: string | null;
@@ -2381,8 +2353,6 @@ export type GameEventChangedSubscription = {
       childEvents: Array<{
         __typename?: 'GameEvent';
         id: string;
-        gameMinute: number;
-        gameSecond: number;
         period?: string | null;
         periodSecond: number;
         playerId?: string | null;
@@ -2436,6 +2406,9 @@ export type GameUpdatedSubscription = {
     secondHalfStart?: any | null;
     actualEnd?: any | null;
     pausedAt?: any | null;
+    currentPeriod?: string | null;
+    currentPeriodSecond: number;
+    serverTimestamp: number;
   };
 };
 
@@ -2448,14 +2421,30 @@ export type BringPlayerOntoFieldMutation = {
   bringPlayerOntoField: {
     __typename?: 'GameEvent';
     id: string;
-    gameMinute: number;
-    gameSecond: number;
     period?: string | null;
     periodSecond: number;
     position?: string | null;
     playerId?: string | null;
     externalPlayerName?: string | null;
     externalPlayerNumber?: string | null;
+    eventType: { __typename?: 'EventType'; id: string; name: string };
+  };
+};
+
+export type RemovePlayerFromFieldMutationVariables = Exact<{
+  input: RemovePlayerFromFieldInput;
+}>;
+
+export type RemovePlayerFromFieldMutation = {
+  __typename?: 'Mutation';
+  removePlayerFromField: {
+    __typename?: 'GameEvent';
+    id: string;
+    period?: string | null;
+    periodSecond: number;
+    position?: string | null;
+    playerId?: string | null;
+    externalPlayerName?: string | null;
     eventType: { __typename?: 'EventType'; id: string; name: string };
   };
 };
@@ -2473,8 +2462,6 @@ export type SetSecondHalfLineupMutation = {
     events: Array<{
       __typename?: 'GameEvent';
       id: string;
-      gameMinute: number;
-      gameSecond: number;
       period?: string | null;
       periodSecond: number;
       position?: string | null;
@@ -2499,8 +2486,6 @@ export type StartPeriodMutation = {
     periodEvent: {
       __typename?: 'GameEvent';
       id: string;
-      gameMinute: number;
-      gameSecond: number;
       period?: string | null;
       periodSecond: number;
       eventType: { __typename?: 'EventType'; id: string; name: string };
@@ -2519,8 +2504,6 @@ export type StartPeriodMutation = {
     substitutionEvents: Array<{
       __typename?: 'GameEvent';
       id: string;
-      gameMinute: number;
-      gameSecond: number;
       period?: string | null;
       periodSecond: number;
       position?: string | null;
@@ -2545,8 +2528,6 @@ export type EndPeriodMutation = {
     periodEvent: {
       __typename?: 'GameEvent';
       id: string;
-      gameMinute: number;
-      gameSecond: number;
       period?: string | null;
       periodSecond: number;
       eventType: { __typename?: 'EventType'; id: string; name: string };
@@ -2565,8 +2546,6 @@ export type EndPeriodMutation = {
     substitutionEvents: Array<{
       __typename?: 'GameEvent';
       id: string;
-      gameMinute: number;
-      gameSecond: number;
       period?: string | null;
       periodSecond: number;
       position?: string | null;
@@ -4815,14 +4794,6 @@ export const GetGameByIdDocument = {
                             },
                             {
                               kind: 'Field',
-                              name: { kind: 'Name', value: 'gameMinute' },
-                            },
-                            {
-                              kind: 'Field',
-                              name: { kind: 'Name', value: 'gameSecond' },
-                            },
-                            {
-                              kind: 'Field',
                               name: { kind: 'Name', value: 'period' },
                             },
                             {
@@ -5862,8 +5833,6 @@ export const AddPlayerToGameRosterDocument = {
               kind: 'SelectionSet',
               selections: [
                 { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'period' } },
                 {
                   kind: 'Field',
@@ -6063,8 +6032,6 @@ export const SubstitutePlayerDocument = {
               kind: 'SelectionSet',
               selections: [
                 { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'period' } },
                 {
                   kind: 'Field',
@@ -6145,8 +6112,6 @@ export const RecordFormationChangeDocument = {
               kind: 'SelectionSet',
               selections: [
                 { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'period' } },
                 {
                   kind: 'Field',
@@ -6217,8 +6182,6 @@ export const RecordPositionChangeDocument = {
               kind: 'SelectionSet',
               selections: [
                 { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'period' } },
                 {
                   kind: 'Field',
@@ -6290,8 +6253,6 @@ export const RecordGoalDocument = {
               kind: 'SelectionSet',
               selections: [
                 { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'period' } },
                 {
                   kind: 'Field',
@@ -6777,8 +6738,6 @@ export const ResolveEventConflictDocument = {
               kind: 'SelectionSet',
               selections: [
                 { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'period' } },
                 {
                   kind: 'Field',
@@ -6859,8 +6818,6 @@ export const UpdateGoalDocument = {
               kind: 'SelectionSet',
               selections: [
                 { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'period' } },
                 {
                   kind: 'Field',
@@ -6984,8 +6941,6 @@ export const SwapPositionsDocument = {
               kind: 'SelectionSet',
               selections: [
                 { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'period' } },
                 {
                   kind: 'Field',
@@ -7066,8 +7021,6 @@ export const BatchLineupChangesDocument = {
               kind: 'SelectionSet',
               selections: [
                 { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'period' } },
                 {
                   kind: 'Field',
@@ -7348,14 +7301,6 @@ export const GameEventChangedDocument = {
                       },
                       {
                         kind: 'Field',
-                        name: { kind: 'Name', value: 'gameMinute' },
-                      },
-                      {
-                        kind: 'Field',
-                        name: { kind: 'Name', value: 'gameSecond' },
-                      },
-                      {
-                        kind: 'Field',
                         name: { kind: 'Name', value: 'period' },
                       },
                       {
@@ -7450,14 +7395,6 @@ export const GameEventChangedDocument = {
                             {
                               kind: 'Field',
                               name: { kind: 'Name', value: 'id' },
-                            },
-                            {
-                              kind: 'Field',
-                              name: { kind: 'Name', value: 'gameMinute' },
-                            },
-                            {
-                              kind: 'Field',
-                              name: { kind: 'Name', value: 'gameSecond' },
                             },
                             {
                               kind: 'Field',
@@ -7658,6 +7595,18 @@ export const GameUpdatedDocument = {
                 },
                 { kind: 'Field', name: { kind: 'Name', value: 'actualEnd' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'pausedAt' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'currentPeriod' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'currentPeriodSecond' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'serverTimestamp' },
+                },
               ],
             },
           },
@@ -7712,8 +7661,6 @@ export const BringPlayerOntoFieldDocument = {
               kind: 'SelectionSet',
               selections: [
                 { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameMinute' } },
-                { kind: 'Field', name: { kind: 'Name', value: 'gameSecond' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'period' } },
                 {
                   kind: 'Field',
@@ -7750,6 +7697,82 @@ export const BringPlayerOntoFieldDocument = {
 } as unknown as DocumentNode<
   BringPlayerOntoFieldMutation,
   BringPlayerOntoFieldMutationVariables
+>;
+export const RemovePlayerFromFieldDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'mutation',
+      name: { kind: 'Name', value: 'RemovePlayerFromField' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'input' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: {
+              kind: 'NamedType',
+              name: { kind: 'Name', value: 'RemovePlayerFromFieldInput' },
+            },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'removePlayerFromField' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'input' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'input' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'period' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'periodSecond' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'position' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'playerId' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'externalPlayerName' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'eventType' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                      { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  RemovePlayerFromFieldMutation,
+  RemovePlayerFromFieldMutationVariables
 >;
 export const SetSecondHalfLineupDocument = {
   kind: 'Document',
@@ -7800,14 +7823,6 @@ export const SetSecondHalfLineupDocument = {
                     kind: 'SelectionSet',
                     selections: [
                       { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                      {
-                        kind: 'Field',
-                        name: { kind: 'Name', value: 'gameMinute' },
-                      },
-                      {
-                        kind: 'Field',
-                        name: { kind: 'Name', value: 'gameSecond' },
-                      },
                       {
                         kind: 'Field',
                         name: { kind: 'Name', value: 'period' },
@@ -7922,14 +7937,6 @@ export const StartPeriodDocument = {
                       { kind: 'Field', name: { kind: 'Name', value: 'id' } },
                       {
                         kind: 'Field',
-                        name: { kind: 'Name', value: 'gameMinute' },
-                      },
-                      {
-                        kind: 'Field',
-                        name: { kind: 'Name', value: 'gameSecond' },
-                      },
-                      {
-                        kind: 'Field',
                         name: { kind: 'Name', value: 'period' },
                       },
                       {
@@ -8023,14 +8030,6 @@ export const StartPeriodDocument = {
                     kind: 'SelectionSet',
                     selections: [
                       { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                      {
-                        kind: 'Field',
-                        name: { kind: 'Name', value: 'gameMinute' },
-                      },
-                      {
-                        kind: 'Field',
-                        name: { kind: 'Name', value: 'gameSecond' },
-                      },
                       {
                         kind: 'Field',
                         name: { kind: 'Name', value: 'period' },
@@ -8139,14 +8138,6 @@ export const EndPeriodDocument = {
                       { kind: 'Field', name: { kind: 'Name', value: 'id' } },
                       {
                         kind: 'Field',
-                        name: { kind: 'Name', value: 'gameMinute' },
-                      },
-                      {
-                        kind: 'Field',
-                        name: { kind: 'Name', value: 'gameSecond' },
-                      },
-                      {
-                        kind: 'Field',
                         name: { kind: 'Name', value: 'period' },
                       },
                       {
@@ -8240,14 +8231,6 @@ export const EndPeriodDocument = {
                     kind: 'SelectionSet',
                     selections: [
                       { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                      {
-                        kind: 'Field',
-                        name: { kind: 'Name', value: 'gameMinute' },
-                      },
-                      {
-                        kind: 'Field',
-                        name: { kind: 'Name', value: 'gameSecond' },
-                      },
                       {
                         kind: 'Field',
                         name: { kind: 'Name', value: 'period' },

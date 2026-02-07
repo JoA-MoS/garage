@@ -88,10 +88,6 @@ export class GoalService {
       externalPlayerName: input.externalScorerName,
       externalPlayerNumber: input.externalScorerNumber,
       recordedByUserId,
-      // Legacy fields (deprecated, kept for migration compatibility)
-      gameMinute: Math.floor(input.periodSecond / 60),
-      gameSecond: input.periodSecond % 60,
-      // New period-relative timing
       period: input.period,
       periodSecond: input.periodSecond,
       conflictId,
@@ -111,10 +107,6 @@ export class GoalService {
         externalPlayerName: input.externalAssisterName,
         externalPlayerNumber: input.externalAssisterNumber,
         recordedByUserId,
-        // Legacy fields (deprecated, kept for migration compatibility)
-        gameMinute: Math.floor(input.periodSecond / 60),
-        gameSecond: input.periodSecond % 60,
-        // New period-relative timing
         period: input.period,
         periodSecond: input.periodSecond,
         parentEventId: savedGoalEvent.id,
@@ -199,17 +191,9 @@ export class GoalService {
     }
     if (input.period !== undefined) {
       gameEvent.period = input.period;
-      // Also update legacy fields for compatibility
-      if (input.periodSecond !== undefined) {
-        gameEvent.gameMinute = Math.floor(input.periodSecond / 60);
-        gameEvent.gameSecond = input.periodSecond % 60;
-      }
     }
     if (input.periodSecond !== undefined) {
       gameEvent.periodSecond = input.periodSecond;
-      // Also update legacy fields for compatibility
-      gameEvent.gameMinute = Math.floor(input.periodSecond / 60);
-      gameEvent.gameSecond = input.periodSecond % 60;
     }
 
     await this.gameEventsRepository.save(gameEvent);
@@ -245,9 +229,6 @@ export class GoalService {
         }
         if (input.periodSecond !== undefined) {
           existingAssist.periodSecond = input.periodSecond;
-          // Also update legacy fields for compatibility
-          existingAssist.gameMinute = Math.floor(input.periodSecond / 60);
-          existingAssist.gameSecond = input.periodSecond % 60;
         }
         await this.gameEventsRepository.save(existingAssist);
       } else {
@@ -262,8 +243,6 @@ export class GoalService {
           externalPlayerNumber: input.externalAssisterNumber,
           recordedByUserId: gameEvent.recordedByUserId,
           // Copy timing from goal event
-          gameMinute: gameEvent.gameMinute,
-          gameSecond: gameEvent.gameSecond,
           period: gameEvent.period,
           periodSecond: gameEvent.periodSecond,
           parentEventId: gameEvent.id,

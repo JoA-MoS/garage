@@ -47,6 +47,11 @@ describe('LineupService', () => {
     name: 'POSITION_SWAP',
   } as EventType;
 
+  const mockPositionChangeEventType = {
+    id: 'event-type-position-change',
+    name: 'POSITION_CHANGE',
+  } as EventType;
+
   const mockFormationChangeEventType = {
     id: 'event-type-formation-change',
     name: 'FORMATION_CHANGE',
@@ -577,6 +582,52 @@ describe('LineupService', () => {
     });
   });
 
+  describe('updatePlayerPosition', () => {
+    it('should throw NotFoundException when event not found', async () => {
+      mockGameEventsRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.updatePlayerPosition('non-existent', 'CM'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should update position and save event', async () => {
+      const gameEvent = createMockEvent('evt-1', mockGameRosterEventType, {
+        playerId: 'player-1',
+        position: 'ST',
+      });
+      const savedEvent = { ...gameEvent, position: 'CM' } as GameEvent;
+
+      mockGameEventsRepository.findOne.mockResolvedValue(gameEvent);
+      mockGameEventsRepository.save.mockResolvedValue(savedEvent);
+
+      const result = await service.updatePlayerPosition('evt-1', 'CM');
+
+      expect(gameEvent.position).toBe('CM');
+      expect(mockGameEventsRepository.save).toHaveBeenCalledWith(gameEvent);
+      expect(result).toBe(savedEvent);
+    });
+
+    it('should publish UPDATED event after saving', async () => {
+      const gameEvent = createMockEvent('evt-1', mockGameRosterEventType, {
+        playerId: 'player-1',
+        position: 'ST',
+      });
+      const savedEvent = { ...gameEvent, position: 'CM' } as GameEvent;
+
+      mockGameEventsRepository.findOne.mockResolvedValue(gameEvent);
+      mockGameEventsRepository.save.mockResolvedValue(savedEvent);
+
+      await service.updatePlayerPosition('evt-1', 'CM');
+
+      expect(mockCoreService.publishGameEvent).toHaveBeenCalledWith(
+        mockGameId,
+        'UPDATED',
+        savedEvent,
+      );
+    });
+  });
+
   describe('getGameRoster', () => {
     // Helper to create a mock query builder chain
     function createMockQueryBuilder(
@@ -615,6 +666,8 @@ describe('LineupService', () => {
             return mockSubOutEventType;
           case 'POSITION_SWAP':
             return mockPositionSwapEventType;
+          case 'POSITION_CHANGE':
+            return mockPositionChangeEventType;
           case 'FORMATION_CHANGE':
             return mockFormationChangeEventType;
           case 'PERIOD_END':

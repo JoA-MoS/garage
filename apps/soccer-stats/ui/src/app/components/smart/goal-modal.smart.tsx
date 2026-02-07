@@ -224,8 +224,8 @@ export const GoalModal = ({
           variables: {
             input: {
               gameTeamId,
-              period: defaultPeriod,
-              periodSecond: defaultPeriodSeconds,
+              period: editPeriod,
+              periodSecond: editPeriodSeconds,
               scorerId: scorer?.playerId || undefined,
               externalScorerName:
                 scorer?.externalPlayerName ||

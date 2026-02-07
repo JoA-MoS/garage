@@ -93,8 +93,6 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
         events {
           id
           createdAt
-          gameMinute
-          gameSecond
           period
           periodSecond
           position
@@ -406,8 +404,6 @@ export const ADD_PLAYER_TO_GAME_ROSTER = graphql(/* GraphQL */ `
   mutation AddPlayerToGameRoster($input: AddToGameRosterInput!) {
     addPlayerToGameRoster(input: $input) {
       id
-      gameMinute
-      gameSecond
       period
       periodSecond
       position
@@ -441,8 +437,6 @@ export const SUBSTITUTE_PLAYER = graphql(/* GraphQL */ `
   mutation SubstitutePlayer($input: SubstitutePlayerInput!) {
     substitutePlayer(input: $input) {
       id
-      gameMinute
-      gameSecond
       period
       periodSecond
       position
@@ -461,8 +455,6 @@ export const RECORD_FORMATION_CHANGE = graphql(/* GraphQL */ `
   mutation RecordFormationChange($input: RecordFormationChangeInput!) {
     recordFormationChange(input: $input) {
       id
-      gameMinute
-      gameSecond
       period
       periodSecond
       eventType {
@@ -477,8 +469,6 @@ export const RECORD_POSITION_CHANGE = graphql(/* GraphQL */ `
   mutation RecordPositionChange($input: RecordPositionChangeInput!) {
     recordPositionChange(input: $input) {
       id
-      gameMinute
-      gameSecond
       period
       periodSecond
       position
@@ -494,8 +484,6 @@ export const RECORD_GOAL = graphql(/* GraphQL */ `
   mutation RecordGoal($input: RecordGoalInput!) {
     recordGoal(input: $input) {
       id
-      gameMinute
-      gameSecond
       period
       periodSecond
       playerId
@@ -581,8 +569,6 @@ export const RESOLVE_EVENT_CONFLICT = graphql(/* GraphQL */ `
       keepAll: $keepAll
     ) {
       id
-      gameMinute
-      gameSecond
       period
       periodSecond
       playerId
@@ -601,8 +587,6 @@ export const UPDATE_GOAL = graphql(/* GraphQL */ `
   mutation UpdateGoal($input: UpdateGoalInput!) {
     updateGoal(input: $input) {
       id
-      gameMinute
-      gameSecond
       period
       periodSecond
       playerId
@@ -632,8 +616,6 @@ export const SWAP_POSITIONS = graphql(/* GraphQL */ `
   mutation SwapPositions($input: SwapPositionsInput!) {
     swapPositions(input: $input) {
       id
-      gameMinute
-      gameSecond
       period
       periodSecond
       position
@@ -652,8 +634,6 @@ export const BATCH_LINEUP_CHANGES = graphql(/* GraphQL */ `
   mutation BatchLineupChanges($input: BatchLineupChangesInput!) {
     batchLineupChanges(input: $input) {
       id
-      gameMinute
-      gameSecond
       period
       periodSecond
       position
@@ -721,8 +701,6 @@ export const GAME_EVENT_CHANGED = graphql(/* GraphQL */ `
       event {
         id
         gameTeamId
-        gameMinute
-        gameSecond
         period
         periodSecond
         position
@@ -746,8 +724,6 @@ export const GAME_EVENT_CHANGED = graphql(/* GraphQL */ `
         }
         childEvents {
           id
-          gameMinute
-          gameSecond
           period
           periodSecond
           playerId
@@ -795,6 +771,9 @@ export const GAME_UPDATED = graphql(/* GraphQL */ `
       secondHalfStart
       actualEnd
       pausedAt
+      currentPeriod
+      currentPeriodSecond
+      serverTimestamp
     }
   }
 `);
@@ -804,8 +783,6 @@ export const BRING_PLAYER_ONTO_FIELD = graphql(/* GraphQL */ `
   mutation BringPlayerOntoField($input: BringPlayerOntoFieldInput!) {
     bringPlayerOntoField(input: $input) {
       id
-      gameMinute
-      gameSecond
       period
       periodSecond
       position
@@ -820,14 +797,30 @@ export const BRING_PLAYER_ONTO_FIELD = graphql(/* GraphQL */ `
   }
 `);
 
+// Remove a player from the field without replacement (injury, red card, tactical)
+export const REMOVE_PLAYER_FROM_FIELD = graphql(/* GraphQL */ `
+  mutation RemovePlayerFromField($input: RemovePlayerFromFieldInput!) {
+    removePlayerFromField(input: $input) {
+      id
+      period
+      periodSecond
+      position
+      playerId
+      externalPlayerName
+      eventType {
+        id
+        name
+      }
+    }
+  }
+`);
+
 // Set second half lineup - subs everyone out/in at halftime with new positions
 export const SET_SECOND_HALF_LINEUP = graphql(/* GraphQL */ `
   mutation SetSecondHalfLineup($input: SetSecondHalfLineupInput!) {
     setSecondHalfLineup(input: $input) {
       events {
         id
-        gameMinute
-        gameSecond
         period
         periodSecond
         position
@@ -851,8 +844,6 @@ export const START_PERIOD = graphql(/* GraphQL */ `
     startPeriod(input: $input) {
       periodEvent {
         id
-        gameMinute
-        gameSecond
         period
         periodSecond
         eventType {
@@ -875,8 +866,6 @@ export const START_PERIOD = graphql(/* GraphQL */ `
       }
       substitutionEvents {
         id
-        gameMinute
-        gameSecond
         period
         periodSecond
         position
@@ -900,8 +889,6 @@ export const END_PERIOD = graphql(/* GraphQL */ `
     endPeriod(input: $input) {
       periodEvent {
         id
-        gameMinute
-        gameSecond
         period
         periodSecond
         eventType {
@@ -924,8 +911,6 @@ export const END_PERIOD = graphql(/* GraphQL */ `
       }
       substitutionEvents {
         id
-        gameMinute
-        gameSecond
         period
         periodSecond
         position

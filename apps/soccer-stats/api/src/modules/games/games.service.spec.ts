@@ -255,7 +255,7 @@ describe('GamesService', () => {
         );
       });
 
-      it('should create PERIOD_START event when status is SECOND_HALF', async () => {
+      it('should create PERIOD_START event when status is SECOND_HALF with periodSecond=0', async () => {
         await service.update(
           'game-1',
           { status: GameStatus.SECOND_HALF },
@@ -268,30 +268,72 @@ describe('GamesService', () => {
             gameId: 'game-1',
             eventTypeId: 'et-period-start',
             period: '2',
+            periodSecond: 0, // Must be 0, not absolute seconds like 1800
           }),
         );
       });
 
-      it('should create PERIOD_END event when status is COMPLETED', async () => {
+      it('should skip GAME_ROSTER conversion when orphan SUB_INs are linked for a team', async () => {
+        // Simulate: linkOrphan returns 9 for home team (coach set explicit lineup)
+        mockGameEventsService.linkOrphanSubInsToSecondHalfPeriodStart
+          .mockResolvedValueOnce(9) // home team: 9 orphans linked
+          .mockResolvedValueOnce(0); // away team: 0 orphans linked
+
+        mockGameEventsService.createSubInEventsFromRosterStarters.mockResolvedValue(
+          9,
+        );
+
         await service.update(
           'game-1',
-          { status: GameStatus.COMPLETED },
+          { status: GameStatus.SECOND_HALF },
           'user-123',
         );
 
-        // Should have created 1 event: PERIOD_END (no GAME_END wrapper)
-        expect(mockGameEventRepository.create).toHaveBeenCalledTimes(1);
+        // createSubInEventsFromRosterStarters should only be called for away team (not home)
+        expect(
+          mockGameEventsService.createSubInEventsFromRosterStarters,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          mockGameEventsService.createSubInEventsFromRosterStarters,
+        ).toHaveBeenCalledWith(
+          'game-team-away', // away team only
+          expect.any(String),
+          'user-123',
+          '2',
+        );
+      });
 
+      it('should create PERIOD_END event when status is COMPLETED with period-relative periodSecond', async () => {
+        // Set up a 60-minute game (2 x 30-minute periods)
+        mockGameRepository.findOne.mockResolvedValue({
+          id: 'game-1',
+          status: GameStatus.SECOND_HALF,
+          gameFormatId: 'format-1',
+          durationMinutes: 60,
+          format: {
+            id: 'format-1',
+            numberOfPeriods: 2,
+            periodDurationMinutes: 30,
+          },
+        } as Game);
+
+        // End game at 29:45 into period 2 (period-relative)
+        await service.update(
+          'game-1',
+          { status: GameStatus.COMPLETED, periodSecond: 1785 },
+          'user-123',
+        );
+
+        expect(mockGameEventRepository.create).toHaveBeenCalledTimes(1);
         const createCalls = mockGameEventRepository.create.mock.calls;
 
-        // PERIOD_END with final period (no parent)
+        // PERIOD_END should have period-relative seconds directly from input
         expect(createCalls[0][0]).toMatchObject({
           gameId: 'game-1',
           eventTypeId: 'et-period-end',
           period: '2',
+          periodSecond: 1785,
         });
-        // PERIOD_END should NOT have a parent
-        expect(createCalls[0][0].parentEventId).toBeUndefined();
       });
 
       it('should not create events when status is not provided', async () => {
@@ -328,7 +370,9 @@ describe('GamesService', () => {
         const mockSelectQueryBuilder = {
           where: jest.fn().mockReturnThis(),
           andWhere: jest.fn().mockReturnThis(),
-          getOne: jest.fn().mockResolvedValueOnce({ id: 'existing-event' }), // PERIOD_START exists
+          getOne: jest
+            .fn()
+            .mockResolvedValueOnce({ id: 'existing-event', periodSecond: 0 }), // PERIOD_START exists
         };
         mockGameEventRepository.createQueryBuilder.mockReturnValue(
           mockSelectQueryBuilder as any,

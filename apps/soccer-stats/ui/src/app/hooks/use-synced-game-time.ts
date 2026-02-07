@@ -26,6 +26,9 @@ interface GameTime {
 export function useSyncedGameTime(
   syncData: ServerTimeSync | undefined | null,
 ): GameTime {
+  // Track the last known period so it persists across pauses/halftime
+  const lastPeriodRef = useRef<string | undefined>();
+
   // Track which serverTimestamp we're currently counting from
   const lastServerTimestamp = useRef<number | null>(null);
 
@@ -60,15 +63,15 @@ export function useSyncedGameTime(
   }, [syncData?.currentPeriod, syncData?.serverTimestamp]);
 
   // Compute current time
-  return useMemo(() => {
+  const result = useMemo(() => {
     if (!syncData) {
       return { period: '1', periodSecond: 0 };
     }
 
-    // If no current period (halftime, not started, completed), don't tick
+    // If no current period (halftime, not started, completed), return last known period
     if (!syncData.currentPeriod) {
       return {
-        period: undefined,
+        period: lastPeriodRef.current,
         periodSecond: syncData.currentPeriodSecond,
       };
     }
@@ -78,4 +81,11 @@ export function useSyncedGameTime(
       periodSecond: syncData.currentPeriodSecond + initialElapsed + tickCount,
     };
   }, [syncData, initialElapsed, tickCount]);
+
+  // Update last known period whenever we have a valid one
+  if (result.period) {
+    lastPeriodRef.current = result.period;
+  }
+
+  return result;
 }
