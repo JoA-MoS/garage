@@ -190,7 +190,6 @@ export const GamePage = () => {
   const [lineupSelectedPosition, setLineupSelectedPosition] = useState<
     string | null
   >(null);
-  const [lineupHasPlayerSelected, setLineupHasPlayerSelected] = useState(false);
   const [selectedFieldPlayerForLineup, setSelectedFieldPlayerForLineup] =
     useState<GqlRosterPlayer | null>(null);
 
@@ -1646,10 +1645,11 @@ export const GamePage = () => {
                   }
                   queuedPlayerIds={queuedPlayerIds}
                   selectedFieldPlayerId={selectedFieldPlayerId}
-                  hasLineupPanelPlayerSelected={
-                    isLineupSetupPhase && lineupHasPlayerSelected
+                  onEmptyPositionClick={
+                    isLineupSetupPhase
+                      ? setSelectedPositionForLineup
+                      : undefined
                   }
-                  onEmptyPositionClick={setSelectedPositionForLineup}
                   onFieldPlayerClickForLineup={
                     isLineupSetupPhase
                       ? setSelectedFieldPlayerForLineup
@@ -1680,10 +1680,11 @@ export const GamePage = () => {
                   }
                   queuedPlayerIds={queuedPlayerIds}
                   selectedFieldPlayerId={selectedFieldPlayerId}
-                  hasLineupPanelPlayerSelected={
-                    isLineupSetupPhase && lineupHasPlayerSelected
+                  onEmptyPositionClick={
+                    isLineupSetupPhase
+                      ? setSelectedPositionForLineup
+                      : undefined
                   }
-                  onEmptyPositionClick={setSelectedPositionForLineup}
                   onFieldPlayerClickForLineup={
                     isLineupSetupPhase
                       ? setSelectedFieldPlayerForLineup
@@ -2516,7 +2517,6 @@ export const GamePage = () => {
             }
             onQueuedPositionsChange={setLineupQueuedPositions}
             onSelectedPositionChange={setLineupSelectedPosition}
-            onPlayerSelectionChange={setLineupHasPlayerSelected}
             onSelectedFieldPlayerIdChange={setSelectedFieldPlayerId}
             onQueuedPlayerIdsChange={setQueuedPlayerIds}
           />,

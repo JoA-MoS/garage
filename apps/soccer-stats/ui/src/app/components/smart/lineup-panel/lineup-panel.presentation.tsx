@@ -8,16 +8,8 @@ import {
   LineupPanelPresentationProps,
   QueuedLineupItem,
   LineupSelection,
+  getPlayerId,
 } from './types';
-
-/**
- * Get player ID for matching
- */
-const getPlayerId = (player: GqlRosterPlayer | TeamRosterPlayer) => {
-  if ('playerId' in player)
-    return player.playerId || player.externalPlayerName || '';
-  return player.oduserId;
-};
 
 /**
  * Get display name for a player

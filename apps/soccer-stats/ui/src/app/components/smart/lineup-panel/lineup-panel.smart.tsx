@@ -14,16 +14,8 @@ import {
   PanelState,
   LineupSelection,
   QueuedLineupItem,
+  getPlayerId,
 } from './types';
-
-/**
- * Get player ID for matching
- */
-const getPlayerId = (player: GqlRosterPlayer | TeamRosterPlayer): string => {
-  if ('playerId' in player)
-    return player.playerId || player.externalPlayerName || '';
-  return player.oduserId;
-};
 
 /**
  * Smart component for lineup panel - manages state and mutations
@@ -35,7 +27,6 @@ export const LineupPanel = ({
   teamName,
   teamColor,
   playersPerTeam,
-  formation,
   onField,
   bench,
   firstHalfLineup,
@@ -113,7 +104,10 @@ export const LineupPanel = ({
     queue.forEach((item) => {
       if (item.type === 'assignment') {
         positions.add(item.position);
-        count++;
+        // Only increment when filling a previously-empty slot, not replacing an existing player
+        if (!item.replacingPlayer) {
+          count++;
+        }
       } else if (item.type === 'position-change') {
         positions.delete(item.fromPosition);
         positions.add(item.toPosition);
@@ -128,12 +122,6 @@ export const LineupPanel = ({
     return { filledPositions: positions, filledCount: count };
   }, [onField, queue]);
 
-  // Get required positions from formation (placeholder - will derive from formation)
-  const requiredPositions = useMemo(() => {
-    // TODO: Derive from formation string in a later task
-    return [] as string[];
-  }, [formation]);
-
   // Calculate play time for all players (halftime only)
   const playTimeByPlayer = useMemo(() => {
     if (gameStatus !== 'HALFTIME' || !gameEvents) return undefined;
@@ -142,8 +130,13 @@ export const LineupPanel = ({
     const periodEndEvent = gameEvents.find(
       (e) => e.eventType.name === 'PERIOD_END' && e.period === '1',
     );
-    // Use the PERIOD_END time, or fall back to a reasonable default
-    const firstHalfEndSecond = periodEndEvent?.periodSecond ?? 1500;
+    if (!periodEndEvent) {
+      console.warn(
+        '[LineupPanel] No PERIOD_END event found for period 1; play time calculations may be inaccurate',
+      );
+    }
+    // Fall back to 25 minutes (1500s) as a typical youth soccer half duration
+    const firstHalfEndSecond = periodEndEvent?.periodSecond ?? 25 * 60;
 
     const allPlayerIds = [
       ...onField.map(getPlayerId),
@@ -411,7 +404,7 @@ export const LineupPanel = ({
         });
       }
     },
-    [selection, addPlayerToGameRoster],
+    [selection, addPlayerToGameRoster, updatePosition],
   );
 
   // Handle player click
@@ -482,12 +475,24 @@ export const LineupPanel = ({
 
         if (gameStatus === 'SCHEDULED') {
           // Pre-game: execute immediately - swap position fields on both events
+          const pos1 = player1.position;
+          const pos2 = player2.position;
+          if (!pos1 || !pos2) {
+            setError(
+              'Cannot swap: one or both players have no assigned position',
+            );
+            return;
+          }
           try {
-            const pos1 = player1.position;
-            const pos2 = player2.position;
-            if (pos1 && pos2) {
-              await updatePosition(player1.gameEventId, pos2);
+            await updatePosition(player1.gameEventId, pos2);
+            try {
               await updatePosition(player2.gameEventId, pos1);
+            } catch (err) {
+              // Second update failed - revert the first to avoid inconsistent state
+              await updatePosition(player1.gameEventId, pos1).catch(
+                () => undefined,
+              );
+              throw err;
             }
           } catch (err) {
             console.error('[LineupPanel] Failed to swap positions:', err);
@@ -497,15 +502,21 @@ export const LineupPanel = ({
           }
         } else {
           // Halftime: queue the swap for batch execution
+          if (!player1.position || !player2.position) {
+            setError(
+              'Cannot swap: one or both players have no assigned position',
+            );
+            return;
+          }
           setQueue((prev) => [
             ...prev,
             {
               id: `swap-${Date.now()}-${Math.random()}`,
               type: 'swap' as const,
               player1,
-              player1Position: player1.position!,
+              player1Position: player1.position,
               player2,
-              player2Position: player2.position!,
+              player2Position: player2.position,
             },
           ]);
         }
@@ -713,6 +724,7 @@ export const LineupPanel = ({
           }));
 
         // Apply queued changes
+        const skippedItems: string[] = [];
         queue.forEach((item) => {
           if (item.type === 'assignment') {
             const playerId =
@@ -751,6 +763,10 @@ export const LineupPanel = ({
                 ...lineup[idx],
                 position: item.toPosition,
               };
+            } else {
+              skippedItems.push(
+                `Position change from ${item.fromPosition}: player not found`,
+              );
             }
           } else if (item.type === 'swap') {
             const idx1 = lineup.findIndex(
@@ -766,6 +782,10 @@ export const LineupPanel = ({
                 position: lineup[idx2].position,
               };
               lineup[idx2] = { ...lineup[idx2], position: tempPosition };
+            } else {
+              skippedItems.push(
+                `Swap at ${item.player1Position}/${item.player2Position}: player not found`,
+              );
             }
           } else if (item.type === 'removal') {
             const idx = lineup.findIndex((e) => e.position === item.position);
@@ -773,47 +793,73 @@ export const LineupPanel = ({
           }
         });
 
+        if (skippedItems.length > 0) {
+          console.warn(
+            '[LineupPanel] Some queued items could not be applied:',
+            skippedItems,
+          );
+        }
+
         await setSecondHalfLineup(lineup);
       } else {
-        // Pre-game: process queue items sequentially
-        for (let i = 0; i < queue.length; i++) {
-          const item = queue[i];
-          setExecutionProgress(i);
+        // Pre-game: process queue items sequentially, tracking progress
+        let succeededCount = 0;
+        try {
+          for (let i = 0; i < queue.length; i++) {
+            const item = queue[i];
+            setExecutionProgress(i);
 
-          if (item.type === 'assignment') {
-            const playerId =
-              'oduserId' in item.player
-                ? item.player.oduserId
-                : item.player.playerId;
-            const externalPlayerName =
-              'externalPlayerName' in item.player
-                ? item.player.externalPlayerName
-                : undefined;
-            const externalPlayerNumber =
-              'externalPlayerNumber' in item.player
-                ? item.player.externalPlayerNumber
-                : undefined;
+            if (item.type === 'assignment') {
+              const playerId =
+                'oduserId' in item.player
+                  ? item.player.oduserId
+                  : item.player.playerId;
+              const externalPlayerName =
+                'externalPlayerName' in item.player
+                  ? item.player.externalPlayerName
+                  : undefined;
+              const externalPlayerNumber =
+                'externalPlayerNumber' in item.player
+                  ? item.player.externalPlayerNumber
+                  : undefined;
 
-            await addPlayerToGameRoster({
-              playerId: playerId || undefined,
-              externalPlayerName: externalPlayerName || undefined,
-              externalPlayerNumber: externalPlayerNumber || undefined,
-              position: item.position,
-            });
-          } else if (item.type === 'position-change') {
-            await updatePosition(item.player.gameEventId, item.toPosition);
-          } else if (item.type === 'swap') {
-            await updatePosition(
-              item.player1.gameEventId,
-              item.player2Position,
-            );
-            await updatePosition(
-              item.player2.gameEventId,
-              item.player1Position,
-            );
-          } else if (item.type === 'removal') {
-            await removeFromLineup(item.player.gameEventId);
+              await addPlayerToGameRoster({
+                playerId: playerId || undefined,
+                externalPlayerName: externalPlayerName || undefined,
+                externalPlayerNumber: externalPlayerNumber || undefined,
+                position: item.position,
+              });
+            } else if (item.type === 'position-change') {
+              await updatePosition(item.player.gameEventId, item.toPosition);
+            } else if (item.type === 'swap') {
+              await updatePosition(
+                item.player1.gameEventId,
+                item.player2Position,
+              );
+              try {
+                await updatePosition(
+                  item.player2.gameEventId,
+                  item.player1Position,
+                );
+              } catch (err) {
+                // Revert first player to avoid inconsistent state
+                await updatePosition(
+                  item.player1.gameEventId,
+                  item.player1Position,
+                ).catch(() => undefined);
+                throw err;
+              }
+            } else if (item.type === 'removal') {
+              await removeFromLineup(item.player.gameEventId);
+            }
+            succeededCount = i + 1;
           }
+        } catch (err) {
+          // Remove succeeded items from queue so retry won't re-execute them
+          if (succeededCount > 0) {
+            setQueue((prev) => prev.slice(succeededCount));
+          }
+          throw err;
         }
       }
 
@@ -867,6 +913,11 @@ export const LineupPanel = ({
     // On-field player → move to bench (remove from position)
     if (source === 'onField' && 'gameEventId' in player && player.gameEventId) {
       if (gameStatus === 'HALFTIME') {
+        const playerPosition = (player as GqlRosterPlayer).position;
+        if (!playerPosition) {
+          setError('Cannot remove: player has no assigned position');
+          return;
+        }
         // Queue a removal for batch execution
         setQueue((prev) => [
           ...prev,
@@ -874,7 +925,7 @@ export const LineupPanel = ({
             id: `removal-${Date.now()}-${Math.random()}`,
             type: 'removal' as const,
             player: player as GqlRosterPlayer,
-            position: (player as GqlRosterPlayer).position!,
+            position: playerPosition,
           },
         ]);
       } else {
@@ -907,7 +958,7 @@ export const LineupPanel = ({
         playerId: playerId || undefined,
         externalPlayerName: externalPlayerName || undefined,
         externalPlayerNumber: externalPlayerNumber || undefined,
-        position: null, // No position = bench
+        position: undefined, // No position = bench
       });
     } catch (err) {
       console.error('[LineupPanel] Failed to add player to bench:', err);
@@ -920,6 +971,11 @@ export const LineupPanel = ({
   // Keep same lineup (halftime shortcut)
   const handleKeepSameLineup = useCallback(async () => {
     if (gameStatus !== 'HALFTIME') return;
+
+    if (onField.length === 0) {
+      setError('No players on field to keep');
+      return;
+    }
 
     setIsExecuting(true);
     setError(null);
@@ -967,7 +1023,6 @@ export const LineupPanel = ({
       availableRoster={availableRoster}
       playTimeByPlayer={playTimeByPlayer}
       selection={selection}
-      onPositionClick={handlePositionClick}
       onPlayerClick={handlePlayerClick}
       onClearSelection={handleClearSelection}
       queue={queue}
@@ -983,7 +1038,6 @@ export const LineupPanel = ({
       error={error}
       filledPositions={filledPositions}
       filledCount={filledCount}
-      requiredPositions={requiredPositions}
     />
   );
 };
