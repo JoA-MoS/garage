@@ -85,6 +85,9 @@ interface GameLineupTabProps {
    * Routes to the lineup panel for swap/position-change flows.
    */
   onFieldPlayerClickForLineup?: (player: GqlRosterPlayer) => void;
+
+  /** Hide the bench/roster section (when LineupPanel provides it instead) */
+  hideBench?: boolean;
 }
 
 type ModalMode =
@@ -178,6 +181,7 @@ export const GameLineupTab = memo(function GameLineupTab({
   hasLineupPanelPlayerSelected = false,
   onEmptyPositionClick,
   onFieldPlayerClickForLineup,
+  hideBench = false,
 }: GameLineupTabProps) {
   const formations = getFormationsForTeamSize(playersPerTeam);
   const [selectedFormation, setSelectedFormation] = useState<Formation>(() =>
@@ -694,7 +698,7 @@ export const GameLineupTab = memo(function GameLineupTab({
       </div>
 
       {/* Field visualization */}
-      <div className="mx-auto max-w-sm">
+      <div id="field-lineup" className="mx-auto max-w-sm">
         <FieldLineup
           formation={selectedFormation}
           lineup={onField}
@@ -707,19 +711,21 @@ export const GameLineupTab = memo(function GameLineupTab({
         />
       </div>
 
-      {/* Bench and available roster */}
-      <LineupBench
-        bench={bench}
-        availableRoster={availableRoster}
-        onBenchPlayerClick={handleBenchPlayerClick}
-        onRosterPlayerClick={handleAddToBench}
-        onAddExternalPlayer={() =>
-          setModalMode({ type: 'add-external', target: 'bench' })
-        }
-        teamColor={teamColor}
-        isManaged={isManaged}
-        disabled={mutating}
-      />
+      {/* Bench and available roster - hidden when LineupPanel provides these */}
+      {!hideBench && (
+        <LineupBench
+          bench={bench}
+          availableRoster={availableRoster}
+          onBenchPlayerClick={handleBenchPlayerClick}
+          onRosterPlayerClick={handleAddToBench}
+          onAddExternalPlayer={() =>
+            setModalMode({ type: 'add-external', target: 'bench' })
+          }
+          teamColor={teamColor}
+          isManaged={isManaged}
+          disabled={mutating}
+        />
+      )}
 
       {/* Modal for player assignment/options */}
       {modalMode.type !== 'closed' && (

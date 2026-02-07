@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 
 import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 
@@ -57,6 +57,20 @@ export const LineupPanel = ({
     shouldAutoExpand ? 'bench-view' : 'collapsed',
   );
 
+  // Scroll field into view when panel expands so it's visible above the panel
+  const prevPanelStateRef = useRef(panelState);
+  useEffect(() => {
+    const wasCollapsed = prevPanelStateRef.current === 'collapsed';
+    prevPanelStateRef.current = panelState;
+
+    if (wasCollapsed && panelState !== 'collapsed') {
+      const fieldEl = document.getElementById('field-lineup');
+      if (fieldEl) {
+        fieldEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }, [panelState]);
+
   // Selection state
   const [selection, setSelection] = useState<LineupSelection>({
     direction: null,
@@ -88,7 +102,7 @@ export const LineupPanel = ({
   // but the counter needs the actual number of players with positions assigned.
   const { filledPositions, filledCount } = useMemo(() => {
     const positions = new Set<string>();
-    let count = onField.filter((p) => p.position).length;
+    let count = onField.length;
 
     // Add current on-field positions to Set
     onField.forEach((p) => {
@@ -687,28 +701,16 @@ export const LineupPanel = ({
     try {
       if (gameStatus === 'HALFTIME') {
         // At halftime, build complete lineup and use setSecondHalfLineup
-        // Start with current on-field players
-        const lineupMap = new Map<
-          string,
-          {
-            playerId?: string;
-            externalPlayerName?: string;
-            externalPlayerNumber?: string;
-            position: string;
-          }
-        >();
-
-        // Add current on-field players
-        onField.forEach((player) => {
-          if (player.position) {
-            lineupMap.set(player.position, {
-              playerId: player.playerId || undefined,
-              externalPlayerName: player.externalPlayerName || undefined,
-              externalPlayerNumber: player.externalPlayerNumber || undefined,
-              position: player.position,
-            });
-          }
-        });
+        // Use array (not Map) to preserve players at duplicate position codes
+        // (e.g., two CMs in a 3-4-1 formation)
+        const lineup = onField
+          .filter((p) => p.position)
+          .map((p) => ({
+            playerId: p.playerId || undefined,
+            externalPlayerName: p.externalPlayerName || undefined,
+            externalPlayerNumber: p.externalPlayerNumber || undefined,
+            position: p.position!,
+          }));
 
         // Apply queued changes
         queue.forEach((item) => {
@@ -726,43 +728,51 @@ export const LineupPanel = ({
                 ? item.player.externalPlayerNumber
                 : undefined;
 
-            lineupMap.set(item.position, {
+            const newEntry = {
               playerId: playerId || undefined,
               externalPlayerName: externalPlayerName || undefined,
               externalPlayerNumber: externalPlayerNumber || undefined,
               position: item.position,
-            });
+            };
+
+            // Replace first entry at this position (handles duplicate positions correctly)
+            const idx = lineup.findIndex((e) => e.position === item.position);
+            if (idx >= 0) {
+              lineup[idx] = newEntry;
+            } else {
+              lineup.push(newEntry);
+            }
           } else if (item.type === 'position-change') {
-            // Remove from old position
-            lineupMap.delete(item.fromPosition);
-            // Add to new position
-            lineupMap.set(item.toPosition, {
-              playerId: item.player.playerId || undefined,
-              externalPlayerName: item.player.externalPlayerName || undefined,
-              externalPlayerNumber:
-                item.player.externalPlayerNumber || undefined,
-              position: item.toPosition,
-            });
+            const idx = lineup.findIndex(
+              (e) => e.position === item.fromPosition,
+            );
+            if (idx >= 0) {
+              lineup[idx] = {
+                ...lineup[idx],
+                position: item.toPosition,
+              };
+            }
           } else if (item.type === 'swap') {
-            // Swap: get both entries, exchange their positions
-            const entry1 = lineupMap.get(item.player1Position);
-            const entry2 = lineupMap.get(item.player2Position);
-            if (entry1 && entry2) {
-              lineupMap.set(item.player1Position, {
-                ...entry2,
-                position: item.player1Position,
-              });
-              lineupMap.set(item.player2Position, {
-                ...entry1,
-                position: item.player2Position,
-              });
+            const idx1 = lineup.findIndex(
+              (e) => e.position === item.player1Position,
+            );
+            const idx2 = lineup.findIndex(
+              (e) => e.position === item.player2Position,
+            );
+            if (idx1 >= 0 && idx2 >= 0) {
+              const tempPosition = lineup[idx1].position;
+              lineup[idx1] = {
+                ...lineup[idx1],
+                position: lineup[idx2].position,
+              };
+              lineup[idx2] = { ...lineup[idx2], position: tempPosition };
             }
           } else if (item.type === 'removal') {
-            lineupMap.delete(item.position);
+            const idx = lineup.findIndex((e) => e.position === item.position);
+            if (idx >= 0) lineup.splice(idx, 1);
           }
         });
 
-        const lineup = Array.from(lineupMap.values());
         await setSecondHalfLineup(lineup);
       } else {
         // Pre-game: process queue items sequentially

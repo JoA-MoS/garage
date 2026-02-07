@@ -304,7 +304,7 @@ function CollapsiblePlayerSection({
 }
 
 /**
- * Presentation component for the inline lineup panel
+ * Presentation component for the lineup panel (fixed bottom sheet)
  */
 export const LineupPanelPresentation = ({
   panelState,
@@ -338,47 +338,74 @@ export const LineupPanelPresentation = ({
 
   // Render collapsed bar
   if (panelState === 'collapsed') {
+    const isPlayerFirstActive =
+      selection.direction === 'player-first' && selection.player;
+
     return (
       <div
-        className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white shadow-lg"
-        onClick={() => onPanelStateChange('bench-view')}
+        className="border-t border-gray-200 bg-white shadow-lg"
+        onClick={() => {
+          if (!isPlayerFirstActive) onPanelStateChange('bench-view');
+        }}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && onPanelStateChange('bench-view')}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !isPlayerFirstActive)
+            onPanelStateChange('bench-view');
+        }}
       >
         {/* Drag handle indicator */}
         <div className="flex justify-center pt-2">
           <div className="h-1 w-10 rounded-full bg-gray-300" />
         </div>
         <div className="flex min-h-[44px] items-center justify-between px-4 pb-3 pt-1">
-          <div className="flex items-center gap-2">
-            <div
-              className="h-3 w-3 rounded-full"
-              style={{ backgroundColor: teamColor }}
-            />
-            <span className="font-medium text-gray-900">{statusLabel}</span>
-            <span className="text-sm text-gray-500">
-              {filledCount}/{totalPositions}
-            </span>
-          </div>
-          {queue.length > 0 && (
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
-              {queue.length}
-            </span>
+          {isPlayerFirstActive ? (
+            <>
+              <span className="text-sm text-gray-700">
+                Place{' '}
+                <span className="font-medium text-blue-600">
+                  {getPlayerDisplayName(selection.player!)}
+                </span>
+                <span className="text-gray-500"> — tap position on field</span>
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClearSelection();
+                }}
+                className="ml-2 rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <div
+                  className="h-3 w-3 rounded-full"
+                  style={{ backgroundColor: teamColor }}
+                />
+                <span className="font-medium text-gray-900">{statusLabel}</span>
+                <span className="text-sm text-gray-500">
+                  {filledCount}/{totalPositions}
+                </span>
+              </div>
+              {queue.length > 0 && (
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+                  {queue.length}
+                </span>
+              )}
+            </>
           )}
         </div>
       </div>
     );
   }
 
-  // Render expanded states (bench-view or expanded)
-  const isExpanded = panelState === 'expanded';
-  const panelHeight = isExpanded ? 'max-h-[60vh]' : 'max-h-[40vh]';
-
+  // Render expanded panel - capped max-height with internal scroll
   return (
-    <div
-      className={`fixed bottom-0 left-0 right-0 z-40 flex flex-col overflow-hidden border-t border-gray-200 bg-white shadow-lg ${panelHeight}`}
-    >
+    <div className="flex max-h-[35vh] flex-col overflow-hidden border-t border-gray-200 bg-white shadow-lg sm:max-h-[40vh]">
       {/* Drag handle indicator - clickable to collapse */}
       <button
         type="button"
@@ -391,18 +418,7 @@ export const LineupPanelPresentation = ({
 
       {/* Header */}
       <div className="flex items-center justify-between border-b border-gray-100 px-4 pb-3 pt-1">
-        <div
-          className="flex cursor-pointer items-center gap-2"
-          onClick={() =>
-            onPanelStateChange(isExpanded ? 'bench-view' : 'expanded')
-          }
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) =>
-            e.key === 'Enter' &&
-            onPanelStateChange(isExpanded ? 'bench-view' : 'expanded')
-          }
-        >
+        <div className="flex items-center gap-2">
           <div
             className="h-3 w-3 rounded-full"
             style={{ backgroundColor: teamColor }}
@@ -415,7 +431,7 @@ export const LineupPanelPresentation = ({
         </span>
       </div>
 
-      {/* Content area */}
+      {/* Content area - scrolls within capped max-height */}
       <div className="flex-1 overflow-y-auto">
         {/* Selection header */}
         {selection.direction && (

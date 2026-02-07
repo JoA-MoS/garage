@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useApolloClient, useMutation } from '@apollo/client/react';
 
 import {
@@ -53,11 +53,33 @@ export const SubstitutionPanel = ({
   onExternalFieldPlayerToReplaceHandled,
   externalEmptyPosition,
   onExternalEmptyPositionHandled,
+  onPanelStateChange: onPanelStateChangeExternal,
   onQueuedPlayerIdsChange,
   onSelectedFieldPlayerChange,
 }: SubstitutionPanelSmartProps) => {
   // Panel state
-  const [panelState, setPanelState] = useState<PanelState>('collapsed');
+  const [panelState, setPanelStateInternal] = useState<PanelState>('collapsed');
+  const setPanelState = useCallback(
+    (state: PanelState) => {
+      setPanelStateInternal(state);
+      onPanelStateChangeExternal?.(state);
+    },
+    [onPanelStateChangeExternal],
+  );
+
+  // Scroll field into view when panel expands so it's visible above the panel
+  const prevPanelStateRef = useRef(panelState);
+  useEffect(() => {
+    const wasCollapsed = prevPanelStateRef.current === 'collapsed';
+    prevPanelStateRef.current = panelState;
+
+    if (wasCollapsed && panelState !== 'collapsed') {
+      const fieldEl = document.getElementById('field-lineup');
+      if (fieldEl) {
+        fieldEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }, [panelState]);
 
   // Selection state
   const [selection, setSelection] = useState<PlayerSelection>({
