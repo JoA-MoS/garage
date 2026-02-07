@@ -1,0 +1,797 @@
+/* eslint-disable */
+import * as types from './graphql';
+import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
+
+/**
+ * Map of all GraphQL operations in the project.
+ *
+ * This map has several performance disadvantages:
+ * 1. It is not tree-shakeable, so it will include all operations in the project.
+ * 2. It is not minifiable, so the string of a GraphQL query will be multiple times inside the bundle.
+ * 3. It does not support dead code elimination, so it will add unused operations.
+ *
+ * Therefore it is highly recommended to use the babel or swc plugin for production.
+ * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
+ */
+type Documents = {
+  '\n  query TeamGamesPage($teamId: ID!) {\n    team(id: $teamId) {\n      id\n      name\n      shortName\n      games {\n        ...GameCard\n      }\n    }\n  }\n': typeof types.TeamGamesPageDocument;
+  '\n  query CreateGameModal {\n    teams {\n      ...OpponentTeam\n    }\n    gameFormats {\n      ...GameFormatSelect\n    }\n  }\n': typeof types.CreateGameModalDocument;
+  '\n  query GetUsersForList {\n    users {\n      ...UserCard\n    }\n  }\n': typeof types.GetUsersForListDocument;
+  '\n  fragment GameCard on GameTeam {\n    id\n    teamType\n    finalScore\n    game {\n      id\n      name\n      status\n      scheduledStart\n      venue\n      createdAt\n      format {\n        id\n        name\n        playersPerTeam\n        durationMinutes\n      }\n      teams {\n        id\n        teamType\n        finalScore\n        team {\n          id\n          name\n          shortName\n          homePrimaryColor\n          homeSecondaryColor\n        }\n      }\n    }\n  }\n': typeof types.GameCardFragmentDoc;
+  '\n  fragment GameFormatSelect on GameFormat {\n    id\n    name\n    playersPerTeam\n    durationMinutes\n  }\n': typeof types.GameFormatSelectFragmentDoc;
+  '\n  fragment OpponentTeam on Team {\n    id\n    name\n    shortName\n  }\n': typeof types.OpponentTeamFragmentDoc;
+  '\n  fragment PlayerCardData on User {\n    id\n    firstName\n    lastName\n    email\n    phone\n    dateOfBirth\n    isActive\n    teamMemberships {\n      id\n      isActive\n      team {\n        id\n        name\n      }\n      roles {\n        id\n        role\n        jerseyNumber\n        primaryPosition\n      }\n    }\n    # Note: Game stats would need to be computed from performedEvents\n    # This might require a custom resolver field for aggregated stats\n    # performedEvents {\n    #   id\n    #   eventType {\n    #     name\n    #   }\n    #   gameMinute\n    #   game {\n    #     id\n    #   }\n    # }\n  }\n': typeof types.PlayerCardDataFragmentDoc;
+  '\n  query DebugGetTeams {\n    teams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.DebugGetTeamsDocument;
+  '\n  query GetMyTeamsForList {\n    myTeams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdById\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.GetMyTeamsForListDocument;
+  '\n  fragment UserCard on User {\n    id\n    firstName\n    lastName\n    email\n    phone\n    isActive\n    teamMemberships {\n      id\n      isActive\n      team {\n        id\n        name\n        shortName\n      }\n      roles {\n        id\n        role\n        jerseyNumber\n        primaryPosition\n      }\n    }\n  }\n': typeof types.UserCardFragmentDoc;
+  '\n  mutation QuickCreateTeam($input: CreateTeamInput!) {\n    createTeam(createTeamInput: $input) {\n      id\n      name\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n    }\n  }\n': typeof types.QuickCreateTeamDocument;
+  '\n  fragment GameEventFragment on GameEvent {\n    id\n    createdAt\n    periodSecond\n    position\n    formation\n    playerId\n    externalPlayerName\n    externalPlayerNumber\n    period\n    player {\n      id\n      firstName\n      lastName\n      email\n    }\n    eventType {\n      id\n      name\n      category\n    }\n    childEvents {\n      id\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      position\n      player {\n        id\n        firstName\n        lastName\n      }\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.GameEventFragmentFragmentDoc;
+  '\n  query GetGameFormats {\n    gameFormats {\n      id\n      name\n      playersPerTeam\n      durationMinutes\n      description\n      allowsSubstitutions\n      maxSubstitutions\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.GetGameFormatsDocument;
+  '\n  query GetGames {\n    games {\n      id\n      name\n      scheduledStart\n      notes\n      venue\n      weatherConditions\n      format {\n        id\n        name\n        playersPerTeam\n        durationMinutes\n      }\n      teams {\n        id\n        teamType\n        finalScore\n        formation\n        team {\n          id\n          name\n          shortName\n          homePrimaryColor\n          homeSecondaryColor\n        }\n      }\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.GetGamesDocument;
+  '\n  query GetGameById($id: ID!) {\n    game(id: $id) {\n      id\n      name\n      scheduledStart\n      status\n      actualStart\n      firstHalfEnd\n      secondHalfStart\n      actualEnd\n      pausedAt\n      statsTrackingLevel\n      notes\n      venue\n      weatherConditions\n      currentPeriod\n      currentPeriodSecond\n      serverTimestamp\n      format {\n        id\n        name\n        playersPerTeam\n        durationMinutes\n        numberOfPeriods\n      }\n      teams {\n        id\n        teamType\n        finalScore\n        formation\n        statsTrackingLevel\n        team {\n          id\n          name\n          shortName\n          homePrimaryColor\n          homeSecondaryColor\n          isManaged\n        }\n        events {\n          id\n          createdAt\n          period\n          periodSecond\n          position\n          formation\n          playerId\n          externalPlayerName\n          externalPlayerNumber\n          player {\n            id\n            firstName\n            lastName\n            email\n          }\n          eventType {\n            id\n            name\n            category\n          }\n          childEvents {\n            id\n            playerId\n            externalPlayerName\n            externalPlayerNumber\n            position\n            period\n            periodSecond\n            player {\n              id\n              firstName\n              lastName\n            }\n            eventType {\n              id\n              name\n            }\n          }\n        }\n        players {\n          gameEventId\n          playerId\n          playerName\n          firstName\n          lastName\n          externalPlayerName\n          externalPlayerNumber\n          position\n          isOnField\n          stats {\n            totalSeconds\n            positionTimes {\n              position\n              minutes\n              seconds\n            }\n            goals\n            assists\n            lastEntryPeriodSecond\n            currentPosition\n          }\n        }\n      }\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.GetGameByIdDocument;
+  '\n  mutation CreateGame($createGameInput: CreateGameInput!) {\n    createGame(createGameInput: $createGameInput) {\n      id\n      name\n      scheduledStart\n      notes\n      venue\n      weatherConditions\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.CreateGameDocument;
+  '\n  mutation UpdateGame($id: ID!, $updateGameInput: UpdateGameInput!) {\n    updateGame(id: $id, updateGameInput: $updateGameInput) {\n      id\n      name\n      scheduledStart\n      status\n      actualStart\n      firstHalfEnd\n      secondHalfStart\n      actualEnd\n      notes\n      venue\n      weatherConditions\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.UpdateGameDocument;
+  '\n  mutation RemoveGame($id: ID!) {\n    removeGame(id: $id)\n  }\n': typeof types.RemoveGameDocument;
+  '\n  mutation ReopenGame($id: ID!) {\n    reopenGame(id: $id) {\n      id\n      status\n      actualEnd\n    }\n  }\n': typeof types.ReopenGameDocument;
+  '\n  mutation UpdateGameTeam(\n    $gameTeamId: ID!\n    $updateGameTeamInput: UpdateGameTeamInput!\n  ) {\n    updateGameTeam(\n      gameTeamId: $gameTeamId\n      updateGameTeamInput: $updateGameTeamInput\n    ) {\n      id\n      teamType\n      formation\n      statsTrackingLevel\n      tacticalNotes\n      team {\n        id\n        name\n      }\n    }\n  }\n': typeof types.UpdateGameTeamDocument;
+  '\n  query GetGameLineup($gameTeamId: ID!) {\n    gameLineup(gameTeamId: $gameTeamId) {\n      gameTeamId\n      formation\n      gameRoster {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      starters {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      bench {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      currentOnField {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n    }\n  }\n': typeof types.GetGameLineupDocument;
+  '\n  query GetGameRoster($gameTeamId: ID!) {\n    gameRoster(gameTeamId: $gameTeamId) {\n      gameTeamId\n      formation\n      players {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n      }\n    }\n  }\n': typeof types.GetGameRosterDocument;
+  '\n  query GetEventTypes {\n    eventTypes {\n      id\n      name\n      category\n      description\n      requiresPosition\n      allowsParent\n    }\n  }\n': typeof types.GetEventTypesDocument;
+  '\n  mutation AddPlayerToGameRoster($input: AddToGameRosterInput!) {\n    addPlayerToGameRoster(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.AddPlayerToGameRosterDocument;
+  '\n  mutation RemoveFromLineup($gameEventId: ID!) {\n    removeFromLineup(gameEventId: $gameEventId)\n  }\n': typeof types.RemoveFromLineupDocument;
+  '\n  mutation UpdatePlayerPosition($gameEventId: ID!, $position: String!) {\n    updatePlayerPosition(gameEventId: $gameEventId, position: $position) {\n      id\n      position\n    }\n  }\n': typeof types.UpdatePlayerPositionDocument;
+  '\n  mutation SubstitutePlayer($input: SubstitutePlayerInput!) {\n    substitutePlayer(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.SubstitutePlayerDocument;
+  '\n  mutation RecordFormationChange($input: RecordFormationChangeInput!) {\n    recordFormationChange(input: $input) {\n      id\n      period\n      periodSecond\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.RecordFormationChangeDocument;
+  '\n  mutation RecordPositionChange($input: RecordPositionChangeInput!) {\n    recordPositionChange(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.RecordPositionChangeDocument;
+  '\n  mutation RecordGoal($input: RecordGoalInput!) {\n    recordGoal(input: $input) {\n      id\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n      childEvents {\n        id\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n      }\n    }\n  }\n': typeof types.RecordGoalDocument;
+  '\n  mutation DeleteGoal($gameEventId: ID!) {\n    deleteGoal(gameEventId: $gameEventId)\n  }\n': typeof types.DeleteGoalDocument;
+  '\n  mutation DeleteSubstitution($gameEventId: ID!) {\n    deleteSubstitution(gameEventId: $gameEventId)\n  }\n': typeof types.DeleteSubstitutionDocument;
+  '\n  mutation DeletePositionSwap($gameEventId: ID!) {\n    deletePositionSwap(gameEventId: $gameEventId)\n  }\n': typeof types.DeletePositionSwapDocument;
+  '\n  mutation DeleteStarterEntry($gameEventId: ID!) {\n    deleteStarterEntry(gameEventId: $gameEventId)\n  }\n': typeof types.DeleteStarterEntryDocument;
+  '\n  query GetDependentEvents($gameEventId: ID!) {\n    dependentEvents(gameEventId: $gameEventId) {\n      dependentEvents {\n        id\n        eventType\n        period\n        periodSecond\n        playerName\n        description\n      }\n      count\n      canDelete\n      warningMessage\n    }\n  }\n': typeof types.GetDependentEventsDocument;
+  '\n  mutation DeleteEventWithCascade($gameEventId: ID!, $eventType: String!) {\n    deleteEventWithCascade(gameEventId: $gameEventId, eventType: $eventType)\n  }\n': typeof types.DeleteEventWithCascadeDocument;
+  '\n  mutation ResolveEventConflict(\n    $conflictId: ID!\n    $selectedEventId: ID!\n    $keepAll: Boolean\n  ) {\n    resolveEventConflict(\n      conflictId: $conflictId\n      selectedEventId: $selectedEventId\n      keepAll: $keepAll\n    ) {\n      id\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      conflictId\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.ResolveEventConflictDocument;
+  '\n  mutation UpdateGoal($input: UpdateGoalInput!) {\n    updateGoal(input: $input) {\n      id\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n      childEvents {\n        id\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n      }\n    }\n  }\n': typeof types.UpdateGoalDocument;
+  '\n  mutation SwapPositions($input: SwapPositionsInput!) {\n    swapPositions(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.SwapPositionsDocument;
+  '\n  mutation BatchLineupChanges($input: BatchLineupChangesInput!) {\n    batchLineupChanges(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.BatchLineupChangesDocument;
+  '\n  query GetPlayerPositionStats($gameTeamId: ID!) {\n    playerPositionStats(gameTeamId: $gameTeamId) {\n      playerId\n      playerName\n      externalPlayerName\n      externalPlayerNumber\n      totalMinutes\n      totalSeconds\n      positionTimes {\n        position\n        minutes\n        seconds\n      }\n    }\n  }\n': typeof types.GetPlayerPositionStatsDocument;
+  '\n  query GetPlayerStats($input: PlayerStatsInput!) {\n    playerStats(input: $input) {\n      playerId\n      playerName\n      externalPlayerName\n      externalPlayerNumber\n      totalMinutes\n      totalSeconds\n      positionTimes {\n        position\n        minutes\n        seconds\n      }\n      goals\n      assists\n      gamesPlayed\n      yellowCards\n      redCards\n      saves\n      isOnField\n      lastEntryGameSeconds\n    }\n  }\n': typeof types.GetPlayerStatsDocument;
+  '\n  subscription GameEventChanged($gameId: ID!) {\n    gameEventChanged(gameId: $gameId) {\n      action\n      gameId\n      event {\n        id\n        gameTeamId\n        period\n        periodSecond\n        position\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        eventType {\n          id\n          name\n          category\n        }\n        player {\n          id\n          firstName\n          lastName\n        }\n        recordedByUser {\n          id\n          firstName\n          lastName\n        }\n        childEvents {\n          id\n          period\n          periodSecond\n          playerId\n          externalPlayerName\n          externalPlayerNumber\n          position\n          player {\n            id\n            firstName\n            lastName\n          }\n          eventType {\n            id\n            name\n            category\n          }\n        }\n      }\n      deletedEventId\n      conflict {\n        conflictId\n        eventType\n        period\n        periodSecond\n        conflictingEvents {\n          eventId\n          playerName\n          playerId\n          recordedByUserName\n        }\n      }\n    }\n  }\n': typeof types.GameEventChangedDocument;
+  '\n  subscription GameUpdated($gameId: ID!) {\n    gameUpdated(gameId: $gameId) {\n      id\n      name\n      status\n      actualStart\n      firstHalfEnd\n      secondHalfStart\n      actualEnd\n      pausedAt\n      currentPeriod\n      currentPeriodSecond\n      serverTimestamp\n    }\n  }\n': typeof types.GameUpdatedDocument;
+  '\n  mutation BringPlayerOntoField($input: BringPlayerOntoFieldInput!) {\n    bringPlayerOntoField(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.BringPlayerOntoFieldDocument;
+  '\n  mutation RemovePlayerFromField($input: RemovePlayerFromFieldInput!) {\n    removePlayerFromField(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.RemovePlayerFromFieldDocument;
+  '\n  mutation SetSecondHalfLineup($input: SetSecondHalfLineupInput!) {\n    setSecondHalfLineup(input: $input) {\n      events {\n        id\n        period\n        periodSecond\n        position\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        eventType {\n          id\n          name\n        }\n      }\n      substitutionsOut\n      substitutionsIn\n    }\n  }\n': typeof types.SetSecondHalfLineupDocument;
+  '\n  mutation StartPeriod($input: StartPeriodInput!) {\n    startPeriod(input: $input) {\n      periodEvent {\n        id\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n        childEvents {\n          id\n          playerId\n          externalPlayerName\n          externalPlayerNumber\n          position\n          period\n          periodSecond\n          eventType {\n            id\n            name\n          }\n        }\n      }\n      substitutionEvents {\n        id\n        period\n        periodSecond\n        position\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        eventType {\n          id\n          name\n        }\n      }\n      period\n      substitutionCount\n    }\n  }\n': typeof types.StartPeriodDocument;
+  '\n  mutation EndPeriod($input: EndPeriodInput!) {\n    endPeriod(input: $input) {\n      periodEvent {\n        id\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n        childEvents {\n          id\n          playerId\n          externalPlayerName\n          externalPlayerNumber\n          position\n          period\n          periodSecond\n          eventType {\n            id\n            name\n          }\n        }\n      }\n      substitutionEvents {\n        id\n        period\n        periodSecond\n        position\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        eventType {\n          id\n          name\n        }\n      }\n      period\n      substitutionCount\n    }\n  }\n': typeof types.EndPeriodDocument;
+  '\n  query GetMyDashboard($upcomingLimit: Int, $recentLimit: Int) {\n    my {\n      user {\n        id\n        firstName\n        lastName\n        email\n      }\n      teams {\n        id\n        name\n        shortName\n        homePrimaryColor\n        homeSecondaryColor\n        isManaged\n      }\n      ownedTeams {\n        id\n        name\n      }\n      managedTeams {\n        id\n        name\n      }\n      upcomingGames(limit: $upcomingLimit) {\n        id\n        name\n        scheduledStart\n        status\n        venue\n        teams {\n          id\n          teamType\n          team {\n            id\n            name\n            shortName\n            homePrimaryColor\n          }\n        }\n      }\n      recentGames(limit: $recentLimit) {\n        id\n        name\n        status\n        actualEnd\n        teams {\n          id\n          teamType\n          finalScore\n          team {\n            id\n            name\n            shortName\n            homePrimaryColor\n          }\n        }\n      }\n      liveGames {\n        id\n        name\n        status\n        actualStart\n        teams {\n          id\n          teamType\n          finalScore\n          team {\n            id\n            name\n            shortName\n            homePrimaryColor\n          }\n        }\n      }\n    }\n  }\n': typeof types.GetMyDashboardDocument;
+  '\n  query GetMyTeamsViewer {\n    my {\n      teams {\n        id\n        name\n        shortName\n        homePrimaryColor\n        homeSecondaryColor\n        isManaged\n      }\n      ownedTeams {\n        id\n        name\n      }\n    }\n  }\n': typeof types.GetMyTeamsViewerDocument;
+  '\n  query GetMyLiveGames {\n    my {\n      liveGames {\n        id\n        name\n        status\n        actualStart\n        pausedAt\n        teams {\n          id\n          teamType\n          finalScore\n          team {\n            id\n            name\n            shortName\n            homePrimaryColor\n          }\n        }\n      }\n    }\n  }\n': typeof types.GetMyLiveGamesDocument;
+  '\n  query GetTeams {\n    teams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.GetTeamsDocument;
+  '\n  query GetTeamById($id: ID!) {\n    team(id: $id) {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n      owner {\n        id\n        user {\n          id\n          firstName\n          lastName\n          email\n        }\n        roles {\n          role\n        }\n      }\n      playersWithJersey {\n        id\n        name\n        position\n        jersey\n        depthRank\n        isActive\n      }\n      roster {\n        id\n        role\n        jerseyNumber\n        primaryPosition\n        teamMember {\n          id\n          isActive\n          joinedDate\n          leftDate\n          user {\n            id\n            firstName\n            lastName\n            email\n          }\n        }\n      }\n      teamConfiguration {\n        id\n        defaultFormation\n        defaultGameDuration\n        defaultPlayerCount\n        statsTrackingLevel\n        defaultGameFormat {\n          id\n          name\n          playersPerTeam\n          durationMinutes\n        }\n      }\n      games {\n        id\n        teamType\n        finalScore\n        formation\n        game {\n          id\n          name\n          scheduledStart\n        }\n      }\n    }\n  }\n': typeof types.GetTeamByIdDocument;
+  '\n  mutation CreateTeam($createTeamInput: CreateTeamInput!) {\n    createTeam(createTeamInput: $createTeamInput) {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdById\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.CreateTeamDocument;
+  '\n  mutation UpdateTeam($id: ID!, $updateTeamInput: UpdateTeamInput!) {\n    updateTeam(id: $id, updateTeamInput: $updateTeamInput) {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.UpdateTeamDocument;
+  '\n  mutation UpdateTeamConfiguration(\n    $teamId: ID!\n    $input: UpdateTeamConfigurationInput!\n  ) {\n    updateTeamConfiguration(teamId: $teamId, input: $input) {\n      id\n      teamId\n      defaultFormation\n      defaultGameDuration\n      defaultPlayerCount\n      statsTrackingLevel\n      defaultGameFormat {\n        id\n        name\n        playersPerTeam\n        durationMinutes\n      }\n    }\n  }\n': typeof types.UpdateTeamConfigurationDocument;
+  '\n  mutation CreateUnmanagedTeam($name: String!, $shortName: String) {\n    createUnmanagedTeam(name: $name, shortName: $shortName) {\n      id\n      name\n      shortName\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.CreateUnmanagedTeamDocument;
+  '\n  mutation FindOrCreateUnmanagedTeam($name: String!, $shortName: String) {\n    findOrCreateUnmanagedTeam(name: $name, shortName: $shortName) {\n      id\n      name\n      shortName\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.FindOrCreateUnmanagedTeamDocument;
+  '\n  query GetManagedTeams {\n    managedTeams {\n      id\n      name\n      shortName\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.GetManagedTeamsDocument;
+  '\n  query GetUnmanagedTeams {\n    unmanagedTeams {\n      id\n      name\n      shortName\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.GetUnmanagedTeamsDocument;
+  '\n  query GetTeamsByManagedStatus($isManaged: Boolean!) {\n    teamsByManagedStatus(isManaged: $isManaged) {\n      id\n      name\n      shortName\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.GetTeamsByManagedStatusDocument;
+  '\n  query GetMyTeams {\n    myTeams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdById\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.GetMyTeamsDocument;
+  '\n  query GetAllUsers {\n    users {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n      teams {\n        id\n        name\n        shortName\n      }\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        leftDate\n        team {\n          id\n          name\n          shortName\n        }\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n          coachTitle\n        }\n      }\n    }\n  }\n': typeof types.GetAllUsersDocument;
+  '\n  query GetUsersByTeam($teamId: ID!) {\n    usersByTeam(teamId: $teamId) {\n      id\n      firstName\n      lastName\n      email\n      phone\n      isActive\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        team {\n          id\n        }\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n          coachTitle\n        }\n      }\n    }\n  }\n': typeof types.GetUsersByTeamDocument;
+  '\n  query SearchUsersByName($name: String!) {\n    usersByName(name: $name) {\n      id\n      firstName\n      lastName\n      email\n      teamMemberships {\n        id\n        team {\n          id\n          name\n        }\n        roles {\n          role\n          primaryPosition\n          coachTitle\n        }\n      }\n    }\n  }\n': typeof types.SearchUsersByNameDocument;
+  '\n  query GetUsersComplete {\n    players {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n      teams {\n        id\n        name\n        shortName\n      }\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        leftDate\n        team {\n          id\n          name\n          shortName\n        }\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n        }\n      }\n    }\n  }\n': typeof types.GetUsersCompleteDocument;
+  '\n  query GetPlayersByTeam($teamId: ID!) {\n    playersByTeam(teamId: $teamId) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n        }\n      }\n    }\n  }\n': typeof types.GetPlayersByTeamDocument;
+  '\n  query GetPlayersByPosition($position: String!) {\n    playersByPosition(position: $position) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        id\n        roles {\n          id\n          role\n          jerseyNumber\n        }\n        team {\n          name\n        }\n      }\n    }\n  }\n': typeof types.GetPlayersByPositionDocument;
+  '\n  query SearchPlayersByName($name: String!) {\n    playersByName(name: $name) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        team {\n          name\n        }\n        roles {\n          role\n          primaryPosition\n          jerseyNumber\n        }\n      }\n    }\n  }\n': typeof types.SearchPlayersByNameDocument;
+  '\n  query GetCoaches {\n    coaches {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n      teams {\n        id\n        name\n        shortName\n      }\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        leftDate\n        team {\n          id\n          name\n          shortName\n        }\n        roles {\n          id\n          role\n          coachTitle\n        }\n      }\n    }\n  }\n': typeof types.GetCoachesDocument;
+  '\n  query GetCoachesByTeam($teamId: ID!) {\n    coachesByTeam(teamId: $teamId) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        roles {\n          id\n          role\n          coachTitle\n        }\n      }\n    }\n  }\n': typeof types.GetCoachesByTeamDocument;
+  '\n  query GetCoachesByRole($role: String!) {\n    coachesByRole(role: $role) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        id\n        joinedDate\n        team {\n          name\n        }\n        roles {\n          role\n          coachTitle\n        }\n      }\n    }\n  }\n': typeof types.GetCoachesByRoleDocument;
+  '\n  query SearchCoachesByName($name: String!) {\n    coachesByName(name: $name) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        team {\n          name\n        }\n        roles {\n          role\n          coachTitle\n        }\n      }\n    }\n  }\n': typeof types.SearchCoachesByNameDocument;
+  '\n  query GetUserById($id: ID!) {\n    user(id: $id) {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n      teams {\n        id\n        name\n        shortName\n      }\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        leftDate\n        team {\n          id\n          name\n          shortName\n        }\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n          coachTitle\n        }\n      }\n    }\n  }\n': typeof types.GetUserByIdDocument;
+  '\n  mutation CreateUser($createUserInput: CreateUserInput!) {\n    createUser(createUserInput: $createUserInput) {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n    }\n  }\n': typeof types.CreateUserDocument;
+  '\n  mutation UpdateUser($id: ID!, $updateUserInput: UpdateUserInput!) {\n    updateUser(id: $id, updateUserInput: $updateUserInput) {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      updatedAt\n    }\n  }\n': typeof types.UpdateUserDocument;
+  '\n  mutation RemoveUser($id: ID!) {\n    removeUser(id: $id)\n  }\n': typeof types.RemoveUserDocument;
+  '\n  mutation AddPlayerToTeam($addPlayerToTeamInput: AddPlayerToTeamInput!) {\n    addPlayerToTeam(addPlayerToTeamInput: $addPlayerToTeamInput) {\n      id\n      name\n      teamMembers {\n        id\n        user {\n          id\n          firstName\n          lastName\n        }\n        roles {\n          role\n          jerseyNumber\n          primaryPosition\n        }\n      }\n    }\n  }\n': typeof types.AddPlayerToTeamDocument;
+  '\n  mutation RemovePlayerFromTeam($teamId: ID!, $playerId: ID!) {\n    removePlayerFromTeam(teamId: $teamId, playerId: $playerId) {\n      id\n      name\n    }\n  }\n': typeof types.RemovePlayerFromTeamDocument;
+  '\n  mutation AddCoachToTeam($userId: ID!, $teamId: ID!, $coachTitle: String!) {\n    addCoachToTeam(userId: $userId, teamId: $teamId, coachTitle: $coachTitle) {\n      id\n      teamId\n      userId\n      user {\n        id\n        firstName\n        lastName\n      }\n      roles {\n        id\n        role\n        coachTitle\n      }\n    }\n  }\n': typeof types.AddCoachToTeamDocument;
+  '\n  mutation RemoveCoachFromTeam($userId: ID!, $teamId: ID!) {\n    removeCoachFromTeam(userId: $userId, teamId: $teamId)\n  }\n': typeof types.RemoveCoachFromTeamDocument;
+  '\n  subscription UserUpdated {\n    userUpdated {\n      id\n      firstName\n      lastName\n      email\n      isActive\n      updatedAt\n    }\n  }\n': typeof types.UserUpdatedDocument;
+  '\n  subscription UserCreated {\n    userCreated {\n      id\n      firstName\n      lastName\n      email\n      isActive\n      createdAt\n    }\n  }\n': typeof types.UserCreatedDocument;
+};
+const documents: Documents = {
+  '\n  query TeamGamesPage($teamId: ID!) {\n    team(id: $teamId) {\n      id\n      name\n      shortName\n      games {\n        ...GameCard\n      }\n    }\n  }\n':
+    types.TeamGamesPageDocument,
+  '\n  query CreateGameModal {\n    teams {\n      ...OpponentTeam\n    }\n    gameFormats {\n      ...GameFormatSelect\n    }\n  }\n':
+    types.CreateGameModalDocument,
+  '\n  query GetUsersForList {\n    users {\n      ...UserCard\n    }\n  }\n':
+    types.GetUsersForListDocument,
+  '\n  fragment GameCard on GameTeam {\n    id\n    teamType\n    finalScore\n    game {\n      id\n      name\n      status\n      scheduledStart\n      venue\n      createdAt\n      format {\n        id\n        name\n        playersPerTeam\n        durationMinutes\n      }\n      teams {\n        id\n        teamType\n        finalScore\n        team {\n          id\n          name\n          shortName\n          homePrimaryColor\n          homeSecondaryColor\n        }\n      }\n    }\n  }\n':
+    types.GameCardFragmentDoc,
+  '\n  fragment GameFormatSelect on GameFormat {\n    id\n    name\n    playersPerTeam\n    durationMinutes\n  }\n':
+    types.GameFormatSelectFragmentDoc,
+  '\n  fragment OpponentTeam on Team {\n    id\n    name\n    shortName\n  }\n':
+    types.OpponentTeamFragmentDoc,
+  '\n  fragment PlayerCardData on User {\n    id\n    firstName\n    lastName\n    email\n    phone\n    dateOfBirth\n    isActive\n    teamMemberships {\n      id\n      isActive\n      team {\n        id\n        name\n      }\n      roles {\n        id\n        role\n        jerseyNumber\n        primaryPosition\n      }\n    }\n    # Note: Game stats would need to be computed from performedEvents\n    # This might require a custom resolver field for aggregated stats\n    # performedEvents {\n    #   id\n    #   eventType {\n    #     name\n    #   }\n    #   gameMinute\n    #   game {\n    #     id\n    #   }\n    # }\n  }\n':
+    types.PlayerCardDataFragmentDoc,
+  '\n  query DebugGetTeams {\n    teams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n':
+    types.DebugGetTeamsDocument,
+  '\n  query GetMyTeamsForList {\n    myTeams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdById\n      createdAt\n      updatedAt\n    }\n  }\n':
+    types.GetMyTeamsForListDocument,
+  '\n  fragment UserCard on User {\n    id\n    firstName\n    lastName\n    email\n    phone\n    isActive\n    teamMemberships {\n      id\n      isActive\n      team {\n        id\n        name\n        shortName\n      }\n      roles {\n        id\n        role\n        jerseyNumber\n        primaryPosition\n      }\n    }\n  }\n':
+    types.UserCardFragmentDoc,
+  '\n  mutation QuickCreateTeam($input: CreateTeamInput!) {\n    createTeam(createTeamInput: $input) {\n      id\n      name\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n    }\n  }\n':
+    types.QuickCreateTeamDocument,
+  '\n  fragment GameEventFragment on GameEvent {\n    id\n    createdAt\n    periodSecond\n    position\n    formation\n    playerId\n    externalPlayerName\n    externalPlayerNumber\n    period\n    player {\n      id\n      firstName\n      lastName\n      email\n    }\n    eventType {\n      id\n      name\n      category\n    }\n    childEvents {\n      id\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      position\n      player {\n        id\n        firstName\n        lastName\n      }\n      eventType {\n        id\n        name\n      }\n    }\n  }\n':
+    types.GameEventFragmentFragmentDoc,
+  '\n  query GetGameFormats {\n    gameFormats {\n      id\n      name\n      playersPerTeam\n      durationMinutes\n      description\n      allowsSubstitutions\n      maxSubstitutions\n      createdAt\n      updatedAt\n    }\n  }\n':
+    types.GetGameFormatsDocument,
+  '\n  query GetGames {\n    games {\n      id\n      name\n      scheduledStart\n      notes\n      venue\n      weatherConditions\n      format {\n        id\n        name\n        playersPerTeam\n        durationMinutes\n      }\n      teams {\n        id\n        teamType\n        finalScore\n        formation\n        team {\n          id\n          name\n          shortName\n          homePrimaryColor\n          homeSecondaryColor\n        }\n      }\n      createdAt\n      updatedAt\n    }\n  }\n':
+    types.GetGamesDocument,
+  '\n  query GetGameById($id: ID!) {\n    game(id: $id) {\n      id\n      name\n      scheduledStart\n      status\n      actualStart\n      firstHalfEnd\n      secondHalfStart\n      actualEnd\n      pausedAt\n      statsTrackingLevel\n      notes\n      venue\n      weatherConditions\n      currentPeriod\n      currentPeriodSecond\n      serverTimestamp\n      format {\n        id\n        name\n        playersPerTeam\n        durationMinutes\n        numberOfPeriods\n      }\n      teams {\n        id\n        teamType\n        finalScore\n        formation\n        statsTrackingLevel\n        team {\n          id\n          name\n          shortName\n          homePrimaryColor\n          homeSecondaryColor\n          isManaged\n        }\n        events {\n          id\n          createdAt\n          period\n          periodSecond\n          position\n          formation\n          playerId\n          externalPlayerName\n          externalPlayerNumber\n          player {\n            id\n            firstName\n            lastName\n            email\n          }\n          eventType {\n            id\n            name\n            category\n          }\n          childEvents {\n            id\n            playerId\n            externalPlayerName\n            externalPlayerNumber\n            position\n            period\n            periodSecond\n            player {\n              id\n              firstName\n              lastName\n            }\n            eventType {\n              id\n              name\n            }\n          }\n        }\n        players {\n          gameEventId\n          playerId\n          playerName\n          firstName\n          lastName\n          externalPlayerName\n          externalPlayerNumber\n          position\n          isOnField\n          stats {\n            totalSeconds\n            positionTimes {\n              position\n              minutes\n              seconds\n            }\n            goals\n            assists\n            lastEntryPeriodSecond\n            currentPosition\n          }\n        }\n      }\n      createdAt\n      updatedAt\n    }\n  }\n':
+    types.GetGameByIdDocument,
+  '\n  mutation CreateGame($createGameInput: CreateGameInput!) {\n    createGame(createGameInput: $createGameInput) {\n      id\n      name\n      scheduledStart\n      notes\n      venue\n      weatherConditions\n      createdAt\n      updatedAt\n    }\n  }\n':
+    types.CreateGameDocument,
+  '\n  mutation UpdateGame($id: ID!, $updateGameInput: UpdateGameInput!) {\n    updateGame(id: $id, updateGameInput: $updateGameInput) {\n      id\n      name\n      scheduledStart\n      status\n      actualStart\n      firstHalfEnd\n      secondHalfStart\n      actualEnd\n      notes\n      venue\n      weatherConditions\n      createdAt\n      updatedAt\n    }\n  }\n':
+    types.UpdateGameDocument,
+  '\n  mutation RemoveGame($id: ID!) {\n    removeGame(id: $id)\n  }\n':
+    types.RemoveGameDocument,
+  '\n  mutation ReopenGame($id: ID!) {\n    reopenGame(id: $id) {\n      id\n      status\n      actualEnd\n    }\n  }\n':
+    types.ReopenGameDocument,
+  '\n  mutation UpdateGameTeam(\n    $gameTeamId: ID!\n    $updateGameTeamInput: UpdateGameTeamInput!\n  ) {\n    updateGameTeam(\n      gameTeamId: $gameTeamId\n      updateGameTeamInput: $updateGameTeamInput\n    ) {\n      id\n      teamType\n      formation\n      statsTrackingLevel\n      tacticalNotes\n      team {\n        id\n        name\n      }\n    }\n  }\n':
+    types.UpdateGameTeamDocument,
+  '\n  query GetGameLineup($gameTeamId: ID!) {\n    gameLineup(gameTeamId: $gameTeamId) {\n      gameTeamId\n      formation\n      gameRoster {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      starters {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      bench {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      currentOnField {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n    }\n  }\n':
+    types.GetGameLineupDocument,
+  '\n  query GetGameRoster($gameTeamId: ID!) {\n    gameRoster(gameTeamId: $gameTeamId) {\n      gameTeamId\n      formation\n      players {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n      }\n    }\n  }\n':
+    types.GetGameRosterDocument,
+  '\n  query GetEventTypes {\n    eventTypes {\n      id\n      name\n      category\n      description\n      requiresPosition\n      allowsParent\n    }\n  }\n':
+    types.GetEventTypesDocument,
+  '\n  mutation AddPlayerToGameRoster($input: AddToGameRosterInput!) {\n    addPlayerToGameRoster(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n':
+    types.AddPlayerToGameRosterDocument,
+  '\n  mutation RemoveFromLineup($gameEventId: ID!) {\n    removeFromLineup(gameEventId: $gameEventId)\n  }\n':
+    types.RemoveFromLineupDocument,
+  '\n  mutation UpdatePlayerPosition($gameEventId: ID!, $position: String!) {\n    updatePlayerPosition(gameEventId: $gameEventId, position: $position) {\n      id\n      position\n    }\n  }\n':
+    types.UpdatePlayerPositionDocument,
+  '\n  mutation SubstitutePlayer($input: SubstitutePlayerInput!) {\n    substitutePlayer(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n':
+    types.SubstitutePlayerDocument,
+  '\n  mutation RecordFormationChange($input: RecordFormationChangeInput!) {\n    recordFormationChange(input: $input) {\n      id\n      period\n      periodSecond\n      eventType {\n        id\n        name\n      }\n    }\n  }\n':
+    types.RecordFormationChangeDocument,
+  '\n  mutation RecordPositionChange($input: RecordPositionChangeInput!) {\n    recordPositionChange(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      eventType {\n        id\n        name\n      }\n    }\n  }\n':
+    types.RecordPositionChangeDocument,
+  '\n  mutation RecordGoal($input: RecordGoalInput!) {\n    recordGoal(input: $input) {\n      id\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n      childEvents {\n        id\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n      }\n    }\n  }\n':
+    types.RecordGoalDocument,
+  '\n  mutation DeleteGoal($gameEventId: ID!) {\n    deleteGoal(gameEventId: $gameEventId)\n  }\n':
+    types.DeleteGoalDocument,
+  '\n  mutation DeleteSubstitution($gameEventId: ID!) {\n    deleteSubstitution(gameEventId: $gameEventId)\n  }\n':
+    types.DeleteSubstitutionDocument,
+  '\n  mutation DeletePositionSwap($gameEventId: ID!) {\n    deletePositionSwap(gameEventId: $gameEventId)\n  }\n':
+    types.DeletePositionSwapDocument,
+  '\n  mutation DeleteStarterEntry($gameEventId: ID!) {\n    deleteStarterEntry(gameEventId: $gameEventId)\n  }\n':
+    types.DeleteStarterEntryDocument,
+  '\n  query GetDependentEvents($gameEventId: ID!) {\n    dependentEvents(gameEventId: $gameEventId) {\n      dependentEvents {\n        id\n        eventType\n        period\n        periodSecond\n        playerName\n        description\n      }\n      count\n      canDelete\n      warningMessage\n    }\n  }\n':
+    types.GetDependentEventsDocument,
+  '\n  mutation DeleteEventWithCascade($gameEventId: ID!, $eventType: String!) {\n    deleteEventWithCascade(gameEventId: $gameEventId, eventType: $eventType)\n  }\n':
+    types.DeleteEventWithCascadeDocument,
+  '\n  mutation ResolveEventConflict(\n    $conflictId: ID!\n    $selectedEventId: ID!\n    $keepAll: Boolean\n  ) {\n    resolveEventConflict(\n      conflictId: $conflictId\n      selectedEventId: $selectedEventId\n      keepAll: $keepAll\n    ) {\n      id\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      conflictId\n      eventType {\n        id\n        name\n      }\n    }\n  }\n':
+    types.ResolveEventConflictDocument,
+  '\n  mutation UpdateGoal($input: UpdateGoalInput!) {\n    updateGoal(input: $input) {\n      id\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n      childEvents {\n        id\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n      }\n    }\n  }\n':
+    types.UpdateGoalDocument,
+  '\n  mutation SwapPositions($input: SwapPositionsInput!) {\n    swapPositions(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n':
+    types.SwapPositionsDocument,
+  '\n  mutation BatchLineupChanges($input: BatchLineupChangesInput!) {\n    batchLineupChanges(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n':
+    types.BatchLineupChangesDocument,
+  '\n  query GetPlayerPositionStats($gameTeamId: ID!) {\n    playerPositionStats(gameTeamId: $gameTeamId) {\n      playerId\n      playerName\n      externalPlayerName\n      externalPlayerNumber\n      totalMinutes\n      totalSeconds\n      positionTimes {\n        position\n        minutes\n        seconds\n      }\n    }\n  }\n':
+    types.GetPlayerPositionStatsDocument,
+  '\n  query GetPlayerStats($input: PlayerStatsInput!) {\n    playerStats(input: $input) {\n      playerId\n      playerName\n      externalPlayerName\n      externalPlayerNumber\n      totalMinutes\n      totalSeconds\n      positionTimes {\n        position\n        minutes\n        seconds\n      }\n      goals\n      assists\n      gamesPlayed\n      yellowCards\n      redCards\n      saves\n      isOnField\n      lastEntryGameSeconds\n    }\n  }\n':
+    types.GetPlayerStatsDocument,
+  '\n  subscription GameEventChanged($gameId: ID!) {\n    gameEventChanged(gameId: $gameId) {\n      action\n      gameId\n      event {\n        id\n        gameTeamId\n        period\n        periodSecond\n        position\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        eventType {\n          id\n          name\n          category\n        }\n        player {\n          id\n          firstName\n          lastName\n        }\n        recordedByUser {\n          id\n          firstName\n          lastName\n        }\n        childEvents {\n          id\n          period\n          periodSecond\n          playerId\n          externalPlayerName\n          externalPlayerNumber\n          position\n          player {\n            id\n            firstName\n            lastName\n          }\n          eventType {\n            id\n            name\n            category\n          }\n        }\n      }\n      deletedEventId\n      conflict {\n        conflictId\n        eventType\n        period\n        periodSecond\n        conflictingEvents {\n          eventId\n          playerName\n          playerId\n          recordedByUserName\n        }\n      }\n    }\n  }\n':
+    types.GameEventChangedDocument,
+  '\n  subscription GameUpdated($gameId: ID!) {\n    gameUpdated(gameId: $gameId) {\n      id\n      name\n      status\n      actualStart\n      firstHalfEnd\n      secondHalfStart\n      actualEnd\n      pausedAt\n      currentPeriod\n      currentPeriodSecond\n      serverTimestamp\n    }\n  }\n':
+    types.GameUpdatedDocument,
+  '\n  mutation BringPlayerOntoField($input: BringPlayerOntoFieldInput!) {\n    bringPlayerOntoField(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n':
+    types.BringPlayerOntoFieldDocument,
+  '\n  mutation RemovePlayerFromField($input: RemovePlayerFromFieldInput!) {\n    removePlayerFromField(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      eventType {\n        id\n        name\n      }\n    }\n  }\n':
+    types.RemovePlayerFromFieldDocument,
+  '\n  mutation SetSecondHalfLineup($input: SetSecondHalfLineupInput!) {\n    setSecondHalfLineup(input: $input) {\n      events {\n        id\n        period\n        periodSecond\n        position\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        eventType {\n          id\n          name\n        }\n      }\n      substitutionsOut\n      substitutionsIn\n    }\n  }\n':
+    types.SetSecondHalfLineupDocument,
+  '\n  mutation StartPeriod($input: StartPeriodInput!) {\n    startPeriod(input: $input) {\n      periodEvent {\n        id\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n        childEvents {\n          id\n          playerId\n          externalPlayerName\n          externalPlayerNumber\n          position\n          period\n          periodSecond\n          eventType {\n            id\n            name\n          }\n        }\n      }\n      substitutionEvents {\n        id\n        period\n        periodSecond\n        position\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        eventType {\n          id\n          name\n        }\n      }\n      period\n      substitutionCount\n    }\n  }\n':
+    types.StartPeriodDocument,
+  '\n  mutation EndPeriod($input: EndPeriodInput!) {\n    endPeriod(input: $input) {\n      periodEvent {\n        id\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n        childEvents {\n          id\n          playerId\n          externalPlayerName\n          externalPlayerNumber\n          position\n          period\n          periodSecond\n          eventType {\n            id\n            name\n          }\n        }\n      }\n      substitutionEvents {\n        id\n        period\n        periodSecond\n        position\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        eventType {\n          id\n          name\n        }\n      }\n      period\n      substitutionCount\n    }\n  }\n':
+    types.EndPeriodDocument,
+  '\n  query GetMyDashboard($upcomingLimit: Int, $recentLimit: Int) {\n    my {\n      user {\n        id\n        firstName\n        lastName\n        email\n      }\n      teams {\n        id\n        name\n        shortName\n        homePrimaryColor\n        homeSecondaryColor\n        isManaged\n      }\n      ownedTeams {\n        id\n        name\n      }\n      managedTeams {\n        id\n        name\n      }\n      upcomingGames(limit: $upcomingLimit) {\n        id\n        name\n        scheduledStart\n        status\n        venue\n        teams {\n          id\n          teamType\n          team {\n            id\n            name\n            shortName\n            homePrimaryColor\n          }\n        }\n      }\n      recentGames(limit: $recentLimit) {\n        id\n        name\n        status\n        actualEnd\n        teams {\n          id\n          teamType\n          finalScore\n          team {\n            id\n            name\n            shortName\n            homePrimaryColor\n          }\n        }\n      }\n      liveGames {\n        id\n        name\n        status\n        actualStart\n        teams {\n          id\n          teamType\n          finalScore\n          team {\n            id\n            name\n            shortName\n            homePrimaryColor\n          }\n        }\n      }\n    }\n  }\n':
+    types.GetMyDashboardDocument,
+  '\n  query GetMyTeamsViewer {\n    my {\n      teams {\n        id\n        name\n        shortName\n        homePrimaryColor\n        homeSecondaryColor\n        isManaged\n      }\n      ownedTeams {\n        id\n        name\n      }\n    }\n  }\n':
+    types.GetMyTeamsViewerDocument,
+  '\n  query GetMyLiveGames {\n    my {\n      liveGames {\n        id\n        name\n        status\n        actualStart\n        pausedAt\n        teams {\n          id\n          teamType\n          finalScore\n          team {\n            id\n            name\n            shortName\n            homePrimaryColor\n          }\n        }\n      }\n    }\n  }\n':
+    types.GetMyLiveGamesDocument,
+  '\n  query GetTeams {\n    teams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n':
+    types.GetTeamsDocument,
+  '\n  query GetTeamById($id: ID!) {\n    team(id: $id) {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n      owner {\n        id\n        user {\n          id\n          firstName\n          lastName\n          email\n        }\n        roles {\n          role\n        }\n      }\n      playersWithJersey {\n        id\n        name\n        position\n        jersey\n        depthRank\n        isActive\n      }\n      roster {\n        id\n        role\n        jerseyNumber\n        primaryPosition\n        teamMember {\n          id\n          isActive\n          joinedDate\n          leftDate\n          user {\n            id\n            firstName\n            lastName\n            email\n          }\n        }\n      }\n      teamConfiguration {\n        id\n        defaultFormation\n        defaultGameDuration\n        defaultPlayerCount\n        statsTrackingLevel\n        defaultGameFormat {\n          id\n          name\n          playersPerTeam\n          durationMinutes\n        }\n      }\n      games {\n        id\n        teamType\n        finalScore\n        formation\n        game {\n          id\n          name\n          scheduledStart\n        }\n      }\n    }\n  }\n':
+    types.GetTeamByIdDocument,
+  '\n  mutation CreateTeam($createTeamInput: CreateTeamInput!) {\n    createTeam(createTeamInput: $createTeamInput) {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdById\n      createdAt\n      updatedAt\n    }\n  }\n':
+    types.CreateTeamDocument,
+  '\n  mutation UpdateTeam($id: ID!, $updateTeamInput: UpdateTeamInput!) {\n    updateTeam(id: $id, updateTeamInput: $updateTeamInput) {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      createdAt\n      updatedAt\n    }\n  }\n':
+    types.UpdateTeamDocument,
+  '\n  mutation UpdateTeamConfiguration(\n    $teamId: ID!\n    $input: UpdateTeamConfigurationInput!\n  ) {\n    updateTeamConfiguration(teamId: $teamId, input: $input) {\n      id\n      teamId\n      defaultFormation\n      defaultGameDuration\n      defaultPlayerCount\n      statsTrackingLevel\n      defaultGameFormat {\n        id\n        name\n        playersPerTeam\n        durationMinutes\n      }\n    }\n  }\n':
+    types.UpdateTeamConfigurationDocument,
+  '\n  mutation CreateUnmanagedTeam($name: String!, $shortName: String) {\n    createUnmanagedTeam(name: $name, shortName: $shortName) {\n      id\n      name\n      shortName\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n':
+    types.CreateUnmanagedTeamDocument,
+  '\n  mutation FindOrCreateUnmanagedTeam($name: String!, $shortName: String) {\n    findOrCreateUnmanagedTeam(name: $name, shortName: $shortName) {\n      id\n      name\n      shortName\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n':
+    types.FindOrCreateUnmanagedTeamDocument,
+  '\n  query GetManagedTeams {\n    managedTeams {\n      id\n      name\n      shortName\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n':
+    types.GetManagedTeamsDocument,
+  '\n  query GetUnmanagedTeams {\n    unmanagedTeams {\n      id\n      name\n      shortName\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n':
+    types.GetUnmanagedTeamsDocument,
+  '\n  query GetTeamsByManagedStatus($isManaged: Boolean!) {\n    teamsByManagedStatus(isManaged: $isManaged) {\n      id\n      name\n      shortName\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n':
+    types.GetTeamsByManagedStatusDocument,
+  '\n  query GetMyTeams {\n    myTeams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdById\n      createdAt\n      updatedAt\n    }\n  }\n':
+    types.GetMyTeamsDocument,
+  '\n  query GetAllUsers {\n    users {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n      teams {\n        id\n        name\n        shortName\n      }\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        leftDate\n        team {\n          id\n          name\n          shortName\n        }\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n          coachTitle\n        }\n      }\n    }\n  }\n':
+    types.GetAllUsersDocument,
+  '\n  query GetUsersByTeam($teamId: ID!) {\n    usersByTeam(teamId: $teamId) {\n      id\n      firstName\n      lastName\n      email\n      phone\n      isActive\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        team {\n          id\n        }\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n          coachTitle\n        }\n      }\n    }\n  }\n':
+    types.GetUsersByTeamDocument,
+  '\n  query SearchUsersByName($name: String!) {\n    usersByName(name: $name) {\n      id\n      firstName\n      lastName\n      email\n      teamMemberships {\n        id\n        team {\n          id\n          name\n        }\n        roles {\n          role\n          primaryPosition\n          coachTitle\n        }\n      }\n    }\n  }\n':
+    types.SearchUsersByNameDocument,
+  '\n  query GetUsersComplete {\n    players {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n      teams {\n        id\n        name\n        shortName\n      }\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        leftDate\n        team {\n          id\n          name\n          shortName\n        }\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n        }\n      }\n    }\n  }\n':
+    types.GetUsersCompleteDocument,
+  '\n  query GetPlayersByTeam($teamId: ID!) {\n    playersByTeam(teamId: $teamId) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n        }\n      }\n    }\n  }\n':
+    types.GetPlayersByTeamDocument,
+  '\n  query GetPlayersByPosition($position: String!) {\n    playersByPosition(position: $position) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        id\n        roles {\n          id\n          role\n          jerseyNumber\n        }\n        team {\n          name\n        }\n      }\n    }\n  }\n':
+    types.GetPlayersByPositionDocument,
+  '\n  query SearchPlayersByName($name: String!) {\n    playersByName(name: $name) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        team {\n          name\n        }\n        roles {\n          role\n          primaryPosition\n          jerseyNumber\n        }\n      }\n    }\n  }\n':
+    types.SearchPlayersByNameDocument,
+  '\n  query GetCoaches {\n    coaches {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n      teams {\n        id\n        name\n        shortName\n      }\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        leftDate\n        team {\n          id\n          name\n          shortName\n        }\n        roles {\n          id\n          role\n          coachTitle\n        }\n      }\n    }\n  }\n':
+    types.GetCoachesDocument,
+  '\n  query GetCoachesByTeam($teamId: ID!) {\n    coachesByTeam(teamId: $teamId) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        roles {\n          id\n          role\n          coachTitle\n        }\n      }\n    }\n  }\n':
+    types.GetCoachesByTeamDocument,
+  '\n  query GetCoachesByRole($role: String!) {\n    coachesByRole(role: $role) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        id\n        joinedDate\n        team {\n          name\n        }\n        roles {\n          role\n          coachTitle\n        }\n      }\n    }\n  }\n':
+    types.GetCoachesByRoleDocument,
+  '\n  query SearchCoachesByName($name: String!) {\n    coachesByName(name: $name) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        team {\n          name\n        }\n        roles {\n          role\n          coachTitle\n        }\n      }\n    }\n  }\n':
+    types.SearchCoachesByNameDocument,
+  '\n  query GetUserById($id: ID!) {\n    user(id: $id) {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n      teams {\n        id\n        name\n        shortName\n      }\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        leftDate\n        team {\n          id\n          name\n          shortName\n        }\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n          coachTitle\n        }\n      }\n    }\n  }\n':
+    types.GetUserByIdDocument,
+  '\n  mutation CreateUser($createUserInput: CreateUserInput!) {\n    createUser(createUserInput: $createUserInput) {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n    }\n  }\n':
+    types.CreateUserDocument,
+  '\n  mutation UpdateUser($id: ID!, $updateUserInput: UpdateUserInput!) {\n    updateUser(id: $id, updateUserInput: $updateUserInput) {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      updatedAt\n    }\n  }\n':
+    types.UpdateUserDocument,
+  '\n  mutation RemoveUser($id: ID!) {\n    removeUser(id: $id)\n  }\n':
+    types.RemoveUserDocument,
+  '\n  mutation AddPlayerToTeam($addPlayerToTeamInput: AddPlayerToTeamInput!) {\n    addPlayerToTeam(addPlayerToTeamInput: $addPlayerToTeamInput) {\n      id\n      name\n      teamMembers {\n        id\n        user {\n          id\n          firstName\n          lastName\n        }\n        roles {\n          role\n          jerseyNumber\n          primaryPosition\n        }\n      }\n    }\n  }\n':
+    types.AddPlayerToTeamDocument,
+  '\n  mutation RemovePlayerFromTeam($teamId: ID!, $playerId: ID!) {\n    removePlayerFromTeam(teamId: $teamId, playerId: $playerId) {\n      id\n      name\n    }\n  }\n':
+    types.RemovePlayerFromTeamDocument,
+  '\n  mutation AddCoachToTeam($userId: ID!, $teamId: ID!, $coachTitle: String!) {\n    addCoachToTeam(userId: $userId, teamId: $teamId, coachTitle: $coachTitle) {\n      id\n      teamId\n      userId\n      user {\n        id\n        firstName\n        lastName\n      }\n      roles {\n        id\n        role\n        coachTitle\n      }\n    }\n  }\n':
+    types.AddCoachToTeamDocument,
+  '\n  mutation RemoveCoachFromTeam($userId: ID!, $teamId: ID!) {\n    removeCoachFromTeam(userId: $userId, teamId: $teamId)\n  }\n':
+    types.RemoveCoachFromTeamDocument,
+  '\n  subscription UserUpdated {\n    userUpdated {\n      id\n      firstName\n      lastName\n      email\n      isActive\n      updatedAt\n    }\n  }\n':
+    types.UserUpdatedDocument,
+  '\n  subscription UserCreated {\n    userCreated {\n      id\n      firstName\n      lastName\n      email\n      isActive\n      createdAt\n    }\n  }\n':
+    types.UserCreatedDocument,
+};
+
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ *
+ *
+ * @example
+ * ```ts
+ * const query = graphql(`query GetUser($id: ID!) { user(id: $id) { name } }`);
+ * ```
+ *
+ * The query argument is unknown!
+ * Please regenerate the types.
+ */
+export function graphql(source: string): unknown;
+
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query TeamGamesPage($teamId: ID!) {\n    team(id: $teamId) {\n      id\n      name\n      shortName\n      games {\n        ...GameCard\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query TeamGamesPage($teamId: ID!) {\n    team(id: $teamId) {\n      id\n      name\n      shortName\n      games {\n        ...GameCard\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query CreateGameModal {\n    teams {\n      ...OpponentTeam\n    }\n    gameFormats {\n      ...GameFormatSelect\n    }\n  }\n',
+): (typeof documents)['\n  query CreateGameModal {\n    teams {\n      ...OpponentTeam\n    }\n    gameFormats {\n      ...GameFormatSelect\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetUsersForList {\n    users {\n      ...UserCard\n    }\n  }\n',
+): (typeof documents)['\n  query GetUsersForList {\n    users {\n      ...UserCard\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  fragment GameCard on GameTeam {\n    id\n    teamType\n    finalScore\n    game {\n      id\n      name\n      status\n      scheduledStart\n      venue\n      createdAt\n      format {\n        id\n        name\n        playersPerTeam\n        durationMinutes\n      }\n      teams {\n        id\n        teamType\n        finalScore\n        team {\n          id\n          name\n          shortName\n          homePrimaryColor\n          homeSecondaryColor\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  fragment GameCard on GameTeam {\n    id\n    teamType\n    finalScore\n    game {\n      id\n      name\n      status\n      scheduledStart\n      venue\n      createdAt\n      format {\n        id\n        name\n        playersPerTeam\n        durationMinutes\n      }\n      teams {\n        id\n        teamType\n        finalScore\n        team {\n          id\n          name\n          shortName\n          homePrimaryColor\n          homeSecondaryColor\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  fragment GameFormatSelect on GameFormat {\n    id\n    name\n    playersPerTeam\n    durationMinutes\n  }\n',
+): (typeof documents)['\n  fragment GameFormatSelect on GameFormat {\n    id\n    name\n    playersPerTeam\n    durationMinutes\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  fragment OpponentTeam on Team {\n    id\n    name\n    shortName\n  }\n',
+): (typeof documents)['\n  fragment OpponentTeam on Team {\n    id\n    name\n    shortName\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  fragment PlayerCardData on User {\n    id\n    firstName\n    lastName\n    email\n    phone\n    dateOfBirth\n    isActive\n    teamMemberships {\n      id\n      isActive\n      team {\n        id\n        name\n      }\n      roles {\n        id\n        role\n        jerseyNumber\n        primaryPosition\n      }\n    }\n    # Note: Game stats would need to be computed from performedEvents\n    # This might require a custom resolver field for aggregated stats\n    # performedEvents {\n    #   id\n    #   eventType {\n    #     name\n    #   }\n    #   gameMinute\n    #   game {\n    #     id\n    #   }\n    # }\n  }\n',
+): (typeof documents)['\n  fragment PlayerCardData on User {\n    id\n    firstName\n    lastName\n    email\n    phone\n    dateOfBirth\n    isActive\n    teamMemberships {\n      id\n      isActive\n      team {\n        id\n        name\n      }\n      roles {\n        id\n        role\n        jerseyNumber\n        primaryPosition\n      }\n    }\n    # Note: Game stats would need to be computed from performedEvents\n    # This might require a custom resolver field for aggregated stats\n    # performedEvents {\n    #   id\n    #   eventType {\n    #     name\n    #   }\n    #   gameMinute\n    #   game {\n    #     id\n    #   }\n    # }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query DebugGetTeams {\n    teams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  query DebugGetTeams {\n    teams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetMyTeamsForList {\n    myTeams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdById\n      createdAt\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  query GetMyTeamsForList {\n    myTeams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdById\n      createdAt\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  fragment UserCard on User {\n    id\n    firstName\n    lastName\n    email\n    phone\n    isActive\n    teamMemberships {\n      id\n      isActive\n      team {\n        id\n        name\n        shortName\n      }\n      roles {\n        id\n        role\n        jerseyNumber\n        primaryPosition\n      }\n    }\n  }\n',
+): (typeof documents)['\n  fragment UserCard on User {\n    id\n    firstName\n    lastName\n    email\n    phone\n    isActive\n    teamMemberships {\n      id\n      isActive\n      team {\n        id\n        name\n        shortName\n      }\n      roles {\n        id\n        role\n        jerseyNumber\n        primaryPosition\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation QuickCreateTeam($input: CreateTeamInput!) {\n    createTeam(createTeamInput: $input) {\n      id\n      name\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n    }\n  }\n',
+): (typeof documents)['\n  mutation QuickCreateTeam($input: CreateTeamInput!) {\n    createTeam(createTeamInput: $input) {\n      id\n      name\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  fragment GameEventFragment on GameEvent {\n    id\n    createdAt\n    periodSecond\n    position\n    formation\n    playerId\n    externalPlayerName\n    externalPlayerNumber\n    period\n    player {\n      id\n      firstName\n      lastName\n      email\n    }\n    eventType {\n      id\n      name\n      category\n    }\n    childEvents {\n      id\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      position\n      player {\n        id\n        firstName\n        lastName\n      }\n      eventType {\n        id\n        name\n      }\n    }\n  }\n',
+): (typeof documents)['\n  fragment GameEventFragment on GameEvent {\n    id\n    createdAt\n    periodSecond\n    position\n    formation\n    playerId\n    externalPlayerName\n    externalPlayerNumber\n    period\n    player {\n      id\n      firstName\n      lastName\n      email\n    }\n    eventType {\n      id\n      name\n      category\n    }\n    childEvents {\n      id\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      position\n      player {\n        id\n        firstName\n        lastName\n      }\n      eventType {\n        id\n        name\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetGameFormats {\n    gameFormats {\n      id\n      name\n      playersPerTeam\n      durationMinutes\n      description\n      allowsSubstitutions\n      maxSubstitutions\n      createdAt\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  query GetGameFormats {\n    gameFormats {\n      id\n      name\n      playersPerTeam\n      durationMinutes\n      description\n      allowsSubstitutions\n      maxSubstitutions\n      createdAt\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetGames {\n    games {\n      id\n      name\n      scheduledStart\n      notes\n      venue\n      weatherConditions\n      format {\n        id\n        name\n        playersPerTeam\n        durationMinutes\n      }\n      teams {\n        id\n        teamType\n        finalScore\n        formation\n        team {\n          id\n          name\n          shortName\n          homePrimaryColor\n          homeSecondaryColor\n        }\n      }\n      createdAt\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  query GetGames {\n    games {\n      id\n      name\n      scheduledStart\n      notes\n      venue\n      weatherConditions\n      format {\n        id\n        name\n        playersPerTeam\n        durationMinutes\n      }\n      teams {\n        id\n        teamType\n        finalScore\n        formation\n        team {\n          id\n          name\n          shortName\n          homePrimaryColor\n          homeSecondaryColor\n        }\n      }\n      createdAt\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetGameById($id: ID!) {\n    game(id: $id) {\n      id\n      name\n      scheduledStart\n      status\n      actualStart\n      firstHalfEnd\n      secondHalfStart\n      actualEnd\n      pausedAt\n      statsTrackingLevel\n      notes\n      venue\n      weatherConditions\n      currentPeriod\n      currentPeriodSecond\n      serverTimestamp\n      format {\n        id\n        name\n        playersPerTeam\n        durationMinutes\n        numberOfPeriods\n      }\n      teams {\n        id\n        teamType\n        finalScore\n        formation\n        statsTrackingLevel\n        team {\n          id\n          name\n          shortName\n          homePrimaryColor\n          homeSecondaryColor\n          isManaged\n        }\n        events {\n          id\n          createdAt\n          period\n          periodSecond\n          position\n          formation\n          playerId\n          externalPlayerName\n          externalPlayerNumber\n          player {\n            id\n            firstName\n            lastName\n            email\n          }\n          eventType {\n            id\n            name\n            category\n          }\n          childEvents {\n            id\n            playerId\n            externalPlayerName\n            externalPlayerNumber\n            position\n            period\n            periodSecond\n            player {\n              id\n              firstName\n              lastName\n            }\n            eventType {\n              id\n              name\n            }\n          }\n        }\n        players {\n          gameEventId\n          playerId\n          playerName\n          firstName\n          lastName\n          externalPlayerName\n          externalPlayerNumber\n          position\n          isOnField\n          stats {\n            totalSeconds\n            positionTimes {\n              position\n              minutes\n              seconds\n            }\n            goals\n            assists\n            lastEntryPeriodSecond\n            currentPosition\n          }\n        }\n      }\n      createdAt\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  query GetGameById($id: ID!) {\n    game(id: $id) {\n      id\n      name\n      scheduledStart\n      status\n      actualStart\n      firstHalfEnd\n      secondHalfStart\n      actualEnd\n      pausedAt\n      statsTrackingLevel\n      notes\n      venue\n      weatherConditions\n      currentPeriod\n      currentPeriodSecond\n      serverTimestamp\n      format {\n        id\n        name\n        playersPerTeam\n        durationMinutes\n        numberOfPeriods\n      }\n      teams {\n        id\n        teamType\n        finalScore\n        formation\n        statsTrackingLevel\n        team {\n          id\n          name\n          shortName\n          homePrimaryColor\n          homeSecondaryColor\n          isManaged\n        }\n        events {\n          id\n          createdAt\n          period\n          periodSecond\n          position\n          formation\n          playerId\n          externalPlayerName\n          externalPlayerNumber\n          player {\n            id\n            firstName\n            lastName\n            email\n          }\n          eventType {\n            id\n            name\n            category\n          }\n          childEvents {\n            id\n            playerId\n            externalPlayerName\n            externalPlayerNumber\n            position\n            period\n            periodSecond\n            player {\n              id\n              firstName\n              lastName\n            }\n            eventType {\n              id\n              name\n            }\n          }\n        }\n        players {\n          gameEventId\n          playerId\n          playerName\n          firstName\n          lastName\n          externalPlayerName\n          externalPlayerNumber\n          position\n          isOnField\n          stats {\n            totalSeconds\n            positionTimes {\n              position\n              minutes\n              seconds\n            }\n            goals\n            assists\n            lastEntryPeriodSecond\n            currentPosition\n          }\n        }\n      }\n      createdAt\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation CreateGame($createGameInput: CreateGameInput!) {\n    createGame(createGameInput: $createGameInput) {\n      id\n      name\n      scheduledStart\n      notes\n      venue\n      weatherConditions\n      createdAt\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  mutation CreateGame($createGameInput: CreateGameInput!) {\n    createGame(createGameInput: $createGameInput) {\n      id\n      name\n      scheduledStart\n      notes\n      venue\n      weatherConditions\n      createdAt\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation UpdateGame($id: ID!, $updateGameInput: UpdateGameInput!) {\n    updateGame(id: $id, updateGameInput: $updateGameInput) {\n      id\n      name\n      scheduledStart\n      status\n      actualStart\n      firstHalfEnd\n      secondHalfStart\n      actualEnd\n      notes\n      venue\n      weatherConditions\n      createdAt\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  mutation UpdateGame($id: ID!, $updateGameInput: UpdateGameInput!) {\n    updateGame(id: $id, updateGameInput: $updateGameInput) {\n      id\n      name\n      scheduledStart\n      status\n      actualStart\n      firstHalfEnd\n      secondHalfStart\n      actualEnd\n      notes\n      venue\n      weatherConditions\n      createdAt\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation RemoveGame($id: ID!) {\n    removeGame(id: $id)\n  }\n',
+): (typeof documents)['\n  mutation RemoveGame($id: ID!) {\n    removeGame(id: $id)\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation ReopenGame($id: ID!) {\n    reopenGame(id: $id) {\n      id\n      status\n      actualEnd\n    }\n  }\n',
+): (typeof documents)['\n  mutation ReopenGame($id: ID!) {\n    reopenGame(id: $id) {\n      id\n      status\n      actualEnd\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation UpdateGameTeam(\n    $gameTeamId: ID!\n    $updateGameTeamInput: UpdateGameTeamInput!\n  ) {\n    updateGameTeam(\n      gameTeamId: $gameTeamId\n      updateGameTeamInput: $updateGameTeamInput\n    ) {\n      id\n      teamType\n      formation\n      statsTrackingLevel\n      tacticalNotes\n      team {\n        id\n        name\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation UpdateGameTeam(\n    $gameTeamId: ID!\n    $updateGameTeamInput: UpdateGameTeamInput!\n  ) {\n    updateGameTeam(\n      gameTeamId: $gameTeamId\n      updateGameTeamInput: $updateGameTeamInput\n    ) {\n      id\n      teamType\n      formation\n      statsTrackingLevel\n      tacticalNotes\n      team {\n        id\n        name\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetGameLineup($gameTeamId: ID!) {\n    gameLineup(gameTeamId: $gameTeamId) {\n      gameTeamId\n      formation\n      gameRoster {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      starters {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      bench {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      currentOnField {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query GetGameLineup($gameTeamId: ID!) {\n    gameLineup(gameTeamId: $gameTeamId) {\n      gameTeamId\n      formation\n      gameRoster {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      starters {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      bench {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n      currentOnField {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n        isOnField\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetGameRoster($gameTeamId: ID!) {\n    gameRoster(gameTeamId: $gameTeamId) {\n      gameTeamId\n      formation\n      players {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query GetGameRoster($gameTeamId: ID!) {\n    gameRoster(gameTeamId: $gameTeamId) {\n      gameTeamId\n      formation\n      players {\n        gameEventId\n        playerId\n        playerName\n        firstName\n        lastName\n        externalPlayerName\n        externalPlayerNumber\n        position\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetEventTypes {\n    eventTypes {\n      id\n      name\n      category\n      description\n      requiresPosition\n      allowsParent\n    }\n  }\n',
+): (typeof documents)['\n  query GetEventTypes {\n    eventTypes {\n      id\n      name\n      category\n      description\n      requiresPosition\n      allowsParent\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation AddPlayerToGameRoster($input: AddToGameRosterInput!) {\n    addPlayerToGameRoster(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation AddPlayerToGameRoster($input: AddToGameRosterInput!) {\n    addPlayerToGameRoster(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation RemoveFromLineup($gameEventId: ID!) {\n    removeFromLineup(gameEventId: $gameEventId)\n  }\n',
+): (typeof documents)['\n  mutation RemoveFromLineup($gameEventId: ID!) {\n    removeFromLineup(gameEventId: $gameEventId)\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation UpdatePlayerPosition($gameEventId: ID!, $position: String!) {\n    updatePlayerPosition(gameEventId: $gameEventId, position: $position) {\n      id\n      position\n    }\n  }\n',
+): (typeof documents)['\n  mutation UpdatePlayerPosition($gameEventId: ID!, $position: String!) {\n    updatePlayerPosition(gameEventId: $gameEventId, position: $position) {\n      id\n      position\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation SubstitutePlayer($input: SubstitutePlayerInput!) {\n    substitutePlayer(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation SubstitutePlayer($input: SubstitutePlayerInput!) {\n    substitutePlayer(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation RecordFormationChange($input: RecordFormationChangeInput!) {\n    recordFormationChange(input: $input) {\n      id\n      period\n      periodSecond\n      eventType {\n        id\n        name\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation RecordFormationChange($input: RecordFormationChangeInput!) {\n    recordFormationChange(input: $input) {\n      id\n      period\n      periodSecond\n      eventType {\n        id\n        name\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation RecordPositionChange($input: RecordPositionChangeInput!) {\n    recordPositionChange(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      eventType {\n        id\n        name\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation RecordPositionChange($input: RecordPositionChangeInput!) {\n    recordPositionChange(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      eventType {\n        id\n        name\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation RecordGoal($input: RecordGoalInput!) {\n    recordGoal(input: $input) {\n      id\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n      childEvents {\n        id\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation RecordGoal($input: RecordGoalInput!) {\n    recordGoal(input: $input) {\n      id\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n      childEvents {\n        id\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation DeleteGoal($gameEventId: ID!) {\n    deleteGoal(gameEventId: $gameEventId)\n  }\n',
+): (typeof documents)['\n  mutation DeleteGoal($gameEventId: ID!) {\n    deleteGoal(gameEventId: $gameEventId)\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation DeleteSubstitution($gameEventId: ID!) {\n    deleteSubstitution(gameEventId: $gameEventId)\n  }\n',
+): (typeof documents)['\n  mutation DeleteSubstitution($gameEventId: ID!) {\n    deleteSubstitution(gameEventId: $gameEventId)\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation DeletePositionSwap($gameEventId: ID!) {\n    deletePositionSwap(gameEventId: $gameEventId)\n  }\n',
+): (typeof documents)['\n  mutation DeletePositionSwap($gameEventId: ID!) {\n    deletePositionSwap(gameEventId: $gameEventId)\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation DeleteStarterEntry($gameEventId: ID!) {\n    deleteStarterEntry(gameEventId: $gameEventId)\n  }\n',
+): (typeof documents)['\n  mutation DeleteStarterEntry($gameEventId: ID!) {\n    deleteStarterEntry(gameEventId: $gameEventId)\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetDependentEvents($gameEventId: ID!) {\n    dependentEvents(gameEventId: $gameEventId) {\n      dependentEvents {\n        id\n        eventType\n        period\n        periodSecond\n        playerName\n        description\n      }\n      count\n      canDelete\n      warningMessage\n    }\n  }\n',
+): (typeof documents)['\n  query GetDependentEvents($gameEventId: ID!) {\n    dependentEvents(gameEventId: $gameEventId) {\n      dependentEvents {\n        id\n        eventType\n        period\n        periodSecond\n        playerName\n        description\n      }\n      count\n      canDelete\n      warningMessage\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation DeleteEventWithCascade($gameEventId: ID!, $eventType: String!) {\n    deleteEventWithCascade(gameEventId: $gameEventId, eventType: $eventType)\n  }\n',
+): (typeof documents)['\n  mutation DeleteEventWithCascade($gameEventId: ID!, $eventType: String!) {\n    deleteEventWithCascade(gameEventId: $gameEventId, eventType: $eventType)\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation ResolveEventConflict(\n    $conflictId: ID!\n    $selectedEventId: ID!\n    $keepAll: Boolean\n  ) {\n    resolveEventConflict(\n      conflictId: $conflictId\n      selectedEventId: $selectedEventId\n      keepAll: $keepAll\n    ) {\n      id\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      conflictId\n      eventType {\n        id\n        name\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation ResolveEventConflict(\n    $conflictId: ID!\n    $selectedEventId: ID!\n    $keepAll: Boolean\n  ) {\n    resolveEventConflict(\n      conflictId: $conflictId\n      selectedEventId: $selectedEventId\n      keepAll: $keepAll\n    ) {\n      id\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      conflictId\n      eventType {\n        id\n        name\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation UpdateGoal($input: UpdateGoalInput!) {\n    updateGoal(input: $input) {\n      id\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n      childEvents {\n        id\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation UpdateGoal($input: UpdateGoalInput!) {\n    updateGoal(input: $input) {\n      id\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n      childEvents {\n        id\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation SwapPositions($input: SwapPositionsInput!) {\n    swapPositions(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation SwapPositions($input: SwapPositionsInput!) {\n    swapPositions(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation BatchLineupChanges($input: BatchLineupChangesInput!) {\n    batchLineupChanges(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation BatchLineupChanges($input: BatchLineupChangesInput!) {\n    batchLineupChanges(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetPlayerPositionStats($gameTeamId: ID!) {\n    playerPositionStats(gameTeamId: $gameTeamId) {\n      playerId\n      playerName\n      externalPlayerName\n      externalPlayerNumber\n      totalMinutes\n      totalSeconds\n      positionTimes {\n        position\n        minutes\n        seconds\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query GetPlayerPositionStats($gameTeamId: ID!) {\n    playerPositionStats(gameTeamId: $gameTeamId) {\n      playerId\n      playerName\n      externalPlayerName\n      externalPlayerNumber\n      totalMinutes\n      totalSeconds\n      positionTimes {\n        position\n        minutes\n        seconds\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetPlayerStats($input: PlayerStatsInput!) {\n    playerStats(input: $input) {\n      playerId\n      playerName\n      externalPlayerName\n      externalPlayerNumber\n      totalMinutes\n      totalSeconds\n      positionTimes {\n        position\n        minutes\n        seconds\n      }\n      goals\n      assists\n      gamesPlayed\n      yellowCards\n      redCards\n      saves\n      isOnField\n      lastEntryGameSeconds\n    }\n  }\n',
+): (typeof documents)['\n  query GetPlayerStats($input: PlayerStatsInput!) {\n    playerStats(input: $input) {\n      playerId\n      playerName\n      externalPlayerName\n      externalPlayerNumber\n      totalMinutes\n      totalSeconds\n      positionTimes {\n        position\n        minutes\n        seconds\n      }\n      goals\n      assists\n      gamesPlayed\n      yellowCards\n      redCards\n      saves\n      isOnField\n      lastEntryGameSeconds\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  subscription GameEventChanged($gameId: ID!) {\n    gameEventChanged(gameId: $gameId) {\n      action\n      gameId\n      event {\n        id\n        gameTeamId\n        period\n        periodSecond\n        position\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        eventType {\n          id\n          name\n          category\n        }\n        player {\n          id\n          firstName\n          lastName\n        }\n        recordedByUser {\n          id\n          firstName\n          lastName\n        }\n        childEvents {\n          id\n          period\n          periodSecond\n          playerId\n          externalPlayerName\n          externalPlayerNumber\n          position\n          player {\n            id\n            firstName\n            lastName\n          }\n          eventType {\n            id\n            name\n            category\n          }\n        }\n      }\n      deletedEventId\n      conflict {\n        conflictId\n        eventType\n        period\n        periodSecond\n        conflictingEvents {\n          eventId\n          playerName\n          playerId\n          recordedByUserName\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  subscription GameEventChanged($gameId: ID!) {\n    gameEventChanged(gameId: $gameId) {\n      action\n      gameId\n      event {\n        id\n        gameTeamId\n        period\n        periodSecond\n        position\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        eventType {\n          id\n          name\n          category\n        }\n        player {\n          id\n          firstName\n          lastName\n        }\n        recordedByUser {\n          id\n          firstName\n          lastName\n        }\n        childEvents {\n          id\n          period\n          periodSecond\n          playerId\n          externalPlayerName\n          externalPlayerNumber\n          position\n          player {\n            id\n            firstName\n            lastName\n          }\n          eventType {\n            id\n            name\n            category\n          }\n        }\n      }\n      deletedEventId\n      conflict {\n        conflictId\n        eventType\n        period\n        periodSecond\n        conflictingEvents {\n          eventId\n          playerName\n          playerId\n          recordedByUserName\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  subscription GameUpdated($gameId: ID!) {\n    gameUpdated(gameId: $gameId) {\n      id\n      name\n      status\n      actualStart\n      firstHalfEnd\n      secondHalfStart\n      actualEnd\n      pausedAt\n      currentPeriod\n      currentPeriodSecond\n      serverTimestamp\n    }\n  }\n',
+): (typeof documents)['\n  subscription GameUpdated($gameId: ID!) {\n    gameUpdated(gameId: $gameId) {\n      id\n      name\n      status\n      actualStart\n      firstHalfEnd\n      secondHalfStart\n      actualEnd\n      pausedAt\n      currentPeriod\n      currentPeriodSecond\n      serverTimestamp\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation BringPlayerOntoField($input: BringPlayerOntoFieldInput!) {\n    bringPlayerOntoField(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation BringPlayerOntoField($input: BringPlayerOntoFieldInput!) {\n    bringPlayerOntoField(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation RemovePlayerFromField($input: RemovePlayerFromFieldInput!) {\n    removePlayerFromField(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      eventType {\n        id\n        name\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation RemovePlayerFromField($input: RemovePlayerFromFieldInput!) {\n    removePlayerFromField(input: $input) {\n      id\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      eventType {\n        id\n        name\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation SetSecondHalfLineup($input: SetSecondHalfLineupInput!) {\n    setSecondHalfLineup(input: $input) {\n      events {\n        id\n        period\n        periodSecond\n        position\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        eventType {\n          id\n          name\n        }\n      }\n      substitutionsOut\n      substitutionsIn\n    }\n  }\n',
+): (typeof documents)['\n  mutation SetSecondHalfLineup($input: SetSecondHalfLineupInput!) {\n    setSecondHalfLineup(input: $input) {\n      events {\n        id\n        period\n        periodSecond\n        position\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        eventType {\n          id\n          name\n        }\n      }\n      substitutionsOut\n      substitutionsIn\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation StartPeriod($input: StartPeriodInput!) {\n    startPeriod(input: $input) {\n      periodEvent {\n        id\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n        childEvents {\n          id\n          playerId\n          externalPlayerName\n          externalPlayerNumber\n          position\n          period\n          periodSecond\n          eventType {\n            id\n            name\n          }\n        }\n      }\n      substitutionEvents {\n        id\n        period\n        periodSecond\n        position\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        eventType {\n          id\n          name\n        }\n      }\n      period\n      substitutionCount\n    }\n  }\n',
+): (typeof documents)['\n  mutation StartPeriod($input: StartPeriodInput!) {\n    startPeriod(input: $input) {\n      periodEvent {\n        id\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n        childEvents {\n          id\n          playerId\n          externalPlayerName\n          externalPlayerNumber\n          position\n          period\n          periodSecond\n          eventType {\n            id\n            name\n          }\n        }\n      }\n      substitutionEvents {\n        id\n        period\n        periodSecond\n        position\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        eventType {\n          id\n          name\n        }\n      }\n      period\n      substitutionCount\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation EndPeriod($input: EndPeriodInput!) {\n    endPeriod(input: $input) {\n      periodEvent {\n        id\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n        childEvents {\n          id\n          playerId\n          externalPlayerName\n          externalPlayerNumber\n          position\n          period\n          periodSecond\n          eventType {\n            id\n            name\n          }\n        }\n      }\n      substitutionEvents {\n        id\n        period\n        periodSecond\n        position\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        eventType {\n          id\n          name\n        }\n      }\n      period\n      substitutionCount\n    }\n  }\n',
+): (typeof documents)['\n  mutation EndPeriod($input: EndPeriodInput!) {\n    endPeriod(input: $input) {\n      periodEvent {\n        id\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n        childEvents {\n          id\n          playerId\n          externalPlayerName\n          externalPlayerNumber\n          position\n          period\n          periodSecond\n          eventType {\n            id\n            name\n          }\n        }\n      }\n      substitutionEvents {\n        id\n        period\n        periodSecond\n        position\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        eventType {\n          id\n          name\n        }\n      }\n      period\n      substitutionCount\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetMyDashboard($upcomingLimit: Int, $recentLimit: Int) {\n    my {\n      user {\n        id\n        firstName\n        lastName\n        email\n      }\n      teams {\n        id\n        name\n        shortName\n        homePrimaryColor\n        homeSecondaryColor\n        isManaged\n      }\n      ownedTeams {\n        id\n        name\n      }\n      managedTeams {\n        id\n        name\n      }\n      upcomingGames(limit: $upcomingLimit) {\n        id\n        name\n        scheduledStart\n        status\n        venue\n        teams {\n          id\n          teamType\n          team {\n            id\n            name\n            shortName\n            homePrimaryColor\n          }\n        }\n      }\n      recentGames(limit: $recentLimit) {\n        id\n        name\n        status\n        actualEnd\n        teams {\n          id\n          teamType\n          finalScore\n          team {\n            id\n            name\n            shortName\n            homePrimaryColor\n          }\n        }\n      }\n      liveGames {\n        id\n        name\n        status\n        actualStart\n        teams {\n          id\n          teamType\n          finalScore\n          team {\n            id\n            name\n            shortName\n            homePrimaryColor\n          }\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query GetMyDashboard($upcomingLimit: Int, $recentLimit: Int) {\n    my {\n      user {\n        id\n        firstName\n        lastName\n        email\n      }\n      teams {\n        id\n        name\n        shortName\n        homePrimaryColor\n        homeSecondaryColor\n        isManaged\n      }\n      ownedTeams {\n        id\n        name\n      }\n      managedTeams {\n        id\n        name\n      }\n      upcomingGames(limit: $upcomingLimit) {\n        id\n        name\n        scheduledStart\n        status\n        venue\n        teams {\n          id\n          teamType\n          team {\n            id\n            name\n            shortName\n            homePrimaryColor\n          }\n        }\n      }\n      recentGames(limit: $recentLimit) {\n        id\n        name\n        status\n        actualEnd\n        teams {\n          id\n          teamType\n          finalScore\n          team {\n            id\n            name\n            shortName\n            homePrimaryColor\n          }\n        }\n      }\n      liveGames {\n        id\n        name\n        status\n        actualStart\n        teams {\n          id\n          teamType\n          finalScore\n          team {\n            id\n            name\n            shortName\n            homePrimaryColor\n          }\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetMyTeamsViewer {\n    my {\n      teams {\n        id\n        name\n        shortName\n        homePrimaryColor\n        homeSecondaryColor\n        isManaged\n      }\n      ownedTeams {\n        id\n        name\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query GetMyTeamsViewer {\n    my {\n      teams {\n        id\n        name\n        shortName\n        homePrimaryColor\n        homeSecondaryColor\n        isManaged\n      }\n      ownedTeams {\n        id\n        name\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetMyLiveGames {\n    my {\n      liveGames {\n        id\n        name\n        status\n        actualStart\n        pausedAt\n        teams {\n          id\n          teamType\n          finalScore\n          team {\n            id\n            name\n            shortName\n            homePrimaryColor\n          }\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query GetMyLiveGames {\n    my {\n      liveGames {\n        id\n        name\n        status\n        actualStart\n        pausedAt\n        teams {\n          id\n          teamType\n          finalScore\n          team {\n            id\n            name\n            shortName\n            homePrimaryColor\n          }\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetTeams {\n    teams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  query GetTeams {\n    teams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetTeamById($id: ID!) {\n    team(id: $id) {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n      owner {\n        id\n        user {\n          id\n          firstName\n          lastName\n          email\n        }\n        roles {\n          role\n        }\n      }\n      playersWithJersey {\n        id\n        name\n        position\n        jersey\n        depthRank\n        isActive\n      }\n      roster {\n        id\n        role\n        jerseyNumber\n        primaryPosition\n        teamMember {\n          id\n          isActive\n          joinedDate\n          leftDate\n          user {\n            id\n            firstName\n            lastName\n            email\n          }\n        }\n      }\n      teamConfiguration {\n        id\n        defaultFormation\n        defaultGameDuration\n        defaultPlayerCount\n        statsTrackingLevel\n        defaultGameFormat {\n          id\n          name\n          playersPerTeam\n          durationMinutes\n        }\n      }\n      games {\n        id\n        teamType\n        finalScore\n        formation\n        game {\n          id\n          name\n          scheduledStart\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query GetTeamById($id: ID!) {\n    team(id: $id) {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n      owner {\n        id\n        user {\n          id\n          firstName\n          lastName\n          email\n        }\n        roles {\n          role\n        }\n      }\n      playersWithJersey {\n        id\n        name\n        position\n        jersey\n        depthRank\n        isActive\n      }\n      roster {\n        id\n        role\n        jerseyNumber\n        primaryPosition\n        teamMember {\n          id\n          isActive\n          joinedDate\n          leftDate\n          user {\n            id\n            firstName\n            lastName\n            email\n          }\n        }\n      }\n      teamConfiguration {\n        id\n        defaultFormation\n        defaultGameDuration\n        defaultPlayerCount\n        statsTrackingLevel\n        defaultGameFormat {\n          id\n          name\n          playersPerTeam\n          durationMinutes\n        }\n      }\n      games {\n        id\n        teamType\n        finalScore\n        formation\n        game {\n          id\n          name\n          scheduledStart\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation CreateTeam($createTeamInput: CreateTeamInput!) {\n    createTeam(createTeamInput: $createTeamInput) {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdById\n      createdAt\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  mutation CreateTeam($createTeamInput: CreateTeamInput!) {\n    createTeam(createTeamInput: $createTeamInput) {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdById\n      createdAt\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation UpdateTeam($id: ID!, $updateTeamInput: UpdateTeamInput!) {\n    updateTeam(id: $id, updateTeamInput: $updateTeamInput) {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      createdAt\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  mutation UpdateTeam($id: ID!, $updateTeamInput: UpdateTeamInput!) {\n    updateTeam(id: $id, updateTeamInput: $updateTeamInput) {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      createdAt\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation UpdateTeamConfiguration(\n    $teamId: ID!\n    $input: UpdateTeamConfigurationInput!\n  ) {\n    updateTeamConfiguration(teamId: $teamId, input: $input) {\n      id\n      teamId\n      defaultFormation\n      defaultGameDuration\n      defaultPlayerCount\n      statsTrackingLevel\n      defaultGameFormat {\n        id\n        name\n        playersPerTeam\n        durationMinutes\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation UpdateTeamConfiguration(\n    $teamId: ID!\n    $input: UpdateTeamConfigurationInput!\n  ) {\n    updateTeamConfiguration(teamId: $teamId, input: $input) {\n      id\n      teamId\n      defaultFormation\n      defaultGameDuration\n      defaultPlayerCount\n      statsTrackingLevel\n      defaultGameFormat {\n        id\n        name\n        playersPerTeam\n        durationMinutes\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation CreateUnmanagedTeam($name: String!, $shortName: String) {\n    createUnmanagedTeam(name: $name, shortName: $shortName) {\n      id\n      name\n      shortName\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  mutation CreateUnmanagedTeam($name: String!, $shortName: String) {\n    createUnmanagedTeam(name: $name, shortName: $shortName) {\n      id\n      name\n      shortName\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation FindOrCreateUnmanagedTeam($name: String!, $shortName: String) {\n    findOrCreateUnmanagedTeam(name: $name, shortName: $shortName) {\n      id\n      name\n      shortName\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  mutation FindOrCreateUnmanagedTeam($name: String!, $shortName: String) {\n    findOrCreateUnmanagedTeam(name: $name, shortName: $shortName) {\n      id\n      name\n      shortName\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetManagedTeams {\n    managedTeams {\n      id\n      name\n      shortName\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  query GetManagedTeams {\n    managedTeams {\n      id\n      name\n      shortName\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetUnmanagedTeams {\n    unmanagedTeams {\n      id\n      name\n      shortName\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  query GetUnmanagedTeams {\n    unmanagedTeams {\n      id\n      name\n      shortName\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetTeamsByManagedStatus($isManaged: Boolean!) {\n    teamsByManagedStatus(isManaged: $isManaged) {\n      id\n      name\n      shortName\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  query GetTeamsByManagedStatus($isManaged: Boolean!) {\n    teamsByManagedStatus(isManaged: $isManaged) {\n      id\n      name\n      shortName\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdAt\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetMyTeams {\n    myTeams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdById\n      createdAt\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  query GetMyTeams {\n    myTeams {\n      id\n      name\n      shortName\n      description\n      homePrimaryColor\n      homeSecondaryColor\n      awayPrimaryColor\n      awaySecondaryColor\n      logoUrl\n      isActive\n      isManaged\n      sourceType\n      createdById\n      createdAt\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetAllUsers {\n    users {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n      teams {\n        id\n        name\n        shortName\n      }\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        leftDate\n        team {\n          id\n          name\n          shortName\n        }\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n          coachTitle\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query GetAllUsers {\n    users {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n      teams {\n        id\n        name\n        shortName\n      }\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        leftDate\n        team {\n          id\n          name\n          shortName\n        }\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n          coachTitle\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetUsersByTeam($teamId: ID!) {\n    usersByTeam(teamId: $teamId) {\n      id\n      firstName\n      lastName\n      email\n      phone\n      isActive\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        team {\n          id\n        }\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n          coachTitle\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query GetUsersByTeam($teamId: ID!) {\n    usersByTeam(teamId: $teamId) {\n      id\n      firstName\n      lastName\n      email\n      phone\n      isActive\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        team {\n          id\n        }\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n          coachTitle\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query SearchUsersByName($name: String!) {\n    usersByName(name: $name) {\n      id\n      firstName\n      lastName\n      email\n      teamMemberships {\n        id\n        team {\n          id\n          name\n        }\n        roles {\n          role\n          primaryPosition\n          coachTitle\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query SearchUsersByName($name: String!) {\n    usersByName(name: $name) {\n      id\n      firstName\n      lastName\n      email\n      teamMemberships {\n        id\n        team {\n          id\n          name\n        }\n        roles {\n          role\n          primaryPosition\n          coachTitle\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetUsersComplete {\n    players {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n      teams {\n        id\n        name\n        shortName\n      }\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        leftDate\n        team {\n          id\n          name\n          shortName\n        }\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query GetUsersComplete {\n    players {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n      teams {\n        id\n        name\n        shortName\n      }\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        leftDate\n        team {\n          id\n          name\n          shortName\n        }\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetPlayersByTeam($teamId: ID!) {\n    playersByTeam(teamId: $teamId) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query GetPlayersByTeam($teamId: ID!) {\n    playersByTeam(teamId: $teamId) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetPlayersByPosition($position: String!) {\n    playersByPosition(position: $position) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        id\n        roles {\n          id\n          role\n          jerseyNumber\n        }\n        team {\n          name\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query GetPlayersByPosition($position: String!) {\n    playersByPosition(position: $position) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        id\n        roles {\n          id\n          role\n          jerseyNumber\n        }\n        team {\n          name\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query SearchPlayersByName($name: String!) {\n    playersByName(name: $name) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        team {\n          name\n        }\n        roles {\n          role\n          primaryPosition\n          jerseyNumber\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query SearchPlayersByName($name: String!) {\n    playersByName(name: $name) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        team {\n          name\n        }\n        roles {\n          role\n          primaryPosition\n          jerseyNumber\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetCoaches {\n    coaches {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n      teams {\n        id\n        name\n        shortName\n      }\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        leftDate\n        team {\n          id\n          name\n          shortName\n        }\n        roles {\n          id\n          role\n          coachTitle\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query GetCoaches {\n    coaches {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n      teams {\n        id\n        name\n        shortName\n      }\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        leftDate\n        team {\n          id\n          name\n          shortName\n        }\n        roles {\n          id\n          role\n          coachTitle\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetCoachesByTeam($teamId: ID!) {\n    coachesByTeam(teamId: $teamId) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        roles {\n          id\n          role\n          coachTitle\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query GetCoachesByTeam($teamId: ID!) {\n    coachesByTeam(teamId: $teamId) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        roles {\n          id\n          role\n          coachTitle\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetCoachesByRole($role: String!) {\n    coachesByRole(role: $role) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        id\n        joinedDate\n        team {\n          name\n        }\n        roles {\n          role\n          coachTitle\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query GetCoachesByRole($role: String!) {\n    coachesByRole(role: $role) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        id\n        joinedDate\n        team {\n          name\n        }\n        roles {\n          role\n          coachTitle\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query SearchCoachesByName($name: String!) {\n    coachesByName(name: $name) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        team {\n          name\n        }\n        roles {\n          role\n          coachTitle\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query SearchCoachesByName($name: String!) {\n    coachesByName(name: $name) {\n      id\n      firstName\n      lastName\n      teamMemberships {\n        team {\n          name\n        }\n        roles {\n          role\n          coachTitle\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  query GetUserById($id: ID!) {\n    user(id: $id) {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n      teams {\n        id\n        name\n        shortName\n      }\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        leftDate\n        team {\n          id\n          name\n          shortName\n        }\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n          coachTitle\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  query GetUserById($id: ID!) {\n    user(id: $id) {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n      teams {\n        id\n        name\n        shortName\n      }\n      teamMemberships {\n        id\n        isActive\n        joinedDate\n        leftDate\n        team {\n          id\n          name\n          shortName\n        }\n        roles {\n          id\n          role\n          jerseyNumber\n          primaryPosition\n          coachTitle\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation CreateUser($createUserInput: CreateUserInput!) {\n    createUser(createUserInput: $createUserInput) {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  mutation CreateUser($createUserInput: CreateUserInput!) {\n    createUser(createUserInput: $createUserInput) {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      createdAt\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation UpdateUser($id: ID!, $updateUserInput: UpdateUserInput!) {\n    updateUser(id: $id, updateUserInput: $updateUserInput) {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  mutation UpdateUser($id: ID!, $updateUserInput: UpdateUserInput!) {\n    updateUser(id: $id, updateUserInput: $updateUserInput) {\n      id\n      firstName\n      lastName\n      email\n      dateOfBirth\n      phone\n      isActive\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation RemoveUser($id: ID!) {\n    removeUser(id: $id)\n  }\n',
+): (typeof documents)['\n  mutation RemoveUser($id: ID!) {\n    removeUser(id: $id)\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation AddPlayerToTeam($addPlayerToTeamInput: AddPlayerToTeamInput!) {\n    addPlayerToTeam(addPlayerToTeamInput: $addPlayerToTeamInput) {\n      id\n      name\n      teamMembers {\n        id\n        user {\n          id\n          firstName\n          lastName\n        }\n        roles {\n          role\n          jerseyNumber\n          primaryPosition\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation AddPlayerToTeam($addPlayerToTeamInput: AddPlayerToTeamInput!) {\n    addPlayerToTeam(addPlayerToTeamInput: $addPlayerToTeamInput) {\n      id\n      name\n      teamMembers {\n        id\n        user {\n          id\n          firstName\n          lastName\n        }\n        roles {\n          role\n          jerseyNumber\n          primaryPosition\n        }\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation RemovePlayerFromTeam($teamId: ID!, $playerId: ID!) {\n    removePlayerFromTeam(teamId: $teamId, playerId: $playerId) {\n      id\n      name\n    }\n  }\n',
+): (typeof documents)['\n  mutation RemovePlayerFromTeam($teamId: ID!, $playerId: ID!) {\n    removePlayerFromTeam(teamId: $teamId, playerId: $playerId) {\n      id\n      name\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation AddCoachToTeam($userId: ID!, $teamId: ID!, $coachTitle: String!) {\n    addCoachToTeam(userId: $userId, teamId: $teamId, coachTitle: $coachTitle) {\n      id\n      teamId\n      userId\n      user {\n        id\n        firstName\n        lastName\n      }\n      roles {\n        id\n        role\n        coachTitle\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation AddCoachToTeam($userId: ID!, $teamId: ID!, $coachTitle: String!) {\n    addCoachToTeam(userId: $userId, teamId: $teamId, coachTitle: $coachTitle) {\n      id\n      teamId\n      userId\n      user {\n        id\n        firstName\n        lastName\n      }\n      roles {\n        id\n        role\n        coachTitle\n      }\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  mutation RemoveCoachFromTeam($userId: ID!, $teamId: ID!) {\n    removeCoachFromTeam(userId: $userId, teamId: $teamId)\n  }\n',
+): (typeof documents)['\n  mutation RemoveCoachFromTeam($userId: ID!, $teamId: ID!) {\n    removeCoachFromTeam(userId: $userId, teamId: $teamId)\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  subscription UserUpdated {\n    userUpdated {\n      id\n      firstName\n      lastName\n      email\n      isActive\n      updatedAt\n    }\n  }\n',
+): (typeof documents)['\n  subscription UserUpdated {\n    userUpdated {\n      id\n      firstName\n      lastName\n      email\n      isActive\n      updatedAt\n    }\n  }\n'];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: '\n  subscription UserCreated {\n    userCreated {\n      id\n      firstName\n      lastName\n      email\n      isActive\n      createdAt\n    }\n  }\n',
+): (typeof documents)['\n  subscription UserCreated {\n    userCreated {\n      id\n      firstName\n      lastName\n      email\n      isActive\n      createdAt\n    }\n  }\n'];
+
+export function graphql(source: string) {
+  return (documents as any)[source] ?? {};
+}
+
+export type DocumentType<TDocumentNode extends DocumentNode<any, any>> =
+  TDocumentNode extends DocumentNode<infer TType, any> ? TType : never;
