@@ -370,7 +370,9 @@ describe('GamesService', () => {
         const mockSelectQueryBuilder = {
           where: jest.fn().mockReturnThis(),
           andWhere: jest.fn().mockReturnThis(),
-          getOne: jest.fn().mockResolvedValueOnce({ id: 'existing-event' }), // PERIOD_START exists
+          getOne: jest
+            .fn()
+            .mockResolvedValueOnce({ id: 'existing-event', periodSecond: 0 }), // PERIOD_START exists
         };
         mockGameEventRepository.createQueryBuilder.mockReturnValue(
           mockSelectQueryBuilder as any,

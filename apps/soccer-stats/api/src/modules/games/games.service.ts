@@ -461,6 +461,18 @@ export class GamesService {
 
       const existingEvent = await existingEventQuery.getOne();
       if (existingEvent) {
+        // PERIOD_START events must always have periodSecond: 0
+        if (
+          eventTypeName === 'PERIOD_START' &&
+          existingEvent.periodSecond !== 0
+        ) {
+          this.logger.warn(
+            `[createEvent] Existing PERIOD_START for period ${period} has periodSecond: ${existingEvent.periodSecond}, correcting to 0`,
+          );
+          existingEvent.periodSecond = 0;
+          await this.gameEventRepository.save(existingEvent);
+        }
+
         this.logger.debug(
           `Skipping duplicate ${eventTypeName} event for game ${gameId}` +
             (period ? ` (period ${period})` : ''),

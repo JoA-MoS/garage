@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate, useLocation, Navigate } from 'react-router';
 import {
   useQuery,
@@ -45,7 +46,10 @@ import {
 import { GameLineupTab } from '../components/smart/game-lineup-tab.smart';
 import { GoalModal, EditGoalData } from '../components/smart/goal-modal.smart';
 import { ManualGoalModal } from '../components/smart/manual-goal-modal.smart';
-import { SubstitutionPanel } from '../components/smart/substitution-panel';
+import {
+  SubstitutionPanel,
+  type PanelState,
+} from '../components/smart/substitution-panel';
 import { LineupPanel } from '../components/smart/lineup-panel';
 import { GameStats } from '../components/smart/game-stats.smart';
 import { GameSummaryPresentation } from '../components/presentation/game-summary.presentation';
@@ -172,6 +176,9 @@ export const GamePage = () => {
   const [emptyPositionForSub, setEmptyPositionForSub] = useState<string | null>(
     null,
   );
+
+  // Substitution panel visual state - used to size the scroll padding
+  const [subPanelState, setSubPanelState] = useState<PanelState>('collapsed');
 
   // Lineup panel state
   const [selectedPositionForLineup, setSelectedPositionForLineup] = useState<
@@ -719,6 +726,15 @@ export const GamePage = () => {
               fetchPolicy: 'network-only',
             });
           });
+          // Refetch game query to update players[].stats (server-computed field)
+          // This ensures the stats tab has fresh isOnField, totalSeconds, etc.
+          if (gameId) {
+            apolloClient.query({
+              query: GET_GAME_BY_ID,
+              variables: { id: gameId },
+              fetchPolicy: 'network-only',
+            });
+          }
         }, 150);
       }
 
@@ -726,7 +742,7 @@ export const GamePage = () => {
       // homeScore/awayScore changes, ensuring animation is synchronized with
       // the displayed score update (not the subscription message timing).
     },
-    [apolloClient],
+    [apolloClient, gameId],
   );
 
   const handleEventDeleted = useCallback(
@@ -1348,6 +1364,28 @@ export const GamePage = () => {
   // Note: Game clock is now managed by useSyncedGameTime hook
   // which provides server-synchronized timing across all clients
 
+  // Set scroll-padding-bottom on <main> so scrollIntoView and keyboard focus
+  // account for the fixed substitution panel during active play.
+  // Heights match substitution-panel.presentation.tsx: collapsed ~4rem, bench-view 40vh, expanded 60vh.
+  const panelScrollPadding =
+    subPanelState === 'expanded'
+      ? '60vh'
+      : subPanelState === 'bench-view'
+        ? '40vh'
+        : '4rem';
+  const hasFixedPanel =
+    data?.game?.status === GameStatus.FirstHalf ||
+    data?.game?.status === GameStatus.SecondHalf ||
+    data?.game?.status === GameStatus.InProgress;
+  useEffect(() => {
+    const main = document.querySelector('main');
+    if (!main) return;
+    main.style.scrollPaddingBottom = hasFixedPanel ? panelScrollPadding : '';
+    return () => {
+      main.style.scrollPaddingBottom = '';
+    };
+  }, [hasFixedPanel, panelScrollPadding]);
+
   if (!gameId) {
     return <Navigate to="/games" replace />;
   }
@@ -1437,7 +1475,10 @@ export const GamePage = () => {
             : '';
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div
+      className="mx-auto max-w-6xl space-y-6"
+      style={{ paddingBottom: isActivePlay ? panelScrollPadding : undefined }}
+    >
       {/* Action Error Banner */}
       {actionError && (
         <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
@@ -1614,6 +1655,7 @@ export const GamePage = () => {
                       ? setSelectedFieldPlayerForLineup
                       : undefined
                   }
+                  hideBench={isLineupSetupPhase || isActivePlay}
                 />
               )}
               {activeTeam === 'away' && awayTeam && (
@@ -1647,6 +1689,7 @@ export const GamePage = () => {
                       ? setSelectedFieldPlayerForLineup
                       : undefined
                   }
+                  hideBench={isLineupSetupPhase || isActivePlay}
                 />
               )}
             </div>
@@ -2413,66 +2456,72 @@ export const GamePage = () => {
         />
       )}
 
-      {/* Lineup Panel - shown during SCHEDULED and HALFTIME */}
-      {isLineupSetupPhase && homeTeam && awayTeam && (
-        <LineupPanel
-          gameId={gameId!}
-          gameTeamId={activeTeam === 'home' ? homeTeam.id : awayTeam.id}
-          gameStatus={
-            game.status === GameStatus.Scheduled ? 'SCHEDULED' : 'HALFTIME'
-          }
-          teamName={
-            activeTeam === 'home' ? homeTeam.team.name : awayTeam.team.name
-          }
-          teamColor={
-            activeTeam === 'home'
-              ? homeTeam.team.homePrimaryColor || '#3B82F6'
-              : awayTeam.team.homePrimaryColor || '#EF4444'
-          }
-          playersPerTeam={game?.format?.playersPerTeam || 5}
-          formation={
-            (activeTeam === 'home' ? homeTeam.formation : awayTeam.formation) ??
-            null
-          }
-          onField={activeTeam === 'home' ? homeOnField : awayOnField}
-          bench={activeTeam === 'home' ? homeBench : awayBench}
-          firstHalfLineup={
-            game.status === GameStatus.Halftime
-              ? activeTeam === 'home'
-                ? homeOnField
-                : awayOnField
-              : undefined
-          }
-          gameEvents={
-            (activeTeam === 'home' ? homeTeam.events : awayTeam.events)?.map(
-              (e) => ({
-                id: e.id,
-                playerId: e.playerId,
-                externalPlayerName: e.externalPlayerName,
-                eventType: e.eventType,
-                period: e.period ?? '1',
-                periodSecond: e.periodSecond,
-                childEvents: e.childEvents?.map((ce) => ({
-                  playerId: ce.playerId,
-                  externalPlayerName: ce.externalPlayerName,
-                  eventType: ce.eventType,
-                })),
-              }),
-            ) ?? []
-          }
-          externalPositionSelection={selectedPositionForLineup}
-          onExternalPositionHandled={() => setSelectedPositionForLineup(null)}
-          externalFieldPlayerSelection={selectedFieldPlayerForLineup}
-          onExternalFieldPlayerHandled={() =>
-            setSelectedFieldPlayerForLineup(null)
-          }
-          onQueuedPositionsChange={setLineupQueuedPositions}
-          onSelectedPositionChange={setLineupSelectedPosition}
-          onPlayerSelectionChange={setLineupHasPlayerSelected}
-          onSelectedFieldPlayerIdChange={setSelectedFieldPlayerId}
-          onQueuedPlayerIdsChange={setQueuedPlayerIds}
-        />
-      )}
+      {/* Lineup Panel - rendered via portal to sit outside <main> in the flex layout */}
+      {isLineupSetupPhase &&
+        homeTeam &&
+        awayTeam &&
+        document.getElementById('panel-portal') &&
+        createPortal(
+          <LineupPanel
+            gameId={gameId!}
+            gameTeamId={activeTeam === 'home' ? homeTeam.id : awayTeam.id}
+            gameStatus={
+              game.status === GameStatus.Scheduled ? 'SCHEDULED' : 'HALFTIME'
+            }
+            teamName={
+              activeTeam === 'home' ? homeTeam.team.name : awayTeam.team.name
+            }
+            teamColor={
+              activeTeam === 'home'
+                ? homeTeam.team.homePrimaryColor || '#3B82F6'
+                : awayTeam.team.homePrimaryColor || '#EF4444'
+            }
+            playersPerTeam={game?.format?.playersPerTeam || 5}
+            formation={
+              (activeTeam === 'home'
+                ? homeTeam.formation
+                : awayTeam.formation) ?? null
+            }
+            onField={activeTeam === 'home' ? homeOnField : awayOnField}
+            bench={activeTeam === 'home' ? homeBench : awayBench}
+            firstHalfLineup={
+              game.status === GameStatus.Halftime
+                ? activeTeam === 'home'
+                  ? homeOnField
+                  : awayOnField
+                : undefined
+            }
+            gameEvents={
+              (activeTeam === 'home' ? homeTeam.events : awayTeam.events)?.map(
+                (e) => ({
+                  id: e.id,
+                  playerId: e.playerId,
+                  externalPlayerName: e.externalPlayerName,
+                  eventType: e.eventType,
+                  period: e.period ?? '1',
+                  periodSecond: e.periodSecond,
+                  childEvents: e.childEvents?.map((ce) => ({
+                    playerId: ce.playerId,
+                    externalPlayerName: ce.externalPlayerName,
+                    eventType: ce.eventType,
+                  })),
+                }),
+              ) ?? []
+            }
+            externalPositionSelection={selectedPositionForLineup}
+            onExternalPositionHandled={() => setSelectedPositionForLineup(null)}
+            externalFieldPlayerSelection={selectedFieldPlayerForLineup}
+            onExternalFieldPlayerHandled={() =>
+              setSelectedFieldPlayerForLineup(null)
+            }
+            onQueuedPositionsChange={setLineupQueuedPositions}
+            onSelectedPositionChange={setLineupSelectedPosition}
+            onPlayerSelectionChange={setLineupHasPlayerSelected}
+            onSelectedFieldPlayerIdChange={setSelectedFieldPlayerId}
+            onQueuedPlayerIdsChange={setQueuedPlayerIds}
+          />,
+          document.getElementById('panel-portal')!,
+        )}
 
       {/* Inline Substitution Panel - show during active play only */}
       {isActivePlay && homeTeam && awayTeam && (
@@ -2518,6 +2567,7 @@ export const GamePage = () => {
           }
           externalEmptyPosition={emptyPositionForSub}
           onExternalEmptyPositionHandled={() => setEmptyPositionForSub(null)}
+          onPanelStateChange={setSubPanelState}
           onQueuedPlayerIdsChange={setQueuedPlayerIds}
           onSelectedFieldPlayerChange={setSelectedFieldPlayerId}
         />

@@ -84,8 +84,10 @@ export function calculatePlayTime(
       eventName === 'SUBSTITUTION_IN' &&
       (event.playerId === playerId || event.externalPlayerName === playerId)
     ) {
-      stints.push({ onTime: eventTime, offTime: null });
-      isCurrentlyOnField = true;
+      if (!isCurrentlyOnField) {
+        stints.push({ onTime: eventTime, offTime: null });
+        isCurrentlyOnField = true;
+      }
       continue;
     }
 
@@ -97,8 +99,10 @@ export function calculatePlayTime(
           (ce.playerId === playerId || ce.externalPlayerName === playerId),
       );
       if (subIn) {
-        stints.push({ onTime: eventTime, offTime: null });
-        isCurrentlyOnField = true;
+        if (!isCurrentlyOnField) {
+          stints.push({ onTime: eventTime, offTime: null });
+          isCurrentlyOnField = true;
+        }
         continue;
       }
     }

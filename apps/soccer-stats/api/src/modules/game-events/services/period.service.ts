@@ -434,24 +434,28 @@ export class PeriodService {
   }
 
   /**
-   * Clear any existing second half lineup (SUB_IN events in period 2).
+   * Clear any existing second half lineup (SUB_IN and GAME_ROSTER events in period 2).
    * Used when coach wants to change their mind about the second half lineup.
+   *
+   * Deletes both event types to prevent stale GAME_ROSTER events from being
+   * converted to additional SUB_INs by createSubInEventsFromRosterStarters
+   * when the second half starts.
    */
   private async clearSecondHalfLineup(gameTeamId: string): Promise<void> {
     const subInType = this.coreService.getEventTypeByName('SUBSTITUTION_IN');
+    const gameRosterType = this.coreService.getEventTypeByName('GAME_ROSTER');
 
-    // Find and delete existing SUB_IN events in period 2 (second half lineup)
-    // Keep SUB_IN events from period 1 (first half substitutions)
-    const secondHalfSubIns = await this.gameEventsRepository.find({
-      where: {
-        gameTeamId,
-        eventTypeId: subInType.id,
-        period: '2',
-      },
+    // Find and delete existing SUB_IN and GAME_ROSTER events in period 2
+    // Keep events from period 1 (first half)
+    const secondHalfEvents = await this.gameEventsRepository.find({
+      where: [
+        { gameTeamId, eventTypeId: subInType.id, period: '2' },
+        { gameTeamId, eventTypeId: gameRosterType.id, period: '2' },
+      ],
     });
 
-    if (secondHalfSubIns.length > 0) {
-      await this.gameEventsRepository.remove(secondHalfSubIns);
+    if (secondHalfEvents.length > 0) {
+      await this.gameEventsRepository.remove(secondHalfEvents);
     }
   }
 

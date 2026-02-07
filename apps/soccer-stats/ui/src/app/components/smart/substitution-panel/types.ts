@@ -173,6 +173,12 @@ export interface SubstitutionPanelSmartProps {
   onExternalEmptyPositionHandled?: () => void;
 
   /**
+   * Called when the panel visual state changes (collapsed, bench-view, expanded).
+   * Used by parent to adjust scroll padding for the fixed panel.
+   */
+  onPanelStateChange?: (state: PanelState) => void;
+
+  /**
    * Called when the set of queued player IDs changes.
    * Used to show visual indicators on field players who are already in the queue.
    */

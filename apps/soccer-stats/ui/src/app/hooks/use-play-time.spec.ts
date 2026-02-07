@@ -213,6 +213,60 @@ describe('calculatePlayTime', () => {
     });
   });
 
+  it('does not inflate time when duplicate SUBSTITUTION_IN exists for starter', () => {
+    // Simulates the DataLoader bug: PERIOD_START has child SUB_IN for player-1,
+    // AND a standalone SUB_IN event also appears for the same player at the same time.
+    const events = [
+      periodStart('evt-1', '1', 0, ['player-1', 'player-2']),
+      // Duplicate standalone SUB_IN leaked by DataLoader (child event appearing top-level)
+      {
+        id: 'evt-dup',
+        playerId: 'player-1',
+        eventType: { category: 'SUBSTITUTION', name: 'SUBSTITUTION_IN' },
+        period: '1',
+        periodSecond: 0,
+      },
+    ];
+    const result = calculatePlayTime('player-1', events, {
+      period: '1',
+      periodSecond: 960,
+    });
+    // Should be 16 min, NOT ~32 min from double-counting
+    expect(result).toEqual({
+      playerId: 'player-1',
+      minutes: 16,
+      isOnField: true,
+    });
+  });
+
+  it('handles starter subbed out and back in with duplicate entry', () => {
+    const events = [
+      periodStart('evt-1', '1', 0, ['player-1']),
+      // Duplicate standalone SUB_IN at time 0
+      {
+        id: 'evt-dup',
+        playerId: 'player-1',
+        eventType: { category: 'SUBSTITUTION', name: 'SUBSTITUTION_IN' },
+        period: '1',
+        periodSecond: 0,
+      },
+      // player-1 out at 5:00, player-2 in
+      pairedSubstitution('evt-2', '1', 300, 'player-2', 'player-1'),
+      // player-1 back in at 10:00, player-2 out
+      pairedSubstitution('evt-3', '1', 600, 'player-1', 'player-2'),
+    ];
+    const result = calculatePlayTime('player-1', events, {
+      period: '1',
+      periodSecond: 900,
+    });
+    // 5 min (0-300) + 5 min (600-900) = 10 min
+    expect(result).toEqual({
+      playerId: 'player-1',
+      minutes: 10,
+      isOnField: true,
+    });
+  });
+
   it('tracks incoming sub player correctly in paired substitution', () => {
     const events = [
       periodStart('evt-1', '1', 0, ['player-1']),
