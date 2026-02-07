@@ -798,7 +798,8 @@ export const GamePage = () => {
     const unsubscribe = subscribeToMore({
       document: GameEventChangedDocument,
       variables: { gameId },
-      updateQuery: (prev, { subscriptionData }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      updateQuery: (prev: any, { subscriptionData }: any) => {
         const payload = subscriptionData.data?.gameEventChanged;
         if (!payload) return prev;
 
@@ -855,7 +856,8 @@ export const GamePage = () => {
     const unsubscribe = subscribeToMore({
       document: GameUpdatedDocument,
       variables: { gameId },
-      updateQuery: (prev, { subscriptionData }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      updateQuery: (prev: any, { subscriptionData }: any) => {
         const gameUpdate = subscriptionData.data?.gameUpdated;
         if (!gameUpdate || !prev.game) return prev;
 

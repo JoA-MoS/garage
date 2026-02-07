@@ -8,9 +8,8 @@ import { RosterPlayer as TeamRosterPlayer } from '../../../hooks/use-lineup';
 export const getPlayerId = (
   player: GqlRosterPlayer | TeamRosterPlayer,
 ): string => {
-  if ('playerId' in player)
-    return player.playerId || player.externalPlayerName || '';
-  return player.oduserId;
+  if ('oduserId' in player) return player.oduserId;
+  return player.playerId || player.externalPlayerName || '';
 };
 
 /**

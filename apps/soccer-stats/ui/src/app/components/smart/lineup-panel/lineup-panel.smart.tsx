@@ -502,7 +502,9 @@ export const LineupPanel = ({
           }
         } else {
           // Halftime: queue the swap for batch execution
-          if (!player1.position || !player2.position) {
+          const pos1 = player1.position;
+          const pos2 = player2.position;
+          if (!pos1 || !pos2) {
             setError(
               'Cannot swap: one or both players have no assigned position',
             );
@@ -514,9 +516,9 @@ export const LineupPanel = ({
               id: `swap-${Date.now()}-${Math.random()}`,
               type: 'swap' as const,
               player1,
-              player1Position: player1.position,
+              player1Position: pos1,
               player2,
-              player2Position: player2.position,
+              player2Position: pos2,
             },
           ]);
         }
