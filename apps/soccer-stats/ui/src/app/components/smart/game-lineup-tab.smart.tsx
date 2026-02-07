@@ -69,12 +69,6 @@ interface GameLineupTabProps {
   onEmptyPositionClickForSub?: (position: string) => void;
 
   /**
-   * When true, the lineup panel has a player selected (player-first flow).
-   * Empty position clicks should call onEmptyPositionClick instead of opening modal.
-   */
-  hasLineupPanelPlayerSelected?: boolean;
-
-  /**
    * Called when an empty position is clicked and lineup panel has a player selected.
    * Used to complete the player-first assignment flow.
    */
@@ -178,7 +172,6 @@ export const GameLineupTab = memo(function GameLineupTab({
   queuedPlayerIds = new Set(),
   selectedFieldPlayerId = null,
   onEmptyPositionClickForSub,
-  hasLineupPanelPlayerSelected = false,
   onEmptyPositionClick,
   onFieldPlayerClickForLineup,
   hideBench = false,

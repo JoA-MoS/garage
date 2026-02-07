@@ -3,6 +3,17 @@ import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-co
 import { RosterPlayer as TeamRosterPlayer } from '../../../hooks/use-lineup';
 
 /**
+ * Get player ID for matching across both GqlRosterPlayer and TeamRosterPlayer types
+ */
+export const getPlayerId = (
+  player: GqlRosterPlayer | TeamRosterPlayer,
+): string => {
+  if ('playerId' in player)
+    return player.playerId || player.externalPlayerName || '';
+  return player.oduserId;
+};
+
+/**
  * Panel visual state - matches substitution panel pattern
  */
 export type PanelState = 'collapsed' | 'bench-view' | 'expanded';
@@ -80,7 +91,6 @@ export interface LineupPanelPresentationProps {
 
   // Selection state
   selection: LineupSelection;
-  onPositionClick: (position: string) => void;
   onPlayerClick: (
     player: GqlRosterPlayer | TeamRosterPlayer,
     source: 'onField' | 'bench' | 'roster',
@@ -107,7 +117,6 @@ export interface LineupPanelPresentationProps {
   // Positions info
   filledPositions: Set<string>;
   filledCount: number;
-  requiredPositions: string[];
 }
 
 /**
