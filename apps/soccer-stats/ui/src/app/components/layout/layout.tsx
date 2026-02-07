@@ -13,10 +13,12 @@ export const Layout = () => {
     <div className="flex h-dvh flex-col bg-gray-50">
       <ImpersonationBannerSmart />
       <NavigationSmart />
-      <main className="mx-auto min-h-0 w-full max-w-7xl flex-1 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8">
-        <ProtectedRoute>
-          <Outlet />
-        </ProtectedRoute>
+      <main className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <ProtectedRoute>
+            <Outlet />
+          </ProtectedRoute>
+        </div>
       </main>
       <div id="panel-portal" />
     </div>
