@@ -89,15 +89,6 @@ export function StickyScoreBar({
 }: StickyScoreBarProps) {
   const [isStuck, setIsStuck] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [expandedHeight, setExpandedHeight] = useState(0);
-
-  // Measure the expanded container height for the spacer
-  useEffect(() => {
-    if (containerRef.current && !isStuck) {
-      setExpandedHeight(containerRef.current.offsetHeight);
-    }
-  }, [isStuck, venue, scheduledStart, status]);
 
   // Intersection Observer on the sentinel to detect when to switch to stuck mode
   useEffect(() => {
@@ -218,10 +209,7 @@ export function StickyScoreBar({
 
   // Expanded view (shown when not stuck)
   const expandedView = (
-    <div
-      ref={containerRef}
-      className="-mt-6 rounded-lg bg-white p-6 shadow transition-all duration-300 ease-in-out"
-    >
+    <div className="-mt-6 rounded-lg bg-white p-6 shadow transition-all duration-300 ease-in-out">
       {/* Game Clock and Controls */}
       <GameClockControl
         status={status}
@@ -299,17 +287,11 @@ export function StickyScoreBar({
       {/* Sentinel: invisible div that triggers stuck state when scrolled out of view */}
       <div ref={sentinelRef} className="h-0" aria-hidden="true" />
 
-      {/* When stuck: show fixed compact header via portal (escapes any containing blocks) + spacer */}
-      {isStuck && (
-        <>
-          {createPortal(compactHeader, document.body)}
-          {/* Spacer to prevent content jump when switching to fixed */}
-          <div style={{ height: expandedHeight }} aria-hidden="true" />
-        </>
-      )}
+      {/* When stuck: show fixed compact header via portal */}
+      {isStuck && createPortal(compactHeader, document.body)}
 
-      {/* Always render expanded view, but hide visually when stuck */}
-      <div className={isStuck ? 'invisible' : ''}>{expandedView}</div>
+      {/* Expanded view - always visible */}
+      {expandedView}
     </>
   );
 }

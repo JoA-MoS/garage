@@ -108,30 +108,30 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- Game 1 timing events
-INSERT INTO game_events (id, "gameId", "gameTeamId", "eventTypeId", "recordedByUserId", "gameMinute", "gameSecond", metadata, "createdAt", "updatedAt")
+INSERT INTO game_events (id, "gameId", "gameTeamId", "eventTypeId", "recordedByUserId", metadata, "createdAt", "updatedAt")
 VALUES
-  ('55000001-0000-0000-0000-000000000001', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'GAME_START'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 0, 0, NULL, NOW() - INTERVAL '7 days', NOW()),
-  ('55000001-0000-0000-0000-000000000002', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'PERIOD_START'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 0, 0, '{"period": "1"}', NOW() - INTERVAL '7 days', NOW()),
-  ('55000001-0000-0000-0000-000000000003', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'PERIOD_END'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 25, 0, '{"period": "1"}', NOW() - INTERVAL '7 days' + INTERVAL '25 minutes', NOW()),
-  ('55000001-0000-0000-0000-000000000004', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'PERIOD_START'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 25, 0, '{"period": "2"}', NOW() - INTERVAL '7 days' + INTERVAL '30 minutes', NOW()),
-  ('55000001-0000-0000-0000-000000000005', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'PERIOD_END'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 50, 0, '{"period": "2"}', NOW() - INTERVAL '7 days' + INTERVAL '55 minutes', NOW()),
-  ('55000001-0000-0000-0000-000000000006', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'GAME_END'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 50, 0, NULL, NOW() - INTERVAL '7 days' + INTERVAL '55 minutes', NOW())
+  ('55000001-0000-0000-0000-000000000001', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'GAME_START'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), NULL, NOW() - INTERVAL '7 days', NOW()),
+  ('55000001-0000-0000-0000-000000000002', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'PERIOD_START'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), '{"period": "1"}', NOW() - INTERVAL '7 days', NOW()),
+  ('55000001-0000-0000-0000-000000000003', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'PERIOD_END'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), '{"period": "1"}', NOW() - INTERVAL '7 days' + INTERVAL '25 minutes', NOW()),
+  ('55000001-0000-0000-0000-000000000004', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'PERIOD_START'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), '{"period": "2"}', NOW() - INTERVAL '7 days' + INTERVAL '30 minutes', NOW()),
+  ('55000001-0000-0000-0000-000000000005', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'PERIOD_END'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), '{"period": "2"}', NOW() - INTERVAL '7 days' + INTERVAL '55 minutes', NOW()),
+  ('55000001-0000-0000-0000-000000000006', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'GAME_END'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), NULL, NOW() - INTERVAL '7 days' + INTERVAL '55 minutes', NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- Game 1 goals (Thunder FC scores 3)
 -- Note: playerId now references users table directly (player users)
-INSERT INTO game_events (id, "gameId", "gameTeamId", "eventTypeId", "playerId", "recordedByUserId", "gameMinute", "gameSecond", "createdAt", "updatedAt")
+INSERT INTO game_events (id, "gameId", "gameTeamId", "eventTypeId", "playerId", "recordedByUserId", "periodSecond", period, "createdAt", "updatedAt")
 VALUES
-  ('55000001-0000-0000-0000-000000000010', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'GOAL'), '11000001-0000-0000-0000-000000000005', (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 12, 30, NOW() - INTERVAL '7 days' + INTERVAL '12 minutes', NOW()),
-  ('55000001-0000-0000-0000-000000000011', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'GOAL'), '11000001-0000-0000-0000-000000000003', (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 28, 15, NOW() - INTERVAL '7 days' + INTERVAL '33 minutes', NOW()),
-  ('55000001-0000-0000-0000-000000000012', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'GOAL'), '11000001-0000-0000-0000-000000000005', (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 42, 0, NOW() - INTERVAL '7 days' + INTERVAL '47 minutes', NOW())
+  ('55000001-0000-0000-0000-000000000010', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'GOAL'), '11000001-0000-0000-0000-000000000005', (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 750, '1', NOW() - INTERVAL '7 days' + INTERVAL '12 minutes', NOW()),
+  ('55000001-0000-0000-0000-000000000011', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'GOAL'), '11000001-0000-0000-0000-000000000003', (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 1695, '2', NOW() - INTERVAL '7 days' + INTERVAL '33 minutes', NOW()),
+  ('55000001-0000-0000-0000-000000000012', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'GOAL'), '11000001-0000-0000-0000-000000000005', (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 1020, '2', NOW() - INTERVAL '7 days' + INTERVAL '47 minutes', NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- Game 1 assists
-INSERT INTO game_events (id, "gameId", "gameTeamId", "eventTypeId", "playerId", "recordedByUserId", "parentEventId", "gameMinute", "gameSecond", "createdAt", "updatedAt")
+INSERT INTO game_events (id, "gameId", "gameTeamId", "eventTypeId", "playerId", "recordedByUserId", "parentEventId", "periodSecond", period, "createdAt", "updatedAt")
 VALUES
-  ('55000001-0000-0000-0000-000000000020', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'ASSIST'), '11000001-0000-0000-0000-000000000002', (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), '55000001-0000-0000-0000-000000000010', 12, 30, NOW() - INTERVAL '7 days' + INTERVAL '12 minutes', NOW()),
-  ('55000001-0000-0000-0000-000000000021', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'ASSIST'), '11000001-0000-0000-0000-000000000006', (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), '55000001-0000-0000-0000-000000000012', 42, 0, NOW() - INTERVAL '7 days' + INTERVAL '47 minutes', NOW())
+  ('55000001-0000-0000-0000-000000000020', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'ASSIST'), '11000001-0000-0000-0000-000000000002', (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), '55000001-0000-0000-0000-000000000010', 750, '1', NOW() - INTERVAL '7 days' + INTERVAL '12 minutes', NOW()),
+  ('55000001-0000-0000-0000-000000000021', '33000001-0000-0000-0000-000000000001', '44000001-0000-0000-0000-000000000001', (SELECT id FROM event_types WHERE name = 'ASSIST'), '11000001-0000-0000-0000-000000000006', (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), '55000001-0000-0000-0000-000000000012', 1020, '2', NOW() - INTERVAL '7 days' + INTERVAL '47 minutes', NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================
@@ -151,17 +151,17 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- Game 2 timing events (first half completed)
-INSERT INTO game_events (id, "gameId", "gameTeamId", "eventTypeId", "recordedByUserId", "gameMinute", "gameSecond", metadata, "createdAt", "updatedAt")
+INSERT INTO game_events (id, "gameId", "gameTeamId", "eventTypeId", "recordedByUserId", metadata, "createdAt", "updatedAt")
 VALUES
-  ('55000002-0000-0000-0000-000000000001', '33000001-0000-0000-0000-000000000002', '44000001-0000-0000-0000-000000000003', (SELECT id FROM event_types WHERE name = 'GAME_START'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 0, 0, NULL, NOW() - INTERVAL '30 minutes', NOW()),
-  ('55000002-0000-0000-0000-000000000002', '33000001-0000-0000-0000-000000000002', '44000001-0000-0000-0000-000000000003', (SELECT id FROM event_types WHERE name = 'PERIOD_START'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 0, 0, '{"period": "1"}', NOW() - INTERVAL '30 minutes', NOW()),
-  ('55000002-0000-0000-0000-000000000003', '33000001-0000-0000-0000-000000000002', '44000001-0000-0000-0000-000000000003', (SELECT id FROM event_types WHERE name = 'PERIOD_END'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 25, 0, '{"period": "1"}', NOW() - INTERVAL '5 minutes', NOW())
+  ('55000002-0000-0000-0000-000000000001', '33000001-0000-0000-0000-000000000002', '44000001-0000-0000-0000-000000000003', (SELECT id FROM event_types WHERE name = 'GAME_START'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), NULL, NOW() - INTERVAL '30 minutes', NOW()),
+  ('55000002-0000-0000-0000-000000000002', '33000001-0000-0000-0000-000000000002', '44000001-0000-0000-0000-000000000003', (SELECT id FROM event_types WHERE name = 'PERIOD_START'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), '{"period": "1"}', NOW() - INTERVAL '30 minutes', NOW()),
+  ('55000002-0000-0000-0000-000000000003', '33000001-0000-0000-0000-000000000002', '44000001-0000-0000-0000-000000000003', (SELECT id FROM event_types WHERE name = 'PERIOD_END'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), '{"period": "1"}', NOW() - INTERVAL '5 minutes', NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- Game 2 first half goal
-INSERT INTO game_events (id, "gameId", "gameTeamId", "eventTypeId", "playerId", "recordedByUserId", "gameMinute", "gameSecond", "createdAt", "updatedAt")
+INSERT INTO game_events (id, "gameId", "gameTeamId", "eventTypeId", "playerId", "recordedByUserId", "periodSecond", period, "createdAt", "updatedAt")
 VALUES
-  ('55000002-0000-0000-0000-000000000010', '33000001-0000-0000-0000-000000000002', '44000001-0000-0000-0000-000000000003', (SELECT id FROM event_types WHERE name = 'GOAL'), '11000001-0000-0000-0000-000000000003', (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 18, 45, NOW() - INTERVAL '11 minutes', NOW())
+  ('55000002-0000-0000-0000-000000000010', '33000001-0000-0000-0000-000000000002', '44000001-0000-0000-0000-000000000003', (SELECT id FROM event_types WHERE name = 'GOAL'), '11000001-0000-0000-0000-000000000003', (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 1125, '1', NOW() - INTERVAL '11 minutes', NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================
@@ -197,20 +197,20 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- Game 4 timing events
-INSERT INTO game_events (id, "gameId", "gameTeamId", "eventTypeId", "recordedByUserId", "gameMinute", "gameSecond", metadata, "createdAt", "updatedAt")
+INSERT INTO game_events (id, "gameId", "gameTeamId", "eventTypeId", "recordedByUserId", metadata, "createdAt", "updatedAt")
 VALUES
-  ('55000004-0000-0000-0000-000000000001', '33000001-0000-0000-0000-000000000004', '44000001-0000-0000-0000-000000000008', (SELECT id FROM event_types WHERE name = 'GAME_START'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 0, 0, NULL, NOW() - INTERVAL '14 days', NOW()),
-  ('55000004-0000-0000-0000-000000000002', '33000001-0000-0000-0000-000000000004', '44000001-0000-0000-0000-000000000008', (SELECT id FROM event_types WHERE name = 'PERIOD_START'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 0, 0, '{"period": "1"}', NOW() - INTERVAL '14 days', NOW()),
-  ('55000004-0000-0000-0000-000000000003', '33000001-0000-0000-0000-000000000004', '44000001-0000-0000-0000-000000000008', (SELECT id FROM event_types WHERE name = 'PERIOD_END'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 25, 0, '{"period": "1"}', NOW() - INTERVAL '14 days' + INTERVAL '25 minutes', NOW()),
-  ('55000004-0000-0000-0000-000000000004', '33000001-0000-0000-0000-000000000004', '44000001-0000-0000-0000-000000000008', (SELECT id FROM event_types WHERE name = 'PERIOD_START'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 25, 0, '{"period": "2"}', NOW() - INTERVAL '14 days' + INTERVAL '30 minutes', NOW()),
-  ('55000004-0000-0000-0000-000000000005', '33000001-0000-0000-0000-000000000004', '44000001-0000-0000-0000-000000000008', (SELECT id FROM event_types WHERE name = 'PERIOD_END'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 50, 0, '{"period": "2"}', NOW() - INTERVAL '14 days' + INTERVAL '55 minutes', NOW()),
-  ('55000004-0000-0000-0000-000000000006', '33000001-0000-0000-0000-000000000004', '44000001-0000-0000-0000-000000000008', (SELECT id FROM event_types WHERE name = 'GAME_END'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 50, 0, NULL, NOW() - INTERVAL '14 days' + INTERVAL '55 minutes', NOW())
+  ('55000004-0000-0000-0000-000000000001', '33000001-0000-0000-0000-000000000004', '44000001-0000-0000-0000-000000000008', (SELECT id FROM event_types WHERE name = 'GAME_START'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), NULL, NOW() - INTERVAL '14 days', NOW()),
+  ('55000004-0000-0000-0000-000000000002', '33000001-0000-0000-0000-000000000004', '44000001-0000-0000-0000-000000000008', (SELECT id FROM event_types WHERE name = 'PERIOD_START'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), '{"period": "1"}', NOW() - INTERVAL '14 days', NOW()),
+  ('55000004-0000-0000-0000-000000000003', '33000001-0000-0000-0000-000000000004', '44000001-0000-0000-0000-000000000008', (SELECT id FROM event_types WHERE name = 'PERIOD_END'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), '{"period": "1"}', NOW() - INTERVAL '14 days' + INTERVAL '25 minutes', NOW()),
+  ('55000004-0000-0000-0000-000000000004', '33000001-0000-0000-0000-000000000004', '44000001-0000-0000-0000-000000000008', (SELECT id FROM event_types WHERE name = 'PERIOD_START'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), '{"period": "2"}', NOW() - INTERVAL '14 days' + INTERVAL '30 minutes', NOW()),
+  ('55000004-0000-0000-0000-000000000005', '33000001-0000-0000-0000-000000000004', '44000001-0000-0000-0000-000000000008', (SELECT id FROM event_types WHERE name = 'PERIOD_END'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), '{"period": "2"}', NOW() - INTERVAL '14 days' + INTERVAL '55 minutes', NOW()),
+  ('55000004-0000-0000-0000-000000000006', '33000001-0000-0000-0000-000000000004', '44000001-0000-0000-0000-000000000008', (SELECT id FROM event_types WHERE name = 'GAME_END'), (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), NULL, NOW() - INTERVAL '14 days' + INTERVAL '55 minutes', NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- Game 4 goal (Thunder FC scores 1)
-INSERT INTO game_events (id, "gameId", "gameTeamId", "eventTypeId", "playerId", "recordedByUserId", "gameMinute", "gameSecond", "createdAt", "updatedAt")
+INSERT INTO game_events (id, "gameId", "gameTeamId", "eventTypeId", "playerId", "recordedByUserId", "periodSecond", period, "createdAt", "updatedAt")
 VALUES
-  ('55000004-0000-0000-0000-000000000010', '33000001-0000-0000-0000-000000000004', '44000001-0000-0000-0000-000000000008', (SELECT id FROM event_types WHERE name = 'GOAL'), '11000001-0000-0000-0000-000000000002', (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 35, 0, NOW() - INTERVAL '14 days' + INTERVAL '40 minutes', NOW())
+  ('55000004-0000-0000-0000-000000000010', '33000001-0000-0000-0000-000000000004', '44000001-0000-0000-0000-000000000008', (SELECT id FROM event_types WHERE name = 'GOAL'), '11000001-0000-0000-0000-000000000002', (SELECT id FROM users WHERE email = 'joamos.dev@gmail.com'), 600, '2', NOW() - INTERVAL '14 days' + INTERVAL '40 minutes', NOW())
 ON CONFLICT (id) DO NOTHING;
 
 COMMIT;

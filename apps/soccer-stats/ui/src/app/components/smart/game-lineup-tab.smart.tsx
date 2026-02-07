@@ -61,6 +61,27 @@ interface GameLineupTabProps {
    * Used to show a visual indicator on the field for the player being replaced.
    */
   selectedFieldPlayerId?: string | null;
+
+  /**
+   * Called when an empty position is clicked while bench selection is active in the sub panel.
+   * Routes the position to the sub panel for the fill-empty-position flow.
+   */
+  onEmptyPositionClickForSub?: (position: string) => void;
+
+  /**
+   * Called when an empty position is clicked and lineup panel has a player selected.
+   * Used to complete the player-first assignment flow.
+   */
+  onEmptyPositionClick?: (position: string) => void;
+
+  /**
+   * Called when a field player is clicked during lineup setup phase (SCHEDULED/HALFTIME).
+   * Routes to the lineup panel for swap/position-change flows.
+   */
+  onFieldPlayerClickForLineup?: (player: GqlRosterPlayer) => void;
+
+  /** Hide the bench/roster section (when LineupPanel provides it instead) */
+  hideBench?: boolean;
 }
 
 type ModalMode =
@@ -150,6 +171,10 @@ export const GameLineupTab = memo(function GameLineupTab({
   hasBenchSelectionActive = false,
   queuedPlayerIds = new Set(),
   selectedFieldPlayerId = null,
+  onEmptyPositionClickForSub,
+  onEmptyPositionClick,
+  onFieldPlayerClickForLineup,
+  hideBench = false,
 }: GameLineupTabProps) {
   const formations = getFormationsForTeamSize(playersPerTeam);
   const [selectedFormation, setSelectedFormation] = useState<Formation>(() =>
@@ -351,10 +376,11 @@ export const GameLineupTab = memo(function GameLineupTab({
     currentPeriodSeconds,
   ]);
 
-  // Check if game is in active play
+  // Check if game is in active play (including halftime for substitutions)
   const isActivePlay =
     gameStatus === GameStatus.FirstHalf ||
     gameStatus === GameStatus.SecondHalf ||
+    gameStatus === GameStatus.Halftime ||
     gameStatus === GameStatus.InProgress;
 
   // Handle position click on field
@@ -367,7 +393,13 @@ export const GameLineupTab = memo(function GameLineupTab({
           return;
         }
 
-        // Priority 2: During active play, trigger the inline substitution panel
+        // Priority 2: During lineup setup, route to lineup panel
+        if (onFieldPlayerClickForLineup) {
+          onFieldPlayerClickForLineup(assignedPlayer);
+          return;
+        }
+
+        // Priority 3: During active play, trigger the inline substitution panel
         if (isActivePlay && onFieldPlayerClickForSub && bench.length > 0) {
           onFieldPlayerClickForSub(assignedPlayer);
           return;
@@ -380,13 +412,26 @@ export const GameLineupTab = memo(function GameLineupTab({
           position,
         });
       } else {
+        // Priority 1: If sub panel has bench selection active, route to sub panel
+        if (hasBenchSelectionActive && onEmptyPositionClickForSub) {
+          onEmptyPositionClickForSub(position.position);
+          return;
+        }
+        // Priority 2: If lineup panel callback is provided, route empty position clicks there
+        if (onEmptyPositionClick) {
+          onEmptyPositionClick(position.position);
+          return;
+        }
         setModalMode({ type: 'assign-position', position });
       }
     },
     [
       isActivePlay,
       hasBenchSelectionActive,
+      onEmptyPositionClick,
+      onEmptyPositionClickForSub,
       onFieldPlayerClickForSub,
+      onFieldPlayerClickForLineup,
       bench.length,
     ],
   );
@@ -646,7 +691,7 @@ export const GameLineupTab = memo(function GameLineupTab({
       </div>
 
       {/* Field visualization */}
-      <div className="mx-auto max-w-sm">
+      <div id="field-lineup" className="mx-auto max-w-sm">
         <FieldLineup
           formation={selectedFormation}
           lineup={onField}
@@ -659,19 +704,21 @@ export const GameLineupTab = memo(function GameLineupTab({
         />
       </div>
 
-      {/* Bench and available roster */}
-      <LineupBench
-        bench={bench}
-        availableRoster={availableRoster}
-        onBenchPlayerClick={handleBenchPlayerClick}
-        onRosterPlayerClick={handleAddToBench}
-        onAddExternalPlayer={() =>
-          setModalMode({ type: 'add-external', target: 'bench' })
-        }
-        teamColor={teamColor}
-        isManaged={isManaged}
-        disabled={mutating}
-      />
+      {/* Bench and available roster - hidden when LineupPanel provides these */}
+      {!hideBench && (
+        <LineupBench
+          bench={bench}
+          availableRoster={availableRoster}
+          onBenchPlayerClick={handleBenchPlayerClick}
+          onRosterPlayerClick={handleAddToBench}
+          onAddExternalPlayer={() =>
+            setModalMode({ type: 'add-external', target: 'bench' })
+          }
+          teamColor={teamColor}
+          isManaged={isManaged}
+          disabled={mutating}
+        />
+      )}
 
       {/* Modal for player assignment/options */}
       {modalMode.type !== 'closed' && (

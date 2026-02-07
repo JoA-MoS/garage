@@ -8,7 +8,6 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import type { PubSub } from 'graphql-subscriptions';
-import { toPeriodSecond } from '@garage/soccer-stats/utils';
 
 import { Game, GameStatus } from '../../entities/game.entity';
 import { Team } from '../../entities/team.entity';
@@ -216,7 +215,6 @@ export class GamesService {
 
     // Extract fields that should not be passed directly to entity update
     // Timing fields are now derived from events, not stored as columns
-    // gameMinute/gameSecond are used for event timing, not stored on Game entity
     const {
       homeTeamId: _homeTeamId,
       awayTeamId: _awayTeamId,
@@ -229,8 +227,7 @@ export class GamesService {
       secondHalfStart: _secondHalfStart,
       actualEnd: _actualEnd,
       pausedAt: inputPausedAt,
-      gameMinute: _gameMinute,
-      gameSecond: _gameSecond,
+      periodSecond: _periodSecond,
       ...gameFields
     } = updateGameInput as Record<string, unknown>;
 
@@ -246,21 +243,12 @@ export class GamesService {
     }
 
     // Create timing events based on status changes
-    // Pass game time from frontend for consistent timing with displayed timer
-    const providedGameTime =
-      updateGameInput.gameMinute !== undefined &&
-      updateGameInput.gameSecond !== undefined
-        ? {
-            gameMinute: updateGameInput.gameMinute,
-            gameSecond: updateGameInput.gameSecond,
-          }
-        : undefined;
-
+    // Pass period-relative time from frontend for consistent timing with displayed timer
     await this.createTimingEventsForStatusChange(
       id,
       updateGameInput.status,
       userId,
-      providedGameTime,
+      updateGameInput.periodSecond,
     );
 
     // Handle pause/resume via events
@@ -388,8 +376,8 @@ export class GamesService {
    * Creates timing events based on game status changes.
    * This replaces direct column updates with event-based timing.
    *
-   * @param providedGameTime - Optional game minute/second from frontend for the status change.
-   *                          Used to ensure consistent timing between frontend timer and events.
+   * @param providedPeriodSecond - Optional period-relative seconds from frontend for the status change.
+   *                              Used to ensure consistent timing between frontend timer and events.
    * @throws Error if required event types are not found in the database
    * @throws Error if userId is not provided for status changes that create timing events
    */
@@ -397,7 +385,7 @@ export class GamesService {
     gameId: string,
     status?: GameStatus,
     userId?: string,
-    providedGameTime?: { gameMinute: number; gameSecond: number },
+    providedPeriodSecond?: number,
   ): Promise<void> {
     if (!status) return;
 
@@ -445,8 +433,7 @@ export class GamesService {
     const createEvent = async (
       eventTypeName: string,
       period: string | undefined,
-      gameMinute = 0,
-      gameSecond = 0,
+      periodSecond: number,
       skipPublish = false,
       parentEventId?: string,
     ): Promise<GameEvent> => {
@@ -474,6 +461,18 @@ export class GamesService {
 
       const existingEvent = await existingEventQuery.getOne();
       if (existingEvent) {
+        // PERIOD_START events must always have periodSecond: 0
+        if (
+          eventTypeName === 'PERIOD_START' &&
+          existingEvent.periodSecond !== 0
+        ) {
+          this.logger.warn(
+            `[createEvent] Existing PERIOD_START for period ${period} has periodSecond: ${existingEvent.periodSecond}, correcting to 0`,
+          );
+          existingEvent.periodSecond = 0;
+          await this.gameEventRepository.save(existingEvent);
+        }
+
         this.logger.debug(
           `Skipping duplicate ${eventTypeName} event for game ${gameId}` +
             (period ? ` (period ${period})` : ''),
@@ -481,16 +480,11 @@ export class GamesService {
         return existingEvent;
       }
 
-      // Calculate periodSecond from gameMinute/gameSecond
-      const periodSecond = toPeriodSecond(gameMinute, gameSecond);
-
       const event = this.gameEventRepository.create({
         gameId,
         gameTeamId: homeGameTeam.id,
         eventTypeId: eventType.id,
         recordedByUserId: userId,
-        gameMinute,
-        gameSecond,
         period,
         periodSecond,
         parentEventId,
@@ -549,8 +543,7 @@ export class GamesService {
         const periodStartEvent = await createEvent(
           'PERIOD_START',
           '1', // period 1 (first half)
-          0,
-          0,
+          0, // periodSecond — period starts at 0
           true, // skipPublish - we'll publish after linking children
         );
 
@@ -600,20 +593,17 @@ export class GamesService {
         // First half ending:
         // Use actual game time from frontend (what the user sees on the clock)
         // This ensures players get credit for actual time played including stoppage
-        let halftimeMinute: number;
-        let halftimeSecond: number;
+        // Frontend sends period-relative time for period 1
+        let halftimePeriodSecond: number;
 
-        if (providedGameTime) {
-          halftimeMinute = providedGameTime.gameMinute;
-          halftimeSecond = providedGameTime.gameSecond;
+        if (providedPeriodSecond !== undefined) {
+          halftimePeriodSecond = providedPeriodSecond;
         } else {
-          const halftimeSeconds =
+          halftimePeriodSecond =
             await this.gameTimingService.getGameDurationSeconds(
               gameId,
               totalDuration,
             );
-          halftimeMinute = Math.floor(halftimeSeconds / 60);
-          halftimeSecond = halftimeSeconds % 60;
         }
 
         // 1. Create PERIOD_END (period 1) first - will be parent of SUB_OUT events
@@ -621,19 +611,16 @@ export class GamesService {
         const periodEndEvent = await createEvent(
           'PERIOD_END',
           '1', // period 1 (first half)
-          halftimeMinute,
-          halftimeSecond,
+          halftimePeriodSecond,
           true, // skipPublish
         );
 
         // 2. Create SUBSTITUTION_OUT for all on-field players as children of PERIOD_END
-        // Calculate period-relative seconds (time elapsed in period 1)
-        const periodSecond = toPeriodSecond(halftimeMinute, halftimeSecond);
         for (const gameTeam of gameTeams) {
           await this.gameEventsService.createSubstitutionOutForAllOnField(
             gameTeam.id,
             '1', // Period 1 (first half)
-            periodSecond,
+            halftimePeriodSecond,
             userId!,
             periodEndEvent.id,
           );
@@ -695,26 +682,32 @@ export class GamesService {
         const periodStartEvent = await createEvent(
           'PERIOD_START',
           '2', // period 2 (second half)
-          halftimeMinute,
-          0,
+          0, // periodSecond — period starts at 0
           true, // skipPublish
         );
 
-        // 2. Link any orphan SUB_IN events created during halftime to PERIOD_START
-        // These are events from bringPlayerOntoField or setSecondHalfLineup called before PERIOD_START existed
+        // 2. Link orphan SUB_INs and/or create from GAME_ROSTER per team
+        // If linkOrphan finds events (coach set explicit halftime lineup), skip GAME_ROSTER conversion
+        // to avoid duplicates. Otherwise, fall through to GAME_ROSTER → SUB_IN conversion.
         for (const gameTeam of gameTeams) {
-          await this.gameEventsService.linkOrphanSubInsToSecondHalfPeriodStart(
-            gameId,
-            gameTeam.id,
-            halftimeMinute,
-            periodStartEvent.id,
-          );
-        }
+          const linked =
+            await this.gameEventsService.linkOrphanSubInsToSecondHalfPeriodStart(
+              gameId,
+              gameTeam.id,
+              halftimeMinute,
+              periodStartEvent.id,
+            );
 
-        // 3. Convert GAME_ROSTER events (created at halftime) to SUB_IN events
-        // This is the same pattern as first half: GAME_ROSTER → SUB_IN
-        // If no GAME_ROSTER events for period 2, fall back to legacy ensureSecondHalfLineupExists
-        for (const gameTeam of gameTeams) {
+          if (linked > 0) {
+            // Coach's explicit halftime lineup takes priority — skip GAME_ROSTER conversion
+            this.logger.debug(
+              `[SECOND_HALF] Linked ${linked} orphan SUB_INs for gameTeam ${gameTeam.id}, ` +
+                `skipping GAME_ROSTER conversion`,
+            );
+            continue;
+          }
+
+          // No orphan SUB_INs — convert GAME_ROSTER events to SUB_IN events
           const created =
             await this.gameEventsService.createSubInEventsFromRosterStarters(
               gameTeam.id,
@@ -765,28 +758,32 @@ export class GamesService {
 
       case GameStatus.COMPLETED: {
         // Game ending:
-        // Use providedGameTime from frontend for consistent timing with displayed timer
-        let endMinute: number;
-        let endSecond: number;
+        // Determine final period from game format (e.g., 2 for halves, 4 for quarters)
+        const numberOfPeriods = game.format?.numberOfPeriods ?? 2;
+        const finalPeriod = String(numberOfPeriods);
 
-        if (providedGameTime) {
-          // Use the game time directly from frontend (what the user sees)
-          endMinute = providedGameTime.gameMinute;
-          endSecond = providedGameTime.gameSecond;
+        // Calculate period-relative seconds for the final period
+        // Frontend sends period-relative time directly
+        let endPeriodSeconds: number;
+        if (providedPeriodSecond !== undefined) {
+          endPeriodSeconds = providedPeriodSecond;
         } else {
-          // Fallback to calculating from timing events (less accurate)
-          const gameSeconds =
+          // Fallback: compute from timer service (returns absolute), convert to period-relative
+          const periodDurationSeconds =
+            (game.format?.periodDurationMinutes ??
+              Math.floor(totalDuration / numberOfPeriods)) * 60;
+          const previousPeriodsSeconds =
+            periodDurationSeconds * (numberOfPeriods - 1);
+          const endAbsoluteSeconds =
             await this.gameTimingService.getGameDurationSeconds(
               gameId,
               totalDuration,
             );
-          endMinute = Math.floor(gameSeconds / 60);
-          endSecond = gameSeconds % 60;
+          endPeriodSeconds = Math.max(
+            0,
+            endAbsoluteSeconds - previousPeriodsSeconds,
+          );
         }
-
-        // Determine final period from game format (e.g., 2 for halves, 4 for quarters)
-        const numberOfPeriods = game.format?.numberOfPeriods ?? 2;
-        const finalPeriod = String(numberOfPeriods);
 
         // 1. Create PERIOD_END for final period - no GAME_END wrapper
         // PERIOD_END (final period) serves as the game end indicator
@@ -794,22 +791,11 @@ export class GamesService {
         const periodEndEvent = await createEvent(
           'PERIOD_END',
           finalPeriod,
-          endMinute,
-          endSecond,
+          endPeriodSeconds, // period-relative time
           true, // skipPublish
         );
 
         // 2. Create SUBSTITUTION_OUT for all on-field players as children of PERIOD_END
-        // Calculate period-relative seconds for the final period
-        const periodDurationSeconds =
-          (game.format?.periodDurationMinutes ??
-            Math.floor(totalDuration / numberOfPeriods)) * 60;
-        const previousPeriodsSeconds =
-          periodDurationSeconds * (numberOfPeriods - 1);
-        const endPeriodSeconds = Math.max(
-          0,
-          toPeriodSecond(endMinute, endSecond) - previousPeriodsSeconds,
-        );
         for (const gameTeam of gameTeams) {
           await this.gameEventsService.createSubstitutionOutForAllOnField(
             gameTeam.id,
@@ -891,8 +877,6 @@ export class GamesService {
       gameTeamId: homeGameTeam.id,
       eventTypeId: eventType.id,
       recordedByUserId: userId,
-      gameMinute: 0,
-      gameSecond: 0,
       // Stoppage events don't belong to a specific period
       periodSecond: 0,
     });

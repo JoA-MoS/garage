@@ -57,26 +57,6 @@ export class GameEvent extends BaseEntity {
   parentEventId?: string;
 
   /**
-   * @deprecated Use `period` and `periodSecond` instead.
-   * Kept for backward compatibility during migration.
-   */
-  @Field(() => Int, {
-    deprecationReason: 'Use period and periodSecond instead',
-  })
-  @Column({ type: 'int' })
-  gameMinute: number;
-
-  /**
-   * @deprecated Use `period` and `periodSecond` instead.
-   * Kept for backward compatibility during migration.
-   */
-  @Field(() => Int, {
-    deprecationReason: 'Use period and periodSecond instead',
-  })
-  @Column({ type: 'int' })
-  gameSecond: number;
-
-  /**
    * Period identifier (e.g., "1", "2", "OT1", "OT2").
    * The clock resets at the start of each period, matching real soccer timing.
    */
