@@ -1,0 +1,12 @@
+{
+  "name": "sift-types",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/sift/types/src",
+  "projectType": "library",
+  "tags": ["type:lib", "domain:sift"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}
