@@ -15,6 +15,7 @@ import { TeamPlayersPage } from '../pages/team-players.page';
 import { TeamGamesPage } from '../pages/team-games.page';
 import { TeamOverviewPage } from '../pages/team-overview.page';
 import { TeamStatsPage } from '../pages/team-stats.page';
+import { TeamGameStatsPage } from '../pages/team-game-stats.page';
 import { TeamSettingsPage } from '../pages/team-settings.page';
 import { AllGamesPage } from '../pages/all-games.page';
 import { TeamLayout } from '../components/layout/team-layout';
@@ -102,6 +103,10 @@ export const router = createBrowserRouter([
           {
             path: 'stats',
             element: <TeamStatsPage />,
+          },
+          {
+            path: 'games/:gameTeamId/stats',
+            element: <TeamGameStatsPage />,
           },
           {
             path: 'settings',
