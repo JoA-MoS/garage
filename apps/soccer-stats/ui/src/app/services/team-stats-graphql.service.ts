@@ -1,0 +1,159 @@
+import { gql } from '@apollo/client';
+
+// Response types for team stats queries
+// These will be replaced by codegen types once the schema is regenerated
+
+export interface PlayerGameStatsRowData {
+  playerId?: string | null;
+  playerName?: string | null;
+  externalPlayerName?: string | null;
+  externalPlayerNumber?: string | null;
+  goals: number;
+  assists: number;
+  yellowCards: number;
+  redCards: number;
+  ownGoals: number;
+  totalMinutes: number;
+  totalSeconds: number;
+  gamesPlayed: number;
+}
+
+export interface TeamAggregateStatsData {
+  gamesPlayed: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  winRate: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  totalAssists: number;
+  totalYellowCards: number;
+  totalRedCards: number;
+}
+
+export interface GameStatsSummaryData {
+  gameId: string;
+  gameTeamId: string;
+  gameName?: string | null;
+  gameDate?: string | null;
+  gameStatus: string;
+  opponentName?: string | null;
+  teamScore?: number | null;
+  opponentScore?: number | null;
+  result: string;
+  totalGoals: number;
+  totalAssists: number;
+  playerStats: PlayerGameStatsRowData[];
+}
+
+export interface TeamStatsResponseData {
+  teamId: string;
+  teamName: string;
+  aggregateStats: TeamAggregateStatsData;
+  playerStats: PlayerGameStatsRowData[];
+  gameBreakdown: GameStatsSummaryData[];
+}
+
+export interface GetTeamStatsResponse {
+  teamStats: TeamStatsResponseData;
+}
+
+export interface GetGameTeamStatsResponse {
+  gameTeamStats: GameStatsSummaryData;
+}
+
+export const GET_TEAM_STATS = gql`
+  query GetTeamStats($input: TeamStatsInput!) {
+    teamStats(input: $input) {
+      teamId
+      teamName
+      aggregateStats {
+        gamesPlayed
+        wins
+        draws
+        losses
+        winRate
+        goalsFor
+        goalsAgainst
+        goalDifference
+        totalAssists
+        totalYellowCards
+        totalRedCards
+      }
+      playerStats {
+        playerId
+        playerName
+        externalPlayerName
+        externalPlayerNumber
+        goals
+        assists
+        yellowCards
+        redCards
+        ownGoals
+        totalMinutes
+        totalSeconds
+        gamesPlayed
+      }
+      gameBreakdown {
+        gameId
+        gameTeamId
+        gameName
+        gameDate
+        gameStatus
+        opponentName
+        teamScore
+        opponentScore
+        result
+        totalGoals
+        totalAssists
+        playerStats {
+          playerId
+          playerName
+          externalPlayerName
+          externalPlayerNumber
+          goals
+          assists
+          yellowCards
+          redCards
+          ownGoals
+          totalMinutes
+          totalSeconds
+          gamesPlayed
+        }
+      }
+    }
+  }
+`;
+
+export const GET_GAME_TEAM_STATS = gql`
+  query GetGameTeamStats($gameTeamId: ID!) {
+    gameTeamStats(gameTeamId: $gameTeamId) {
+      gameId
+      gameTeamId
+      gameName
+      gameDate
+      gameStatus
+      opponentName
+      teamScore
+      opponentScore
+      result
+      totalGoals
+      totalAssists
+      playerStats {
+        playerId
+        playerName
+        externalPlayerName
+        externalPlayerNumber
+        goals
+        assists
+        yellowCards
+        redCards
+        ownGoals
+        totalMinutes
+        totalSeconds
+        gamesPlayed
+      }
+    }
+  }
+`;
