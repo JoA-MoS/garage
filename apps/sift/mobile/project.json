@@ -1,0 +1,40 @@
+{
+  "name": "sift-mobile",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/sift/mobile",
+  "projectType": "application",
+  "tags": ["type:app", "domain:sift"],
+  "targets": {
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "expo start",
+        "cwd": "apps/sift/mobile"
+      }
+    },
+    "ios": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "expo run:ios",
+        "cwd": "apps/sift/mobile"
+      }
+    },
+    "android": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "expo run:android",
+        "cwd": "apps/sift/mobile"
+      }
+    },
+    "web": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "expo start --web",
+        "cwd": "apps/sift/mobile"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

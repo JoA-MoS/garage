@@ -31,7 +31,9 @@
         "libs/soccer-stats/graphql-codegen/src/index.ts"
       ],
       "@garage/soccer-stats/infra": ["libs/soccer-stats/infra/src/index.ts"],
-      "@garage/soccer-stats/utils": ["libs/soccer-stats/utils/src/index.ts"]
+      "@garage/soccer-stats/utils": ["libs/soccer-stats/utils/src/index.ts"],
+      "@garage/sift/types": ["libs/sift/types/src/index.ts"],
+      "@garage/sift/utils": ["libs/sift/utils/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
