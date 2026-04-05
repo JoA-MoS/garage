@@ -27,6 +27,7 @@
     "serve": {
       "executor": "@nx/js:node",
       "defaultConfiguration": "development",
+      "dependsOn": ["db:start"],
       "options": {
         "buildTarget": "sift-api:build"
       },

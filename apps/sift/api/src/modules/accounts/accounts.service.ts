@@ -1,7 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { EmailAccount, AccountProvider } from './email-account.entity';
+import { QueryFailedError, Repository } from 'typeorm';
+import { EmailAccount } from './email-account.entity';
+import { AccountProvider } from '@garage/sift/types';
 
 @Injectable()
 export class AccountsService {
@@ -15,23 +21,41 @@ export class AccountsService {
   }
 
   async findOne(id: string): Promise<EmailAccount> {
-    const account = await this.accountRepo.findOne({ where: { id } });
+    const account = await this.accountRepo.findOne({
+      where: { id, isActive: true },
+    });
     if (!account) throw new NotFoundException(`Account ${id} not found`);
     return account;
   }
 
-  create(data: { email: string; provider: string; userId: string }): Promise<EmailAccount> {
-    const account = this.accountRepo.create({
-      email: data.email,
-      provider: (data.provider as AccountProvider) ?? AccountProvider.GMAIL,
-      userId: data.userId,
-    });
-    return this.accountRepo.save(account);
+  async create(data: {
+    email: string;
+    provider: AccountProvider;
+    userId: string;
+  }): Promise<EmailAccount> {
+    const account = this.accountRepo.create(data);
+    try {
+      return await this.accountRepo.save(account);
+    } catch (err) {
+      if (
+        err instanceof QueryFailedError &&
+        (err as QueryFailedError & { code: string }).code === '23505'
+      ) {
+        throw new ConflictException(
+          `An account for ${data.email} with provider ${data.provider} already exists`,
+        );
+      }
+      throw new InternalServerErrorException('Failed to create account');
+    }
   }
 
   async remove(id: string): Promise<void> {
     const account = await this.findOne(id);
     account.isActive = false;
-    await this.accountRepo.save(account);
+    try {
+      await this.accountRepo.save(account);
+    } catch {
+      throw new InternalServerErrorException('Failed to deactivate account');
+    }
   }
 }

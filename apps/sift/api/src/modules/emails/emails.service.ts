@@ -1,10 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  NotImplementedException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Email, EmailImportance, EmailStatus } from './email.entity';
+import { Email, EmailStatus } from './email.entity';
 
 @Injectable()
 export class EmailsService {
+  private readonly logger = new Logger(EmailsService.name);
+
   constructor(
     @InjectRepository(Email)
     private readonly emailRepo: Repository<Email>,
@@ -33,29 +41,30 @@ export class EmailsService {
     return email;
   }
 
-  async classify(id: string): Promise<Email> {
-    const email = await this.findOne(id);
-
-    // AI classification via Anthropic Claude
-    // TODO: inject AnthropicService and call claude here
-    // For now, mark as medium importance as placeholder
-    email.importance = EmailImportance.MEDIUM;
-    email.importanceReason = 'Classification pending Anthropic integration';
-    email.classified = true;
-
-    return this.emailRepo.save(email);
+  async classify(_id: string): Promise<Email> {
+    // TODO: Inject AnthropicService and implement Claude classification
+    // IMPORTANT: Do NOT set classified=true until real classification is implemented.
+    // Pre-marking emails as classified will cause them to be silently skipped
+    // when the Anthropic integration is wired in.
+    throw new NotImplementedException(
+      'Email classification is not yet implemented',
+    );
   }
 
-  async sync(accountId: string): Promise<{ synced: number }> {
-    // TODO: Use Gmail API to fetch new messages for the account
-    // Store them, then trigger classification for each
-    console.log(`Sync requested for account ${accountId}`);
-    return { synced: 0 };
+  async sync(_accountId: string): Promise<{ synced: number }> {
+    // TODO: Use Gmail API to fetch new messages for the account,
+    // store them, then trigger classification for each
+    throw new NotImplementedException('Gmail sync is not yet implemented');
   }
 
   async updateStatus(id: string, status: EmailStatus): Promise<Email> {
     const email = await this.findOne(id);
     email.status = status;
-    return this.emailRepo.save(email);
+    try {
+      return await this.emailRepo.save(email);
+    } catch {
+      this.logger.error(`Failed to update status for email ${id}`);
+      throw new InternalServerErrorException('Failed to update email status');
+    }
   }
 }

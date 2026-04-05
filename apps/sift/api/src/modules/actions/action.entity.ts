@@ -5,14 +5,9 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { ActionType } from '@garage/sift/types';
 
-export enum ActionType {
-  REPLY = 'reply',
-  FORWARD = 'forward',
-  CALENDAR_EVENT = 'calendar_event',
-  TASK = 'task',
-  REVIEW = 'review',
-}
+export { ActionType };
 
 @Entity('actions')
 export class Action {
