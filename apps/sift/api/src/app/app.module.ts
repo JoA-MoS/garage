@@ -21,7 +21,9 @@ import { AuthModule } from '../modules/auth/auth.module';
         username: config.get('DB_USER', 'postgres'),
         password: config.get('DB_PASS', 'postgres'),
         database: config.get('DB_NAME', 'sift'),
-        synchronize: config.get('DB_SYNCHRONIZE', 'true') === 'true',
+        synchronize:
+          config.get('NODE_ENV') !== 'production' &&
+          config.get('DB_SYNCHRONIZE', 'false') === 'true',
         autoLoadEntities: true,
         logging: config.get('NODE_ENV') === 'development',
       }),

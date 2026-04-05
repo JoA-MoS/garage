@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Delete, Param, Body } from '@nestjs/common';
 import { AccountsService } from './accounts.service';
+import { CreateAccountDto } from './dto/create-account.dto';
 
 @Controller('accounts')
 export class AccountsController {
@@ -16,7 +17,7 @@ export class AccountsController {
   }
 
   @Post()
-  create(@Body() body: { email: string; provider: string; userId: string }) {
+  create(@Body() body: CreateAccountDto) {
     return this.accountsService.create(body);
   }
 

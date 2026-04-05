@@ -6,32 +6,75 @@
   "tags": ["type:app", "domain:sift"],
   "targets": {
     "start": {
-      "executor": "nx:run-commands",
+      "executor": "@nx/expo:start",
+      "dependsOn": ["sync-deps"],
       "options": {
-        "command": "expo start",
-        "cwd": "apps/sift/mobile"
+        "port": 8082
       }
     },
-    "ios": {
-      "executor": "nx:run-commands",
+    "serve": {
+      "executor": "@nx/expo:serve",
+      "dependsOn": ["sync-deps", "sift-api:serve"],
       "options": {
-        "command": "expo run:ios",
-        "cwd": "apps/sift/mobile"
+        "port": 8082
       }
     },
-    "android": {
-      "executor": "nx:run-commands",
+    "run-ios": {
+      "executor": "@nx/expo:run",
+      "dependsOn": ["sync-deps"],
       "options": {
-        "command": "expo run:android",
-        "cwd": "apps/sift/mobile"
+        "platform": "ios"
       }
     },
-    "web": {
-      "executor": "nx:run-commands",
+    "run-android": {
+      "executor": "@nx/expo:run",
+      "dependsOn": ["sync-deps"],
       "options": {
-        "command": "expo start --web",
-        "cwd": "apps/sift/mobile"
+        "platform": "android"
       }
+    },
+    "build": {
+      "executor": "@nx/expo:build",
+      "dependsOn": ["sync-deps"],
+      "options": {}
+    },
+    "submit": {
+      "executor": "@nx/expo:submit",
+      "options": {}
+    },
+    "build-list": {
+      "executor": "@nx/expo:build-list",
+      "options": {}
+    },
+    "sync-deps": {
+      "executor": "@nx/expo:sync-deps",
+      "options": {}
+    },
+    "prebuild": {
+      "executor": "@nx/expo:prebuild",
+      "dependsOn": ["sync-deps"],
+      "options": {}
+    },
+    "install": {
+      "executor": "@nx/expo:install",
+      "options": {}
+    },
+    "update": {
+      "executor": "@nx/expo:update",
+      "options": {}
+    },
+    "export": {
+      "executor": "@nx/expo:export",
+      "dependsOn": ["sync-deps"],
+      "outputs": ["{options.outputDir}"],
+      "options": {
+        "platform": "all",
+        "outputDir": "apps/sift/mobile/dist"
+      }
+    },
+    "ensure-symlink": {
+      "executor": "@nx/expo:ensure-symlink",
+      "options": {}
     },
     "lint": {
       "executor": "@nx/eslint:lint"

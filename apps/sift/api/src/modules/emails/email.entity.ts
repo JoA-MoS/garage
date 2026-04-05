@@ -8,20 +8,9 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { EmailAccount } from '../accounts/email-account.entity';
+import { EmailImportance, EmailStatus } from '@garage/sift/types';
 
-export enum EmailImportance {
-  HIGH = 'high',
-  MEDIUM = 'medium',
-  LOW = 'low',
-  SPAM = 'spam',
-}
-
-export enum EmailStatus {
-  UNREAD = 'unread',
-  READ = 'read',
-  ACTIONED = 'actioned',
-  ARCHIVED = 'archived',
-}
+export { EmailImportance, EmailStatus };
 
 @Entity('emails')
 export class Email {
@@ -44,8 +33,8 @@ export class Email {
   @Column()
   fromAddress: string;
 
-  @Column({ nullable: true })
-  fromName: string;
+  @Column({ type: 'varchar', nullable: true })
+  fromName: string | null;
 
   @Column({ type: 'text' })
   bodySnippet: string;
@@ -74,7 +63,11 @@ export class Email {
   status: EmailStatus;
 
   @Column({ type: 'jsonb', nullable: true })
-  actionItems: Array<{ description: string; dueDate?: string; completed: boolean }> | null;
+  actionItems: Array<{
+    description: string;
+    dueDate?: string;
+    completed: boolean;
+  }> | null;
 
   @Column({ type: 'text', nullable: true })
   draftReply: string | null;

@@ -3,15 +3,33 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app/app.module';
 
 async function bootstrap() {
+  if (
+    !process.env['JWT_SECRET'] ||
+    process.env['JWT_SECRET'] === 'change-me-in-production'
+  ) {
+    throw new Error(
+      'JWT_SECRET must be set to a strong secret before starting the server',
+    );
+  }
+  if (!process.env['ENCRYPTION_KEY']) {
+    throw new Error('ENCRYPTION_KEY must be set before starting the server');
+  }
+
   const app = await NestFactory.create(AppModule);
 
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
-  app.enableCors();
+  app.enableCors({
+    origin: process.env['FRONTEND_URL'] ?? 'http://localhost:8081',
+    credentials: true,
+  });
 
   const port = process.env['PORT'] ?? 3334;
   await app.listen(port);
-  console.log(`🚀 Sift API running at http://localhost:${port}/api`);
+  console.log(`Sift API running at http://localhost:${port}/api`);
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  console.error('Fatal error during bootstrap:', err.message);
+  process.exit(1);
+});

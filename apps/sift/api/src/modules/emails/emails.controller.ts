@@ -1,6 +1,15 @@
-import { Controller, Get, Param, Post, Query, Patch, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Patch,
+  Body,
+} from '@nestjs/common';
 import { EmailsService } from './emails.service';
 import { EmailStatus } from './email.entity';
+import { UpdateEmailStatusDto } from './dto/update-email-status.dto';
 
 @Controller('emails')
 export class EmailsController {
@@ -31,7 +40,7 @@ export class EmailsController {
   }
 
   @Patch(':id/status')
-  updateStatus(@Param('id') id: string, @Body() body: { status: EmailStatus }) {
+  updateStatus(@Param('id') id: string, @Body() body: UpdateEmailStatusDto) {
     return this.emailsService.updateStatus(id, body.status);
   }
 }
