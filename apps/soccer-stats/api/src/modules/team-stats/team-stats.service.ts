@@ -12,6 +12,25 @@ import { TeamAggregateStats } from './dto/team-aggregate-stats.output';
 import { PlayerGameStatsRow } from './dto/player-game-stats-row.output';
 import { GameStatsSummary } from './dto/game-stats-summary.output';
 
+type SquadSnapshotStats = {
+  players: string[];
+  goalsFor: number;
+  goalsAgainst: number;
+  goalEvents: number;
+};
+
+type RankedSquadMetric = {
+  squad: string;
+  goalsFor: number;
+  goalsAgainst: number;
+};
+
+type ComboMetric = {
+  scorer: string;
+  assister: string;
+  goals: number;
+};
+
 @Injectable()
 export class TeamStatsService {
   constructor(
@@ -44,6 +63,7 @@ export class TeamStatsService {
       externalPlayerName: ps.externalPlayerName,
       externalPlayerNumber: ps.externalPlayerNumber,
       goals: ps.goals,
+      unassistedGoals: ps.unassistedGoals ?? 0,
       assists: ps.assists,
       yellowCards: ps.yellowCards ?? 0,
       redCards: ps.redCards ?? 0,
@@ -118,6 +138,12 @@ export class TeamStatsService {
     // Get total assists and cards from events
     const eventCounts = await this.getEventCounts(input);
 
+    // Compute on-field squad metrics from lineup and goal events
+    const squadMetrics = await this.getOnFieldSquadMetrics(input);
+
+    // Compute top scorer+assister combinations
+    const topComboPlayers = await this.getTopComboPlayers(input);
+
     return {
       gamesPlayed,
       wins,
@@ -130,6 +156,374 @@ export class TeamStatsService {
       totalAssists: eventCounts.assists,
       totalYellowCards: eventCounts.yellowCards,
       totalRedCards: eventCounts.redCards,
+      topScoringSquad: squadMetrics.topScoringSquad,
+      topScoringSquadGoalsFor: squadMetrics.topScoringSquadGoalsFor,
+      topDefensiveSquad: squadMetrics.topDefensiveSquad,
+      topDefensiveSquadGoalsAgainst: squadMetrics.topDefensiveSquadGoalsAgainst,
+      topScoringSquads: squadMetrics.topScoringSquads,
+      topDefensiveSquads: squadMetrics.topDefensiveSquads,
+      topComboPlayers,
+    };
+  }
+
+  private async getTopComboPlayers(
+    input: TeamStatsInput,
+  ): Promise<ComboMetric[]> {
+    let query = this.gameTeamRepository.manager
+      .createQueryBuilder()
+      .select(
+        `COALESCE(
+          CASE
+            WHEN goal."playerId" IS NOT NULL
+              THEN COALESCE(TRIM(CONCAT(goal_user."firstName", ' ', goal_user."lastName")), goal_user.email)
+            ELSE goal."externalPlayerName"
+          END,
+          'Unknown Scorer'
+        )`,
+        'scorer',
+      )
+      .addSelect(
+        `COALESCE(
+          CASE
+            WHEN assist."playerId" IS NOT NULL
+              THEN COALESCE(TRIM(CONCAT(assist_user."firstName", ' ', assist_user."lastName")), assist_user.email)
+            ELSE assist."externalPlayerName"
+          END,
+          'Unknown Assister'
+        )`,
+        'assister',
+      )
+      .addSelect('COUNT(*)', 'goals')
+      .from('game_events', 'assist')
+      .innerJoin(
+        'event_types',
+        'assist_type',
+        'assist_type.id = assist."eventTypeId"',
+      )
+      .innerJoin('game_events', 'goal', 'goal.id = assist."parentEventId"')
+      .innerJoin(
+        'event_types',
+        'goal_type',
+        'goal_type.id = goal."eventTypeId"',
+      )
+      .innerJoin('game_teams', 'gt', 'gt.id = goal."gameTeamId"')
+      .innerJoin('games', 'g', 'g.id = gt."gameId"')
+      .leftJoin('users', 'goal_user', 'goal_user.id = goal."playerId"')
+      .leftJoin('users', 'assist_user', 'assist_user.id = assist."playerId"')
+      .where('assist_type.name = :assistType', { assistType: 'ASSIST' })
+      .andWhere('goal_type.name = :goalType', { goalType: 'GOAL' })
+      .andWhere('gt."teamId" = :teamId', { teamId: input.teamId })
+      .groupBy('goal."playerId"')
+      .addGroupBy('goal_user."firstName"')
+      .addGroupBy('goal_user."lastName"')
+      .addGroupBy('goal_user.email')
+      .addGroupBy('goal."externalPlayerName"')
+      .addGroupBy('assist."playerId"')
+      .addGroupBy('assist_user."firstName"')
+      .addGroupBy('assist_user."lastName"')
+      .addGroupBy('assist_user.email')
+      .addGroupBy('assist."externalPlayerName"')
+      .orderBy('COUNT(*)', 'DESC')
+      .addOrderBy('scorer', 'ASC')
+      .addOrderBy('assister', 'ASC')
+      .limit(3);
+
+    if (input.startDate && input.endDate) {
+      query = query.andWhere(
+        'g."scheduledStart" BETWEEN :startDate AND :endDate',
+        {
+          startDate: input.startDate,
+          endDate: input.endDate,
+        },
+      );
+    }
+
+    const rows = await query.getRawMany<{
+      scorer: string;
+      assister: string;
+      goals: string;
+    }>();
+
+    return rows.map((row) => ({
+      scorer: row.scorer,
+      assister: row.assister,
+      goals: parseInt(row.goals, 10),
+    }));
+  }
+
+  private periodSortValue(period?: string): number {
+    if (!period) return 0;
+
+    if (/^\d+$/.test(period)) {
+      return parseInt(period, 10);
+    }
+
+    if (period.startsWith('OT')) {
+      const suffix = period.replace('OT', '');
+      const otNum = /^\d+$/.test(suffix) ? parseInt(suffix, 10) : 1;
+      return 100 + otNum;
+    }
+
+    return 999;
+  }
+
+  private buildPlayerKey(event: {
+    playerId?: string | null;
+    externalPlayerName?: string | null;
+    id: string;
+  }): string {
+    return event.playerId ?? event.externalPlayerName ?? event.id;
+  }
+
+  private buildPlayerDisplayName(event: {
+    playerId?: string | null;
+    playerName?: string | null;
+    externalPlayerName?: string | null;
+  }): string {
+    return event.playerName ?? event.externalPlayerName ?? 'Unknown Player';
+  }
+
+  private snapshotKey(lineup: Map<string, string>): {
+    key: string;
+    players: string[];
+  } {
+    const players = Array.from(lineup.values()).sort((a, b) =>
+      a.localeCompare(b),
+    );
+    return {
+      key: players.join(' | '),
+      players,
+    };
+  }
+
+  private async getOnFieldSquadMetrics(input: TeamStatsInput): Promise<{
+    topScoringSquad?: string;
+    topScoringSquadGoalsFor: number;
+    topDefensiveSquad?: string;
+    topDefensiveSquadGoalsAgainst: number;
+    topScoringSquads: RankedSquadMetric[];
+    topDefensiveSquads: RankedSquadMetric[];
+  }> {
+    let gameTeamsQuery = this.gameTeamRepository
+      .createQueryBuilder('gt')
+      .innerJoin('gt.game', 'g')
+      .where('gt."teamId" = :teamId', { teamId: input.teamId })
+      .andWhere(
+        "g.status IN ('COMPLETED', 'FIRST_HALF', 'HALFTIME', 'SECOND_HALF', 'IN_PROGRESS')",
+      );
+
+    if (input.startDate && input.endDate) {
+      gameTeamsQuery = gameTeamsQuery.andWhere(
+        'g."scheduledStart" BETWEEN :startDate AND :endDate',
+        { startDate: input.startDate, endDate: input.endDate },
+      );
+    }
+
+    const ourGameTeams = await gameTeamsQuery.getMany();
+
+    if (ourGameTeams.length === 0) {
+      return {
+        topScoringSquadGoalsFor: 0,
+        topDefensiveSquadGoalsAgainst: 0,
+        topScoringSquads: [],
+        topDefensiveSquads: [],
+      };
+    }
+
+    const gameIds = ourGameTeams.map((gt) => gt.gameId);
+    const ourByGameId = new Map(ourGameTeams.map((gt) => [gt.gameId, gt]));
+
+    const allGameTeams = await this.gameTeamRepository
+      .createQueryBuilder('gt')
+      .where('gt."gameId" IN (:...gameIds)', { gameIds })
+      .getMany();
+
+    const opponentByGameId = new Map<string, GameTeam>();
+    for (const gt of allGameTeams) {
+      const our = ourByGameId.get(gt.gameId);
+      if (!our) continue;
+      if (gt.id !== our.id) {
+        opponentByGameId.set(gt.gameId, gt);
+      }
+    }
+
+    const relevantGameTeamIds = [
+      ...ourGameTeams.map((gt) => gt.id),
+      ...Array.from(opponentByGameId.values()).map((gt) => gt.id),
+    ];
+
+    if (relevantGameTeamIds.length === 0) {
+      return {
+        topScoringSquadGoalsFor: 0,
+        topDefensiveSquadGoalsAgainst: 0,
+        topScoringSquads: [],
+        topDefensiveSquads: [],
+      };
+    }
+
+    const rawEvents = await this.gameTeamRepository.manager
+      .createQueryBuilder()
+      .select('ge.id', 'id')
+      .addSelect('ge."gameTeamId"', 'gameTeamId')
+      .addSelect('gt."gameId"', 'gameId')
+      .addSelect('ge."playerId"', 'playerId')
+      .addSelect('ge."externalPlayerName"', 'externalPlayerName')
+      .addSelect(
+        `CASE
+          WHEN ge."playerId" IS NOT NULL
+            THEN COALESCE(TRIM(CONCAT(u."firstName", ' ', u."lastName")), u.email)
+          ELSE NULL
+        END`,
+        'playerName',
+      )
+      .addSelect('ge.period', 'period')
+      .addSelect('ge."periodSecond"', 'periodSecond')
+      .addSelect('ge."createdAt"', 'createdAt')
+      .addSelect('et.name', 'eventType')
+      .from('game_events', 'ge')
+      .innerJoin('event_types', 'et', 'et.id = ge."eventTypeId"')
+      .innerJoin('game_teams', 'gt', 'gt.id = ge."gameTeamId"')
+      .leftJoin('users', 'u', 'u.id = ge."playerId"')
+      .where('ge."gameTeamId" IN (:...gameTeamIds)', {
+        gameTeamIds: relevantGameTeamIds,
+      })
+      .andWhere("et.name IN ('SUBSTITUTION_IN', 'SUBSTITUTION_OUT', 'GOAL')")
+      .getRawMany<{
+        id: string;
+        gameTeamId: string;
+        gameId: string;
+        playerId?: string | null;
+        externalPlayerName?: string | null;
+        playerName?: string | null;
+        period?: string | null;
+        periodSecond: string;
+        createdAt: string;
+        eventType: 'SUBSTITUTION_IN' | 'SUBSTITUTION_OUT' | 'GOAL';
+      }>();
+
+    const eventsByGameId = new Map<string, typeof rawEvents>();
+    for (const event of rawEvents) {
+      const gameEvents = eventsByGameId.get(event.gameId) ?? [];
+      gameEvents.push(event);
+      eventsByGameId.set(event.gameId, gameEvents);
+    }
+
+    const squadMap = new Map<string, SquadSnapshotStats>();
+
+    for (const [gameId, events] of eventsByGameId) {
+      const ourTeam = ourByGameId.get(gameId);
+      const opponentTeam = opponentByGameId.get(gameId);
+      if (!ourTeam || !opponentTeam) continue;
+
+      events.sort((a, b) => {
+        const periodA = this.periodSortValue(a.period ?? undefined);
+        const periodB = this.periodSortValue(b.period ?? undefined);
+        if (periodA !== periodB) return periodA - periodB;
+
+        const secondA = parseInt(a.periodSecond ?? '0', 10);
+        const secondB = parseInt(b.periodSecond ?? '0', 10);
+        if (secondA !== secondB) return secondA - secondB;
+
+        return (
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+      });
+
+      const onFieldLineup = new Map<string, string>();
+
+      for (const event of events) {
+        if (event.gameTeamId === ourTeam.id) {
+          if (event.eventType === 'SUBSTITUTION_IN') {
+            const key = this.buildPlayerKey(event);
+            onFieldLineup.set(key, this.buildPlayerDisplayName(event));
+            continue;
+          }
+
+          if (event.eventType === 'SUBSTITUTION_OUT') {
+            const key = this.buildPlayerKey(event);
+            onFieldLineup.delete(key);
+            continue;
+          }
+        }
+
+        if (event.eventType !== 'GOAL') continue;
+
+        const snapshot = this.snapshotKey(onFieldLineup);
+        if (!snapshot.key) continue;
+
+        const current = squadMap.get(snapshot.key) ?? {
+          players: snapshot.players,
+          goalsFor: 0,
+          goalsAgainst: 0,
+          goalEvents: 0,
+        };
+
+        if (event.gameTeamId === ourTeam.id) {
+          current.goalsFor += 1;
+          current.goalEvents += 1;
+        }
+
+        if (event.gameTeamId === opponentTeam.id) {
+          current.goalsAgainst += 1;
+          current.goalEvents += 1;
+        }
+
+        squadMap.set(snapshot.key, current);
+      }
+    }
+
+    const squads = Array.from(squadMap.values());
+
+    if (squads.length === 0) {
+      return {
+        topScoringSquadGoalsFor: 0,
+        topDefensiveSquadGoalsAgainst: 0,
+        topScoringSquads: [],
+        topDefensiveSquads: [],
+      };
+    }
+
+    const rankingByScoring = [...squads].sort((a, b) => {
+      if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+      if (a.goalsAgainst !== b.goalsAgainst)
+        return a.goalsAgainst - b.goalsAgainst;
+      return b.goalEvents - a.goalEvents;
+    });
+
+    const rankingByDefense = [...squads].sort((a, b) => {
+      if (a.goalsAgainst !== b.goalsAgainst)
+        return a.goalsAgainst - b.goalsAgainst;
+      if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+      return b.goalEvents - a.goalEvents;
+    });
+
+    const topScoring = rankingByScoring.at(0);
+
+    const topDefensive = rankingByDefense.at(0);
+
+    const topScoringSquads: RankedSquadMetric[] = rankingByScoring
+      .slice(0, 3)
+      .map((squad) => ({
+        squad: squad.players.join(', '),
+        goalsFor: squad.goalsFor,
+        goalsAgainst: squad.goalsAgainst,
+      }));
+
+    const topDefensiveSquads: RankedSquadMetric[] = rankingByDefense
+      .slice(0, 3)
+      .map((squad) => ({
+        squad: squad.players.join(', '),
+        goalsFor: squad.goalsFor,
+        goalsAgainst: squad.goalsAgainst,
+      }));
+
+    return {
+      topScoringSquad: topScoring?.players.join(', '),
+      topScoringSquadGoalsFor: topScoring?.goalsFor ?? 0,
+      topDefensiveSquad: topDefensive?.players.join(', '),
+      topDefensiveSquadGoalsAgainst: topDefensive?.goalsAgainst ?? 0,
+      topScoringSquads,
+      topDefensiveSquads,
     };
   }
 
@@ -138,10 +532,7 @@ export class TeamStatsService {
   ): Promise<{ assists: number; yellowCards: number; redCards: number }> {
     let query = this.gameTeamRepository.manager
       .createQueryBuilder()
-      .select(
-        `COUNT(*) FILTER (WHERE et.name = 'ASSIST')`,
-        'assists',
-      )
+      .select(`COUNT(*) FILTER (WHERE et.name = 'ASSIST')`, 'assists')
       .addSelect(
         `COUNT(*) FILTER (WHERE et.name = 'YELLOW_CARD')`,
         'yellowCards',
@@ -228,6 +619,7 @@ export class TeamStatsService {
         externalPlayerName: ps.externalPlayerName,
         externalPlayerNumber: ps.externalPlayerNumber,
         goals: ps.goals,
+        unassistedGoals: ps.unassistedGoals ?? 0,
         assists: ps.assists,
         yellowCards: ps.yellowCards ?? 0,
         redCards: ps.redCards ?? 0,
@@ -238,10 +630,7 @@ export class TeamStatsService {
       }));
 
       const totalGoals = playerStats.reduce((sum, ps) => sum + ps.goals, 0);
-      const totalAssists = playerStats.reduce(
-        (sum, ps) => sum + ps.assists,
-        0,
-      );
+      const totalAssists = playerStats.reduce((sum, ps) => sum + ps.assists, 0);
 
       let result = 'N/A';
       if (
@@ -274,9 +663,7 @@ export class TeamStatsService {
     return summaries;
   }
 
-  async getGameTeamStats(
-    gameTeamId: string,
-  ): Promise<GameStatsSummary> {
+  async getGameTeamStats(gameTeamId: string): Promise<GameStatsSummary> {
     const gameTeam = await this.gameTeamRepository.findOne({
       where: { id: gameTeamId },
       relations: ['game', 'team'],
@@ -307,6 +694,7 @@ export class TeamStatsService {
       externalPlayerName: ps.externalPlayerName,
       externalPlayerNumber: ps.externalPlayerNumber,
       goals: ps.goals,
+      unassistedGoals: ps.unassistedGoals ?? 0,
       assists: ps.assists,
       yellowCards: ps.yellowCards ?? 0,
       redCards: ps.redCards ?? 0,

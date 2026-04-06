@@ -699,10 +699,9 @@ export const GET_PLAYER_STATS = graphql(/* GraphQL */ `
         seconds
       }
       goals
+      unassistedGoals
       assists
       gamesPlayed
-      yellowCards
-      redCards
       saves
       isOnField
       lastEntryGameSeconds

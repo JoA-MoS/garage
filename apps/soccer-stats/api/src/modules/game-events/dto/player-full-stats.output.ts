@@ -32,6 +32,9 @@ export class PlayerFullStats {
   goals: number;
 
   @Field(() => Int)
+  unassistedGoals: number;
+
+  @Field(() => Int)
   assists: number;
 
   // Game count (for averages)

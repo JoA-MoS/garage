@@ -20,22 +20,23 @@ interface TeamStatsSmartProps {
   onRetry?: () => void;
 }
 
-function mapPlayerStats(
-  players: PlayerGameStatsRowData[],
-): PlayerStatRow[] {
+function mapPlayerStats(players: PlayerGameStatsRowData[]): PlayerStatRow[] {
   return players.map((p) => ({
     playerId: p.playerId ?? undefined,
     playerName: p.playerName ?? undefined,
     externalPlayerName: p.externalPlayerName ?? undefined,
     externalPlayerNumber: p.externalPlayerNumber ?? undefined,
     goals: p.goals,
+    unassistedGoals: p.unassistedGoals,
     assists: p.assists,
-    yellowCards: p.yellowCards,
-    redCards: p.redCards,
     totalMinutes: p.totalMinutes,
     totalSeconds: p.totalSeconds,
     gamesPlayed: p.gamesPlayed,
   }));
+}
+
+function displayName(player: PlayerStatRow): string {
+  return player.playerName ?? player.externalPlayerName ?? 'Unknown';
 }
 
 export const TeamStatsSmart = ({
@@ -63,17 +64,58 @@ export const TeamStatsSmart = ({
 
   const playerStats = mapPlayerStats(data.playerStats);
 
-  // Determine top performers
+  // Determine top performers (top 1)
   const topScorer = [...playerStats]
     .filter((p) => p.goals > 0)
     .sort((a, b) => b.goals - a.goals)[0];
   const topAssister = [...playerStats]
     .filter((p) => p.assists > 0)
     .sort((a, b) => b.assists - a.assists)[0];
+  const topUnassistedScorer = [...playerStats]
+    .filter((p) => p.unassistedGoals > 0)
+    .sort((a, b) => b.unassistedGoals - a.unassistedGoals)[0];
   const mostMinutes = [...playerStats].sort(
     (a, b) =>
-      b.totalMinutes * 60 + b.totalSeconds - (a.totalMinutes * 60 + a.totalSeconds),
+      b.totalMinutes * 60 +
+      b.totalSeconds -
+      (a.totalMinutes * 60 + a.totalSeconds),
   )[0];
+
+  // Determine top 3 in each discipline
+  const topScorers = [...playerStats]
+    .filter((p) => p.goals > 0)
+    .sort((a, b) => b.goals - a.goals)
+    .slice(0, 3)
+    .map((p) => `${displayName(p)} (${p.goals})`);
+
+  const topUnassistedScorers = [...playerStats]
+    .filter((p) => p.unassistedGoals > 0)
+    .sort((a, b) => b.unassistedGoals - a.unassistedGoals)
+    .slice(0, 3)
+    .map((p) => `${displayName(p)} (${p.unassistedGoals})`);
+
+  const topAssisters = [...playerStats]
+    .filter((p) => p.assists > 0)
+    .sort((a, b) => b.assists - a.assists)
+    .slice(0, 3)
+    .map((p) => `${displayName(p)} (${p.assists})`);
+
+  const topMinutesLeaders = [...playerStats]
+    .filter((p) => p.totalMinutes > 0 || p.totalSeconds > 0)
+    .sort(
+      (a, b) =>
+        b.totalMinutes * 60 +
+        b.totalSeconds -
+        (a.totalMinutes * 60 + a.totalSeconds),
+    )
+    .slice(0, 3)
+    .map((p) => `${displayName(p)} (${p.totalMinutes}m)`);
+
+  const { aggregateStats } = data;
+
+  const topComboPlayers = aggregateStats.topComboPlayers.map(
+    (combo) => `${combo.scorer} + ${combo.assister} (${combo.goals})`,
+  );
 
   const gameBreakdown = data.gameBreakdown.map((game) => ({
     gameId: game.gameId,
@@ -88,8 +130,6 @@ export const TeamStatsSmart = ({
     totalAssists: game.totalAssists,
     playerStats: mapPlayerStats(game.playerStats),
   }));
-
-  const { aggregateStats } = data;
 
   // Calculate total play time in hours for display
   const totalPlayTimeMinutes = playerStats.reduce(
@@ -109,8 +149,19 @@ export const TeamStatsSmart = ({
       goalsAgainst={aggregateStats.goalsAgainst}
       goalDifference={aggregateStats.goalDifference}
       totalAssists={aggregateStats.totalAssists}
-      totalYellowCards={aggregateStats.totalYellowCards}
-      totalRedCards={aggregateStats.totalRedCards}
+      topScoringSquad={aggregateStats.topScoringSquad ?? undefined}
+      topScoringSquadGoalsFor={aggregateStats.topScoringSquadGoalsFor}
+      topDefensiveSquad={aggregateStats.topDefensiveSquad ?? undefined}
+      topDefensiveSquadGoalsAgainst={
+        aggregateStats.topDefensiveSquadGoalsAgainst
+      }
+      topScoringSquads={aggregateStats.topScoringSquads}
+      topDefensiveSquads={aggregateStats.topDefensiveSquads}
+      topScorers={topScorers}
+      topUnassistedScorers={topUnassistedScorers}
+      topAssisters={topAssisters}
+      topMinutesLeaders={topMinutesLeaders}
+      topComboPlayers={topComboPlayers}
       playerCount={playerStats.length}
       activePlayerCount={playerStats.filter((p) => p.gamesPlayed > 0).length}
       playerStats={playerStats}
@@ -123,6 +174,11 @@ export const TeamStatsSmart = ({
       topAssisterName={
         topAssister
           ? `${topAssister.playerName ?? topAssister.externalPlayerName ?? 'Unknown'} (${topAssister.assists})`
+          : undefined
+      }
+      topUnassistedScorerName={
+        topUnassistedScorer
+          ? `${topUnassistedScorer.playerName ?? topUnassistedScorer.externalPlayerName ?? 'Unknown'} (${topUnassistedScorer.unassistedGoals})`
           : undefined
       }
       mostMinutesPlayerName={

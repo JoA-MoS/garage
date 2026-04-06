@@ -5,6 +5,12 @@ import type { PlayerStatRow } from '../player-stats-table';
 import { GameStatsCard } from '../game-stats-card';
 import type { GameStatsCardProps } from '../game-stats-card';
 
+type SquadMetric = {
+  squad: string;
+  goalsFor: number;
+  goalsAgainst: number;
+};
+
 export interface TeamStatsProps {
   teamName: string;
   // Aggregate stats
@@ -17,8 +23,12 @@ export interface TeamStatsProps {
   goalsAgainst: number;
   goalDifference: number;
   totalAssists: number;
-  totalYellowCards: number;
-  totalRedCards: number;
+  topScoringSquad?: string;
+  topScoringSquadGoalsFor: number;
+  topDefensiveSquad?: string;
+  topDefensiveSquadGoalsAgainst: number;
+  topScoringSquads: SquadMetric[];
+  topDefensiveSquads: SquadMetric[];
   playerCount: number;
   activePlayerCount: number;
   // Player breakdown
@@ -29,6 +39,12 @@ export interface TeamStatsProps {
   topScorerName?: string;
   topAssisterName?: string;
   mostMinutesPlayerName?: string;
+  topUnassistedScorerName?: string;
+  topScorers: string[];
+  topAssisters: string[];
+  topMinutesLeaders: string[];
+  topComboPlayers: string[];
+  topUnassistedScorers: string[];
   // Date range
   startDate?: string;
   endDate?: string;
@@ -54,13 +70,23 @@ export const TeamStats = memo(function TeamStats({
   goalsAgainst,
   goalDifference,
   totalAssists,
-  totalYellowCards,
-  totalRedCards,
+  topScoringSquad,
+  topScoringSquadGoalsFor,
+  topDefensiveSquad,
+  topDefensiveSquadGoalsAgainst,
+  topScoringSquads,
+  topDefensiveSquads,
   playerStats,
   gameBreakdown,
   topScorerName,
   topAssisterName,
   mostMinutesPlayerName,
+  topUnassistedScorerName,
+  topScorers,
+  topAssisters,
+  topMinutesLeaders,
+  topComboPlayers,
+  topUnassistedScorers,
   startDate,
   endDate,
   onDateRangeChange,
@@ -177,8 +203,7 @@ export const TeamStats = memo(function TeamStats({
           </div>
           {startDate && endDate && (
             <p className="mt-2 text-xs text-gray-500">
-              Showing stats from{' '}
-              {new Date(startDate).toLocaleDateString()} to{' '}
+              Showing stats from {new Date(startDate).toLocaleDateString()} to{' '}
               {new Date(endDate).toLocaleDateString()}
             </p>
           )}
@@ -216,8 +241,16 @@ export const TeamStats = memo(function TeamStats({
             <StatCard label="Win Rate" value={`${winRate}%`} />
             <StatCard
               label="Goal Diff"
-              value={goalDifference >= 0 ? `+${goalDifference}` : `${goalDifference}`}
-              color={goalDifference > 0 ? 'green' : goalDifference < 0 ? 'red' : undefined}
+              value={
+                goalDifference >= 0 ? `+${goalDifference}` : `${goalDifference}`
+              }
+              color={
+                goalDifference > 0
+                  ? 'green'
+                  : goalDifference < 0
+                    ? 'red'
+                    : undefined
+              }
             />
           </div>
 
@@ -229,7 +262,11 @@ export const TeamStats = memo(function TeamStats({
               </h4>
               <div className="space-y-2">
                 <StatRow label="Goals For" value={goalsFor} color="blue" />
-                <StatRow label="Goals Against" value={goalsAgainst} color="gray" />
+                <StatRow
+                  label="Goals Against"
+                  value={goalsAgainst}
+                  color="gray"
+                />
                 <StatRow label="Assists" value={totalAssists} color="green" />
               </div>
             </div>
@@ -238,25 +275,73 @@ export const TeamStats = memo(function TeamStats({
               <h4 className="mb-3 text-base font-semibold text-gray-900 sm:text-lg">
                 Discipline & Leaders
               </h4>
-              <div className="space-y-2">
-                <StatRow label="Yellow Cards" value={totalYellowCards} color="yellow" />
-                <StatRow label="Red Cards" value={totalRedCards} color="red" />
+              <div className="space-y-3">
                 <div className="border-t border-gray-100 pt-2">
-                  <StatRow
-                    label="Top Scorer"
-                    value={topScorerName ?? '-'}
-                    isText
+                  <DisciplineSection
+                    title="Scoring Discipline"
+                    items={topScorers}
+                    emptyText="No scorers yet"
                   />
-                  <StatRow
-                    label="Top Assister"
-                    value={topAssisterName ?? '-'}
-                    isText
+                  <DisciplineSection
+                    title="Unassisted Goals"
+                    items={topUnassistedScorers}
+                    emptyText="No unassisted goals yet"
                   />
-                  <StatRow
-                    label="Most Minutes"
-                    value={mostMinutesPlayerName ?? '-'}
-                    isText
+                  <DisciplineSection
+                    title="Assist Discipline"
+                    items={topAssisters}
+                    emptyText="No assisters yet"
                   />
+                  <DisciplineSection
+                    title="Playtime Discipline"
+                    items={topMinutesLeaders}
+                    emptyText="No minutes recorded"
+                  />
+                  <DisciplineSection
+                    title="Combo Discipline"
+                    items={topComboPlayers}
+                    emptyText="No goal-assist combos"
+                  />
+                  <div className="pt-2">
+                    <div className="mb-1 text-xs font-semibold text-gray-600">
+                      Squad Scoring Discipline
+                    </div>
+                    {topScoringSquads.length === 0 ? (
+                      <div className="text-xs text-gray-500">
+                        No squad scoring data
+                      </div>
+                    ) : (
+                      topScoringSquads.map((squad, index) => (
+                        <div
+                          key={`${squad.squad}-gf-${index}`}
+                          className="text-xs text-gray-500"
+                        >
+                          {rankEmoji(index)} {squad.goalsFor} GF - {squad.squad}
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="pt-2">
+                    <div className="mb-1 text-xs font-semibold text-gray-600">
+                      Squad Defensive Discipline
+                    </div>
+                    {topDefensiveSquads.length === 0 ? (
+                      <div className="text-xs text-gray-500">
+                        No squad defensive data
+                      </div>
+                    ) : (
+                      topDefensiveSquads.map((squad, index) => (
+                        <div
+                          key={`${squad.squad}-ga-${index}`}
+                          className="text-xs text-gray-500"
+                        >
+                          {rankEmoji(index)} {squad.goalsAgainst} GA -{' '}
+                          {squad.squad}
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -342,13 +427,48 @@ function StatRow({
   const valueColor = isText
     ? 'text-gray-900'
     : color
-      ? colorClasses[color] ?? 'text-gray-900'
+      ? (colorClasses[color] ?? 'text-gray-900')
       : 'text-gray-900';
 
   return (
     <div className="flex items-center justify-between text-sm">
       <span className="text-gray-600">{label}</span>
       <span className={`font-medium ${valueColor}`}>{value}</span>
+    </div>
+  );
+}
+
+function rankEmoji(index: number): string {
+  if (index === 0) return '🥇';
+  if (index === 1) return '🥈';
+  if (index === 2) return '🥉';
+  return `${index + 1}.`;
+}
+
+function DisciplineSection({
+  title,
+  items,
+  emptyText,
+}: {
+  title: string;
+  items: string[];
+  emptyText: string;
+}) {
+  return (
+    <div className="pt-2">
+      <div className="mb-1 text-xs font-semibold text-gray-600">{title}</div>
+      {items.length === 0 ? (
+        <div className="text-xs text-gray-500">{emptyText}</div>
+      ) : (
+        items.map((item, index) => (
+          <div
+            key={`${title}-${item}-${index}`}
+            className="text-xs text-gray-500"
+          >
+            {rankEmoji(index)} {item}
+          </div>
+        ))
+      )}
     </div>
   );
 }

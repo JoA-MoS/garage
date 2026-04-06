@@ -312,6 +312,7 @@ export class StatsService {
       totalSeconds: number;
       positionSecondsMap: Map<string, number>;
       goals: number;
+      unassistedGoals: number;
       assists: number;
       gamesPlayed: Set<string>; // Set of gameTeamIds they participated in
       // For live time tracking (only relevant when filtering by single gameId)
@@ -340,6 +341,7 @@ export class StatsService {
           totalSeconds: 0,
           positionSecondsMap: new Map(),
           goals: 0,
+          unassistedGoals: 0,
           assists: 0,
           gamesPlayed: new Set(),
         };
@@ -347,6 +349,14 @@ export class StatsService {
       }
       return stats;
     };
+
+    // Build set of goal event IDs that have an associated assist (for unassisted goals tracking)
+    const assistedGoalIds = new Set<string>();
+    for (const event of events) {
+      if (event.eventType.name === 'ASSIST' && event.parentEventId) {
+        assistedGoalIds.add(event.parentEventId);
+      }
+    }
 
     // Group events by gameTeamId for processing
     const eventsByGameTeam = new Map<string, GameEvent[]>();
@@ -476,6 +486,9 @@ export class StatsService {
 
           case 'GOAL':
             playerStats.goals += 1;
+            if (!assistedGoalIds.has(event.id)) {
+              playerStats.unassistedGoals += 1;
+            }
             playerStats.gamesPlayed.add(gameTeamId);
             break;
 
@@ -542,6 +555,7 @@ export class StatsService {
         totalSeconds: playerStats.totalSeconds % 60,
         positionTimes,
         goals: playerStats.goals,
+        unassistedGoals: playerStats.unassistedGoals,
         assists: playerStats.assists,
         gamesPlayed: playerStats.gamesPlayed.size,
         isOnField: playerStats.isOnField ?? false, // Explicitly false if not set

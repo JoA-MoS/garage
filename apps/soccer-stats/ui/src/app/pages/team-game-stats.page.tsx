@@ -20,12 +20,15 @@ export const TeamGameStatsPage = () => {
   }>();
   const navigate = useNavigate();
 
-  const { data, loading, error } = useQuery<GetGameTeamStatsResponse>(GET_GAME_TEAM_STATS, {
-    variables: { gameTeamId: gameTeamId! },
-    skip: !gameTeamId,
-    errorPolicy: 'all',
-    fetchPolicy: 'cache-and-network',
-  });
+  const { data, loading, error } = useQuery<GetGameTeamStatsResponse>(
+    GET_GAME_TEAM_STATS,
+    {
+      variables: { gameTeamId: gameTeamId! },
+      skip: !gameTeamId,
+      errorPolicy: 'all',
+      fetchPolicy: 'cache-and-network',
+    },
+  );
 
   if (!gameTeamId) {
     return (
@@ -67,9 +70,8 @@ export const TeamGameStatsPage = () => {
     externalPlayerName: p.externalPlayerName ?? undefined,
     externalPlayerNumber: p.externalPlayerNumber ?? undefined,
     goals: p.goals,
+    unassistedGoals: p.unassistedGoals,
     assists: p.assists,
-    yellowCards: p.yellowCards,
-    redCards: p.redCards,
     totalMinutes: p.totalMinutes,
     totalSeconds: p.totalSeconds,
     gamesPlayed: p.gamesPlayed,
@@ -102,8 +104,18 @@ export const TeamGameStatsPage = () => {
         onClick={() => navigate(`/teams/${teamId}/stats`)}
         className="inline-flex items-center gap-1 text-sm text-blue-600 transition-colors lg:hover:text-blue-800"
       >
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        <svg
+          className="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 19l-7-7 7-7"
+          />
         </svg>
         Back to Team Stats
       </button>
@@ -113,7 +125,9 @@ export const TeamGameStatsPage = () => {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">
-              {stats.opponentName ? `vs ${stats.opponentName}` : stats.gameName || 'Game Stats'}
+              {stats.opponentName
+                ? `vs ${stats.opponentName}`
+                : stats.gameName || 'Game Stats'}
             </h2>
             {stats.gameDate && (
               <p className="mt-1 text-sm text-gray-500">
@@ -188,8 +202,18 @@ export const TeamGameStatsPage = () => {
           className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors lg:hover:bg-gray-50"
         >
           View Full Game
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+            />
           </svg>
         </button>
       </div>
