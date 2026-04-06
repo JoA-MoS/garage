@@ -15,10 +15,10 @@ export class OnFieldSquadMetric {
 @ObjectType()
 export class PlayerComboMetric {
   @Field()
-  scorer: string;
+  player1: string;
 
   @Field()
-  assister: string;
+  player2: string;
 
   @Field(() => Int)
   goals: number;

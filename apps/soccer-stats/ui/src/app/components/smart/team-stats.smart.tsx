@@ -8,6 +8,7 @@ import type {
   TeamStatsResponseData,
   PlayerGameStatsRowData,
 } from '../../services/team-stats-graphql.service';
+import { TeamStatsExportService } from '../../services/team-stats-export.service';
 
 interface TeamStatsSmartProps {
   data: TeamStatsResponseData;
@@ -50,6 +51,14 @@ export const TeamStatsSmart = ({
   onRetry,
 }: TeamStatsSmartProps) => {
   const navigate = useNavigate();
+
+  const handleExportCsv = useCallback(() => {
+    TeamStatsExportService.downloadTeamStatsCsv(data, startDate, endDate);
+  }, [data, startDate, endDate]);
+
+  const handleExportExcel = useCallback(() => {
+    TeamStatsExportService.downloadTeamStatsExcel(data, startDate, endDate);
+  }, [data, startDate, endDate]);
 
   const handleGameClick = useCallback(
     (gameId: string, gameTeamId?: string) => {
@@ -114,7 +123,7 @@ export const TeamStatsSmart = ({
   const { aggregateStats } = data;
 
   const topComboPlayers = aggregateStats.topComboPlayers.map(
-    (combo) => `${combo.scorer} + ${combo.assister} (${combo.goals})`,
+    (combo) => `${combo.player1} + ${combo.player2} (${combo.goals})`,
   );
 
   const gameBreakdown = data.gameBreakdown.map((game) => ({
@@ -194,6 +203,8 @@ export const TeamStatsSmart = ({
       error={error}
       onRetry={onRetry}
       onGameClick={handleGameClick}
+      onExportCsv={handleExportCsv}
+      onExportExcel={handleExportExcel}
     />
   );
 };

@@ -61,7 +61,7 @@ export class ExportService {
     report += `Total Players: ${playerStats.length}\n`;
     report += `Total Games Played: ${Math.max(
       ...playerStats.map((p) => p.gamesPlayed),
-      0
+      0,
     )}\n\n`;
 
     // Top Scorers
@@ -107,7 +107,7 @@ export class ExportService {
       const avgPlayTime =
         player.gamesPlayed > 0 ? player.totalPlayTime / player.gamesPlayed : 0;
       report += `${index + 1}. ${player.name} - ${formatTime(
-        player.totalPlayTime
+        player.totalPlayTime,
       )} total (${formatTime(avgPlayTime)} avg)\n`;
     });
     report += `\n`;
@@ -141,8 +141,12 @@ export class ExportService {
   /**
    * Download text file with content
    */
-  static downloadTextFile(content: string, filename: string): void {
-    const blob = new Blob([content], { type: 'text/plain' });
+  static downloadTextFile(
+    content: string,
+    filename: string,
+    mimeType = 'text/plain;charset=utf-8',
+  ): void {
+    const blob = new Blob([content], { type: mimeType });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -204,7 +208,7 @@ export class ExportService {
     const totalGoals = team.score;
     const totalPlayTime = team.players.reduce(
       (sum: number, p) => sum + p.playTime,
-      0
+      0,
     );
     const avgPlayTime =
       team.players.length > 0 ? totalPlayTime / team.players.length : 0;

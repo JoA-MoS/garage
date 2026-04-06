@@ -26,8 +26,8 @@ type RankedSquadMetric = {
 };
 
 type ComboMetric = {
-  scorer: string;
-  assister: string;
+  player1: string;
+  player2: string;
   goals: number;
 };
 
@@ -89,51 +89,66 @@ export class TeamStatsService {
   }
 
   async getAggregateStats(input: TeamStatsInput): Promise<TeamAggregateStats> {
-    // Build query against game_teams with opponent join
-    let query = this.gameTeamRepository
+    // Build list of completed game teams in scope.
+    let gameTeamsQuery = this.gameTeamRepository
       .createQueryBuilder('gt')
       .innerJoin('gt.game', 'g')
-      .leftJoin(
-        'game_teams',
-        'opp_gt',
-        'opp_gt."gameId" = gt."gameId" AND opp_gt.id != gt.id',
-      )
       .where('gt."teamId" = :teamId', { teamId: input.teamId })
-      .andWhere(
-        "g.status IN ('COMPLETED', 'FIRST_HALF', 'HALFTIME', 'SECOND_HALF', 'IN_PROGRESS')",
-      );
+      .andWhere("g.status = 'COMPLETED'");
 
     if (input.startDate && input.endDate) {
-      query = query.andWhere(
+      gameTeamsQuery = gameTeamsQuery.andWhere(
         'g."scheduledStart" BETWEEN :startDate AND :endDate',
         { startDate: input.startDate, endDate: input.endDate },
       );
     }
 
-    const result = await query
-      .select('COUNT(DISTINCT gt.id)', 'gamesPlayed')
-      .addSelect(
-        `COUNT(DISTINCT gt.id) FILTER (WHERE gt."finalScore" IS NOT NULL AND opp_gt."finalScore" IS NOT NULL AND gt."finalScore" > opp_gt."finalScore")`,
-        'wins',
-      )
-      .addSelect(
-        `COUNT(DISTINCT gt.id) FILTER (WHERE gt."finalScore" IS NOT NULL AND opp_gt."finalScore" IS NOT NULL AND gt."finalScore" = opp_gt."finalScore")`,
-        'draws',
-      )
-      .addSelect(
-        `COUNT(DISTINCT gt.id) FILTER (WHERE gt."finalScore" IS NOT NULL AND opp_gt."finalScore" IS NOT NULL AND gt."finalScore" < opp_gt."finalScore")`,
-        'losses',
-      )
-      .addSelect('COALESCE(SUM(gt."finalScore"), 0)', 'goalsFor')
-      .addSelect('COALESCE(SUM(opp_gt."finalScore"), 0)', 'goalsAgainst')
-      .getRawOne();
+    const ourGameTeams = await gameTeamsQuery.getMany();
+    const gamesPlayed = ourGameTeams.length;
 
-    const gamesPlayed = parseInt(result?.gamesPlayed ?? '0', 10);
-    const wins = parseInt(result?.wins ?? '0', 10);
-    const draws = parseInt(result?.draws ?? '0', 10);
-    const losses = parseInt(result?.losses ?? '0', 10);
-    const goalsFor = parseInt(result?.goalsFor ?? '0', 10);
-    const goalsAgainst = parseInt(result?.goalsAgainst ?? '0', 10);
+    let wins = 0;
+    let draws = 0;
+    let losses = 0;
+    let goalsFor = 0;
+    let goalsAgainst = 0;
+
+    if (gamesPlayed > 0) {
+      const gameIds = ourGameTeams.map((gt) => gt.gameId);
+      const ourByGameId = new Map(ourGameTeams.map((gt) => [gt.gameId, gt]));
+
+      const allGameTeams = await this.gameTeamRepository
+        .createQueryBuilder('gt')
+        .where('gt."gameId" IN (:...gameIds)', { gameIds })
+        .getMany();
+
+      const opponentByGameId = new Map<string, GameTeam>();
+      for (const gt of allGameTeams) {
+        const our = ourByGameId.get(gt.gameId);
+        if (!our) continue;
+        if (gt.id !== our.id) {
+          opponentByGameId.set(gt.gameId, gt);
+        }
+      }
+
+      const eventScoresByGameTeamId =
+        await this.getEventScoresByGameIds(gameIds);
+
+      for (const ourGameTeam of ourGameTeams) {
+        const opponentGameTeam = opponentByGameId.get(ourGameTeam.gameId);
+        if (!opponentGameTeam) continue;
+
+        const ourScore = eventScoresByGameTeamId.get(ourGameTeam.id) ?? 0;
+        const opponentScore =
+          eventScoresByGameTeamId.get(opponentGameTeam.id) ?? 0;
+
+        goalsFor += ourScore;
+        goalsAgainst += opponentScore;
+
+        if (ourScore > opponentScore) wins += 1;
+        else if (ourScore < opponentScore) losses += 1;
+        else draws += 1;
+      }
+    }
 
     // Get total assists and cards from events
     const eventCounts = await this.getEventCounts(input);
@@ -166,87 +181,136 @@ export class TeamStatsService {
     };
   }
 
+  private async getEventScoresByGameIds(
+    gameIds: string[],
+  ): Promise<Map<string, number>> {
+    const scores = new Map<string, number>();
+
+    if (gameIds.length === 0) {
+      return scores;
+    }
+
+    const gameTeams = await this.gameTeamRepository
+      .createQueryBuilder('gt')
+      .where('gt."gameId" IN (:...gameIds)', { gameIds })
+      .getMany();
+
+    const gameTeamIds = gameTeams.map((gt) => gt.id);
+    for (const gameTeamId of gameTeamIds) {
+      scores.set(gameTeamId, 0);
+    }
+
+    const gameTeamIdsByGame = new Map<string, string[]>();
+    for (const gt of gameTeams) {
+      const ids = gameTeamIdsByGame.get(gt.gameId) ?? [];
+      ids.push(gt.id);
+      gameTeamIdsByGame.set(gt.gameId, ids);
+    }
+
+    if (gameTeamIds.length === 0) {
+      return scores;
+    }
+
+    const events = await this.gameTeamRepository.manager
+      .createQueryBuilder()
+      .select('ge."gameTeamId"', 'gameTeamId')
+      .addSelect('gt."gameId"', 'gameId')
+      .addSelect('et.name', 'eventType')
+      .from('game_events', 'ge')
+      .innerJoin('event_types', 'et', 'et.id = ge."eventTypeId"')
+      .innerJoin('game_teams', 'gt', 'gt.id = ge."gameTeamId"')
+      .where('ge."gameTeamId" IN (:...gameTeamIds)', { gameTeamIds })
+      .andWhere("et.name IN ('GOAL', 'OWN_GOAL')")
+      .getRawMany<{
+        gameTeamId: string;
+        gameId: string;
+        eventType: 'GOAL' | 'OWN_GOAL';
+      }>();
+
+    for (const event of events) {
+      if (event.eventType === 'GOAL') {
+        scores.set(event.gameTeamId, (scores.get(event.gameTeamId) ?? 0) + 1);
+        continue;
+      }
+
+      const gameTeamIdsForGame = gameTeamIdsByGame.get(event.gameId) ?? [];
+      const opponentGameTeamId = gameTeamIdsForGame.find(
+        (id) => id !== event.gameTeamId,
+      );
+
+      if (opponentGameTeamId) {
+        scores.set(
+          opponentGameTeamId,
+          (scores.get(opponentGameTeamId) ?? 0) + 1,
+        );
+      }
+    }
+
+    return scores;
+  }
+
   private async getTopComboPlayers(
     input: TeamStatsInput,
   ): Promise<ComboMetric[]> {
-    let query = this.gameTeamRepository.manager
-      .createQueryBuilder()
-      .select(
-        `COALESCE(
-          CASE
-            WHEN goal."playerId" IS NOT NULL
-              THEN COALESCE(TRIM(CONCAT(goal_user."firstName", ' ', goal_user."lastName")), goal_user.email)
-            ELSE goal."externalPlayerName"
-          END,
-          'Unknown Scorer'
-        )`,
-        'scorer',
-      )
-      .addSelect(
-        `COALESCE(
-          CASE
-            WHEN assist."playerId" IS NOT NULL
-              THEN COALESCE(TRIM(CONCAT(assist_user."firstName", ' ', assist_user."lastName")), assist_user.email)
-            ELSE assist."externalPlayerName"
-          END,
-          'Unknown Assister'
-        )`,
-        'assister',
-      )
-      .addSelect('COUNT(*)', 'goals')
-      .from('game_events', 'assist')
-      .innerJoin(
-        'event_types',
-        'assist_type',
-        'assist_type.id = assist."eventTypeId"',
-      )
-      .innerJoin('game_events', 'goal', 'goal.id = assist."parentEventId"')
-      .innerJoin(
-        'event_types',
-        'goal_type',
-        'goal_type.id = goal."eventTypeId"',
-      )
-      .innerJoin('game_teams', 'gt', 'gt.id = goal."gameTeamId"')
-      .innerJoin('games', 'g', 'g.id = gt."gameId"')
-      .leftJoin('users', 'goal_user', 'goal_user.id = goal."playerId"')
-      .leftJoin('users', 'assist_user', 'assist_user.id = assist."playerId"')
-      .where('assist_type.name = :assistType', { assistType: 'ASSIST' })
-      .andWhere('goal_type.name = :goalType', { goalType: 'GOAL' })
-      .andWhere('gt."teamId" = :teamId', { teamId: input.teamId })
-      .groupBy('goal."playerId"')
-      .addGroupBy('goal_user."firstName"')
-      .addGroupBy('goal_user."lastName"')
-      .addGroupBy('goal_user.email')
-      .addGroupBy('goal."externalPlayerName"')
-      .addGroupBy('assist."playerId"')
-      .addGroupBy('assist_user."firstName"')
-      .addGroupBy('assist_user."lastName"')
-      .addGroupBy('assist_user.email')
-      .addGroupBy('assist."externalPlayerName"')
-      .orderBy('COUNT(*)', 'DESC')
-      .addOrderBy('scorer', 'ASC')
-      .addOrderBy('assister', 'ASC')
-      .limit(3);
+    // Use LEAST/GREATEST to normalize scorer+assister pairs bidirectionally,
+    // so "A scored, B assisted" and "B scored, A assisted" count as the same combo.
+    const params: (string | Date)[] = [input.teamId];
+    let dateFilter = '';
 
     if (input.startDate && input.endDate) {
-      query = query.andWhere(
-        'g."scheduledStart" BETWEEN :startDate AND :endDate',
-        {
-          startDate: input.startDate,
-          endDate: input.endDate,
-        },
-      );
+      params.push(input.startDate, input.endDate);
+      dateFilter = `AND g."scheduledStart" BETWEEN $${params.length - 1} AND $${params.length}`;
     }
 
-    const rows = await query.getRawMany<{
-      scorer: string;
-      assister: string;
-      goals: string;
-    }>();
+    const scorerName = `COALESCE(
+      CASE WHEN goal."playerId" IS NOT NULL
+        THEN COALESCE(TRIM(CONCAT(goal_user."firstName", ' ', goal_user."lastName")), goal_user.email)
+        ELSE goal."externalPlayerName"
+      END,
+      'Unknown Scorer'
+    )`;
+
+    const assisterName = `COALESCE(
+      CASE WHEN assist."playerId" IS NOT NULL
+        THEN COALESCE(TRIM(CONCAT(assist_user."firstName", ' ', assist_user."lastName")), assist_user.email)
+        ELSE assist."externalPlayerName"
+      END,
+      'Unknown Assister'
+    )`;
+
+    const sql = `
+      WITH raw_combos AS (
+        SELECT
+          LEAST(${scorerName}, ${assisterName}) AS player1,
+          GREATEST(${scorerName}, ${assisterName}) AS player2
+        FROM game_events assist
+        INNER JOIN event_types assist_type ON assist_type.id = assist."eventTypeId"
+        INNER JOIN game_events goal ON goal.id = assist."parentEventId"
+        INNER JOIN event_types goal_type ON goal_type.id = goal."eventTypeId"
+        INNER JOIN game_teams gt ON gt.id = goal."gameTeamId"
+        INNER JOIN games g ON g.id = gt."gameId"
+        LEFT JOIN users goal_user ON goal_user.id = goal."playerId"
+        LEFT JOIN users assist_user ON assist_user.id = assist."playerId"
+        WHERE assist_type.name = 'ASSIST'
+          AND goal_type.name = 'GOAL'
+          AND gt."teamId" = $1
+          AND g.status = 'COMPLETED'
+          ${dateFilter}
+      )
+      SELECT player1, player2, COUNT(*) AS goals
+      FROM raw_combos
+      GROUP BY player1, player2
+      ORDER BY goals DESC, player1 ASC, player2 ASC
+      LIMIT 3
+    `;
+
+    const rows = await this.gameTeamRepository.manager.query<
+      { player1: string; player2: string; goals: string }[]
+    >(sql, params);
 
     return rows.map((row) => ({
-      scorer: row.scorer,
-      assister: row.assister,
+      player1: row.player1,
+      player2: row.player2,
       goals: parseInt(row.goals, 10),
     }));
   }
@@ -308,9 +372,7 @@ export class TeamStatsService {
       .createQueryBuilder('gt')
       .innerJoin('gt.game', 'g')
       .where('gt."teamId" = :teamId', { teamId: input.teamId })
-      .andWhere(
-        "g.status IN ('COMPLETED', 'FIRST_HALF', 'HALFTIME', 'SECOND_HALF', 'IN_PROGRESS')",
-      );
+      .andWhere("g.status = 'COMPLETED'");
 
     if (input.startDate && input.endDate) {
       gameTeamsQuery = gameTeamsQuery.andWhere(
@@ -545,7 +607,8 @@ export class TeamStatsService {
       .innerJoin('event_types', 'et', 'et.id = ge."eventTypeId"')
       .innerJoin('game_teams', 'gt', 'gt.id = ge."gameTeamId"')
       .innerJoin('games', 'g', 'g.id = gt."gameId"')
-      .where('gt."teamId" = :teamId', { teamId: input.teamId });
+      .where('gt."teamId" = :teamId', { teamId: input.teamId })
+      .andWhere("g.status = 'COMPLETED'");
 
     if (input.startDate && input.endDate) {
       query = query.andWhere(
@@ -570,10 +633,8 @@ export class TeamStatsService {
       .innerJoinAndSelect('gt.game', 'g')
       .leftJoinAndSelect('gt.team', 't')
       .where('gt."teamId" = :teamId', { teamId: input.teamId })
-      .andWhere(
-        "g.status IN ('COMPLETED', 'FIRST_HALF', 'HALFTIME', 'SECOND_HALF', 'IN_PROGRESS')",
-      )
-      .orderBy('g."scheduledStart"', 'DESC');
+      .andWhere("g.status = 'COMPLETED'")
+      .orderBy('g."scheduledStart"', 'ASC');
 
     if (input.startDate && input.endDate) {
       gameTeamsQuery = gameTeamsQuery.andWhere(
@@ -600,6 +661,8 @@ export class TeamStatsService {
     const opponentByGameId = new Map(
       opponentTeams.map((opp) => [opp.gameId, opp]),
     );
+
+    const eventScoresByGameTeamId = await this.getEventScoresByGameIds(gameIds);
 
     // Build per-game summaries with player stats from the existing service
     const summaries: GameStatsSummary[] = [];
@@ -629,18 +692,17 @@ export class TeamStatsService {
         gamesPlayed: 1,
       }));
 
-      const totalGoals = playerStats.reduce((sum, ps) => sum + ps.goals, 0);
       const totalAssists = playerStats.reduce((sum, ps) => sum + ps.assists, 0);
 
+      const teamScore = eventScoresByGameTeamId.get(gameTeam.id) ?? 0;
+      const opponentScore = opponent
+        ? (eventScoresByGameTeamId.get(opponent.id) ?? 0)
+        : 0;
+
       let result = 'N/A';
-      if (
-        gameTeam.finalScore !== null &&
-        gameTeam.finalScore !== undefined &&
-        opponent?.finalScore !== null &&
-        opponent?.finalScore !== undefined
-      ) {
-        if (gameTeam.finalScore > opponent.finalScore) result = 'W';
-        else if (gameTeam.finalScore < opponent.finalScore) result = 'L';
+      if (opponent) {
+        if (teamScore > opponentScore) result = 'W';
+        else if (teamScore < opponentScore) result = 'L';
         else result = 'D';
       }
 
@@ -651,10 +713,10 @@ export class TeamStatsService {
         gameDate: gameTeam.game?.scheduledStart,
         gameStatus: gameTeam.game?.status ?? 'UNKNOWN',
         opponentName: opponent?.team?.name,
-        teamScore: gameTeam.finalScore,
-        opponentScore: opponent?.finalScore,
+        teamScore,
+        opponentScore,
         result,
-        totalGoals,
+        totalGoals: teamScore,
         totalAssists,
         playerStats,
       });
@@ -682,6 +744,10 @@ export class TeamStatsService {
     const actualOpponent =
       opponent && opponent.id !== gameTeamId ? opponent : null;
 
+    const eventScoresByGameTeamId = await this.getEventScoresByGameIds([
+      gameTeam.gameId,
+    ]);
+
     // Get player stats for this game
     const playerFullStats = await this.gameEventsService.getPlayerStats({
       teamId: gameTeam.teamId,
@@ -704,18 +770,17 @@ export class TeamStatsService {
       gamesPlayed: 1,
     }));
 
-    const totalGoals = playerStats.reduce((sum, ps) => sum + ps.goals, 0);
     const totalAssists = playerStats.reduce((sum, ps) => sum + ps.assists, 0);
 
+    const teamScore = eventScoresByGameTeamId.get(gameTeam.id) ?? 0;
+    const opponentScore = actualOpponent
+      ? (eventScoresByGameTeamId.get(actualOpponent.id) ?? 0)
+      : 0;
+
     let result = 'N/A';
-    if (
-      gameTeam.finalScore !== null &&
-      gameTeam.finalScore !== undefined &&
-      actualOpponent?.finalScore !== null &&
-      actualOpponent?.finalScore !== undefined
-    ) {
-      if (gameTeam.finalScore > actualOpponent.finalScore) result = 'W';
-      else if (gameTeam.finalScore < actualOpponent.finalScore) result = 'L';
+    if (actualOpponent) {
+      if (teamScore > opponentScore) result = 'W';
+      else if (teamScore < opponentScore) result = 'L';
       else result = 'D';
     }
 
@@ -726,10 +791,10 @@ export class TeamStatsService {
       gameDate: gameTeam.game?.scheduledStart,
       gameStatus: gameTeam.game?.status ?? 'UNKNOWN',
       opponentName: actualOpponent?.team?.name,
-      teamScore: gameTeam.finalScore,
-      opponentScore: actualOpponent?.finalScore,
+      teamScore,
+      opponentScore,
       result,
-      totalGoals,
+      totalGoals: teamScore,
       totalAssists,
       playerStats,
     };
