@@ -270,16 +270,19 @@ export class StatsService {
     // Apply filters
     if (input.gameId) {
       gameTeamsQuery.andWhere('g.id = :gameId', { gameId: input.gameId });
-    } else if (input.startDate && input.endDate) {
-      gameTeamsQuery.andWhere(
-        'g.scheduledStart BETWEEN :startDate AND :endDate',
-        {
-          startDate: input.startDate,
-          endDate: input.endDate,
-        },
-      );
+    } else {
+      // Aggregate stats only count completed games
+      gameTeamsQuery.andWhere("g.status = 'COMPLETED'");
+      if (input.startDate && input.endDate) {
+        gameTeamsQuery.andWhere(
+          'g.scheduledStart BETWEEN :startDate AND :endDate',
+          {
+            startDate: input.startDate,
+            endDate: input.endDate,
+          },
+        );
+      }
     }
-    // If neither gameId nor dates: no additional filter (all-time stats)
 
     const gameTeams = await gameTeamsQuery.getMany();
 

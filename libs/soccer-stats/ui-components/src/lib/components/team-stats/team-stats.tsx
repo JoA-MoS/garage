@@ -55,6 +55,8 @@ export interface TeamStatsProps {
   error?: string;
   onRetry?: () => void;
   onGameClick?: (gameId: string, gameTeamId?: string) => void;
+  onExportCsv?: () => void;
+  onExportExcel?: () => void;
 }
 
 type StatsTab = 'overview' | 'players' | 'games';
@@ -95,6 +97,8 @@ export const TeamStats = memo(function TeamStats({
   error,
   onRetry,
   onGameClick,
+  onExportCsv,
+  onExportExcel,
 }: TeamStatsProps) {
   const [activeTab, setActiveTab] = useState<StatsTab>('overview');
   const [localStartDate, setLocalStartDate] = useState(startDate ?? '');
@@ -142,11 +146,29 @@ export const TeamStats = memo(function TeamStats({
         <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">
           {teamName} Statistics
         </h2>
-        {isLoading && (
-          <span className="animate-pulse text-sm text-gray-500">
-            Updating...
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {onExportCsv && (
+            <button
+              onClick={onExportCsv}
+              className="min-h-[38px] rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition-colors sm:text-sm lg:hover:bg-gray-50"
+            >
+              Export CSV
+            </button>
+          )}
+          {onExportExcel && (
+            <button
+              onClick={onExportExcel}
+              className="min-h-[38px] rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white transition-colors sm:text-sm lg:hover:bg-blue-700"
+            >
+              Export Excel
+            </button>
+          )}
+          {isLoading && (
+            <span className="animate-pulse text-sm text-gray-500">
+              Updating...
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Date Range Filter */}
@@ -231,9 +253,9 @@ export const TeamStats = memo(function TeamStats({
 
       {/* Tab Content */}
       {activeTab === 'overview' && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Summary Cards */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 sm:gap-3">
             <StatCard label="Games" value={gamesPlayed} />
             <StatCard label="Wins" value={wins} color="green" />
             <StatCard label="Draws" value={draws} color="yellow" />
@@ -254,98 +276,68 @@ export const TeamStats = memo(function TeamStats({
             />
           </div>
 
-          {/* Performance Section */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
-              <h4 className="mb-3 text-base font-semibold text-gray-900 sm:text-lg">
-                Scoring
-              </h4>
-              <div className="space-y-2">
-                <StatRow label="Goals For" value={goalsFor} color="blue" />
-                <StatRow
-                  label="Goals Against"
-                  value={goalsAgainst}
-                  color="gray"
-                />
-                <StatRow label="Assists" value={totalAssists} color="green" />
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
-              <h4 className="mb-3 text-base font-semibold text-gray-900 sm:text-lg">
-                Discipline & Leaders
-              </h4>
-              <div className="space-y-3">
-                <div className="border-t border-gray-100 pt-2">
-                  <DisciplineSection
-                    title="Scoring Discipline"
-                    items={topScorers}
-                    emptyText="No scorers yet"
-                  />
-                  <DisciplineSection
-                    title="Unassisted Goals"
-                    items={topUnassistedScorers}
-                    emptyText="No unassisted goals yet"
-                  />
-                  <DisciplineSection
-                    title="Assist Discipline"
-                    items={topAssisters}
-                    emptyText="No assisters yet"
-                  />
-                  <DisciplineSection
-                    title="Playtime Discipline"
-                    items={topMinutesLeaders}
-                    emptyText="No minutes recorded"
-                  />
-                  <DisciplineSection
-                    title="Combo Discipline"
-                    items={topComboPlayers}
-                    emptyText="No goal-assist combos"
-                  />
-                  <div className="pt-2">
-                    <div className="mb-1 text-xs font-semibold text-gray-600">
-                      Squad Scoring Discipline
-                    </div>
-                    {topScoringSquads.length === 0 ? (
-                      <div className="text-xs text-gray-500">
-                        No squad scoring data
-                      </div>
-                    ) : (
-                      topScoringSquads.map((squad, index) => (
-                        <div
-                          key={`${squad.squad}-gf-${index}`}
-                          className="text-xs text-gray-500"
-                        >
-                          {rankEmoji(index)} {squad.goalsFor} GF - {squad.squad}
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  <div className="pt-2">
-                    <div className="mb-1 text-xs font-semibold text-gray-600">
-                      Squad Defensive Discipline
-                    </div>
-                    {topDefensiveSquads.length === 0 ? (
-                      <div className="text-xs text-gray-500">
-                        No squad defensive data
-                      </div>
-                    ) : (
-                      topDefensiveSquads.map((squad, index) => (
-                        <div
-                          key={`${squad.squad}-ga-${index}`}
-                          className="text-xs text-gray-500"
-                        >
-                          {rankEmoji(index)} {squad.goalsAgainst} GA -{' '}
-                          {squad.squad}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
+          {/* Scoring bar */}
+          <div className="flex items-center gap-4 rounded-lg border border-gray-200 bg-white px-4 py-3">
+            <span className="text-sm font-semibold text-gray-700">Scoring</span>
+            <span className="text-sm">
+              <span className="font-medium text-blue-600">{goalsFor}</span>{' '}
+              <span className="text-gray-400">GF</span>
+            </span>
+            <span className="text-sm">
+              <span className="font-medium text-gray-600">{goalsAgainst}</span>{' '}
+              <span className="text-gray-400">GA</span>
+            </span>
+            <span className="text-sm">
+              <span className="font-medium text-green-600">{totalAssists}</span>{' '}
+              <span className="text-gray-400">Assists</span>
+            </span>
           </div>
+
+          {/* Leaders grid */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <LeaderCard
+              title="Top Scorers"
+              items={topScorers}
+              emptyText="No scorers yet"
+            />
+            <LeaderCard
+              title="Unassisted Goals"
+              items={topUnassistedScorers}
+              emptyText="No unassisted goals"
+            />
+            <LeaderCard
+              title="Top Assists"
+              items={topAssisters}
+              emptyText="No assists yet"
+            />
+            <LeaderCard
+              title="Goal-Assist Combos"
+              items={topComboPlayers}
+              emptyText="No combos yet"
+            />
+          </div>
+
+          {/* Squad performance */}
+          {(topScoringSquads.length > 0 || topDefensiveSquads.length > 0) && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {topScoringSquads.length > 0 && (
+                <SquadCard
+                  title="Best Attacking Squads"
+                  squads={topScoringSquads}
+                  statKey="goalsFor"
+                  statLabel="GF"
+                />
+              )}
+              {topDefensiveSquads.length > 0 && (
+                <SquadCard
+                  title="Best Defensive Squads"
+                  squads={topDefensiveSquads}
+                  statKey="goalsAgainst"
+                  statLabel="GA"
+                />
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -445,7 +437,7 @@ function rankEmoji(index: number): string {
   return `${index + 1}.`;
 }
 
-function DisciplineSection({
+function LeaderCard({
   title,
   items,
   emptyText,
@@ -455,20 +447,74 @@ function DisciplineSection({
   emptyText: string;
 }) {
   return (
-    <div className="pt-2">
-      <div className="mb-1 text-xs font-semibold text-gray-600">{title}</div>
+    <div className="rounded-lg border border-gray-200 bg-white p-3">
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        {title}
+      </div>
       {items.length === 0 ? (
-        <div className="text-xs text-gray-500">{emptyText}</div>
+        <div className="text-sm text-gray-400">{emptyText}</div>
       ) : (
-        items.map((item, index) => (
-          <div
-            key={`${title}-${item}-${index}`}
-            className="text-xs text-gray-500"
-          >
-            {rankEmoji(index)} {item}
-          </div>
-        ))
+        <div className="space-y-1">
+          {items.map((item, index) => (
+            <div
+              key={`${title}-${item}-${index}`}
+              className="flex items-center gap-2 text-sm"
+            >
+              <span className="w-5 text-center">{rankEmoji(index)}</span>
+              <span className="text-gray-700">{item}</span>
+            </div>
+          ))}
+        </div>
       )}
+    </div>
+  );
+}
+
+function SquadCard({
+  title,
+  squads,
+  statKey,
+  statLabel,
+}: {
+  title: string;
+  squads: SquadMetric[];
+  statKey: 'goalsFor' | 'goalsAgainst';
+  statLabel: string;
+}) {
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-3">
+      <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        {title}
+      </div>
+      <div className="space-y-3">
+        {squads.map((squad, index) => {
+          const players = squad.squad
+            .split(',')
+            .map((p) => p.trim())
+            .filter(Boolean);
+          return (
+            <div key={`${squad.squad}-${index}`}>
+              <div className="mb-1.5 flex items-center gap-2">
+                <span className="text-center">{rankEmoji(index)}</span>
+                <span className="text-sm font-semibold text-gray-800">
+                  {squad[statKey]}{' '}
+                  <span className="font-normal text-gray-400">{statLabel}</span>
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1 pl-7">
+                {players.map((player) => (
+                  <span
+                    key={player}
+                    className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+                  >
+                    {player}
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

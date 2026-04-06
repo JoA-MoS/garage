@@ -37,8 +37,8 @@ export interface TeamAggregateStatsData {
 }
 
 export interface PlayerComboMetricData {
-  scorer: string;
-  assister: string;
+  player1: string;
+  player2: string;
   goals: number;
 }
 
@@ -109,8 +109,8 @@ export const GET_TEAM_STATS = gql`
           goalsAgainst
         }
         topComboPlayers {
-          scorer
-          assister
+          player1
+          player2
           goals
         }
       }

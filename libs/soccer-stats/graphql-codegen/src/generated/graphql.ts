@@ -361,7 +361,7 @@ export type GameTeam = {
   __typename?: 'GameTeam';
   createdAt: Scalars['DateTime']['output'];
   events?: Maybe<Array<GameEvent>>;
-  finalScore?: Maybe<Scalars['Int']['output']>;
+  finalScore: Scalars['Int']['output'];
   formation?: Maybe<Scalars['String']['output']>;
   game: Game;
   gameId: Scalars['ID']['output'];
@@ -741,9 +741,9 @@ export type PeriodResult = {
 
 export type PlayerComboMetric = {
   __typename?: 'PlayerComboMetric';
-  assister: Scalars['String']['output'];
   goals: Scalars['Int']['output'];
-  scorer: Scalars['String']['output'];
+  player1: Scalars['String']['output'];
+  player2: Scalars['String']['output'];
 };
 
 export type PlayerFullStats = {
@@ -1533,7 +1533,7 @@ export type GameCardFragment = {
   __typename?: 'GameTeam';
   id: string;
   teamType: string;
-  finalScore?: number | null;
+  finalScore: number;
   game: {
     __typename?: 'Game';
     id: string;
@@ -1553,7 +1553,7 @@ export type GameCardFragment = {
       __typename?: 'GameTeam';
       id: string;
       teamType: string;
-      finalScore?: number | null;
+      finalScore: number;
       team: {
         __typename?: 'Team';
         id: string;
@@ -1782,7 +1782,7 @@ export type GetGamesQuery = {
       __typename?: 'GameTeam';
       id: string;
       teamType: string;
-      finalScore?: number | null;
+      finalScore: number;
       formation?: string | null;
       team: {
         __typename?: 'Team';
@@ -1841,7 +1841,7 @@ export type GetGameByIdQuery = {
       __typename?: 'GameTeam';
       id: string;
       teamType: string;
-      finalScore?: number | null;
+      finalScore: number;
       formation?: string | null;
       statsFeatures?: {
         __typename?: 'StatsFeatures';
@@ -2786,7 +2786,7 @@ export type GetMyDashboardQuery = {
         __typename?: 'GameTeam';
         id: string;
         teamType: string;
-        finalScore?: number | null;
+        finalScore: number;
         team: {
           __typename?: 'Team';
           id: string;
@@ -2806,7 +2806,7 @@ export type GetMyDashboardQuery = {
         __typename?: 'GameTeam';
         id: string;
         teamType: string;
-        finalScore?: number | null;
+        finalScore: number;
         team: {
           __typename?: 'Team';
           id: string;
@@ -2855,7 +2855,7 @@ export type GetMyLiveGamesQuery = {
         __typename?: 'GameTeam';
         id: string;
         teamType: string;
-        finalScore?: number | null;
+        finalScore: number;
         team: {
           __typename?: 'Team';
           id: string;
@@ -2907,8 +2907,8 @@ export type GetTeamStatsQuery = {
       }>;
       topComboPlayers: Array<{
         __typename?: 'PlayerComboMetric';
-        scorer: string;
-        assister: string;
+        player1: string;
+        player2: string;
         goals: number;
       }>;
     };
@@ -3106,7 +3106,7 @@ export type GetTeamByIdQuery = {
       __typename?: 'GameTeam';
       id: string;
       teamType: string;
-      finalScore?: number | null;
+      finalScore: number;
       formation?: string | null;
       game: {
         __typename?: 'Game';
@@ -9434,11 +9434,11 @@ export const GetTeamStatsDocument = {
                           selections: [
                             {
                               kind: 'Field',
-                              name: { kind: 'Name', value: 'scorer' },
+                              name: { kind: 'Name', value: 'player1' },
                             },
                             {
                               kind: 'Field',
-                              name: { kind: 'Name', value: 'assister' },
+                              name: { kind: 'Name', value: 'player2' },
                             },
                             {
                               kind: 'Field',
