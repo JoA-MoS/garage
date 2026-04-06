@@ -30,6 +30,7 @@ import { AddPositionChangeEventType1770000000000 } from './1770000000000-AddPosi
 import { RemoveGameMinuteSecond1770100000000 } from './1770100000000-RemoveGameMinuteSecond';
 import { ReplaceStatsTrackingLevelWithStatsFeatures1770200000000 } from './1770200000000-ReplaceStatsTrackingLevelWithStatsFeatures';
 import { CreatePlayerGameStatsView1770200000000 } from './1770200000000-CreatePlayerGameStatsView';
+import { CreatePlayerPositionPlaytimeView1770300000000 } from './1770300000000-CreatePlayerPositionPlaytimeView';
 
 /**
  * All migrations in chronological order.
@@ -57,4 +58,5 @@ export const migrations = [
   RemoveGameMinuteSecond1770100000000,
   ReplaceStatsTrackingLevelWithStatsFeatures1770200000000,
   CreatePlayerGameStatsView1770200000000,
+  CreatePlayerPositionPlaytimeView1770300000000,
 ];

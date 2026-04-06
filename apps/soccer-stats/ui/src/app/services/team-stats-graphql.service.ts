@@ -9,9 +9,8 @@ export interface PlayerGameStatsRowData {
   externalPlayerName?: string | null;
   externalPlayerNumber?: string | null;
   goals: number;
+  unassistedGoals: number;
   assists: number;
-  yellowCards: number;
-  redCards: number;
   ownGoals: number;
   totalMinutes: number;
   totalSeconds: number;
@@ -28,8 +27,25 @@ export interface TeamAggregateStatsData {
   goalsAgainst: number;
   goalDifference: number;
   totalAssists: number;
-  totalYellowCards: number;
-  totalRedCards: number;
+  topScoringSquad?: string | null;
+  topScoringSquadGoalsFor: number;
+  topDefensiveSquad?: string | null;
+  topDefensiveSquadGoalsAgainst: number;
+  topScoringSquads: OnFieldSquadMetricData[];
+  topDefensiveSquads: OnFieldSquadMetricData[];
+  topComboPlayers: PlayerComboMetricData[];
+}
+
+export interface PlayerComboMetricData {
+  scorer: string;
+  assister: string;
+  goals: number;
+}
+
+export interface OnFieldSquadMetricData {
+  squad: string;
+  goalsFor: number;
+  goalsAgainst: number;
 }
 
 export interface GameStatsSummaryData {
@@ -78,8 +94,25 @@ export const GET_TEAM_STATS = gql`
         goalsAgainst
         goalDifference
         totalAssists
-        totalYellowCards
-        totalRedCards
+        topScoringSquad
+        topScoringSquadGoalsFor
+        topDefensiveSquad
+        topDefensiveSquadGoalsAgainst
+        topScoringSquads {
+          squad
+          goalsFor
+          goalsAgainst
+        }
+        topDefensiveSquads {
+          squad
+          goalsFor
+          goalsAgainst
+        }
+        topComboPlayers {
+          scorer
+          assister
+          goals
+        }
       }
       playerStats {
         playerId
@@ -87,9 +120,8 @@ export const GET_TEAM_STATS = gql`
         externalPlayerName
         externalPlayerNumber
         goals
+        unassistedGoals
         assists
-        yellowCards
-        redCards
         ownGoals
         totalMinutes
         totalSeconds
@@ -113,9 +145,8 @@ export const GET_TEAM_STATS = gql`
           externalPlayerName
           externalPlayerNumber
           goals
+          unassistedGoals
           assists
-          yellowCards
-          redCards
           ownGoals
           totalMinutes
           totalSeconds
@@ -146,9 +177,8 @@ export const GET_GAME_TEAM_STATS = gql`
         externalPlayerName
         externalPlayerNumber
         goals
+        unassistedGoals
         assists
-        yellowCards
-        redCards
         ownGoals
         totalMinutes
         totalSeconds

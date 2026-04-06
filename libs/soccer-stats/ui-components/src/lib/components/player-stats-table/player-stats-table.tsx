@@ -6,9 +6,8 @@ export interface PlayerStatRow {
   externalPlayerName?: string;
   externalPlayerNumber?: string;
   goals: number;
+  unassistedGoals: number;
   assists: number;
-  yellowCards: number;
-  redCards: number;
   totalMinutes: number;
   totalSeconds: number;
   gamesPlayed: number;
@@ -17,9 +16,8 @@ export interface PlayerStatRow {
 export type SortField =
   | 'name'
   | 'goals'
+  | 'unassistedGoals'
   | 'assists'
-  | 'yellowCards'
-  | 'redCards'
   | 'playTime'
   | 'gamesPlayed';
 
@@ -48,18 +46,19 @@ function getDisplayName(player: PlayerStatRow): string {
   return 'Unknown';
 }
 
-function getSortValue(player: PlayerStatRow, field: SortField): string | number {
+function getSortValue(
+  player: PlayerStatRow,
+  field: SortField,
+): string | number {
   switch (field) {
     case 'name':
       return getDisplayName(player).toLowerCase();
     case 'goals':
       return player.goals;
+    case 'unassistedGoals':
+      return player.unassistedGoals;
     case 'assists':
       return player.assists;
-    case 'yellowCards':
-      return player.yellowCards;
-    case 'redCards':
-      return player.redCards;
     case 'playTime':
       return player.totalMinutes * 60 + player.totalSeconds;
     case 'gamesPlayed':
@@ -135,9 +134,8 @@ export const PlayerStatsTable = memo(function PlayerStatsTable({
             {showGamesPlayed && <SortHeader field="gamesPlayed" label="GP" />}
             <SortHeader field="playTime" label="Time" />
             <SortHeader field="goals" label="G" />
+            <SortHeader field="unassistedGoals" label="UG" />
             <SortHeader field="assists" label="A" />
-            {!compact && <SortHeader field="yellowCards" label="YC" />}
-            {!compact && <SortHeader field="redCards" label="RC" />}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200 bg-white">
@@ -153,7 +151,7 @@ export const PlayerStatsTable = memo(function PlayerStatsTable({
                   <div className="flex items-center gap-1">
                     <span
                       className={`text-sm font-medium ${
-                        isExternal ? 'text-gray-500 italic' : 'text-gray-900'
+                        isExternal ? 'italic text-gray-500' : 'text-gray-900'
                       }`}
                     >
                       {displayName}
@@ -171,19 +169,12 @@ export const PlayerStatsTable = memo(function PlayerStatsTable({
                 <td className="whitespace-nowrap px-2 py-2 text-sm font-medium text-blue-600 sm:px-3 sm:py-3">
                   {player.goals || '-'}
                 </td>
+                <td className="whitespace-nowrap px-2 py-2 text-sm font-medium text-blue-400 sm:px-3 sm:py-3">
+                  {player.unassistedGoals || '-'}
+                </td>
                 <td className="whitespace-nowrap px-2 py-2 text-sm font-medium text-green-600 sm:px-3 sm:py-3">
                   {player.assists || '-'}
                 </td>
-                {!compact && (
-                  <td className="whitespace-nowrap px-2 py-2 text-sm text-yellow-600 sm:px-3 sm:py-3">
-                    {player.yellowCards || '-'}
-                  </td>
-                )}
-                {!compact && (
-                  <td className="whitespace-nowrap px-2 py-2 text-sm text-red-600 sm:px-3 sm:py-3">
-                    {player.redCards || '-'}
-                  </td>
-                )}
               </tr>
             );
           })}
@@ -204,19 +195,12 @@ export const PlayerStatsTable = memo(function PlayerStatsTable({
             <td className="px-2 py-2 text-sm text-blue-600 sm:px-3 sm:py-3">
               {players.reduce((sum, p) => sum + p.goals, 0)}
             </td>
+            <td className="px-2 py-2 text-sm text-blue-400 sm:px-3 sm:py-3">
+              {players.reduce((sum, p) => sum + p.unassistedGoals, 0)}
+            </td>
             <td className="px-2 py-2 text-sm text-green-600 sm:px-3 sm:py-3">
               {players.reduce((sum, p) => sum + p.assists, 0)}
             </td>
-            {!compact && (
-              <td className="px-2 py-2 text-sm text-yellow-600 sm:px-3 sm:py-3">
-                {players.reduce((sum, p) => sum + p.yellowCards, 0)}
-              </td>
-            )}
-            {!compact && (
-              <td className="px-2 py-2 text-sm text-red-600 sm:px-3 sm:py-3">
-                {players.reduce((sum, p) => sum + p.redCards, 0)}
-              </td>
-            )}
           </tr>
         </tfoot>
       </table>

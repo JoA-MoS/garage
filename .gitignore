@@ -89,3 +89,4 @@ Pulumi.*.yaml
 .env.serve.dev
 
 /.remember
+.expo/

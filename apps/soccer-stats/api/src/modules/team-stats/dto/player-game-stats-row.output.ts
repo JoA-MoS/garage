@@ -18,6 +18,9 @@ export class PlayerGameStatsRow {
   goals: number;
 
   @Field(() => Int)
+  unassistedGoals: number;
+
+  @Field(() => Int)
   assists: number;
 
   @Field(() => Int)
