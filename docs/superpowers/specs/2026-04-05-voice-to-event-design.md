@@ -500,6 +500,21 @@ Users naturally correct themselves in follow-up utterances:
 
 The AI should recognize correction intent when a follow-up utterance references a just-executed event. This maps to the existing `updateGoal` mutation for goal/assist corrections. For the initial implementation, corrections should be returned as low-confidence events referencing the previous event, prompting user confirmation.
 
+## Input Guardrails
+
+The voice pipeline's threat surface is narrow — the AI can only call scoped game-event tools, and the user is authenticated — but three cheap mitigations harden the system against misuse or runaway behavior:
+
+**1. Transcription length limit (500 characters)**
+Legitimate game utterances are short ("Brayden on for Deacon, Allen on for Sky"). Reject transcriptions exceeding 500 characters before sending to the AI provider. This prevents prompt injection payloads embedded in long text and reduces AI API costs.
+
+**2. Tool call count limit (10 per interpretation)**
+A single utterance should not produce more than ~10 tool calls. If the AI returns more than 10, truncate to the first 10 and log a warning. This prevents runaway batch expansions (e.g., AI hallucinating 50 substitutions from an ambiguous phrase).
+
+**3. Rate limiting (5 interpretations per minute per user)**
+Prevent abuse loops where rapid-fire requests overwhelm the AI provider or create event spam. Enforced in the `VoiceInterpreterService` with an in-memory counter per userId, reset every 60 seconds. Returns a "slow down" error to the frontend if exceeded.
+
+All three are enforced server-side in `VoiceInterpreterService` before the AI provider is called (for limits 1 and 3) or after (for limit 2).
+
 ## Error Handling
 
 | Scenario                                   | Behavior                                                               |
@@ -511,6 +526,9 @@ The AI should recognize correction intent when a follow-up utterance references 
 | AI returns tool call for invalid operation | ToolExecutor validates against game state, skips invalid, toasts error |
 | Pending confirmation expires (TTL)         | Confirmation card auto-dismisses                                       |
 | Multiple rapid utterances                  | Queued — second interpretation waits for first to complete             |
+| Transcription exceeds 500 characters       | Rejected before AI call, toast: "Message too long"                     |
+| AI returns > 10 tool calls                 | Truncated to first 10, warning logged                                  |
+| Rate limit exceeded (> 5/min)              | Rejected before AI call, toast: "Slow down — try again in a moment"    |
 
 ## Testing Strategy
 

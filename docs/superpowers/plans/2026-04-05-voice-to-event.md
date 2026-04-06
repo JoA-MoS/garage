@@ -2101,6 +2101,41 @@ describe('VoiceInterpreterService', () => {
     expect(mockToolExecutor.execute).not.toHaveBeenCalled();
     expect(mockPubSub.publish).not.toHaveBeenCalled();
   });
+
+  it('should reject transcriptions exceeding 500 characters', async () => {
+    const longText = 'a'.repeat(501);
+
+    await expect(service.interpretVoice('gt-1', longText, 'user-1')).rejects.toThrow('Transcription too long');
+
+    expect(mockAIProvider.interpret).not.toHaveBeenCalled();
+  });
+
+  it('should truncate tool calls exceeding limit of 10', async () => {
+    const toolCalls = Array.from({ length: 15 }, (_, i) => ({
+      toolName: 'recordGoal',
+      args: { scorerId: `p-${i}` },
+      confidence: 0.95,
+      reasoning: `Goal ${i}`,
+    }));
+
+    mockAIProvider.interpret.mockResolvedValue(toolCalls);
+
+    await service.interpretVoice('gt-1', 'many goals', 'user-1');
+
+    expect(mockToolExecutor.execute).toHaveBeenCalledTimes(10);
+  });
+
+  it('should rate limit after 5 requests per minute', async () => {
+    mockAIProvider.interpret.mockResolvedValue([]);
+
+    // First 5 should succeed
+    for (let i = 0; i < 5; i++) {
+      await service.interpretVoice('gt-1', 'test', 'user-1');
+    }
+
+    // 6th should fail
+    await expect(service.interpretVoice('gt-1', 'test', 'user-1')).rejects.toThrow('Rate limit exceeded');
+  });
 });
 ```
 
@@ -2113,7 +2148,7 @@ Expected: FAIL — module not found
 
 ```typescript
 // apps/soccer-stats/api/src/modules/voice-interpreter/voice-interpreter.service.ts
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable, Inject, Logger, BadRequestException } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
 
 import type { AIProvider } from './providers/ai-provider.interface';
@@ -2123,11 +2158,16 @@ import { getToolsForGamePhase } from './tools/tool-definitions';
 import { PendingConfirmationStore } from './pending-confirmation.store';
 
 const DEFAULT_CONFIDENCE_THRESHOLD = 0.8;
+const MAX_TRANSCRIPTION_LENGTH = 500;
+const MAX_TOOL_CALLS = 10;
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW_MS = 60_000;
 
 @Injectable()
 export class VoiceInterpreterService {
   private readonly logger = new Logger(VoiceInterpreterService.name);
   private readonly confidenceThreshold: number;
+  private readonly rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
   constructor(
     @Inject('AI_PROVIDER') private readonly aiProvider: AIProvider,
@@ -2141,6 +2181,14 @@ export class VoiceInterpreterService {
   }
 
   async interpretVoice(gameTeamId: string, transcription: string, userId: string): Promise<void> {
+    // Guardrail: transcription length limit
+    if (transcription.length > MAX_TRANSCRIPTION_LENGTH) {
+      throw new BadRequestException(`Transcription too long (${transcription.length} chars, max ${MAX_TRANSCRIPTION_LENGTH})`);
+    }
+
+    // Guardrail: rate limit per user
+    this.checkRateLimit(userId);
+
     // 1. Build game context
     const context = await this.contextBuilder.build(gameTeamId, userId);
 
@@ -2166,8 +2214,14 @@ export class VoiceInterpreterService {
       return;
     }
 
+    // Guardrail: cap tool calls to prevent runaway batch expansions
+    const limitedToolCalls = toolCalls.slice(0, MAX_TOOL_CALLS);
+    if (toolCalls.length > MAX_TOOL_CALLS) {
+      this.logger.warn(`AI returned ${toolCalls.length} tool calls, truncating to ${MAX_TOOL_CALLS}`);
+    }
+
     // 4. Process each tool call based on confidence
-    for (const toolCall of toolCalls) {
+    for (const toolCall of limitedToolCalls) {
       if (toolCall.confidence >= this.confidenceThreshold) {
         // High confidence — execute immediately
         try {
@@ -2233,6 +2287,21 @@ export class VoiceInterpreterService {
       this.logger.log(`Resolved confirmation ${confirmationId} for ${pending.toolName}`);
     } catch (error) {
       this.logger.error(`Failed to execute resolved ${pending.toolName}: ${error.message}`, error.stack);
+    }
+  }
+
+  private checkRateLimit(userId: string): void {
+    const now = Date.now();
+    const entry = this.rateLimitMap.get(userId);
+
+    if (!entry || now > entry.resetAt) {
+      this.rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+      return;
+    }
+
+    entry.count++;
+    if (entry.count > RATE_LIMIT_MAX) {
+      throw new BadRequestException('Rate limit exceeded — try again in a moment');
     }
   }
 }
