@@ -447,7 +447,10 @@ Users naturally express subs in inconsistent ways:
 - "Coming off is Jerry, Brayden, William" (batch out)
 - "All the players on the bench" (implicit batch in)
 
-**Resolution rule:** The AI must check who is currently on the field vs. bench to determine substitution direction. Word order alone is not reliable.
+**Resolution rules:**
+
+- The AI must check who is currently on the field vs. bench to determine substitution direction. Word order alone is not reliable.
+- **Batch sub shortcut:** If the number of players coming off equals the number of players on the bench, the AI should assume all bench players are coming on. No need to ask for confirmation — execute the full swap at high confidence. This applies in both full-tracking and time-only modes. In full-tracking mode, pairing order (who replaces whom) still matters for position inheritance — the AI should pair by matching positions when possible, or flag for confirmation if ambiguous.
 
 ### Tracking-Level-Aware Behavior
 
