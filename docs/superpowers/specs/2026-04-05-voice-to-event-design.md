@@ -135,12 +135,13 @@ Both `ClaudeProvider` and `OpenAIProvider` implement this interface, translating
 Queries the database to build a snapshot the AI needs for accurate interpretation:
 
 - **Game status:** NOT_STARTED, IN_PROGRESS, HALFTIME, COMPLETED, etc.
+- **Stats tracking level:** FULL, SCORER_ONLY, or GOALS_ONLY — determines whether positions and sub pairing are required
 - **Current period and clock:** e.g., Period 1, 14:30 elapsed
 - **Current score**
 - **Full roster:** Player names, jersey numbers, current on-field positions
 - **On-field player event IDs:** The `substitutePlayer` mutation requires `playerOutEventId` (the game event ID of the player's current on-field entry), not a player ID. The context builder must provide the mapping of on-field players to their current event IDs so the AI can reference them in tool calls.
-- **Bench players:** Available for substitution
-- **Recent events:** Last ~5 events for conversational context
+- **Bench players:** Available for substitution (critical for resolving "X for Y" substitution direction)
+- **Recent events:** Last ~5 events for conversational context (enables correction detection — e.g., "for Brayden" amending a just-recorded assist)
 
 This context is injected into the system prompt so the AI can:
 
@@ -377,6 +378,7 @@ CURRENT GAME STATE:
 - Period: {currentPeriod}
 - Clock: {clockDisplay}
 - Score: {homeTeamName} {homeScore} - {awayScore} {awayTeamName}
+- Stats Tracking Level: {statsTrackingLevel}  (FULL = positions required, SCORER_ONLY/GOALS_ONLY = no positions needed)
 
 ROSTER ({teamName}):
 ON FIELD:
@@ -386,23 +388,114 @@ ON BENCH:
 {benchPlayers: #number firstName lastName}
 
 RULES:
-- Match player names using fuzzy matching. Spoken names may be partial,
-  nicknames, or jersey numbers only.
+- Match player names using fuzzy matching. Speech-to-text WILL mangle
+  names. Common distortions: "chrischiev"/"Chris shift" = Krishiv,
+  "Dickens" = Deacon, "Mace" = Mason. Always match against the roster
+  above — the roster is the source of truth for player names.
 - If multiple players could match a spoken name, set confidence below 0.8
   and include all candidates in ambiguousCandidates.
 - One utterance may describe multiple events. Return a separate tool call
-  for each.
+  for each. Expand batch operations ("everyone on the bench comes on")
+  into individual tool calls using the roster context.
+- SUBSTITUTION DIRECTION: When the user says "X for Y", check who is
+  currently ON FIELD vs ON BENCH to determine who is coming on and who
+  is going off. Do NOT rely on word order alone — it is inconsistent.
+- TRACKING LEVEL: When stats tracking level is FULL, substitutions
+  require explicit pairing (who replaces whom) and positions. When
+  SCORER_ONLY or GOALS_ONLY, players can go on/off independently
+  without pairing or positions.
 - Use game state to infer event type:
   - Pre-game: player names + positions = roster additions
   - In-game: "X on for Y" = substitution
   - In-game: "X scored" = goal
   - "start first half" / "end period" = game flow events
+  - "current score is X to Y" = opponent goal events if score changed
+  - Corrections ("for Brayden" after a goal) = update previous event
 - The system auto-fills gameTeamId, period, and periodSecond. Do not
   include these in your tool call arguments.
 - Set confidence 0.0-1.0 for each tool call reflecting how certain you
   are about the interpretation.
 - Include a brief reasoning string explaining your interpretation.
 ```
+
+## Transcript-Derived Insights
+
+Based on a real voice-tracked game session, these patterns inform the AI prompt and tool design:
+
+### Name Mangling by Speech-to-Text
+
+Web Speech API will badly mangle unusual names. Real examples:
+
+| Spoken             | Transcribed As                           | Actual Player      |
+| ------------------ | ---------------------------------------- | ------------------ |
+| Krishiv            | "chrischiev", "Chris shift", "chrischev" | Krishiv            |
+| Deacon             | "Dickens"                                | Deacon             |
+| Deacon for Krishiv | "Deacon worker Chev"                     | Deacon for Krishiv |
+| Mason              | "Mace"                                   | Mason              |
+| Sky assist         | "Sky assistant"                          | Sky assist         |
+
+The AI interpretation layer MUST have the full roster in context to recover from these. This is the primary value of the AI layer — without it, speech-to-text alone is unusable for proper nouns.
+
+### Substitution Phrasing Patterns
+
+Users naturally express subs in inconsistent ways:
+
+- "Deacon went for Luke" (IN for OUT)
+- "William went in for Mason" (IN went in for OUT)
+- "Sub Luke for Lucas" (ambiguous word order)
+- "Brayden for Lucas" (IN for OUT, terse)
+- "Coming off is Jerry, Brayden, William" (batch out)
+- "All the players on the bench" (implicit batch in)
+
+**Resolution rule:** The AI must check who is currently on the field vs. bench to determine substitution direction. Word order alone is not reliable.
+
+### Tracking-Level-Aware Behavior
+
+The game's `StatsTrackingLevel` determines how strictly the AI must resolve substitutions:
+
+**Full tracking (positions required):**
+
+- "Brayden on for Deacon" → `substitutePlayer` (paired, position inherited from Deacon)
+- "Brayden at striker" → `bringPlayerOntoField` with position
+- Batch subs need explicit pairing — if user says "Jerry, Brayden, William coming off" the AI must ask for replacements (via low-confidence pending confirmation)
+- "Starting the second half: Brayden, Mason, Mateo, Sky..." → `setSecondHalfLineup` or series of `bringPlayerOntoField` with positions (may need confirmation for position assignments)
+
+**Scorer-only / Goals-only / Playing-time-only (no positions):**
+
+- "Jerry, Brayden, William coming off" → 3x `removePlayerFromField` (no pairing needed)
+- "Allen, Lucas, Mason going on" → 3x `bringPlayerOntoField` (no position needed)
+- "Everyone on the bench comes on" → match bench count to available field spots
+- Pairing is optional — the system just needs to know who's on and who's off
+
+The `GameContextBuilder` includes the `StatsTrackingLevel` in the system prompt so the AI adapts its behavior accordingly.
+
+### Goal and Assist Patterns
+
+- "Assist Lucas goal Allen" → assist named first, then scorer
+- "For Brayden" → correction to previous statement (meant assist was Brayden, not Lucas)
+- "Sky assistant Mateo" → mangled "Sky assist, Mateo [scored]"
+- "Current score is 2 to 1" → standalone score update (maps to opponent goal events)
+- "They scored the goal" → opponent goal, no specific player
+
+The AI must handle goals/assists in any order and recognize corrections to the immediately preceding event.
+
+### Batch Operations
+
+Common in real games — multiple subs happen at once (especially at halftime):
+
+- "Coming off the field is Jerry, Brayden, William and Mateo" → 4 removals
+- "The other players who were on the bench" → implicit: all bench players come on
+- "Starting the second half. Brayden Mason mateo sky Jerry Griffin Allen" → full lineup reset
+
+The AI should expand these into individual tool calls. For "everyone on the bench," the AI uses the roster context to enumerate bench players.
+
+### Corrections and Amendments
+
+Users naturally correct themselves in follow-up utterances:
+
+- Statement: "Assist Lucas goal Allen" → Follow-up: "For Brayden" (meaning: the assist was Brayden, not Lucas)
+
+The AI should recognize correction intent when a follow-up utterance references a just-executed event. This maps to the existing `updateGoal` mutation for goal/assist corrections. For the initial implementation, corrections should be returned as low-confidence events referencing the previous event, prompting user confirmation.
 
 ## Error Handling
 
