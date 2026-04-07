@@ -28,6 +28,7 @@
       "executor": "@nx/js:node",
       "defaultConfiguration": "development",
       "dependsOn": ["db:start"],
+      "continuous": true,
       "options": {
         "buildTarget": "sift-api:build"
       },

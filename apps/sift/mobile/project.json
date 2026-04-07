@@ -7,14 +7,14 @@
   "targets": {
     "start": {
       "executor": "@nx/expo:start",
-      "dependsOn": ["sync-deps"],
+      "dependsOn": ["sift-api:serve", "sync-deps"],
       "options": {
         "port": 8082
       }
     },
     "serve": {
       "executor": "@nx/expo:serve",
-      "dependsOn": ["sync-deps", "sift-api:serve"],
+      "dependsOn": ["sift-api:serve", "sync-deps"],
       "options": {
         "port": 8082
       }
