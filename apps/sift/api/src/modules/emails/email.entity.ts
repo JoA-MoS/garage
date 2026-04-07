@@ -7,8 +7,10 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { EmailAccount } from '../accounts/email-account.entity';
+
 import { EmailImportance, EmailStatus } from '@garage/sift/types';
+
+import { EmailAccount } from '../accounts/email-account.entity';
 
 export { EmailImportance, EmailStatus };
 

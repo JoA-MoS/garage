@@ -6,7 +6,9 @@ import {
   UpdateDateColumn,
   Unique,
 } from 'typeorm';
+
 import { AccountProvider } from '@garage/sift/types';
+
 import { encryptedColumnTransformer } from '../../utils/encryption';
 
 export { AccountProvider };

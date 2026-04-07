@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+
 import { ActionType } from '@garage/sift/types';
 
 export { ActionType };

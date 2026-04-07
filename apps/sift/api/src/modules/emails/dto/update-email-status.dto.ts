@@ -1,4 +1,5 @@
 import { IsEnum } from 'class-validator';
+
 import { EmailStatus } from '@garage/sift/types';
 
 export class UpdateEmailStatusDto {
