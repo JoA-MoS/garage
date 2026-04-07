@@ -1,0 +1,76 @@
+{
+  "name": "sift-api",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/sift/api/src",
+  "projectType": "application",
+  "tags": ["type:api", "domain:sift"],
+  "targets": {
+    "build": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "target": "node",
+        "compiler": "tsc",
+        "outputPath": "dist/apps/sift/api",
+        "main": "apps/sift/api/src/main.ts",
+        "tsConfig": "apps/sift/api/tsconfig.app.json",
+        "webpackConfig": "apps/sift/api/webpack.config.js"
+      },
+      "configurations": {
+        "production": {
+          "optimization": true,
+          "extractLicenses": true,
+          "inspect": false
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "dependsOn": ["db:start"],
+      "continuous": true,
+      "options": {
+        "buildTarget": "sift-api:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "sift-api:build:development"
+        },
+        "production": {
+          "buildTarget": "sift-api:build:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/apps/sift/api"],
+      "options": {
+        "jestConfig": "apps/sift/api/jest.config.ts"
+      }
+    },
+    "db:start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker compose up -d",
+        "cwd": "apps/sift/api"
+      }
+    },
+    "db:stop": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker compose down",
+        "cwd": "apps/sift/api"
+      }
+    },
+    "db:reset": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker compose down -v && docker compose up -d",
+        "cwd": "apps/sift/api"
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "example",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "eas-build-post-install": "cd ../../ && node tools/scripts/eas-build-post-install.mjs . apps/bp-expo"
+  },
+  "dependencies": {
+    "@expo/metro-config": "*",
+    "@testing-library/react-native": "*",
+    "expo": "*",
+    "expo-splash-screen": "*",
+    "expo-status-bar": "*",
+    "expo-system-ui": "*",
+    "jest-expo": "*",
+    "metro-config": "*",
+    "metro-resolver": "*",
+    "react": "*",
+    "react-native": "*",
+    "react-native-svg": "*",
+    "react-native-svg-transformer": "*",
+    "react-native-web": "*",
+    "@nx/eslint-plugin": "*",
+    "@nx/devkit": "*",
+    "@nx/eslint": "*",
+    "@nx/js": "*",
+    "@nx/react": "*",
+    "enhanced-resolve": "*",
+    "picocolors": "*",
+    "semver": "*",
+    "tsconfig-paths": "*",
+    "tslib": "*",
+    "@nx/detox": "*",
+    "@nx/rollup": "*"
+  },
+  "devDependencies": {}
+}
