@@ -1,8 +1,10 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+
 import { AppModule } from './app/app.module';
 
 async function bootstrap() {
+  console.log(process.env);
   if (
     !process.env['JWT_SECRET'] ||
     process.env['JWT_SECRET'] === 'change-me-in-production'
@@ -19,8 +21,13 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
+  const allowedOrigins =
+    process.env['NODE_ENV'] === 'production'
+      ? [process.env['FRONTEND_URL'] ?? '']
+      : /^http:\/\/localhost:\d+$/;
+
   app.enableCors({
-    origin: process.env['FRONTEND_URL'] ?? 'http://localhost:8081',
+    origin: allowedOrigins,
     credentials: true,
   });
 

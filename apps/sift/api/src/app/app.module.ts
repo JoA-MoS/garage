@@ -1,12 +1,17 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+
 import { AccountsModule } from '../modules/accounts/accounts.module';
 import { EmailsModule } from '../modules/emails/emails.module';
 import { ActionsModule } from '../modules/actions/actions.module';
 import { AuthModule } from '../modules/auth/auth.module';
+import { Email } from '../modules/emails/email.entity';
+import { EmailAccount } from '../modules/accounts/email-account.entity';
+
+import { SeedService } from './seed.service';
+import { AppService } from './app.service';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -14,6 +19,7 @@ import { AuthModule } from '../modules/auth/auth.module';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
+
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
         host: config.get('DB_HOST', 'localhost'),
@@ -32,8 +38,9 @@ import { AuthModule } from '../modules/auth/auth.module';
     AccountsModule,
     EmailsModule,
     ActionsModule,
+    TypeOrmModule.forFeature([Email, EmailAccount]),
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, SeedService],
 })
 export class AppModule {}
