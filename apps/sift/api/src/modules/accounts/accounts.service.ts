@@ -6,8 +6,10 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
-import { EmailAccount } from './email-account.entity';
+
 import { AccountProvider } from '@garage/sift/types';
+
+import { EmailAccount } from './email-account.entity';
 
 @Injectable()
 export class AccountsService {

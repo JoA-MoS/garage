@@ -7,6 +7,7 @@ import {
   Patch,
   Body,
 } from '@nestjs/common';
+
 import { EmailsService } from './emails.service';
 import { EmailStatus } from './email.entity';
 import { UpdateEmailStatusDto } from './dto/update-email-status.dto';
