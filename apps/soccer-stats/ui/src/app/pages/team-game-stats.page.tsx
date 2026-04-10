@@ -20,6 +20,10 @@ export const TeamGameStatsPage = () => {
   }>();
   const navigate = useNavigate();
 
+  const handlePlayerClick = (playerId: string) => {
+    navigate(`/players/${playerId}`);
+  };
+
   const { data, loading, error } = useQuery<GetGameTeamStatsResponse>(
     GET_GAME_TEAM_STATS,
     {
@@ -74,6 +78,7 @@ export const TeamGameStatsPage = () => {
     assists: p.assists,
     totalMinutes: p.totalMinutes,
     totalSeconds: p.totalSeconds,
+    totalPlayTimeSeconds: p.totalPlayTimeSeconds,
     gamesPlayed: p.gamesPlayed,
   }));
 
@@ -192,7 +197,11 @@ export const TeamGameStatsPage = () => {
             Player Performance
           </h3>
         </div>
-        <PlayerStatsTable players={playerStats} showGamesPlayed={false} />
+        <PlayerStatsTable
+          players={playerStats}
+          showGamesPlayed={false}
+          onPlayerClick={handlePlayerClick}
+        />
       </div>
 
       {/* Link to full game view */}

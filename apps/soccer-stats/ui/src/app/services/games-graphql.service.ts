@@ -675,6 +675,7 @@ export const GET_PLAYER_POSITION_STATS = graphql(/* GraphQL */ `
       externalPlayerNumber
       totalMinutes
       totalSeconds
+      totalPlayTimeSeconds
       positionTimes {
         position
         minutes
@@ -693,6 +694,7 @@ export const GET_PLAYER_STATS = graphql(/* GraphQL */ `
       externalPlayerNumber
       totalMinutes
       totalSeconds
+      totalPlayTimeSeconds
       positionTimes {
         position
         minutes

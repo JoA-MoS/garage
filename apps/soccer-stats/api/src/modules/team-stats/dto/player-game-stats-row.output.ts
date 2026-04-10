@@ -39,5 +39,8 @@ export class PlayerGameStatsRow {
   totalSeconds: number;
 
   @Field(() => Int)
+  totalPlayTimeSeconds: number;
+
+  @Field(() => Int)
   gamesPlayed: number;
 }

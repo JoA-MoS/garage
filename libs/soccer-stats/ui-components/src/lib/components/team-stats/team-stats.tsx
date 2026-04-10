@@ -55,6 +55,7 @@ export interface TeamStatsProps {
   error?: string;
   onRetry?: () => void;
   onGameClick?: (gameId: string, gameTeamId?: string) => void;
+  onPlayerClick?: (playerId: string) => void;
   onExportCsv?: () => void;
   onExportExcel?: () => void;
 }
@@ -97,6 +98,7 @@ export const TeamStats = memo(function TeamStats({
   error,
   onRetry,
   onGameClick,
+  onPlayerClick,
   onExportCsv,
   onExportExcel,
 }: TeamStatsProps) {
@@ -343,7 +345,11 @@ export const TeamStats = memo(function TeamStats({
 
       {activeTab === 'players' && (
         <div className="rounded-lg border border-gray-200 bg-white">
-          <PlayerStatsTable players={playerStats} showGamesPlayed />
+          <PlayerStatsTable
+            players={playerStats}
+            showGamesPlayed
+            onPlayerClick={onPlayerClick}
+          />
         </div>
       )}
 
@@ -394,38 +400,6 @@ function StatCard({
         {value}
       </div>
       <div className="text-xs text-gray-500 sm:text-sm">{label}</div>
-    </div>
-  );
-}
-
-function StatRow({
-  label,
-  value,
-  color,
-  isText = false,
-}: {
-  label: string;
-  value: string | number;
-  color?: string;
-  isText?: boolean;
-}) {
-  const colorClasses: Record<string, string> = {
-    green: 'text-green-600',
-    yellow: 'text-yellow-600',
-    red: 'text-red-600',
-    blue: 'text-blue-600',
-    gray: 'text-gray-600',
-  };
-  const valueColor = isText
-    ? 'text-gray-900'
-    : color
-      ? (colorClasses[color] ?? 'text-gray-900')
-      : 'text-gray-900';
-
-  return (
-    <div className="flex items-center justify-between text-sm">
-      <span className="text-gray-600">{label}</span>
-      <span className={`font-medium ${valueColor}`}>{value}</span>
     </div>
   );
 }

@@ -32,6 +32,9 @@ export class PlayerPositionStats {
   @Field(() => Int)
   totalSeconds: number;
 
+  @Field(() => Int)
+  totalPlayTimeSeconds: number;
+
   @Field(() => [PositionTime])
   positionTimes: PositionTime[];
 }

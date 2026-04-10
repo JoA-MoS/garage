@@ -10,6 +10,7 @@ export interface PlayerStatRow {
   assists: number;
   totalMinutes: number;
   totalSeconds: number;
+  totalPlayTimeSeconds?: number;
   gamesPlayed: number;
 }
 
@@ -19,20 +20,35 @@ export type SortField =
   | 'unassistedGoals'
   | 'assists'
   | 'playTime'
-  | 'gamesPlayed';
+  | 'gamesPlayed'
+  | 'averagePlayTime';
 
 export interface PlayerStatsTableProps {
   players: PlayerStatRow[];
   showGamesPlayed?: boolean;
   compact?: boolean;
+  onPlayerClick?: (playerId: string) => void;
 }
 
-function formatPlayTime(minutes: number, seconds: number): string {
-  if (minutes === 0 && seconds === 0) return '-';
+function formatPlayTime(totalPlayTimeSeconds: number): string {
+  const minutes = Math.floor(totalPlayTimeSeconds / 60);
+  if (totalPlayTimeSeconds === 0) return '-';
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
   return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+}
+
+function getTotalPlayTimeSeconds(player: PlayerStatRow): number {
+  if (player.totalPlayTimeSeconds !== undefined) {
+    return player.totalPlayTimeSeconds;
+  }
+  return player.totalMinutes * 60 + player.totalSeconds;
+}
+
+function getAveragePlayTimeSeconds(player: PlayerStatRow): number {
+  if (player.gamesPlayed <= 0) return 0;
+  return Math.floor(getTotalPlayTimeSeconds(player) / player.gamesPlayed);
 }
 
 function getDisplayName(player: PlayerStatRow): string {
@@ -60,9 +76,11 @@ function getSortValue(
     case 'assists':
       return player.assists;
     case 'playTime':
-      return player.totalMinutes * 60 + player.totalSeconds;
+      return getTotalPlayTimeSeconds(player);
     case 'gamesPlayed':
       return player.gamesPlayed;
+    case 'averagePlayTime':
+      return getAveragePlayTimeSeconds(player);
   }
 }
 
@@ -70,6 +88,7 @@ export const PlayerStatsTable = memo(function PlayerStatsTable({
   players,
   showGamesPlayed = true,
   compact = false,
+  onPlayerClick,
 }: PlayerStatsTableProps) {
   const [sortField, setSortField] = useState<SortField>('playTime');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -133,6 +152,9 @@ export const PlayerStatsTable = memo(function PlayerStatsTable({
             <SortHeader field="name" label="Player" className="min-w-[120px]" />
             {showGamesPlayed && <SortHeader field="gamesPlayed" label="GP" />}
             <SortHeader field="playTime" label="Time" />
+            {showGamesPlayed && (
+              <SortHeader field="averagePlayTime" label="Avg/Game" />
+            )}
             <SortHeader field="goals" label="G" />
             <SortHeader field="unassistedGoals" label="UG" />
             <SortHeader field="assists" label="A" />
@@ -149,13 +171,22 @@ export const PlayerStatsTable = memo(function PlayerStatsTable({
               >
                 <td className="whitespace-nowrap px-2 py-2 sm:px-3 sm:py-3">
                   <div className="flex items-center gap-1">
-                    <span
-                      className={`text-sm font-medium ${
-                        isExternal ? 'italic text-gray-500' : 'text-gray-900'
-                      }`}
-                    >
-                      {displayName}
-                    </span>
+                    {onPlayerClick && player.playerId ? (
+                      <button
+                        onClick={() => onPlayerClick(player.playerId!)}
+                        className="text-sm font-medium text-blue-600 lg:hover:text-blue-800 lg:hover:underline"
+                      >
+                        {displayName}
+                      </button>
+                    ) : (
+                      <span
+                        className={`text-sm font-medium ${
+                          isExternal ? 'italic text-gray-500' : 'text-gray-900'
+                        }`}
+                      >
+                        {displayName}
+                      </span>
+                    )}
                   </div>
                 </td>
                 {showGamesPlayed && (
@@ -164,8 +195,13 @@ export const PlayerStatsTable = memo(function PlayerStatsTable({
                   </td>
                 )}
                 <td className="whitespace-nowrap px-2 py-2 text-sm text-gray-700 sm:px-3 sm:py-3">
-                  {formatPlayTime(player.totalMinutes, player.totalSeconds)}
+                  {formatPlayTime(getTotalPlayTimeSeconds(player))}
                 </td>
+                {showGamesPlayed && (
+                  <td className="whitespace-nowrap px-2 py-2 text-sm text-gray-700 sm:px-3 sm:py-3">
+                    {formatPlayTime(getAveragePlayTimeSeconds(player))}
+                  </td>
+                )}
                 <td className="whitespace-nowrap px-2 py-2 text-sm font-medium text-blue-600 sm:px-3 sm:py-3">
                   {player.goals || '-'}
                 </td>
@@ -188,10 +224,10 @@ export const PlayerStatsTable = memo(function PlayerStatsTable({
             {showGamesPlayed && <td className="px-2 py-2 sm:px-3 sm:py-3" />}
             <td className="px-2 py-2 text-sm text-gray-700 sm:px-3 sm:py-3">
               {formatPlayTime(
-                players.reduce((sum, p) => sum + p.totalMinutes, 0),
-                0,
+                players.reduce((sum, p) => sum + getTotalPlayTimeSeconds(p), 0),
               )}
             </td>
+            {showGamesPlayed && <td className="px-2 py-2 sm:px-3 sm:py-3" />}
             <td className="px-2 py-2 text-sm text-blue-600 sm:px-3 sm:py-3">
               {players.reduce((sum, p) => sum + p.goals, 0)}
             </td>

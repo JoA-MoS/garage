@@ -19,6 +19,7 @@ interface TeamStatsSmartProps {
   isLoading?: boolean;
   error?: string;
   onRetry?: () => void;
+  onPlayerClick?: (playerId: string) => void;
 }
 
 function mapPlayerStats(players: PlayerGameStatsRowData[]): PlayerStatRow[] {
@@ -32,6 +33,7 @@ function mapPlayerStats(players: PlayerGameStatsRowData[]): PlayerStatRow[] {
     assists: p.assists,
     totalMinutes: p.totalMinutes,
     totalSeconds: p.totalSeconds,
+    totalPlayTimeSeconds: p.totalPlayTimeSeconds,
     gamesPlayed: p.gamesPlayed,
   }));
 }
@@ -49,6 +51,7 @@ export const TeamStatsSmart = ({
   isLoading = false,
   error,
   onRetry,
+  onPlayerClick,
 }: TeamStatsSmartProps) => {
   const navigate = useNavigate();
 
@@ -203,6 +206,7 @@ export const TeamStatsSmart = ({
       error={error}
       onRetry={onRetry}
       onGameClick={handleGameClick}
+      onPlayerClick={onPlayerClick}
       onExportCsv={handleExportCsv}
       onExportExcel={handleExportExcel}
     />

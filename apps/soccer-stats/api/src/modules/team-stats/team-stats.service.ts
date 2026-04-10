@@ -70,6 +70,7 @@ export class TeamStatsService {
       ownGoals: 0,
       totalMinutes: ps.totalMinutes,
       totalSeconds: ps.totalSeconds,
+      totalPlayTimeSeconds: ps.totalPlayTimeSeconds,
       gamesPlayed: ps.gamesPlayed,
     }));
 
@@ -689,6 +690,7 @@ export class TeamStatsService {
         ownGoals: 0,
         totalMinutes: ps.totalMinutes,
         totalSeconds: ps.totalSeconds,
+        totalPlayTimeSeconds: ps.totalPlayTimeSeconds,
         gamesPlayed: 1,
       }));
 
@@ -767,6 +769,7 @@ export class TeamStatsService {
       ownGoals: 0,
       totalMinutes: ps.totalMinutes,
       totalSeconds: ps.totalSeconds,
+      totalPlayTimeSeconds: ps.totalPlayTimeSeconds,
       gamesPlayed: 1,
     }));
 

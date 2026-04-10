@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router';
 import { useQuery } from '@apollo/client/react';
 
 import {
@@ -12,6 +13,7 @@ interface TeamStatsCompositionProps {
 }
 
 export const TeamStatsComposition = ({ teamId }: TeamStatsCompositionProps) => {
+  const navigate = useNavigate();
   const [startDate, setStartDate] = useState<string | undefined>();
   const [endDate, setEndDate] = useState<string | undefined>();
 
@@ -47,6 +49,13 @@ export const TeamStatsComposition = ({ teamId }: TeamStatsCompositionProps) => {
     setStartDate(undefined);
     setEndDate(undefined);
   }, []);
+
+  const handlePlayerClick = useCallback(
+    (playerId: string) => {
+      navigate(`/players/${playerId}`);
+    },
+    [navigate],
+  );
 
   if (!teamId) {
     return (
@@ -99,6 +108,7 @@ export const TeamStatsComposition = ({ teamId }: TeamStatsCompositionProps) => {
       isLoading={loading}
       error={error?.message}
       onRetry={() => refetch()}
+      onPlayerClick={handlePlayerClick}
     />
   );
 };
