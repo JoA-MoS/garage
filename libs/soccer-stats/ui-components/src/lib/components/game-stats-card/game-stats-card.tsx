@@ -80,13 +80,15 @@ export const GameStatsCard = memo(function GameStatsCard({
 
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-      {/* Game header - always visible */}
-      <button
-        className="flex w-full items-center justify-between p-3 text-left transition-colors sm:p-4 lg:hover:bg-gray-50"
-        onClick={() => setExpanded(!expanded)}
-        type="button"
-      >
-        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+      {/* Game header - always visible. Uses a div layout instead of a button to
+          allow a nested "View" button without invalid HTML (button-in-button). */}
+      <div className="flex w-full items-center justify-between p-3 sm:p-4 lg:hover:bg-gray-50">
+        {/* Expand toggle — takes up most of the row */}
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left sm:gap-3"
+          onClick={() => setExpanded(!expanded)}
+        >
           <span
             className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${getResultBadgeClasses(result)}`}
           >
@@ -97,23 +99,22 @@ export const GameStatsCard = memo(function GameStatsCard({
               <span className="truncate text-sm font-medium text-gray-900 sm:text-base">
                 {opponentName ? `vs ${opponentName}` : gameName || 'Game'}
               </span>
-              {onGameClick && (
-                <button
-                  className="shrink-0 text-xs text-blue-600 lg:hover:text-blue-800"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onGameClick(gameId, gameTeamId);
-                  }}
-                  type="button"
-                >
-                  View
-                </button>
-              )}
             </div>
             <div className="text-xs text-gray-500">{formatDate(gameDate)}</div>
           </div>
-        </div>
+        </button>
+
+        {/* Right side: score, stats, view link, chevron */}
         <div className="flex shrink-0 items-center gap-3 sm:gap-4">
+          {onGameClick && (
+            <button
+              type="button"
+              className="shrink-0 text-xs text-blue-600 lg:hover:text-blue-800"
+              onClick={() => onGameClick(gameId, gameTeamId)}
+            >
+              View
+            </button>
+          )}
           {scoreDisplay && (
             <span className="text-lg font-bold text-gray-900 sm:text-xl">
               {scoreDisplay}
@@ -129,21 +130,28 @@ export const GameStatsCard = memo(function GameStatsCard({
               <div className="text-gray-500">Assists</div>
             </div>
           </div>
-          <svg
-            className={`h-5 w-5 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+          <button
+            type="button"
+            aria-label={expanded ? 'Collapse' : 'Expand'}
+            onClick={() => setExpanded(!expanded)}
+            className="rounded p-1"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
+            <svg
+              className={`h-5 w-5 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
         </div>
-      </button>
+      </div>
 
       {/* Expanded player stats */}
       {expanded && (

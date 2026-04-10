@@ -10,8 +10,9 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * - Yellow/red cards per player per game
  * - Game metadata (scheduled date, status, team info)
  *
- * The view is used by the stats pages to show per-game and
- * aggregated team statistics without processing raw events in application code.
+ * The view is available for future use to show per-game and aggregated team
+ * statistics. Currently the app reads raw events via StatsService; this view
+ * can be queried directly if a reporting or caching layer is introduced.
  *
  * Note: Playing time is NOT included in this view because it requires
  * sequential event processing (tracking position spans across SUB_IN/SUB_OUT
