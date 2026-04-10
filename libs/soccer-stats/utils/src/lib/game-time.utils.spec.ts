@@ -1,6 +1,7 @@
 import {
   toPeriodSecond,
   fromPeriodSecond,
+  toMinutesAndSeconds,
   formatGameTime,
   formatGameTimeCompact,
   formatPeriodTime,
@@ -32,6 +33,15 @@ describe('game-time.utils', () => {
       expect(fromPeriodSecond(90)).toEqual({ minute: 1, second: 30 });
       expect(fromPeriodSecond(2700)).toEqual({ minute: 45, second: 0 });
       expect(fromPeriodSecond(1325)).toEqual({ minute: 22, second: 5 });
+    });
+  });
+
+  describe('toMinutesAndSeconds', () => {
+    it('should convert total seconds to minute and second', () => {
+      expect(toMinutesAndSeconds(0)).toEqual({ minute: 0, second: 0 });
+      expect(toMinutesAndSeconds(60)).toEqual({ minute: 1, second: 0 });
+      expect(toMinutesAndSeconds(90)).toEqual({ minute: 1, second: 30 });
+      expect(toMinutesAndSeconds(3661)).toEqual({ minute: 61, second: 1 });
     });
   });
 

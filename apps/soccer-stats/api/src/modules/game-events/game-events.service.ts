@@ -14,6 +14,7 @@ import { GameRoster } from './dto/game-roster.output';
 import { PlayerPositionStats } from './dto/player-position-stats.output';
 import { PlayerFullStats } from './dto/player-full-stats.output';
 import { PlayerStatsInput } from './dto/player-stats.input';
+import { PlayerCareerStats } from './dto/player-career-stats.output';
 import { DependentEventsResult } from './dto/dependent-event.output';
 import { SetSecondHalfLineupInput } from './dto/set-second-half-lineup.input';
 import { SecondHalfLineupResult } from './dto/set-second-half-lineup.output';
@@ -227,6 +228,10 @@ export class GameEventsService implements OnModuleInit {
 
   async getPlayerStats(input: PlayerStatsInput): Promise<PlayerFullStats[]> {
     return this.statsService.getPlayerStats(input);
+  }
+
+  async getPlayerCareerStats(playerId: string): Promise<PlayerCareerStats> {
+    return this.statsService.getPlayerCareerStats(playerId);
   }
 
   // ========================================

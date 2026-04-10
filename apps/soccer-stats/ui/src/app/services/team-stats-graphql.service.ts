@@ -14,6 +14,7 @@ export interface PlayerGameStatsRowData {
   ownGoals: number;
   totalMinutes: number;
   totalSeconds: number;
+  totalPlayTimeSeconds: number;
   gamesPlayed: number;
 }
 
@@ -125,6 +126,7 @@ export const GET_TEAM_STATS = gql`
         ownGoals
         totalMinutes
         totalSeconds
+        totalPlayTimeSeconds
         gamesPlayed
       }
       gameBreakdown {
@@ -150,6 +152,7 @@ export const GET_TEAM_STATS = gql`
           ownGoals
           totalMinutes
           totalSeconds
+          totalPlayTimeSeconds
           gamesPlayed
         }
       }
@@ -182,6 +185,7 @@ export const GET_GAME_TEAM_STATS = gql`
         ownGoals
         totalMinutes
         totalSeconds
+        totalPlayTimeSeconds
         gamesPlayed
       }
     }

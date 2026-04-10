@@ -739,6 +739,19 @@ export type PeriodResult = {
   substitutionEvents: Array<GameEvent>;
 };
 
+export type PlayerCareerStats = {
+  __typename?: 'PlayerCareerStats';
+  gameHistory: Array<PlayerGameEntry>;
+  playerId: Scalars['ID']['output'];
+  playerName: Scalars['String']['output'];
+  teamStats: Array<PlayerTeamStats>;
+  totalAssists: Scalars['Int']['output'];
+  totalGamesPlayed: Scalars['Int']['output'];
+  totalGoals: Scalars['Int']['output'];
+  totalPlayTimeSeconds: Scalars['Int']['output'];
+  totalUnassistedGoals: Scalars['Int']['output'];
+};
+
 export type PlayerComboMetric = {
   __typename?: 'PlayerComboMetric';
   goals: Scalars['Int']['output'];
@@ -762,9 +775,27 @@ export type PlayerFullStats = {
   redCards?: Maybe<Scalars['Int']['output']>;
   saves?: Maybe<Scalars['Int']['output']>;
   totalMinutes: Scalars['Int']['output'];
+  totalPlayTimeSeconds: Scalars['Int']['output'];
   totalSeconds: Scalars['Int']['output'];
   unassistedGoals: Scalars['Int']['output'];
   yellowCards?: Maybe<Scalars['Int']['output']>;
+};
+
+export type PlayerGameEntry = {
+  __typename?: 'PlayerGameEntry';
+  assists: Scalars['Int']['output'];
+  gameDate?: Maybe<Scalars['String']['output']>;
+  gameId: Scalars['ID']['output'];
+  gameTeamId: Scalars['ID']['output'];
+  goals: Scalars['Int']['output'];
+  opponentName?: Maybe<Scalars['String']['output']>;
+  opponentScore?: Maybe<Scalars['Int']['output']>;
+  result: Scalars['String']['output'];
+  teamId: Scalars['ID']['output'];
+  teamName: Scalars['String']['output'];
+  teamScore?: Maybe<Scalars['Int']['output']>;
+  totalPlayTimeSeconds: Scalars['Int']['output'];
+  unassistedGoals: Scalars['Int']['output'];
 };
 
 export type PlayerGameStats = {
@@ -789,6 +820,7 @@ export type PlayerGameStatsRow = {
   playerName?: Maybe<Scalars['String']['output']>;
   redCards: Scalars['Int']['output'];
   totalMinutes: Scalars['Int']['output'];
+  totalPlayTimeSeconds: Scalars['Int']['output'];
   totalSeconds: Scalars['Int']['output'];
   unassistedGoals: Scalars['Int']['output'];
   yellowCards: Scalars['Int']['output'];
@@ -802,6 +834,7 @@ export type PlayerPositionStats = {
   playerName?: Maybe<Scalars['String']['output']>;
   positionTimes: Array<PositionTime>;
   totalMinutes: Scalars['Int']['output'];
+  totalPlayTimeSeconds: Scalars['Int']['output'];
   totalSeconds: Scalars['Int']['output'];
 };
 
@@ -814,6 +847,17 @@ export type PlayerStatsInput = {
   startDate?: InputMaybe<Scalars['DateTime']['input']>;
   /** Required: Team ID to get player stats for */
   teamId: Scalars['ID']['input'];
+};
+
+export type PlayerTeamStats = {
+  __typename?: 'PlayerTeamStats';
+  assists: Scalars['Int']['output'];
+  gamesPlayed: Scalars['Int']['output'];
+  goals: Scalars['Int']['output'];
+  teamId: Scalars['ID']['output'];
+  teamName: Scalars['String']['output'];
+  totalPlayTimeSeconds: Scalars['Int']['output'];
+  unassistedGoals: Scalars['Int']['output'];
 };
 
 export type PositionTime = {
@@ -854,6 +898,7 @@ export type Query = {
   myTeamMemberships: Array<TeamMember>;
   /** Get teams the current user has access to via team membership */
   myTeams: Array<Team>;
+  playerCareerStats: PlayerCareerStats;
   playerPositionStats: Array<PlayerPositionStats>;
   playerStats: Array<PlayerFullStats>;
   players: Array<User>;
@@ -941,6 +986,10 @@ export type QueryMyHighestRoleInTeamArgs = {
 
 export type QueryMyMembershipInTeamArgs = {
   teamId: Scalars['ID']['input'];
+};
+
+export type QueryPlayerCareerStatsArgs = {
+  playerId: Scalars['ID']['input'];
 };
 
 export type QueryPlayerPositionStatsArgs = {
@@ -1739,6 +1788,19 @@ export type GameEventFragmentFragment = {
   }>;
 } & { ' $fragmentName'?: 'GameEventFragmentFragment' };
 
+export type GetAllPlayersQueryVariables = Exact<{ [key: string]: never }>;
+
+export type GetAllPlayersQuery = {
+  __typename?: 'Query';
+  players: Array<{
+    __typename?: 'User';
+    id: string;
+    firstName: string;
+    lastName: string;
+    email?: string | null;
+  }>;
+};
+
 export type GetGameFormatsQueryVariables = Exact<{ [key: string]: never }>;
 
 export type GetGameFormatsQuery = {
@@ -2414,6 +2476,7 @@ export type GetPlayerPositionStatsQuery = {
     externalPlayerNumber?: string | null;
     totalMinutes: number;
     totalSeconds: number;
+    totalPlayTimeSeconds: number;
     positionTimes: Array<{
       __typename?: 'PositionTime';
       position: string;
@@ -2437,6 +2500,7 @@ export type GetPlayerStatsQuery = {
     externalPlayerNumber?: string | null;
     totalMinutes: number;
     totalSeconds: number;
+    totalPlayTimeSeconds: number;
     goals: number;
     unassistedGoals: number;
     assists: number;
@@ -2868,6 +2932,50 @@ export type GetMyLiveGamesQuery = {
   } | null;
 };
 
+export type GetPlayerCareerStatsQueryVariables = Exact<{
+  playerId: Scalars['ID']['input'];
+}>;
+
+export type GetPlayerCareerStatsQuery = {
+  __typename?: 'Query';
+  playerCareerStats: {
+    __typename?: 'PlayerCareerStats';
+    playerId: string;
+    playerName: string;
+    totalGamesPlayed: number;
+    totalGoals: number;
+    totalAssists: number;
+    totalUnassistedGoals: number;
+    totalPlayTimeSeconds: number;
+    teamStats: Array<{
+      __typename?: 'PlayerTeamStats';
+      teamId: string;
+      teamName: string;
+      gamesPlayed: number;
+      goals: number;
+      assists: number;
+      unassistedGoals: number;
+      totalPlayTimeSeconds: number;
+    }>;
+    gameHistory: Array<{
+      __typename?: 'PlayerGameEntry';
+      gameId: string;
+      gameTeamId: string;
+      gameDate?: string | null;
+      teamId: string;
+      teamName: string;
+      opponentName?: string | null;
+      teamScore?: number | null;
+      opponentScore?: number | null;
+      result: string;
+      goals: number;
+      assists: number;
+      unassistedGoals: number;
+      totalPlayTimeSeconds: number;
+    }>;
+  };
+};
+
 export type GetTeamStatsQueryVariables = Exact<{
   input: TeamStatsInput;
 }>;
@@ -2924,6 +3032,7 @@ export type GetTeamStatsQuery = {
       ownGoals: number;
       totalMinutes: number;
       totalSeconds: number;
+      totalPlayTimeSeconds: number;
       gamesPlayed: number;
     }>;
     gameBreakdown: Array<{
@@ -2951,6 +3060,7 @@ export type GetTeamStatsQuery = {
         ownGoals: number;
         totalMinutes: number;
         totalSeconds: number;
+        totalPlayTimeSeconds: number;
         gamesPlayed: number;
       }>;
     }>;
@@ -2988,6 +3098,7 @@ export type GetGameTeamStatsQuery = {
       ownGoals: number;
       totalMinutes: number;
       totalSeconds: number;
+      totalPlayTimeSeconds: number;
       gamesPlayed: number;
     }>;
   };
@@ -4775,6 +4886,34 @@ export const QuickCreateTeamDocument = {
   QuickCreateTeamMutation,
   QuickCreateTeamMutationVariables
 >;
+export const GetAllPlayersDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'query',
+      name: { kind: 'Name', value: 'GetAllPlayers' },
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'players' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'firstName' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'lastName' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'email' } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<GetAllPlayersQuery, GetAllPlayersQueryVariables>;
 export const GetGameFormatsDocument = {
   kind: 'Document',
   definitions: [
@@ -7506,6 +7645,10 @@ export const GetPlayerPositionStatsDocument = {
                 },
                 {
                   kind: 'Field',
+                  name: { kind: 'Name', value: 'totalPlayTimeSeconds' },
+                },
+                {
+                  kind: 'Field',
                   name: { kind: 'Name', value: 'positionTimes' },
                   selectionSet: {
                     kind: 'SelectionSet',
@@ -7595,6 +7738,10 @@ export const GetPlayerStatsDocument = {
                 {
                   kind: 'Field',
                   name: { kind: 'Name', value: 'totalSeconds' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'totalPlayTimeSeconds' },
                 },
                 {
                   kind: 'Field',
@@ -9282,6 +9429,167 @@ export const GetMyLiveGamesDocument = {
     },
   ],
 } as unknown as DocumentNode<GetMyLiveGamesQuery, GetMyLiveGamesQueryVariables>;
+export const GetPlayerCareerStatsDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'query',
+      name: { kind: 'Name', value: 'GetPlayerCareerStats' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'playerId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'playerCareerStats' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'playerId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'playerId' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'playerId' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'playerName' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'totalGamesPlayed' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'totalGoals' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'totalAssists' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'totalUnassistedGoals' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'totalPlayTimeSeconds' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'teamStats' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'teamId' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'teamName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gamesPlayed' },
+                      },
+                      { kind: 'Field', name: { kind: 'Name', value: 'goals' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'assists' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'unassistedGoals' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'totalPlayTimeSeconds' },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'gameHistory' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameId' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameTeamId' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'gameDate' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'teamId' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'teamName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'opponentName' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'teamScore' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'opponentScore' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'result' },
+                      },
+                      { kind: 'Field', name: { kind: 'Name', value: 'goals' } },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'assists' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'unassistedGoals' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'totalPlayTimeSeconds' },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  GetPlayerCareerStatsQuery,
+  GetPlayerCareerStatsQueryVariables
+>;
 export const GetTeamStatsDocument = {
   kind: 'Document',
   definitions: [
@@ -9495,6 +9803,10 @@ export const GetTeamStatsDocument = {
                       },
                       {
                         kind: 'Field',
+                        name: { kind: 'Name', value: 'totalPlayTimeSeconds' },
+                      },
+                      {
+                        kind: 'Field',
                         name: { kind: 'Name', value: 'gamesPlayed' },
                       },
                     ],
@@ -9601,6 +9913,13 @@ export const GetTeamStatsDocument = {
                             {
                               kind: 'Field',
                               name: { kind: 'Name', value: 'totalSeconds' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: {
+                                kind: 'Name',
+                                value: 'totalPlayTimeSeconds',
+                              },
                             },
                             {
                               kind: 'Field',
@@ -9721,6 +10040,10 @@ export const GetGameTeamStatsDocument = {
                       {
                         kind: 'Field',
                         name: { kind: 'Name', value: 'totalSeconds' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'totalPlayTimeSeconds' },
                       },
                       {
                         kind: 'Field',
