@@ -1061,6 +1061,7 @@ export enum StatsTrackingLevel {
   Full = 'FULL',
   GoalsOnly = 'GOALS_ONLY',
   ScorerOnly = 'SCORER_ONLY',
+  SubstitutionOnly = 'SUBSTITUTION_ONLY',
 }
 
 export type Subscription = {

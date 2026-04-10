@@ -9,6 +9,7 @@ export enum StatsTrackingLevel {
   FULL = 'FULL', // Track scorer and assister
   SCORER_ONLY = 'SCORER_ONLY', // Track only the scorer
   GOALS_ONLY = 'GOALS_ONLY', // Track goals without player attribution
+  SUBSTITUTION_ONLY = 'SUBSTITUTION_ONLY', // Track substitutions (play time) without position tracking
 }
 
 registerEnumType(StatsTrackingLevel, {

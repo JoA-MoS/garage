@@ -11,6 +11,7 @@ export enum UIStatsTrackingLevel {
   Full = 'FULL',
   ScorerOnly = 'SCORER_ONLY',
   GoalsOnly = 'GOALS_ONLY',
+  SubstitutionOnly = 'SUBSTITUTION_ONLY',
 }
 
 export interface UITeam {
