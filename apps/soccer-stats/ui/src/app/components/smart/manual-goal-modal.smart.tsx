@@ -81,7 +81,9 @@ export const ManualGoalModal = ({
 
   // Determine tracking level from selected team
   const statsTrackingLevel = selectedTeam.statsTrackingLevel;
-  const showScorerField = statsTrackingLevel !== StatsTrackingLevel.GoalsOnly;
+  const showScorerField =
+    statsTrackingLevel !== StatsTrackingLevel.GoalsOnly &&
+    statsTrackingLevel !== StatsTrackingLevel.SubstitutionOnly;
   const showAssisterField =
     statsTrackingLevel === StatsTrackingLevel.Full || !statsTrackingLevel;
 

@@ -87,7 +87,9 @@ export const GoalModal = ({
   statsTrackingLevel,
 }: GoalModalProps) => {
   // Determine which fields to show based on tracking level
-  const showScorerField = statsTrackingLevel !== StatsTrackingLevel.GoalsOnly;
+  const showScorerField =
+    statsTrackingLevel !== StatsTrackingLevel.GoalsOnly &&
+    statsTrackingLevel !== StatsTrackingLevel.SubstitutionOnly;
   const showAssisterField =
     statsTrackingLevel === StatsTrackingLevel.Full || !statsTrackingLevel;
   const isEditMode = !!editGoal;

@@ -44,6 +44,12 @@ export const STATS_TRACKING_OPTIONS: StatsTrackingOption[] = [
     description: 'Track goals without player attribution',
     isPremium: false,
   },
+  {
+    value: StatsTrackingLevel.SubstitutionOnly,
+    label: 'Play Time Only',
+    description: 'Track who plays (in/out) for play time without position tracking',
+    isPremium: false,
+  },
 ];
 
 /**

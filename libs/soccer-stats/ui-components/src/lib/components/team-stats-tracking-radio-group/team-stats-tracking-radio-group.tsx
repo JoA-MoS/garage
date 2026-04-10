@@ -4,6 +4,7 @@ const STATS_TRACKING_OPTIONS = [
   { value: UIStatsTrackingLevel.Full, label: 'Full Stats' },
   { value: UIStatsTrackingLevel.ScorerOnly, label: 'Scorer Only' },
   { value: UIStatsTrackingLevel.GoalsOnly, label: 'Goals Only' },
+  { value: UIStatsTrackingLevel.SubstitutionOnly, label: 'Play Time Only' },
 ] as const;
 
 export interface TeamStatsTrackingRadioGroupProps {
