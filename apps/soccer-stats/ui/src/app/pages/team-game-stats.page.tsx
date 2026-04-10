@@ -34,10 +34,12 @@ export const TeamGameStatsPage = () => {
     },
   );
 
-  if (!gameTeamId) {
+  if (!gameTeamId || !teamId) {
     return (
       <div className="p-4">
-        <div className="text-red-600">Error: No game team ID provided</div>
+        <div className="text-red-600">
+          Error: Missing required route parameters
+        </div>
       </div>
     );
   }

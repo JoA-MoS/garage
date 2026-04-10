@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 
 import { PlayerStatsTable } from '../player-stats-table';
 import type { PlayerStatRow } from '../player-stats-table';
@@ -62,6 +62,13 @@ export interface TeamStatsProps {
 
 type StatsTab = 'overview' | 'players' | 'games';
 
+// Parse YYYY-MM-DD date strings without timezone conversion to avoid off-by-one
+// day errors in timezones ahead of UTC.
+function formatDateLabel(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString();
+}
+
 export const TeamStats = memo(function TeamStats({
   teamName,
   gamesPlayed,
@@ -105,6 +112,12 @@ export const TeamStats = memo(function TeamStats({
   const [activeTab, setActiveTab] = useState<StatsTab>('overview');
   const [localStartDate, setLocalStartDate] = useState(startDate ?? '');
   const [localEndDate, setLocalEndDate] = useState(endDate ?? '');
+
+  // Sync local date state if the parent clears or changes the range externally
+  useEffect(() => {
+    setLocalStartDate(startDate ?? '');
+    setLocalEndDate(endDate ?? '');
+  }, [startDate, endDate]);
 
   if (error) {
     return (
@@ -211,14 +224,14 @@ export const TeamStats = memo(function TeamStats({
               <button
                 onClick={handleApplyDateRange}
                 disabled={!localStartDate || !localEndDate}
-                className="min-h-[38px] rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50 sm:py-2 lg:hover:bg-blue-700"
+                className="min-h-[44px] rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50 lg:hover:bg-blue-700"
               >
                 Apply
               </button>
               {(startDate || endDate) && (
                 <button
                   onClick={handleClearDateRange}
-                  className="min-h-[38px] rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors lg:hover:bg-gray-50"
+                  className="min-h-[44px] rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors lg:hover:bg-gray-50"
                 >
                   Clear
                 </button>
@@ -227,8 +240,8 @@ export const TeamStats = memo(function TeamStats({
           </div>
           {startDate && endDate && (
             <p className="mt-2 text-xs text-gray-500">
-              Showing stats from {new Date(startDate).toLocaleDateString()} to{' '}
-              {new Date(endDate).toLocaleDateString()}
+              Showing stats from {formatDateLabel(startDate)} to{' '}
+              {formatDateLabel(endDate)}
             </p>
           )}
         </div>
@@ -236,10 +249,12 @@ export const TeamStats = memo(function TeamStats({
 
       {/* Tab Navigation */}
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-4 sm:space-x-6">
+        <nav role="tablist" className="-mb-px flex space-x-4 sm:space-x-6">
           {tabs.map((tab) => (
             <button
               key={tab.key}
+              role="tab"
+              aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`whitespace-nowrap border-b-2 px-1 py-2 text-sm font-medium transition-colors ${
                 activeTab === tab.key

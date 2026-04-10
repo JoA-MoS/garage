@@ -122,17 +122,28 @@ export const PlayerStatsTable = memo(function PlayerStatsTable({
     className?: string;
   }) => (
     <th
-      className={`cursor-pointer select-none px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 transition-colors sm:px-3 sm:py-3 lg:hover:text-gray-700 ${className}`}
-      onClick={() => handleSort(field)}
+      scope="col"
+      aria-sort={
+        sortField === field
+          ? sortDirection === 'asc'
+            ? 'ascending'
+            : 'descending'
+          : 'none'
+      }
+      className={`px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:px-3 sm:py-3 ${className}`}
     >
-      <span className="inline-flex items-center gap-1">
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 transition-colors lg:hover:text-gray-700"
+        onClick={() => handleSort(field)}
+      >
         {label}
         {sortField === field && (
-          <span className="text-blue-600">
+          <span className="text-blue-600" aria-hidden="true">
             {sortDirection === 'asc' ? '\u2191' : '\u2193'}
           </span>
         )}
-      </span>
+      </button>
     </th>
   );
 

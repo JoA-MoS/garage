@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 
 import { Team } from '../../entities/team.entity';
 import { GameTeam } from '../../entities/game-team.entity';
@@ -665,17 +665,24 @@ export class TeamStatsService {
 
     const eventScoresByGameTeamId = await this.getEventScoresByGameIds(gameIds);
 
-    // Build per-game summaries with player stats from the existing service
+    // Fetch player stats for all games in parallel to avoid N+1 queries
+    const allPlayerStatsByGameId = await Promise.all(
+      gameTeams.map((gt) =>
+        this.gameEventsService
+          .getPlayerStats({ teamId: input.teamId, gameId: gt.gameId })
+          .then((stats) => ({ gameId: gt.gameId, stats })),
+      ),
+    );
+    const playerStatsByGameId = new Map(
+      allPlayerStatsByGameId.map(({ gameId, stats }) => [gameId, stats]),
+    );
+
     const summaries: GameStatsSummary[] = [];
 
     for (const gameTeam of gameTeams) {
       const opponent = opponentByGameId.get(gameTeam.gameId);
 
-      // Get player stats for this specific game
-      const playerFullStats = await this.gameEventsService.getPlayerStats({
-        teamId: input.teamId,
-        gameId: gameTeam.gameId,
-      });
+      const playerFullStats = playerStatsByGameId.get(gameTeam.gameId) ?? [];
 
       const playerStats: PlayerGameStatsRow[] = playerFullStats.map((ps) => ({
         playerId: ps.playerId,
@@ -737,14 +744,11 @@ export class TeamStatsService {
       throw new NotFoundException(`GameTeam ${gameTeamId} not found`);
     }
 
-    // Get opponent
-    const opponent = await this.gameTeamRepository.findOne({
-      where: { gameId: gameTeam.gameId },
+    // Get opponent (exclude the current gameTeamId to avoid self-match)
+    const actualOpponent = await this.gameTeamRepository.findOne({
+      where: { gameId: gameTeam.gameId, id: Not(gameTeamId) },
       relations: ['team'],
     });
-
-    const actualOpponent =
-      opponent && opponent.id !== gameTeamId ? opponent : null;
 
     const eventScoresByGameTeamId = await this.getEventScoresByGameIds([
       gameTeam.gameId,

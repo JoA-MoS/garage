@@ -25,8 +25,8 @@ export const TeamStatsComposition = ({ teamId }: TeamStatsCompositionProps) => {
           teamId,
           ...(startDate && endDate
             ? {
-                startDate: new Date(startDate).toISOString(),
-                endDate: new Date(endDate).toISOString(),
+                startDate: new Date(`${startDate}T00:00:00`).toISOString(),
+                endDate: new Date(`${endDate}T23:59:59`).toISOString(),
               }
             : {}),
         },
