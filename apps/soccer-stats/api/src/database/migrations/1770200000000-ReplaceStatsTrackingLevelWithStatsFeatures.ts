@@ -57,7 +57,9 @@ export class ReplaceStatsTrackingLevelWithStatsFeatures1770200000000
       WHERE "statsTrackingLevel" IS NOT NULL
     `);
 
-    await queryRunner.query(`ALTER TABLE games DROP COLUMN "statsTrackingLevel"`);
+    await queryRunner.query(
+      `ALTER TABLE games DROP COLUMN "statsTrackingLevel"`,
+    );
 
     // ── game_teams ────────────────────────────────────────────────────────
     await queryRunner.query(`
@@ -82,22 +84,71 @@ export class ReplaceStatsTrackingLevelWithStatsFeatures1770200000000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    // Exact reverse of the up() mappings. Configurations that have no
+    // equivalent old enum value (e.g. trackGoals=false) fall back to 'FULL'
+    // rather than silently mapping to a semantically wrong value.
+    const teamConfigCase = `
+      CASE
+        WHEN ("statsFeatures"->>'trackGoals')::boolean     = true
+         AND ("statsFeatures"->>'trackScorer')::boolean    = true
+         AND ("statsFeatures"->>'trackAssists')::boolean   = true
+         AND ("statsFeatures"->>'trackSubstitutions')::boolean = true
+         AND ("statsFeatures"->>'trackPositions')::boolean = true  THEN 'FULL'
+        WHEN ("statsFeatures"->>'trackGoals')::boolean     = true
+         AND ("statsFeatures"->>'trackScorer')::boolean    = true
+         AND ("statsFeatures"->>'trackAssists')::boolean   = false
+         AND ("statsFeatures"->>'trackSubstitutions')::boolean = true
+         AND ("statsFeatures"->>'trackPositions')::boolean = true  THEN 'SCORER_ONLY'
+        WHEN ("statsFeatures"->>'trackGoals')::boolean     = true
+         AND ("statsFeatures"->>'trackScorer')::boolean    = false
+         AND ("statsFeatures"->>'trackAssists')::boolean   = false
+         AND ("statsFeatures"->>'trackSubstitutions')::boolean = true
+         AND ("statsFeatures"->>'trackPositions')::boolean = true  THEN 'GOALS_ONLY'
+        WHEN ("statsFeatures"->>'trackGoals')::boolean     = true
+         AND ("statsFeatures"->>'trackScorer')::boolean    = false
+         AND ("statsFeatures"->>'trackAssists')::boolean   = false
+         AND ("statsFeatures"->>'trackSubstitutions')::boolean = true
+         AND ("statsFeatures"->>'trackPositions')::boolean = false THEN 'SUBSTITUTION_ONLY'
+        ELSE 'FULL'
+      END
+    `;
+
+    const nullableCase = `
+      CASE
+        WHEN "statsFeatures" IS NULL THEN NULL
+        WHEN ("statsFeatures"->>'trackGoals')::boolean     = true
+         AND ("statsFeatures"->>'trackScorer')::boolean    = true
+         AND ("statsFeatures"->>'trackAssists')::boolean   = true
+         AND ("statsFeatures"->>'trackSubstitutions')::boolean = true
+         AND ("statsFeatures"->>'trackPositions')::boolean = true  THEN 'FULL'
+        WHEN ("statsFeatures"->>'trackGoals')::boolean     = true
+         AND ("statsFeatures"->>'trackScorer')::boolean    = true
+         AND ("statsFeatures"->>'trackAssists')::boolean   = false
+         AND ("statsFeatures"->>'trackSubstitutions')::boolean = true
+         AND ("statsFeatures"->>'trackPositions')::boolean = true  THEN 'SCORER_ONLY'
+        WHEN ("statsFeatures"->>'trackGoals')::boolean     = true
+         AND ("statsFeatures"->>'trackScorer')::boolean    = false
+         AND ("statsFeatures"->>'trackAssists')::boolean   = false
+         AND ("statsFeatures"->>'trackSubstitutions')::boolean = true
+         AND ("statsFeatures"->>'trackPositions')::boolean = true  THEN 'GOALS_ONLY'
+        WHEN ("statsFeatures"->>'trackGoals')::boolean     = true
+         AND ("statsFeatures"->>'trackScorer')::boolean    = false
+         AND ("statsFeatures"->>'trackAssists')::boolean   = false
+         AND ("statsFeatures"->>'trackSubstitutions')::boolean = true
+         AND ("statsFeatures"->>'trackPositions')::boolean = false THEN 'SUBSTITUTION_ONLY'
+        ELSE 'FULL'
+      END
+    `;
+
     // ── team_configurations ───────────────────────────────────────────────
     await queryRunner.query(`
       ALTER TABLE team_configurations
         ADD COLUMN "statsTrackingLevel" character varying(20) NOT NULL DEFAULT 'FULL'
     `);
 
-    await queryRunner.query(`
-      UPDATE team_configurations
-      SET "statsTrackingLevel" = CASE
-        WHEN ("statsFeatures"->>'trackGoals')::boolean = false THEN 'GOALS_ONLY'
-        WHEN ("statsFeatures"->>'trackScorer')::boolean = false THEN 'GOALS_ONLY'
-        WHEN ("statsFeatures"->>'trackAssists')::boolean = false AND ("statsFeatures"->>'trackPositions')::boolean = false THEN 'SUBSTITUTION_ONLY'
-        WHEN ("statsFeatures"->>'trackAssists')::boolean = false THEN 'SCORER_ONLY'
-        ELSE 'FULL'
-      END
-    `);
+    await queryRunner.query(
+      `UPDATE team_configurations SET "statsTrackingLevel" = ${teamConfigCase}`,
+    );
 
     await queryRunner.query(
       `ALTER TABLE team_configurations DROP COLUMN "statsFeatures"`,
@@ -108,17 +159,9 @@ export class ReplaceStatsTrackingLevelWithStatsFeatures1770200000000
       ALTER TABLE games ADD COLUMN "statsTrackingLevel" character varying(20) DEFAULT NULL
     `);
 
-    await queryRunner.query(`
-      UPDATE games
-      SET "statsTrackingLevel" = CASE
-        WHEN "statsFeatures" IS NULL THEN NULL
-        WHEN ("statsFeatures"->>'trackGoals')::boolean = false THEN 'GOALS_ONLY'
-        WHEN ("statsFeatures"->>'trackScorer')::boolean = false THEN 'GOALS_ONLY'
-        WHEN ("statsFeatures"->>'trackAssists')::boolean = false AND ("statsFeatures"->>'trackPositions')::boolean = false THEN 'SUBSTITUTION_ONLY'
-        WHEN ("statsFeatures"->>'trackAssists')::boolean = false THEN 'SCORER_ONLY'
-        ELSE 'FULL'
-      END
-    `);
+    await queryRunner.query(
+      `UPDATE games SET "statsTrackingLevel" = ${nullableCase}`,
+    );
 
     await queryRunner.query(`ALTER TABLE games DROP COLUMN "statsFeatures"`);
 
@@ -127,17 +170,9 @@ export class ReplaceStatsTrackingLevelWithStatsFeatures1770200000000
       ALTER TABLE game_teams ADD COLUMN "statsTrackingLevel" character varying(20) DEFAULT NULL
     `);
 
-    await queryRunner.query(`
-      UPDATE game_teams
-      SET "statsTrackingLevel" = CASE
-        WHEN "statsFeatures" IS NULL THEN NULL
-        WHEN ("statsFeatures"->>'trackGoals')::boolean = false THEN 'GOALS_ONLY'
-        WHEN ("statsFeatures"->>'trackScorer')::boolean = false THEN 'GOALS_ONLY'
-        WHEN ("statsFeatures"->>'trackAssists')::boolean = false AND ("statsFeatures"->>'trackPositions')::boolean = false THEN 'SUBSTITUTION_ONLY'
-        WHEN ("statsFeatures"->>'trackAssists')::boolean = false THEN 'SCORER_ONLY'
-        ELSE 'FULL'
-      END
-    `);
+    await queryRunner.query(
+      `UPDATE game_teams SET "statsTrackingLevel" = ${nullableCase}`,
+    );
 
     await queryRunner.query(
       `ALTER TABLE game_teams DROP COLUMN "statsFeatures"`,

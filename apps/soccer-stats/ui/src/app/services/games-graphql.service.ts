@@ -777,7 +777,7 @@ export const GAME_EVENT_CHANGED = graphql(/* GraphQL */ `
   }
 `);
 
-// Subscription for real-time game state updates (start, pause, half-time, end, reset)
+// Subscription for real-time game state updates (start, pause, half-time, end, reset, stats changes)
 export const GAME_UPDATED = graphql(/* GraphQL */ `
   subscription GameUpdated($gameId: ID!) {
     gameUpdated(gameId: $gameId) {
@@ -792,6 +792,31 @@ export const GAME_UPDATED = graphql(/* GraphQL */ `
       currentPeriod
       currentPeriodSecond
       serverTimestamp
+      statsFeatures {
+        trackGoals
+        trackScorer
+        trackAssists
+        trackSubstitutions
+        trackPositions
+      }
+    }
+  }
+`);
+
+// Subscription for real-time per-team stats feature overrides
+export const GAME_TEAM_UPDATED = graphql(/* GraphQL */ `
+  subscription GameTeamUpdated($gameId: ID!) {
+    gameTeamUpdated(gameId: $gameId) {
+      id
+      gameId
+      teamType
+      statsFeatures {
+        trackGoals
+        trackScorer
+        trackAssists
+        trackSubstitutions
+        trackPositions
+      }
     }
   }
 `);

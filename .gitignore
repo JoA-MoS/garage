@@ -87,3 +87,5 @@ node_modules/
 Pulumi.*.yaml
 !Pulumi.yaml
 .env.serve.dev
+
+/.remember

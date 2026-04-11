@@ -8,7 +8,10 @@ import {
 
 import { GameEvent } from '../../../entities/game-event.entity';
 import { GameTeam } from '../../../entities/game-team.entity';
-import { StatsFeatures, DEFAULT_STATS_FEATURES } from '../../../entities/stats-features.type';
+import {
+  StatsFeatures,
+  DEFAULT_STATS_FEATURES,
+} from '../../../entities/stats-features.type';
 import { SubstitutePlayerInput } from '../dto/substitute-player.input';
 import { BringPlayerOntoFieldInput } from '../dto/bring-player-onto-field.input';
 import { RemovePlayerFromFieldInput } from '../dto/remove-player-from-field.input';
@@ -53,7 +56,12 @@ export class SubstitutionService {
       where: { id: gameTeam.gameId },
       select: ['id', 'statsFeatures'],
     });
-    return game?.statsFeatures ?? DEFAULT_STATS_FEATURES;
+    if (!game) {
+      throw new NotFoundException(
+        `Game ${gameTeam.gameId} not found while resolving stats features for GameTeam ${gameTeam.id}`,
+      );
+    }
+    return game.statsFeatures ?? DEFAULT_STATS_FEATURES;
   }
 
   /**
@@ -399,6 +407,9 @@ export class SubstitutionService {
       throw new NotFoundException(`GameTeam ${gameTeamId} not found`);
     }
 
+    const features = await this.getEffectiveFeatures(gameTeam);
+    const trackPosition = features.trackPositions;
+
     // Batch create all SUB_OUT events
     const subOutEventsToCreate = lineup.currentOnField.map((player) =>
       this.gameEventsRepository.create({
@@ -408,7 +419,7 @@ export class SubstitutionService {
         playerId: player.playerId,
         externalPlayerName: player.externalPlayerName,
         externalPlayerNumber: player.externalPlayerNumber,
-        position: player.position,
+        position: trackPosition ? player.position : undefined,
         recordedByUserId,
         period,
         periodSecond,

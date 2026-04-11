@@ -96,8 +96,11 @@ export class Game extends BaseEntity {
   @Column({ type: 'int', nullable: true })
   durationMinutes?: number;
 
-  // Note: statsFeatureOverrides field is excluded from GraphQL schema to avoid type complexity
-  // Feature toggles can be overridden per-game (trackSubstitutions, trackPossession, etc.)
+  /**
+   * @deprecated Superseded by `statsFeatures` (added in migration 1770200000000).
+   * This column is no longer written to and will be removed in a future migration.
+   * TODO: Drop this column once confirmed safe.
+   */
   @Column({ type: 'json', nullable: true })
   statsFeatureOverrides?: {
     trackSubstitutions?: boolean;
