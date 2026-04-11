@@ -8,10 +8,8 @@ import { GameTeam } from '../../entities/game-team.entity';
 import { GameFormat } from '../../entities/game-format.entity';
 import { GameEvent } from '../../entities/game-event.entity';
 import { EventType, EventCategory } from '../../entities/event-type.entity';
-import {
-  TeamConfiguration,
-  StatsTrackingLevel,
-} from '../../entities/team-configuration.entity';
+import { TeamConfiguration } from '../../entities/team-configuration.entity';
+import { DEFAULT_STATS_FEATURES } from '../../entities/stats-features.type';
 import { GameEventsService } from '../game-events/game-events.service';
 
 import { GamesService } from './games.service';
@@ -338,7 +336,7 @@ describe('GamesService', () => {
 
       it('should not create events when status is not provided', async () => {
         await service.update('game-1', {
-          statsTrackingLevel: StatsTrackingLevel.FULL,
+          statsFeatures: DEFAULT_STATS_FEATURES,
         });
 
         expect(mockGameEventRepository.create).not.toHaveBeenCalled();

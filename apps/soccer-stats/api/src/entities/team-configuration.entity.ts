@@ -1,21 +1,10 @@
 import { Entity, Column, OneToOne, ManyToOne, JoinColumn } from 'typeorm';
-import { ObjectType, Field, ID, Int, registerEnumType } from '@nestjs/graphql';
+import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
 
 import { BaseEntity } from './base.entity';
 import { Team } from './team.entity';
 import { GameFormat } from './game-format.entity';
-
-export enum StatsTrackingLevel {
-  FULL = 'FULL', // Track scorer and assister
-  SCORER_ONLY = 'SCORER_ONLY', // Track only the scorer
-  GOALS_ONLY = 'GOALS_ONLY', // Track goals without player attribution
-  SUBSTITUTION_ONLY = 'SUBSTITUTION_ONLY', // Track substitutions (play time) without position tracking
-}
-
-registerEnumType(StatsTrackingLevel, {
-  name: 'StatsTrackingLevel',
-  description: 'Level of detail for tracking game statistics',
-});
+import { StatsFeatures, DEFAULT_STATS_FEATURES } from './stats-features.type';
 
 @ObjectType()
 @Entity('team_configurations')
@@ -40,13 +29,15 @@ export class TeamConfiguration extends BaseEntity {
   @Column({ type: 'int', default: 11 })
   defaultPlayerCount: number;
 
-  @Field(() => StatsTrackingLevel)
-  @Column({
-    type: 'varchar',
-    length: 20,
-    default: StatsTrackingLevel.FULL,
+  @Field(() => StatsFeatures, {
+    description: "Default stats features for this team's games",
   })
-  statsTrackingLevel: StatsTrackingLevel;
+  @Column({
+    type: 'json',
+    default: () =>
+      `'${JSON.stringify(DEFAULT_STATS_FEATURES)}'`,
+  })
+  statsFeatures: StatsFeatures;
 
   // TODO: Add defaultLineup field when implementing lineup defaults feature
   // Will need graphql-type-json package for GraphQLJSON scalar

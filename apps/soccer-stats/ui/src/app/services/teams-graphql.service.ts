@@ -1,6 +1,6 @@
 import {
   graphql,
-  StatsTrackingLevel,
+  StatsFeatures,
 } from '@garage/soccer-stats/graphql-codegen';
 
 export const GET_TEAMS = graphql(/* GraphQL */ `
@@ -84,7 +84,13 @@ export const GET_TEAM_BY_ID = graphql(/* GraphQL */ `
         defaultFormation
         defaultGameDuration
         defaultPlayerCount
-        statsTrackingLevel
+        statsFeatures {
+          trackGoals
+          trackScorer
+          trackAssists
+          trackSubstitutions
+          trackPositions
+        }
         defaultGameFormat {
           id
           name
@@ -160,7 +166,13 @@ export const UPDATE_TEAM_CONFIGURATION = graphql(/* GraphQL */ `
       defaultFormation
       defaultGameDuration
       defaultPlayerCount
-      statsTrackingLevel
+      statsFeatures {
+        trackGoals
+        trackScorer
+        trackAssists
+        trackSubstitutions
+        trackPositions
+      }
       defaultGameFormat {
         id
         name
@@ -370,7 +382,7 @@ export interface TeamConfiguration {
   defaultFormation: string;
   defaultGameDuration: number;
   defaultPlayerCount: number;
-  statsTrackingLevel: StatsTrackingLevel;
+  statsFeatures: StatsFeatures;
   // TODO: Add defaultLineup when implementing lineup defaults feature
   defaultGameFormat: {
     id: string;
@@ -385,7 +397,7 @@ export interface UpdateTeamConfigurationInput {
   defaultFormation?: string;
   defaultGameDuration?: number;
   defaultPlayerCount?: number;
-  statsTrackingLevel?: StatsTrackingLevel;
+  statsFeatures?: StatsFeatures;
   // TODO: Add defaultLineup when implementing lineup defaults feature
 }
 
@@ -456,4 +468,4 @@ export interface AddPlayerToTeamResponse {
 }
 
 // Re-export from generated types for consumers
-export { StatsTrackingLevel };
+export { StatsFeatures };

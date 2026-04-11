@@ -1,7 +1,8 @@
 import { InputType, Field, ID } from '@nestjs/graphql';
-import { IsOptional, IsString, IsEnum, MaxLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
-import { StatsTrackingLevel } from '../../../entities/team-configuration.entity';
+import { StatsFeaturesInput } from '../../../entities/stats-features.type';
 
 @InputType()
 export class UpdateTeamConfigurationInput {
@@ -24,10 +25,14 @@ export class UpdateTeamConfigurationInput {
   @IsOptional()
   defaultPlayerCount?: number;
 
-  @Field(() => StatsTrackingLevel, { nullable: true })
+  @Field(() => StatsFeaturesInput, {
+    nullable: true,
+    description: "Default stats features for this team's games",
+  })
   @IsOptional()
-  @IsEnum(StatsTrackingLevel)
-  statsTrackingLevel?: StatsTrackingLevel;
+  @ValidateNested()
+  @Type(() => StatsFeaturesInput)
+  statsFeatures?: StatsFeaturesInput;
 
   // TODO: Add defaultLineup when implementing lineup defaults feature
   // Will need graphql-type-json package for GraphQLJSON scalar

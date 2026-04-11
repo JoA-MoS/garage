@@ -238,8 +238,8 @@ export type Game = {
   secondHalfStart?: Maybe<Scalars['DateTime']['output']>;
   /** Unix timestamp (ms) when response was generated - for client time sync */
   serverTimestamp: Scalars['Float']['output'];
-  /** Override for stats tracking level (null = use team default) */
-  statsTrackingLevel?: Maybe<StatsTrackingLevel>;
+  /** Stats feature overrides for this game (null = use team default) */
+  statsFeatures?: Maybe<StatsFeatures>;
   status: GameStatus;
   teams?: Maybe<Array<GameTeam>>;
   updatedAt: Scalars['DateTime']['output'];
@@ -357,8 +357,8 @@ export type GameTeam = {
   playerStats: Array<PlayerFullStats>;
   /** Players in the game roster for this team */
   players: Array<LineupPlayer>;
-  /** Override stats tracking level for this team in this game (null = use game or team default) */
-  statsTrackingLevel?: Maybe<StatsTrackingLevel>;
+  /** Stats feature overrides for this team in this game (null = use game or team default) */
+  statsFeatures?: Maybe<StatsFeatures>;
   tacticalNotes?: Maybe<Scalars['String']['output']>;
   team: Team;
   teamId: Scalars['ID']['output'];
@@ -1056,13 +1056,28 @@ export type StartPeriodInput = {
   periodSecond?: InputMaybe<Scalars['Int']['input']>;
 };
 
-/** Level of detail for tracking game statistics */
-export enum StatsTrackingLevel {
-  Full = 'FULL',
-  GoalsOnly = 'GOALS_ONLY',
-  ScorerOnly = 'SCORER_ONLY',
-  SubstitutionOnly = 'SUBSTITUTION_ONLY',
-}
+/** Feature flags controlling what statistics are tracked during a game */
+export type StatsFeatures = {
+  __typename?: 'StatsFeatures';
+  /** Record who assisted each goal (requires trackScorer) */
+  trackAssists: Scalars['Boolean']['output'];
+  /** Record that a goal occurred */
+  trackGoals: Scalars['Boolean']['output'];
+  /** Record player positions during substitutions (requires trackSubstitutions) */
+  trackPositions: Scalars['Boolean']['output'];
+  /** Record who scored each goal (requires trackGoals) */
+  trackScorer: Scalars['Boolean']['output'];
+  /** Record player substitutions (in/out) for play time */
+  trackSubstitutions: Scalars['Boolean']['output'];
+};
+
+export type StatsFeaturesInput = {
+  trackAssists: Scalars['Boolean']['input'];
+  trackGoals: Scalars['Boolean']['input'];
+  trackPositions: Scalars['Boolean']['input'];
+  trackScorer: Scalars['Boolean']['input'];
+  trackSubstitutions: Scalars['Boolean']['input'];
+};
 
 export type Subscription = {
   __typename?: 'Subscription';
@@ -1168,7 +1183,7 @@ export type TeamConfiguration = {
   defaultGameFormatId?: Maybe<Scalars['ID']['output']>;
   defaultPlayerCount: Scalars['Int']['output'];
   id: Scalars['ID']['output'];
-  statsTrackingLevel: StatsTrackingLevel;
+  statsFeatures: StatsFeatures;
   team: Team;
   teamId: Scalars['ID']['output'];
   updatedAt: Scalars['DateTime']['output'];
@@ -1257,15 +1272,15 @@ export type UpdateGameInput = {
   /** If true, resets the game to SCHEDULED status and clears all timestamps */
   resetGame?: InputMaybe<Scalars['Boolean']['input']>;
   secondHalfStart?: InputMaybe<Scalars['DateTime']['input']>;
-  /** Override stats tracking level for this game (null = use team default) */
-  statsTrackingLevel?: InputMaybe<StatsTrackingLevel>;
+  /** Stats feature overrides for this game (null = use team default) */
+  statsFeatures?: InputMaybe<StatsFeaturesInput>;
   status?: InputMaybe<GameStatus>;
 };
 
 export type UpdateGameTeamInput = {
   formation?: InputMaybe<Scalars['String']['input']>;
-  /** Override stats tracking level for this team in this game (null = use team default) */
-  statsTrackingLevel?: InputMaybe<StatsTrackingLevel>;
+  /** Stats feature overrides for this team in this game (null = use game or team default) */
+  statsFeatures?: InputMaybe<StatsFeaturesInput>;
   tacticalNotes?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -1297,7 +1312,7 @@ export type UpdateTeamConfigurationInput = {
   defaultGameDuration?: InputMaybe<Scalars['Float']['input']>;
   defaultGameFormatId?: InputMaybe<Scalars['ID']['input']>;
   defaultPlayerCount?: InputMaybe<Scalars['Float']['input']>;
-  statsTrackingLevel?: InputMaybe<StatsTrackingLevel>;
+  statsFeatures?: InputMaybe<StatsFeaturesInput>;
 };
 
 export type UpdateTeamInput = {
@@ -1692,7 +1707,7 @@ export type GetGameByIdQuery = {
     secondHalfStart?: any | null;
     actualEnd?: any | null;
     pausedAt?: any | null;
-    statsTrackingLevel?: StatsTrackingLevel | null;
+    statsFeatures?: { __typename?: 'StatsFeatures'; trackGoals: boolean; trackScorer: boolean; trackAssists: boolean; trackSubstitutions: boolean; trackPositions: boolean } | null;
     notes?: string | null;
     venue?: string | null;
     weatherConditions?: string | null;
@@ -1715,7 +1730,7 @@ export type GetGameByIdQuery = {
       teamType: string;
       finalScore?: number | null;
       formation?: string | null;
-      statsTrackingLevel?: StatsTrackingLevel | null;
+      statsFeatures?: { __typename?: 'StatsFeatures'; trackGoals: boolean; trackScorer: boolean; trackAssists: boolean; trackSubstitutions: boolean; trackPositions: boolean } | null;
       team: {
         __typename?: 'Team';
         id: string;
@@ -1876,7 +1891,7 @@ export type UpdateGameTeamMutation = {
     id: string;
     teamType: string;
     formation?: string | null;
-    statsTrackingLevel?: StatsTrackingLevel | null;
+    statsFeatures?: { __typename?: 'StatsFeatures'; trackGoals: boolean; trackScorer: boolean; trackAssists: boolean; trackSubstitutions: boolean; trackPositions: boolean } | null;
     tacticalNotes?: string | null;
     team: { __typename?: 'Team'; id: string; name: string };
   };
@@ -2790,7 +2805,7 @@ export type GetTeamByIdQuery = {
       defaultFormation: string;
       defaultGameDuration: number;
       defaultPlayerCount: number;
-      statsTrackingLevel: StatsTrackingLevel;
+      statsFeatures: { __typename?: 'StatsFeatures'; trackGoals: boolean; trackScorer: boolean; trackAssists: boolean; trackSubstitutions: boolean; trackPositions: boolean };
       defaultGameFormat?: {
         __typename?: 'GameFormat';
         id: string;
@@ -2880,7 +2895,7 @@ export type UpdateTeamConfigurationMutation = {
     defaultFormation: string;
     defaultGameDuration: number;
     defaultPlayerCount: number;
-    statsTrackingLevel: StatsTrackingLevel;
+    statsFeatures: { __typename?: 'StatsFeatures'; trackGoals: boolean; trackScorer: boolean; trackAssists: boolean; trackSubstitutions: boolean; trackPositions: boolean };
     defaultGameFormat?: {
       __typename?: 'GameFormat';
       id: string;
@@ -4677,7 +4692,7 @@ export const GetGameByIdDocument = {
                 { kind: 'Field', name: { kind: 'Name', value: 'pausedAt' } },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'statsTrackingLevel' },
+                  name: { kind: 'Name', value: 'statsFeatures' },
                 },
                 { kind: 'Field', name: { kind: 'Name', value: 'notes' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'venue' } },
@@ -4741,7 +4756,7 @@ export const GetGameByIdDocument = {
                       },
                       {
                         kind: 'Field',
-                        name: { kind: 'Name', value: 'statsTrackingLevel' },
+                        name: { kind: 'Name', value: 'statsFeatures' },
                       },
                       {
                         kind: 'Field',
@@ -5408,7 +5423,7 @@ export const UpdateGameTeamDocument = {
                 { kind: 'Field', name: { kind: 'Name', value: 'formation' } },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'statsTrackingLevel' },
+                  name: { kind: 'Name', value: 'statsFeatures' },
                 },
                 {
                   kind: 'Field',
@@ -9058,7 +9073,7 @@ export const GetTeamByIdDocument = {
                       },
                       {
                         kind: 'Field',
-                        name: { kind: 'Name', value: 'statsTrackingLevel' },
+                        name: { kind: 'Name', value: 'statsFeatures' },
                       },
                       {
                         kind: 'Field',
@@ -9384,7 +9399,7 @@ export const UpdateTeamConfigurationDocument = {
                 },
                 {
                   kind: 'Field',
-                  name: { kind: 'Name', value: 'statsTrackingLevel' },
+                  name: { kind: 'Name', value: 'statsFeatures' },
                 },
                 {
                   kind: 'Field',

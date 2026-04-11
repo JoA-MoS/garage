@@ -8,9 +8,7 @@ import {
 
 import { GameEvent } from '../../../entities/game-event.entity';
 import { GameTeam } from '../../../entities/game-team.entity';
-import {
-  StatsTrackingLevel,
-} from '../../../entities/team-configuration.entity';
+import { StatsFeatures, DEFAULT_STATS_FEATURES } from '../../../entities/stats-features.type';
 import { SubstitutePlayerInput } from '../dto/substitute-player.input';
 import { BringPlayerOntoFieldInput } from '../dto/bring-player-onto-field.input';
 import { RemovePlayerFromFieldInput } from '../dto/remove-player-from-field.input';
@@ -42,20 +40,20 @@ export class SubstitutionService {
   }
 
   /**
-   * Resolve the effective stats tracking level for a game team.
-   * Cascade: gameTeam.statsTrackingLevel → game.statsTrackingLevel → FULL (default)
+   * Resolve the effective stats features for a game team.
+   * Cascade: gameTeam.statsFeatures → game.statsFeatures → DEFAULT_STATS_FEATURES
    */
-  private async getEffectiveTrackingLevel(
+  private async getEffectiveFeatures(
     gameTeam: GameTeam,
-  ): Promise<StatsTrackingLevel> {
-    if (gameTeam.statsTrackingLevel) {
-      return gameTeam.statsTrackingLevel;
+  ): Promise<StatsFeatures> {
+    if (gameTeam.statsFeatures) {
+      return gameTeam.statsFeatures;
     }
     const game = await this.coreService.gamesRepository.findOne({
       where: { id: gameTeam.gameId },
-      select: ['id', 'statsTrackingLevel'],
+      select: ['id', 'statsFeatures'],
     });
-    return game?.statsTrackingLevel ?? StatsTrackingLevel.FULL;
+    return game?.statsFeatures ?? DEFAULT_STATS_FEATURES;
   }
 
   /**
@@ -75,9 +73,8 @@ export class SubstitutionService {
     );
 
     const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
-    const effectiveLevel = await this.getEffectiveTrackingLevel(gameTeam);
-    const trackPosition =
-      effectiveLevel !== StatsTrackingLevel.SUBSTITUTION_ONLY;
+    const features = await this.getEffectiveFeatures(gameTeam);
+    const trackPosition = features.trackPositions;
     const eventType = this.coreService.getEventTypeByName('SUBSTITUTION_IN');
 
     // Build metadata object with optional fields
@@ -124,9 +121,8 @@ export class SubstitutionService {
   ): Promise<GameEvent> {
     // 1. Get the game team
     const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
-    const effectiveLevel = await this.getEffectiveTrackingLevel(gameTeam);
-    const trackPosition =
-      effectiveLevel !== StatsTrackingLevel.SUBSTITUTION_ONLY;
+    const features = await this.getEffectiveFeatures(gameTeam);
+    const trackPosition = features.trackPositions;
 
     // 2. Get the player's current on-field event
     const playerEvent = await this.gameEventsRepository.findOne({
@@ -200,9 +196,8 @@ export class SubstitutionService {
     );
 
     const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
-    const effectiveLevel = await this.getEffectiveTrackingLevel(gameTeam);
-    const trackPosition =
-      effectiveLevel !== StatsTrackingLevel.SUBSTITUTION_ONLY;
+    const features = await this.getEffectiveFeatures(gameTeam);
+    const trackPosition = features.trackPositions;
 
     // Get the player being subbed out
     const playerOutEvent = await this.gameEventsRepository.findOne({
