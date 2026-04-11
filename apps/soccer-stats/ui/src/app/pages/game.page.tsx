@@ -24,6 +24,7 @@ import {
   GameEventChangedDocument,
   GameEventAction,
   GameUpdatedDocument,
+  GameTeamUpdatedDocument,
 } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond, toPeriodSecond } from '@garage/soccer-stats/utils';
 
@@ -881,6 +882,7 @@ export const GamePage = () => {
               gameUpdate.currentPeriodSecond ?? prev.game.currentPeriodSecond,
             serverTimestamp:
               gameUpdate.serverTimestamp ?? prev.game.serverTimestamp,
+            statsFeatures: gameUpdate.statsFeatures ?? prev.game.statsFeatures,
           },
         };
       },
@@ -889,7 +891,36 @@ export const GamePage = () => {
     return unsubscribe;
   }, [hasGameData, gameId, subscribeToMore]);
 
-  // Subscriptions are active when data is loaded (both subscribeToMore effects run)
+  // Subscribe to per-team stats feature changes
+  useEffect(() => {
+    if (!hasGameData || !gameId) return;
+
+    const unsubscribe = subscribeToMore({
+      document: GameTeamUpdatedDocument,
+      variables: { gameId },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      updateQuery: (prev: any, { subscriptionData }: any) => {
+        const gameTeamUpdate = subscriptionData.data?.gameTeamUpdated;
+        if (!gameTeamUpdate || !prev.game) return prev;
+
+        return {
+          ...prev,
+          game: {
+            ...prev.game,
+            teams: prev.game.teams?.map((gt: any) =>
+              gt.id === gameTeamUpdate.id
+                ? { ...gt, statsFeatures: gameTeamUpdate.statsFeatures }
+                : gt,
+            ),
+          },
+        };
+      },
+    });
+
+    return unsubscribe;
+  }, [hasGameData, gameId, subscribeToMore]);
+
+  // Subscriptions are active when data is loaded (all subscribeToMore effects run)
   const isConnected = !!data?.game && !!gameId;
 
   const handleResolveConflict = useCallback(
@@ -1444,6 +1475,19 @@ export const GamePage = () => {
   const isLineupSetupPhase =
     game.status === GameStatus.Scheduled || game.status === GameStatus.Halftime;
 
+  // Effective features per team (used for both tab visibility and GameLineupTab)
+  const homeEffectiveFeatures = getEffectiveStatsFeatures('home');
+  const awayEffectiveFeatures = getEffectiveStatsFeatures('away');
+
+  // Show lineup tab if at least one team tracks substitutions
+  const showLineupTab =
+    homeEffectiveFeatures.trackSubstitutions ||
+    awayEffectiveFeatures.trackSubstitutions;
+
+  const visibleTabs = (['lineup', 'stats', 'events'] as const).filter(
+    (tab) => tab !== 'lineup' || showLineupTab,
+  );
+
   // Get current game time in minutes and seconds for goal recording
   // During HALFTIME, use the end-of-first-half time (half of total duration)
   const halftimeDurationMinutes = Math.floor(
@@ -1515,7 +1559,9 @@ export const GamePage = () => {
         status={game.status}
         gameFormatName={game.format.name}
         durationMinutes={game.format.durationMinutes}
-        statsFeatures={game.statsFeatures || (UI_DEFAULT_STATS_FEATURES as StatsFeatures)}
+        statsFeatures={
+          game.statsFeatures || (UI_DEFAULT_STATS_FEATURES as StatsFeatures)
+        }
         isPaused={!!game.pausedAt}
         isConnected={isConnected}
         showGameMenu={showGameMenu}
@@ -1577,7 +1623,7 @@ export const GamePage = () => {
         {/* Tab Navigation */}
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex">
-            {(['lineup', 'stats', 'events'] as const).map((tab) => (
+            {visibleTabs.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -1597,7 +1643,7 @@ export const GamePage = () => {
         {/* Tab Content */}
         <div className="p-4 sm:p-6">
           {/* Lineup Tab */}
-          {activeTab === 'lineup' && (
+          {activeTab === 'lineup' && showLineupTab && (
             <div className="space-y-4">
               {/* Team Selector */}
               <div className="flex justify-center gap-2">
@@ -1659,6 +1705,7 @@ export const GamePage = () => {
                       : undefined
                   }
                   hideBench={isLineupSetupPhase || isActivePlay}
+                  statsFeatures={homeEffectiveFeatures}
                 />
               )}
               {activeTeam === 'away' && awayTeam && (
@@ -1694,6 +1741,7 @@ export const GamePage = () => {
                       : undefined
                   }
                   hideBench={isLineupSetupPhase || isActivePlay}
+                  statsFeatures={awayEffectiveFeatures}
                 />
               )}
             </div>

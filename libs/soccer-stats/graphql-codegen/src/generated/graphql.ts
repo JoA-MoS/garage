@@ -1056,7 +1056,6 @@ export type StartPeriodInput = {
   periodSecond?: InputMaybe<Scalars['Int']['input']>;
 };
 
-/** Feature flags controlling what statistics are tracked during a game */
 export type StatsFeatures = {
   __typename?: 'StatsFeatures';
   /** Record who assisted each goal (requires trackScorer) */
@@ -1072,10 +1071,15 @@ export type StatsFeatures = {
 };
 
 export type StatsFeaturesInput = {
+  /** Record who assisted each goal (requires trackScorer) */
   trackAssists: Scalars['Boolean']['input'];
+  /** Record that a goal occurred */
   trackGoals: Scalars['Boolean']['input'];
+  /** Record player positions during substitutions (requires trackSubstitutions) */
   trackPositions: Scalars['Boolean']['input'];
+  /** Record who scored each goal (requires trackGoals) */
   trackScorer: Scalars['Boolean']['input'];
+  /** Record player substitutions (in/out) for play time */
   trackSubstitutions: Scalars['Boolean']['input'];
 };
 
@@ -1183,6 +1187,7 @@ export type TeamConfiguration = {
   defaultGameFormatId?: Maybe<Scalars['ID']['output']>;
   defaultPlayerCount: Scalars['Int']['output'];
   id: Scalars['ID']['output'];
+  /** Default stats features for this team's games */
   statsFeatures: StatsFeatures;
   team: Team;
   teamId: Scalars['ID']['output'];
@@ -1312,6 +1317,7 @@ export type UpdateTeamConfigurationInput = {
   defaultGameDuration?: InputMaybe<Scalars['Float']['input']>;
   defaultGameFormatId?: InputMaybe<Scalars['ID']['input']>;
   defaultPlayerCount?: InputMaybe<Scalars['Float']['input']>;
+  /** Default stats features for this team's games */
   statsFeatures?: InputMaybe<StatsFeaturesInput>;
 };
 
@@ -1707,7 +1713,6 @@ export type GetGameByIdQuery = {
     secondHalfStart?: any | null;
     actualEnd?: any | null;
     pausedAt?: any | null;
-    statsFeatures?: { __typename?: 'StatsFeatures'; trackGoals: boolean; trackScorer: boolean; trackAssists: boolean; trackSubstitutions: boolean; trackPositions: boolean } | null;
     notes?: string | null;
     venue?: string | null;
     weatherConditions?: string | null;
@@ -1716,6 +1721,14 @@ export type GetGameByIdQuery = {
     serverTimestamp: number;
     createdAt: any;
     updatedAt: any;
+    statsFeatures?: {
+      __typename?: 'StatsFeatures';
+      trackGoals: boolean;
+      trackScorer: boolean;
+      trackAssists: boolean;
+      trackSubstitutions: boolean;
+      trackPositions: boolean;
+    } | null;
     format: {
       __typename?: 'GameFormat';
       id: string;
@@ -1730,7 +1743,14 @@ export type GetGameByIdQuery = {
       teamType: string;
       finalScore?: number | null;
       formation?: string | null;
-      statsFeatures?: { __typename?: 'StatsFeatures'; trackGoals: boolean; trackScorer: boolean; trackAssists: boolean; trackSubstitutions: boolean; trackPositions: boolean } | null;
+      statsFeatures?: {
+        __typename?: 'StatsFeatures';
+        trackGoals: boolean;
+        trackScorer: boolean;
+        trackAssists: boolean;
+        trackSubstitutions: boolean;
+        trackPositions: boolean;
+      } | null;
       team: {
         __typename?: 'Team';
         id: string;
@@ -1891,8 +1911,15 @@ export type UpdateGameTeamMutation = {
     id: string;
     teamType: string;
     formation?: string | null;
-    statsFeatures?: { __typename?: 'StatsFeatures'; trackGoals: boolean; trackScorer: boolean; trackAssists: boolean; trackSubstitutions: boolean; trackPositions: boolean } | null;
     tacticalNotes?: string | null;
+    statsFeatures?: {
+      __typename?: 'StatsFeatures';
+      trackGoals: boolean;
+      trackScorer: boolean;
+      trackAssists: boolean;
+      trackSubstitutions: boolean;
+      trackPositions: boolean;
+    } | null;
     team: { __typename?: 'Team'; id: string; name: string };
   };
 };
@@ -2425,6 +2452,36 @@ export type GameUpdatedSubscription = {
     currentPeriod?: string | null;
     currentPeriodSecond: number;
     serverTimestamp: number;
+    statsFeatures?: {
+      __typename?: 'StatsFeatures';
+      trackGoals: boolean;
+      trackScorer: boolean;
+      trackAssists: boolean;
+      trackSubstitutions: boolean;
+      trackPositions: boolean;
+    } | null;
+  };
+};
+
+export type GameTeamUpdatedSubscriptionVariables = Exact<{
+  gameId: Scalars['ID']['input'];
+}>;
+
+export type GameTeamUpdatedSubscription = {
+  __typename?: 'Subscription';
+  gameTeamUpdated: {
+    __typename?: 'GameTeam';
+    id: string;
+    gameId: string;
+    teamType: string;
+    statsFeatures?: {
+      __typename?: 'StatsFeatures';
+      trackGoals: boolean;
+      trackScorer: boolean;
+      trackAssists: boolean;
+      trackSubstitutions: boolean;
+      trackPositions: boolean;
+    } | null;
   };
 };
 
@@ -2805,7 +2862,14 @@ export type GetTeamByIdQuery = {
       defaultFormation: string;
       defaultGameDuration: number;
       defaultPlayerCount: number;
-      statsFeatures: { __typename?: 'StatsFeatures'; trackGoals: boolean; trackScorer: boolean; trackAssists: boolean; trackSubstitutions: boolean; trackPositions: boolean };
+      statsFeatures: {
+        __typename?: 'StatsFeatures';
+        trackGoals: boolean;
+        trackScorer: boolean;
+        trackAssists: boolean;
+        trackSubstitutions: boolean;
+        trackPositions: boolean;
+      };
       defaultGameFormat?: {
         __typename?: 'GameFormat';
         id: string;
@@ -2895,7 +2959,14 @@ export type UpdateTeamConfigurationMutation = {
     defaultFormation: string;
     defaultGameDuration: number;
     defaultPlayerCount: number;
-    statsFeatures: { __typename?: 'StatsFeatures'; trackGoals: boolean; trackScorer: boolean; trackAssists: boolean; trackSubstitutions: boolean; trackPositions: boolean };
+    statsFeatures: {
+      __typename?: 'StatsFeatures';
+      trackGoals: boolean;
+      trackScorer: boolean;
+      trackAssists: boolean;
+      trackSubstitutions: boolean;
+      trackPositions: boolean;
+    };
     defaultGameFormat?: {
       __typename?: 'GameFormat';
       id: string;
@@ -4693,6 +4764,31 @@ export const GetGameByIdDocument = {
                 {
                   kind: 'Field',
                   name: { kind: 'Name', value: 'statsFeatures' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackGoals' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackScorer' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackAssists' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackSubstitutions' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackPositions' },
+                      },
+                    ],
+                  },
                 },
                 { kind: 'Field', name: { kind: 'Name', value: 'notes' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'venue' } },
@@ -4757,6 +4853,34 @@ export const GetGameByIdDocument = {
                       {
                         kind: 'Field',
                         name: { kind: 'Name', value: 'statsFeatures' },
+                        selectionSet: {
+                          kind: 'SelectionSet',
+                          selections: [
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'trackGoals' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'trackScorer' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'trackAssists' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: {
+                                kind: 'Name',
+                                value: 'trackSubstitutions',
+                              },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'trackPositions' },
+                            },
+                          ],
+                        },
                       },
                       {
                         kind: 'Field',
@@ -5424,6 +5548,31 @@ export const UpdateGameTeamDocument = {
                 {
                   kind: 'Field',
                   name: { kind: 'Name', value: 'statsFeatures' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackGoals' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackScorer' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackAssists' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackSubstitutions' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackPositions' },
+                      },
+                    ],
+                  },
                 },
                 {
                   kind: 'Field',
@@ -7623,6 +7772,35 @@ export const GameUpdatedDocument = {
                   kind: 'Field',
                   name: { kind: 'Name', value: 'serverTimestamp' },
                 },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'statsFeatures' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackGoals' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackScorer' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackAssists' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackSubstitutions' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackPositions' },
+                      },
+                    ],
+                  },
+                },
               ],
             },
           },
@@ -7633,6 +7811,88 @@ export const GameUpdatedDocument = {
 } as unknown as DocumentNode<
   GameUpdatedSubscription,
   GameUpdatedSubscriptionVariables
+>;
+export const GameTeamUpdatedDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'subscription',
+      name: { kind: 'Name', value: 'GameTeamUpdated' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'gameId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'gameTeamUpdated' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'gameId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'gameId' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'gameId' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'teamType' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'statsFeatures' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackGoals' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackScorer' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackAssists' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackSubstitutions' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackPositions' },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  GameTeamUpdatedSubscription,
+  GameTeamUpdatedSubscriptionVariables
 >;
 export const BringPlayerOntoFieldDocument = {
   kind: 'Document',
@@ -9074,6 +9334,34 @@ export const GetTeamByIdDocument = {
                       {
                         kind: 'Field',
                         name: { kind: 'Name', value: 'statsFeatures' },
+                        selectionSet: {
+                          kind: 'SelectionSet',
+                          selections: [
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'trackGoals' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'trackScorer' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'trackAssists' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: {
+                                kind: 'Name',
+                                value: 'trackSubstitutions',
+                              },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'trackPositions' },
+                            },
+                          ],
+                        },
                       },
                       {
                         kind: 'Field',
@@ -9400,6 +9688,31 @@ export const UpdateTeamConfigurationDocument = {
                 {
                   kind: 'Field',
                   name: { kind: 'Name', value: 'statsFeatures' },
+                  selectionSet: {
+                    kind: 'SelectionSet',
+                    selections: [
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackGoals' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackScorer' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackAssists' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackSubstitutions' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'trackPositions' },
+                      },
+                    ],
+                  },
                 },
                 {
                   kind: 'Field',

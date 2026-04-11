@@ -1,7 +1,5 @@
-import {
-  graphql,
-  StatsFeatures,
-} from '@garage/soccer-stats/graphql-codegen';
+import { graphql } from '@garage/soccer-stats/graphql-codegen';
+import type { StatsFeatures } from '@garage/soccer-stats/graphql-codegen';
 
 export const GET_TEAMS = graphql(/* GraphQL */ `
   query GetTeams {
@@ -468,4 +466,4 @@ export interface AddPlayerToTeamResponse {
 }
 
 // Re-export from generated types for consumers
-export { StatsFeatures };
+export type { StatsFeatures };

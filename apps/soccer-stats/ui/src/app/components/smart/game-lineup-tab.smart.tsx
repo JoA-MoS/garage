@@ -17,6 +17,7 @@ import {
 } from '../../constants/positions';
 import { FieldLineup } from '../presentation/field-lineup.presentation';
 import { LineupBench } from '../presentation/lineup-bench.presentation';
+import { PlayerListLineup } from '../presentation/player-list-lineup.presentation';
 import {
   CREATE_USER,
   ADD_PLAYER_TO_TEAM,
@@ -82,6 +83,12 @@ interface GameLineupTabProps {
 
   /** Hide the bench/roster section (when LineupPanel provides it instead) */
   hideBench?: boolean;
+
+  /**
+   * Effective stats features for this team. Controls whether the full
+   * positional field is shown or a simplified on-field/bench list.
+   */
+  statsFeatures?: { trackPositions: boolean; trackSubstitutions: boolean };
 }
 
 type ModalMode =
@@ -175,7 +182,9 @@ export const GameLineupTab = memo(function GameLineupTab({
   onEmptyPositionClick,
   onFieldPlayerClickForLineup,
   hideBench = false,
+  statsFeatures,
 }: GameLineupTabProps) {
+  const trackPositions = statsFeatures?.trackPositions ?? true;
   const formations = getFormationsForTeamSize(playersPerTeam);
   const [selectedFormation, setSelectedFormation] = useState<Formation>(() =>
     getDefaultFormation(playersPerTeam),
@@ -436,6 +445,30 @@ export const GameLineupTab = memo(function GameLineupTab({
     ],
   );
 
+  // Simplified click handler for the player-list view (no position context)
+  const handleOnFieldPlayerClick = useCallback(
+    (player: GqlRosterPlayer) => {
+      if (hasBenchSelectionActive && onFieldPlayerClickForSub) {
+        onFieldPlayerClickForSub(player);
+        return;
+      }
+      if (onFieldPlayerClickForLineup) {
+        onFieldPlayerClickForLineup(player);
+        return;
+      }
+      if (isActivePlay && onFieldPlayerClickForSub && bench.length > 0) {
+        onFieldPlayerClickForSub(player);
+      }
+    },
+    [
+      isActivePlay,
+      hasBenchSelectionActive,
+      onFieldPlayerClickForSub,
+      onFieldPlayerClickForLineup,
+      bench.length,
+    ],
+  );
+
   // Assign roster player to a position
   const handleAssignRosterPlayer = useCallback(
     async (player: RosterPlayer, position: string) => {
@@ -662,47 +695,64 @@ export const GameLineupTab = memo(function GameLineupTab({
 
   return (
     <div className="space-y-4">
-      {/* Header with formation selector */}
+      {/* Header — formation selector only shown when tracking positions */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-lg font-semibold">{teamName} Lineup</h3>
-        <div className="flex items-center gap-2">
-          <label htmlFor="formation-select" className="text-sm text-gray-600">
-            Formation:
-          </label>
-          <select
-            id="formation-select"
-            value={selectedFormation.code}
-            onChange={(e) => {
-              const formation = formations.find(
-                (f) => f.code === e.target.value,
-              );
-              if (formation) handleFormationSelect(formation);
-            }}
-            disabled={savingFormation || mutating}
-            className="rounded border border-gray-300 px-2 py-1 text-sm disabled:opacity-50"
-          >
-            {formations.map((f) => (
-              <option key={f.code} value={f.code}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {trackPositions && (
+          <div className="flex items-center gap-2">
+            <label htmlFor="formation-select" className="text-sm text-gray-600">
+              Formation:
+            </label>
+            <select
+              id="formation-select"
+              value={selectedFormation.code}
+              onChange={(e) => {
+                const formation = formations.find(
+                  (f) => f.code === e.target.value,
+                );
+                if (formation) handleFormationSelect(formation);
+              }}
+              disabled={savingFormation || mutating}
+              className="rounded border border-gray-300 px-2 py-1 text-sm disabled:opacity-50"
+            >
+              {formations.map((f) => (
+                <option key={f.code} value={f.code}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
-      {/* Field visualization */}
-      <div id="field-lineup" className="mx-auto max-w-sm">
-        <FieldLineup
-          formation={selectedFormation}
-          lineup={onField}
-          onPositionClick={handlePositionClick}
+      {trackPositions ? (
+        /* Full field visualization with position slots */
+        <div id="field-lineup" className="mx-auto max-w-sm">
+          <FieldLineup
+            formation={selectedFormation}
+            lineup={onField}
+            onPositionClick={handlePositionClick}
+            teamColor={teamColor}
+            disabled={mutating}
+            highlightClickableAssigned={hasBenchSelectionActive}
+            queuedPlayerIds={queuedPlayerIds}
+            selectedFieldPlayerId={selectedFieldPlayerId}
+          />
+        </div>
+      ) : (
+        /* Simplified on-field list when position tracking is off */
+        <PlayerListLineup
+          onField={onField}
+          bench={[]}
+          playersPerTeam={playersPerTeam}
           teamColor={teamColor}
           disabled={mutating}
-          highlightClickableAssigned={hasBenchSelectionActive}
           queuedPlayerIds={queuedPlayerIds}
           selectedFieldPlayerId={selectedFieldPlayerId}
+          hasBenchSelectionActive={hasBenchSelectionActive}
+          onFieldPlayerClick={handleOnFieldPlayerClick}
         />
-      </div>
+      )}
 
       {/* Bench and available roster - hidden when LineupPanel provides these */}
       {!hideBench && (
