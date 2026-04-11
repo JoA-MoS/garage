@@ -1,7 +1,8 @@
 import { InputType, Field } from '@nestjs/graphql';
-import { IsOptional, IsEnum, IsString } from 'class-validator';
+import { IsOptional, IsString, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
-import { StatsTrackingLevel } from '../../../entities/team-configuration.entity';
+import { StatsFeaturesInput } from '../../../entities/stats-features.type';
 
 @InputType()
 export class UpdateGameTeamInput {
@@ -10,14 +11,15 @@ export class UpdateGameTeamInput {
   @IsString()
   formation?: string;
 
-  @Field(() => StatsTrackingLevel, {
+  @Field(() => StatsFeaturesInput, {
     nullable: true,
     description:
-      'Override stats tracking level for this team in this game (null = use team default)',
+      'Stats feature overrides for this team in this game (null = use game or team default)',
   })
   @IsOptional()
-  @IsEnum(StatsTrackingLevel)
-  statsTrackingLevel?: StatsTrackingLevel;
+  @ValidateNested()
+  @Type(() => StatsFeaturesInput)
+  statsFeatures?: StatsFeaturesInput;
 
   @Field({ nullable: true })
   @IsOptional()

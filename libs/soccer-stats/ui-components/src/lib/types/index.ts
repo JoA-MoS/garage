@@ -4,15 +4,29 @@
  */
 
 /**
- * Stats tracking level for game/team configuration.
- * Matches the GraphQL StatsTrackingLevel enum values.
+ * Feature flags controlling what statistics are tracked during a game.
+ * Matches the backend StatsFeatures GraphQL type.
+ *
+ * Dependency rules:
+ * - trackScorer requires trackGoals
+ * - trackAssists requires trackScorer (which requires trackGoals)
+ * - trackPositions requires trackSubstitutions
  */
-export enum UIStatsTrackingLevel {
-  Full = 'FULL',
-  ScorerOnly = 'SCORER_ONLY',
-  GoalsOnly = 'GOALS_ONLY',
-  SubstitutionOnly = 'SUBSTITUTION_ONLY',
+export interface UIStatsFeatures {
+  trackGoals: boolean;
+  trackScorer: boolean;
+  trackAssists: boolean;
+  trackSubstitutions: boolean;
+  trackPositions: boolean;
 }
+
+export const UI_DEFAULT_STATS_FEATURES: UIStatsFeatures = {
+  trackGoals: true,
+  trackScorer: true,
+  trackAssists: true,
+  trackSubstitutions: true,
+  trackPositions: true,
+};
 
 export interface UITeam {
   id: string;

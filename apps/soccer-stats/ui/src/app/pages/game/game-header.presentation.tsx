@@ -1,10 +1,7 @@
-import {
-  GameStatus,
-  StatsTrackingLevel,
-} from '@garage/soccer-stats/graphql-codegen';
+import { GameStatus, StatsFeatures } from '@garage/soccer-stats/graphql-codegen';
 import {
   TeamStatsTrackingRadioGroup,
-  UIStatsTrackingLevel,
+  UIStatsFeatures,
 } from '@garage/soccer-stats/ui-components';
 
 import { StatsTrackingSelector } from '../../components/presentation/stats-tracking-selector.presentation';
@@ -14,7 +11,7 @@ export interface GameHeaderProps {
   status: GameStatus;
   gameFormatName: string;
   durationMinutes: number;
-  statsTrackingLevel: StatsTrackingLevel;
+  statsFeatures: StatsFeatures;
   isPaused: boolean;
   isConnected: boolean;
   showGameMenu: boolean;
@@ -24,7 +21,7 @@ export interface GameHeaderProps {
   onToggleMenu: () => void;
   onCloseMenu: () => void;
   onTogglePause: () => void;
-  onStatsTrackingChange: (level: StatsTrackingLevel) => void;
+  onStatsTrackingChange: (features: StatsFeatures) => void;
   onShowResetConfirm: (show: boolean) => void;
   onClearEventsChange: (clear: boolean) => void;
   onResetGame: () => void;
@@ -36,11 +33,11 @@ export interface GameHeaderProps {
   // Per-team stats tracking props
   homeTeamName?: string;
   awayTeamName?: string;
-  homeTeamStatsTrackingLevel?: StatsTrackingLevel | null;
-  awayTeamStatsTrackingLevel?: StatsTrackingLevel | null;
+  homeTeamStatsFeatures?: StatsFeatures | null;
+  awayTeamStatsFeatures?: StatsFeatures | null;
   onTeamStatsTrackingChange?: (
     team: 'home' | 'away',
-    level: StatsTrackingLevel | null,
+    features: StatsFeatures | null,
   ) => void;
   updatingTeamStats?: boolean;
 }
@@ -53,7 +50,7 @@ export function GameHeader({
   status,
   gameFormatName,
   durationMinutes,
-  statsTrackingLevel,
+  statsFeatures,
   isPaused,
   isConnected,
   showGameMenu,
@@ -75,8 +72,8 @@ export function GameHeader({
   // Per-team props
   homeTeamName,
   awayTeamName,
-  homeTeamStatsTrackingLevel,
-  awayTeamStatsTrackingLevel,
+  homeTeamStatsFeatures,
+  awayTeamStatsFeatures,
   onTeamStatsTrackingChange,
   updatingTeamStats,
 }: GameHeaderProps) {
@@ -196,8 +193,8 @@ export function GameHeader({
                   {/* Game-Level Stats Tracking */}
                   <div className="border-t border-gray-100 py-2">
                     <StatsTrackingSelector
-                      value={statsTrackingLevel}
-                      onChange={onStatsTrackingChange}
+                      value={statsFeatures as UIStatsFeatures}
+                      onChange={(f) => onStatsTrackingChange(f as StatsFeatures)}
                       variant="compact"
                       disabled={updatingGame}
                       label="Game Default"
@@ -214,16 +211,13 @@ export function GameHeader({
                       <TeamStatsTrackingRadioGroup
                         teamType="home"
                         teamName={homeTeamName || 'Home'}
-                        currentLevel={
-                          homeTeamStatsTrackingLevel as
-                            | UIStatsTrackingLevel
-                            | null
-                            | undefined
+                        currentFeatures={
+                          homeTeamStatsFeatures as UIStatsFeatures | null | undefined
                         }
-                        onSelect={(level) =>
+                        onSelect={(f) =>
                           onTeamStatsTrackingChange(
                             'home',
-                            level as StatsTrackingLevel | null,
+                            f as StatsFeatures | null,
                           )
                         }
                         disabled={updatingTeamStats || updatingGame || false}
@@ -232,16 +226,13 @@ export function GameHeader({
                       <TeamStatsTrackingRadioGroup
                         teamType="away"
                         teamName={awayTeamName || 'Away'}
-                        currentLevel={
-                          awayTeamStatsTrackingLevel as
-                            | UIStatsTrackingLevel
-                            | null
-                            | undefined
+                        currentFeatures={
+                          awayTeamStatsFeatures as UIStatsFeatures | null | undefined
                         }
-                        onSelect={(level) =>
+                        onSelect={(f) =>
                           onTeamStatsTrackingChange(
                             'away',
-                            level as StatsTrackingLevel | null,
+                            f as StatsFeatures | null,
                           )
                         }
                         disabled={updatingTeamStats || updatingGame || false}

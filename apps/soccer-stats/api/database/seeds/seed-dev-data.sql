@@ -44,8 +44,8 @@ ON CONFLICT ("teamMemberId", role) DO NOTHING;
 -- TEAM CONFIGURATION
 -- ============================================
 
-INSERT INTO team_configurations (id, "teamId", "defaultFormation", "statsTrackingLevel", "createdAt", "updatedAt")
-VALUES ('e5f6a7b8-c9d0-1234-efab-345678901234', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '2-3-1', 'FULL', NOW(), NOW())
+INSERT INTO team_configurations (id, "teamId", "defaultFormation", "statsFeatures", "createdAt", "updatedAt")
+VALUES ('e5f6a7b8-c9d0-1234-efab-345678901234', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '2-3-1', '{"trackGoals":true,"trackScorer":true,"trackAssists":true,"trackSubstitutions":true,"trackPositions":true}', NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================
@@ -95,10 +95,10 @@ ON CONFLICT ("teamMemberId", role) DO UPDATE SET "roleData" = EXCLUDED."roleData
 -- GAME 1: Completed (Thunder FC 3-0 Lightning United, 7 days ago)
 -- ============================================
 
-INSERT INTO games (id, "gameFormatId", status, "scheduledStart", "statsTrackingLevel", "createdAt", "updatedAt")
+INSERT INTO games (id, "gameFormatId", status, "scheduledStart", "createdAt", "updatedAt")
 VALUES ('33000001-0000-0000-0000-000000000001',
         (SELECT id FROM game_formats WHERE name = '5v5'),
-        'COMPLETED', NOW() - INTERVAL '7 days', 'FULL', NOW() - INTERVAL '7 days', NOW())
+        'COMPLETED', NOW() - INTERVAL '7 days', NOW() - INTERVAL '7 days', NOW())
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO game_teams (id, "gameId", "teamId", "teamType", "createdAt", "updatedAt")
@@ -138,10 +138,10 @@ ON CONFLICT (id) DO NOTHING;
 -- GAME 2: In Progress at Halftime (Thunder FC 1-0 Storm City)
 -- ============================================
 
-INSERT INTO games (id, "gameFormatId", status, "scheduledStart", "statsTrackingLevel", "createdAt", "updatedAt")
+INSERT INTO games (id, "gameFormatId", status, "scheduledStart", "createdAt", "updatedAt")
 VALUES ('33000001-0000-0000-0000-000000000002',
         (SELECT id FROM game_formats WHERE name = '5v5'),
-        'HALFTIME', NOW() - INTERVAL '30 minutes', 'FULL', NOW() - INTERVAL '1 hour', NOW())
+        'HALFTIME', NOW() - INTERVAL '30 minutes', NOW() - INTERVAL '1 hour', NOW())
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO game_teams (id, "gameId", "teamId", "teamType", "createdAt", "updatedAt")
@@ -168,10 +168,10 @@ ON CONFLICT (id) DO NOTHING;
 -- GAME 3: Scheduled (Thunder FC vs Lightning United in 3 days)
 -- ============================================
 
-INSERT INTO games (id, "gameFormatId", status, "scheduledStart", "statsTrackingLevel", "createdAt", "updatedAt")
+INSERT INTO games (id, "gameFormatId", status, "scheduledStart", "createdAt", "updatedAt")
 VALUES ('33000001-0000-0000-0000-000000000003',
         (SELECT id FROM game_formats WHERE name = '7v7'),
-        'SCHEDULED', NOW() + INTERVAL '3 days', 'FULL', NOW(), NOW())
+        'SCHEDULED', NOW() + INTERVAL '3 days', NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO game_teams (id, "gameId", "teamId", "teamType", "createdAt", "updatedAt")
@@ -184,10 +184,10 @@ ON CONFLICT (id) DO NOTHING;
 -- GAME 4: Completed (Storm City 1-1 Thunder FC, 14 days ago - draw)
 -- ============================================
 
-INSERT INTO games (id, "gameFormatId", status, "scheduledStart", "statsTrackingLevel", "createdAt", "updatedAt")
+INSERT INTO games (id, "gameFormatId", status, "scheduledStart", "createdAt", "updatedAt")
 VALUES ('33000001-0000-0000-0000-000000000004',
         (SELECT id FROM game_formats WHERE name = '5v5'),
-        'COMPLETED', NOW() - INTERVAL '14 days', 'FULL', NOW() - INTERVAL '14 days', NOW())
+        'COMPLETED', NOW() - INTERVAL '14 days', NOW() - INTERVAL '14 days', NOW())
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO game_teams (id, "gameId", "teamId", "teamType", "createdAt", "updatedAt")

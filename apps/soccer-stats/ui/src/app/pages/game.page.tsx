@@ -15,10 +15,11 @@ import {
   EventCard,
   type EventType as EventCardType,
   type ChildEventData,
+  UI_DEFAULT_STATS_FEATURES,
 } from '@garage/soccer-stats/ui-components';
 import {
   GameStatus,
-  StatsTrackingLevel,
+  StatsFeatures,
   RosterPlayer as GqlRosterPlayer,
   GameEventChangedDocument,
   GameEventAction,
@@ -1211,14 +1212,14 @@ export const GamePage = () => {
     }
   };
 
-  // Change stats tracking level for this game
-  const handleStatsTrackingChange = async (level: StatsTrackingLevel) => {
+  // Change stats features for this game
+  const handleStatsTrackingChange = async (features: StatsFeatures) => {
     try {
       await updateGame({
         variables: {
           id: gameId!,
           updateGameInput: {
-            statsTrackingLevel: level,
+            statsFeatures: features,
           },
         },
       });
@@ -1284,10 +1285,10 @@ export const GamePage = () => {
     [panelBenchSelection],
   );
 
-  // Change stats tracking level for a specific team in this game
+  // Change stats features for a specific team in this game
   const handleTeamStatsTrackingChange = async (
     team: 'home' | 'away',
-    level: StatsTrackingLevel | null,
+    features: StatsFeatures | null,
   ) => {
     const gameTeamId = team === 'home' ? homeTeamData?.id : awayTeamData?.id;
     if (!gameTeamId) return;
@@ -1297,7 +1298,7 @@ export const GamePage = () => {
         variables: {
           gameTeamId,
           updateGameTeamInput: {
-            statsTrackingLevel: level,
+            statsFeatures: features,
           },
         },
       });
@@ -1311,29 +1312,29 @@ export const GamePage = () => {
     }
   };
 
-  // Get effective stats tracking level for a team
-  // Cascade: GameTeam.statsTrackingLevel → Game.statsTrackingLevel → default (FULL)
-  const getEffectiveTrackingLevel = useCallback(
-    (team: 'home' | 'away'): StatsTrackingLevel => {
+  // Get effective stats features for a team
+  // Cascade: GameTeam.statsFeatures → Game.statsFeatures → default (all on)
+  const getEffectiveStatsFeatures = useCallback(
+    (team: 'home' | 'away'): StatsFeatures => {
       const game = data?.game;
       const gameTeam = team === 'home' ? homeTeamData : awayTeamData;
 
-      // Priority: Per-team level > Game level > Default
+      // Priority: Per-team features > Game features > Default (all on)
       return (
-        gameTeam?.statsTrackingLevel ||
-        game?.statsTrackingLevel ||
-        StatsTrackingLevel.Full
+        gameTeam?.statsFeatures ||
+        game?.statsFeatures ||
+        (UI_DEFAULT_STATS_FEATURES as StatsFeatures)
       );
     },
     [data?.game, homeTeamData, awayTeamData],
   );
 
-  // Handle goal button click - skip modal for GOALS_ONLY mode
+  // Handle goal button click - skip modal when scorer tracking is disabled
   const handleGoalClick = async (team: 'home' | 'away') => {
     const game = data?.game;
-    const effectiveLevel = getEffectiveTrackingLevel(team);
+    const effectiveFeatures = getEffectiveStatsFeatures(team);
 
-    if (effectiveLevel === StatsTrackingLevel.GoalsOnly) {
+    if (!effectiveFeatures.trackScorer) {
       // Skip modal - record goal directly without player attribution
       const gameTeam = game?.teams?.find((gt) => gt.teamType === team);
       if (!gameTeam || !game) return;
@@ -1514,7 +1515,7 @@ export const GamePage = () => {
         status={game.status}
         gameFormatName={game.format.name}
         durationMinutes={game.format.durationMinutes}
-        statsTrackingLevel={game.statsTrackingLevel || StatsTrackingLevel.Full}
+        statsFeatures={game.statsFeatures || (UI_DEFAULT_STATS_FEATURES as StatsFeatures)}
         isPaused={!!game.pausedAt}
         isConnected={isConnected}
         showGameMenu={showGameMenu}
@@ -1536,8 +1537,8 @@ export const GamePage = () => {
         // Per-team stats tracking
         homeTeamName={homeTeam?.team.name}
         awayTeamName={awayTeam?.team.name}
-        homeTeamStatsTrackingLevel={homeTeamData?.statsTrackingLevel}
-        awayTeamStatsTrackingLevel={awayTeamData?.statsTrackingLevel}
+        homeTeamStatsFeatures={homeTeamData?.statsFeatures}
+        awayTeamStatsFeatures={awayTeamData?.statsFeatures}
         onTeamStatsTrackingChange={handleTeamStatsTrackingChange}
         updatingTeamStats={updatingGameTeam}
       />
@@ -2397,7 +2398,7 @@ export const GamePage = () => {
           period={currentPeriod}
           periodSecond={currentPeriodSeconds}
           onClose={() => setGoalModalTeam(null)}
-          statsTrackingLevel={getEffectiveTrackingLevel(goalModalTeam)}
+          statsFeatures={getEffectiveStatsFeatures(goalModalTeam)}
         />
       )}
 
@@ -2427,7 +2428,7 @@ export const GamePage = () => {
           periodSecond={editGoalData.goal.periodSecond}
           onClose={() => setEditGoalData(null)}
           editGoal={editGoalData.goal}
-          statsTrackingLevel={getEffectiveTrackingLevel(editGoalData.team)}
+          statsFeatures={getEffectiveStatsFeatures(editGoalData.team)}
         />
       )}
 
@@ -2443,7 +2444,7 @@ export const GamePage = () => {
             teamType: 'home',
             onField: homeOnField,
             bench: homeBench,
-            statsTrackingLevel: getEffectiveTrackingLevel('home'),
+            statsFeatures: getEffectiveStatsFeatures('home'),
           }}
           awayTeam={{
             gameTeamId: awayTeam.id,
@@ -2453,7 +2454,7 @@ export const GamePage = () => {
             teamType: 'away',
             onField: awayOnField,
             bench: awayBench,
-            statsTrackingLevel: getEffectiveTrackingLevel('away'),
+            statsFeatures: getEffectiveStatsFeatures('away'),
           }}
           onClose={() => setShowManualGoalModal(false)}
         />

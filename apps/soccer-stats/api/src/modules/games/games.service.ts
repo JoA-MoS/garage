@@ -132,7 +132,7 @@ export class GamesService {
     const game = this.gameRepository.create({
       gameFormatId: createGameInput.gameFormatId,
       durationMinutes: createGameInput.duration,
-      statsTrackingLevel: homeTeamConfig?.statsTrackingLevel,
+      statsFeatures: homeTeamConfig?.statsFeatures,
     });
 
     const savedGame = await this.gameRepository.save(game);
@@ -143,14 +143,14 @@ export class GamesService {
       teamId: createGameInput.homeTeamId,
       teamType: 'home',
       formation: homeTeamConfig?.defaultFormation,
-      statsTrackingLevel: homeTeamConfig?.statsTrackingLevel,
+      statsFeatures: homeTeamConfig?.statsFeatures,
     });
 
     const awayGameTeam = this.gameTeamRepository.create({
       gameId: savedGame.id,
       teamId: createGameInput.awayTeamId,
       teamType: 'away',
-      statsTrackingLevel: awayTeamConfig?.statsTrackingLevel,
+      statsFeatures: awayTeamConfig?.statsFeatures,
     });
 
     await this.gameTeamRepository.save([homeGameTeam, awayGameTeam]);
@@ -305,8 +305,8 @@ export class GamesService {
     if (updateGameTeamInput.formation !== undefined) {
       gameTeam.formation = updateGameTeamInput.formation;
     }
-    if (updateGameTeamInput.statsTrackingLevel !== undefined) {
-      gameTeam.statsTrackingLevel = updateGameTeamInput.statsTrackingLevel;
+    if (updateGameTeamInput.statsFeatures !== undefined) {
+      gameTeam.statsFeatures = updateGameTeamInput.statsFeatures;
     }
     if (updateGameTeamInput.tacticalNotes !== undefined) {
       gameTeam.tacticalNotes = updateGameTeamInput.tacticalNotes;

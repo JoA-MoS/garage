@@ -62,7 +62,13 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
       secondHalfStart
       actualEnd
       pausedAt
-      statsTrackingLevel
+      statsFeatures {
+        trackGoals
+        trackScorer
+        trackAssists
+        trackSubstitutions
+        trackPositions
+      }
       notes
       venue
       weatherConditions
@@ -81,7 +87,13 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
         teamType
         finalScore
         formation
-        statsTrackingLevel
+        statsFeatures {
+          trackGoals
+          trackScorer
+          trackAssists
+          trackSubstitutions
+          trackPositions
+        }
         team {
           id
           name
@@ -223,7 +235,13 @@ export const UPDATE_GAME_TEAM = graphql(/* GraphQL */ `
       id
       teamType
       formation
-      statsTrackingLevel
+      statsFeatures {
+        trackGoals
+        trackScorer
+        trackAssists
+        trackSubstitutions
+        trackPositions
+      }
       tacticalNotes
       team {
         id

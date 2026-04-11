@@ -4,7 +4,7 @@ import { useMutation } from '@apollo/client/react';
 import { ModalPortal } from '@garage/soccer-stats/ui-components';
 import {
   RosterPlayer as GqlRosterPlayer,
-  StatsTrackingLevel,
+  StatsFeatures,
 } from '@garage/soccer-stats/graphql-codegen';
 import { toPeriodSecond } from '@garage/soccer-stats/utils';
 
@@ -18,7 +18,7 @@ interface TeamData {
   teamType: 'home' | 'away';
   onField: GqlRosterPlayer[];
   bench: GqlRosterPlayer[];
-  statsTrackingLevel?: StatsTrackingLevel | null;
+  statsFeatures?: StatsFeatures | null;
 }
 
 interface ManualGoalModalProps {
@@ -79,13 +79,10 @@ export const ManualGoalModal = ({
   const [minute, setMinute] = useState(0);
   const [second, setSecond] = useState(0);
 
-  // Determine tracking level from selected team
-  const statsTrackingLevel = selectedTeam.statsTrackingLevel;
-  const showScorerField =
-    statsTrackingLevel !== StatsTrackingLevel.GoalsOnly &&
-    statsTrackingLevel !== StatsTrackingLevel.SubstitutionOnly;
-  const showAssisterField =
-    statsTrackingLevel === StatsTrackingLevel.Full || !statsTrackingLevel;
+  // Determine which fields to show based on feature flags
+  const statsFeatures = selectedTeam.statsFeatures;
+  const showScorerField = statsFeatures?.trackScorer ?? true;
+  const showAssisterField = statsFeatures?.trackAssists ?? true;
 
   // Player selection
   const hasGqlRosterPlayers =
