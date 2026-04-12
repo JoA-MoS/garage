@@ -33,9 +33,8 @@ export class TeamConfiguration extends BaseEntity {
     description: "Default stats features for this team's games",
   })
   @Column({
-    type: 'json',
-    default: () =>
-      `'${JSON.stringify(DEFAULT_STATS_FEATURES)}'`,
+    type: 'jsonb',
+    default: () => `'${JSON.stringify(DEFAULT_STATS_FEATURES)}'`,
   })
   statsFeatures: StatsFeatures;
 

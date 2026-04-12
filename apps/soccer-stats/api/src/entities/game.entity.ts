@@ -85,7 +85,7 @@ export class Game extends BaseEntity {
     description:
       'Stats feature overrides for this game (null = use team default)',
   })
-  @Column({ type: 'json', nullable: true })
+  @Column({ type: 'jsonb', nullable: true })
   statsFeatures?: StatsFeatures;
 
   @Field({

@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 import { UIStatsFeatures, UI_DEFAULT_STATS_FEATURES } from '../../types';
 
 export interface StatsFeatureTogglesProps {
@@ -97,8 +99,19 @@ export function StatsFeatureToggles({
   onChange,
   disabled = false,
 }: StatsFeatureTogglesProps) {
+  const uid = useId();
+
   const update = (patch: Partial<UIStatsFeatures>) => {
-    const next = { ...value, ...patch };
+    // Pick only the known boolean keys to avoid spreading __typename or other
+    // extra properties that Apollo adds to query results.
+    const next: UIStatsFeatures = {
+      trackGoals: value.trackGoals,
+      trackScorer: value.trackScorer,
+      trackAssists: value.trackAssists,
+      trackSubstitutions: value.trackSubstitutions,
+      trackPositions: value.trackPositions,
+      ...patch,
+    };
 
     // Enforce dependency rules
     if (!next.trackGoals) {
@@ -123,7 +136,7 @@ export function StatsFeatureToggles({
           Goal Tracking
         </h5>
         <ToggleItem
-          id="trackGoals"
+          id={`${uid}-trackGoals`}
           label="Track Goals"
           description="Record when goals are scored"
           checked={value.trackGoals}
@@ -131,7 +144,7 @@ export function StatsFeatureToggles({
           onChange={(checked) => update({ trackGoals: checked })}
         />
         <ToggleItem
-          id="trackScorer"
+          id={`${uid}-trackScorer`}
           label="Track Scorer"
           description="Record who scored each goal"
           checked={value.trackScorer}
@@ -140,7 +153,7 @@ export function StatsFeatureToggles({
           onChange={(checked) => update({ trackScorer: checked })}
         />
         <ToggleItem
-          id="trackAssists"
+          id={`${uid}-trackAssists`}
           label="Track Assists"
           description="Record who assisted each goal"
           checked={value.trackAssists}
@@ -156,7 +169,7 @@ export function StatsFeatureToggles({
           Substitution Tracking
         </h5>
         <ToggleItem
-          id="trackSubstitutions"
+          id={`${uid}-trackSubstitutions`}
           label="Track Substitutions"
           description="Record who comes in and out (enables play time stats)"
           checked={value.trackSubstitutions}
@@ -164,7 +177,7 @@ export function StatsFeatureToggles({
           onChange={(checked) => update({ trackSubstitutions: checked })}
         />
         <ToggleItem
-          id="trackPositions"
+          id={`${uid}-trackPositions`}
           label="Track Positions"
           description="Record which position each player occupies"
           checked={value.trackPositions}

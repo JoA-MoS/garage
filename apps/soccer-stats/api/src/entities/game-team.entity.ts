@@ -1,4 +1,11 @@
-import { Entity, Column, Index, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  Index,
+  ManyToOne,
+  OneToMany,
+  JoinColumn,
+} from 'typeorm';
 import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
 
 import { BaseEntity } from './base.entity';
@@ -40,7 +47,7 @@ export class GameTeam extends BaseEntity {
     description:
       'Stats feature overrides for this team in this game (null = use game or team default)',
   })
-  @Column({ type: 'json', nullable: true })
+  @Column({ type: 'jsonb', nullable: true })
   statsFeatures?: StatsFeatures;
 
   @Field(() => Game)
