@@ -194,6 +194,13 @@ export const GamePage = () => {
   >(null);
   const [selectedFieldPlayerForLineup, setSelectedFieldPlayerForLineup] =
     useState<GqlRosterPlayer | null>(null);
+  // True while lineup panel has a bench/roster player selected (player-first flow)
+  const [lineupPanelHasPlayerSelected, setLineupPanelHasPlayerSelected] =
+    useState(false);
+  // Trigger for lineup panel to execute "Add to Field" from the top-panel button
+  const [addToFieldForLineup, setAddToFieldForLineup] = useState<
+    boolean | null
+  >(null);
 
   // Cascade delete state
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -1724,6 +1731,14 @@ export const GamePage = () => {
                   }
                   hideBench={isLineupSetupPhase || isActivePlay}
                   statsFeatures={homeEffectiveFeatures}
+                  onAddToFieldClick={
+                    isLineupSetupPhase &&
+                    !homeEffectiveFeatures.trackPositions &&
+                    lineupPanelHasPlayerSelected &&
+                    homeOnField.length < game.format.playersPerTeam
+                      ? () => setAddToFieldForLineup(true)
+                      : undefined
+                  }
                 />
               )}
               {activeTeam === 'away' && awayTeam && (
@@ -1760,6 +1775,14 @@ export const GamePage = () => {
                   }
                   hideBench={isLineupSetupPhase || isActivePlay}
                   statsFeatures={awayEffectiveFeatures}
+                  onAddToFieldClick={
+                    isLineupSetupPhase &&
+                    !awayEffectiveFeatures.trackPositions &&
+                    lineupPanelHasPlayerSelected &&
+                    awayOnField.length < game.format.playersPerTeam
+                      ? () => setAddToFieldForLineup(true)
+                      : undefined
+                  }
                 />
               )}
             </div>
@@ -2547,6 +2570,11 @@ export const GamePage = () => {
                 : awayTeam.team.homePrimaryColor || '#EF4444'
             }
             playersPerTeam={game?.format?.playersPerTeam || 5}
+            trackPositions={
+              activeTeam === 'home'
+                ? homeEffectiveFeatures.trackPositions
+                : awayEffectiveFeatures.trackPositions
+            }
             formation={
               (activeTeam === 'home'
                 ? homeTeam.formation
@@ -2586,8 +2614,11 @@ export const GamePage = () => {
             }
             onQueuedPositionsChange={setLineupQueuedPositions}
             onSelectedPositionChange={setLineupSelectedPosition}
+            onPlayerSelectionChange={setLineupPanelHasPlayerSelected}
             onSelectedFieldPlayerIdChange={setSelectedFieldPlayerId}
             onQueuedPlayerIdsChange={setQueuedPlayerIds}
+            externalAddToField={addToFieldForLineup}
+            onExternalAddToFieldHandled={() => setAddToFieldForLineup(null)}
           />,
           document.getElementById('panel-portal')!,
         )}

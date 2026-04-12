@@ -11,6 +11,10 @@ export interface PlayerListLineupProps {
   hasBenchSelectionActive?: boolean;
   onFieldPlayerClick?: (player: GqlRosterPlayer) => void;
   onBenchPlayerClick?: (player: GqlRosterPlayer) => void;
+  /** Called when user taps "Add to Field" during lineup setup in substitution-only mode */
+  onAddToFieldClick?: () => void;
+  /** Optional jersey number resolver. When omitted, falls back to externalPlayerNumber. */
+  getJerseyNumber?: (player: GqlRosterPlayer) => string;
 }
 
 function getDisplayName(player: GqlRosterPlayer): string {
@@ -21,11 +25,12 @@ function getDisplayName(player: GqlRosterPlayer): string {
 }
 
 function getJersey(player: GqlRosterPlayer): string {
-  return player.externalPlayerNumber ?? player.jerseyNumber ?? '?';
+  return player.externalPlayerNumber ?? '?';
 }
 
 function PlayerChip({
   player,
+  jerseyNumber,
   isQueued,
   isSelected,
   teamColor,
@@ -33,6 +38,7 @@ function PlayerChip({
   onClick,
 }: {
   player: GqlRosterPlayer;
+  jerseyNumber: string;
   isQueued: boolean;
   isSelected: boolean;
   teamColor: string;
@@ -57,7 +63,7 @@ function PlayerChip({
         className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
         style={{ backgroundColor: teamColor }}
       >
-        {getJersey(player)}
+        {jerseyNumber}
       </span>
       <span className="truncate font-medium text-gray-800">
         {getDisplayName(player)}
@@ -77,7 +83,10 @@ export function PlayerListLineup({
   hasBenchSelectionActive = false,
   onFieldPlayerClick,
   onBenchPlayerClick,
+  onAddToFieldClick,
+  getJerseyNumber,
 }: PlayerListLineupProps) {
+  const resolveJersey = getJerseyNumber ?? getJersey;
   return (
     <div className="space-y-4">
       {/* On Field */}
@@ -93,13 +102,13 @@ export function PlayerListLineup({
               {onField.length}/{playersPerTeam}
             </span>
           </h4>
-          {hasBenchSelectionActive && (
+          {hasBenchSelectionActive && !onAddToFieldClick && (
             <span className="ml-auto text-xs text-amber-600">
               Select player to substitute out
             </span>
           )}
         </div>
-        {onField.length === 0 ? (
+        {onField.length === 0 && !onAddToFieldClick ? (
           <p className="py-3 text-center text-sm text-gray-400">
             No players on field
           </p>
@@ -107,8 +116,9 @@ export function PlayerListLineup({
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {onField.map((player) => (
               <PlayerChip
-                key={player.id}
+                key={player.gameEventId}
                 player={player}
+                jerseyNumber={resolveJersey(player)}
                 isQueued={queuedPlayerIds.has(player.gameEventId ?? '')}
                 isSelected={player.gameEventId === selectedFieldPlayerId}
                 teamColor={teamColor}
@@ -120,6 +130,21 @@ export function PlayerListLineup({
                 }
               />
             ))}
+            {onAddToFieldClick && (
+              <button
+                type="button"
+                onClick={onAddToFieldClick}
+                disabled={disabled}
+                className="flex w-full items-center gap-2 rounded-lg border-2 border-dashed border-blue-400 bg-blue-50 px-3 py-2 text-left text-sm transition-colors hover:bg-blue-100 disabled:opacity-50"
+              >
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-500 text-base font-bold text-white">
+                  +
+                </span>
+                <span className="truncate font-medium text-blue-600">
+                  Add to Field
+                </span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -139,8 +164,9 @@ export function PlayerListLineup({
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {bench.map((player) => (
               <PlayerChip
-                key={player.id}
+                key={player.gameEventId}
                 player={player}
+                jerseyNumber={resolveJersey(player)}
                 isQueued={false}
                 isSelected={false}
                 teamColor="#9ca3af"

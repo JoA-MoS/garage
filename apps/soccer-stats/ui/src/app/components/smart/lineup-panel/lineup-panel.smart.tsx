@@ -15,6 +15,7 @@ import {
   LineupSelection,
   QueuedLineupItem,
   getPlayerId,
+  FIELD_SENTINEL_POSITION,
 } from './types';
 
 /**
@@ -27,6 +28,7 @@ export const LineupPanel = ({
   teamName,
   teamColor,
   playersPerTeam,
+  trackPositions,
   onField,
   bench,
   firstHalfLineup,
@@ -41,6 +43,8 @@ export const LineupPanel = ({
   onPlayerSelectionChange,
   onSelectedFieldPlayerIdChange,
   onQueuedPlayerIdsChange,
+  externalAddToField,
+  onExternalAddToFieldHandled,
 }: LineupPanelSmartProps) => {
   // Panel state - auto-expand if lineup incomplete (pre-game) or at halftime
   const shouldAutoExpand = gameStatus === 'HALFTIME' || onField.length === 0;
@@ -970,6 +974,81 @@ export const LineupPanel = ({
     }
   }, [selection, gameStatus, addPlayerToGameRoster, removeFromLineup]);
 
+  // Add selected player to field in substitution-only mode (no position tracked)
+  const handleAddToField = useCallback(async () => {
+    if (
+      selection.direction !== 'player-first' ||
+      !selection.player ||
+      !selection.playerSource
+    ) {
+      return;
+    }
+
+    setError(null);
+    const player = selection.player;
+    const source = selection.playerSource;
+
+    setSelection({
+      direction: null,
+      position: null,
+      player: null,
+      playerSource: null,
+    });
+
+    if (gameStatus === 'SCHEDULED') {
+      try {
+        if (
+          source === 'bench' &&
+          'gameEventId' in player &&
+          player.gameEventId
+        ) {
+          await updatePosition(player.gameEventId, FIELD_SENTINEL_POSITION);
+        } else {
+          const playerId =
+            'oduserId' in player ? player.oduserId : player.playerId;
+          const externalPlayerName =
+            'externalPlayerName' in player
+              ? player.externalPlayerName
+              : undefined;
+          const externalPlayerNumber =
+            'externalPlayerNumber' in player
+              ? player.externalPlayerNumber
+              : undefined;
+          await addPlayerToGameRoster({
+            playerId: playerId || undefined,
+            externalPlayerName: externalPlayerName || undefined,
+            externalPlayerNumber: externalPlayerNumber || undefined,
+            position: FIELD_SENTINEL_POSITION,
+          });
+        }
+      } catch (err) {
+        console.error('[LineupPanel] Failed to add player to field:', err);
+        const message =
+          err instanceof Error ? err.message : 'Failed to add player to field';
+        setError(message);
+      }
+    } else {
+      // HALFTIME: queue as an assignment to the sentinel position
+      setQueue((prev) => [
+        ...prev,
+        {
+          id: `assignment-${Date.now()}-${Math.random()}`,
+          type: 'assignment' as const,
+          position: FIELD_SENTINEL_POSITION,
+          player,
+          playerSource: source as 'bench' | 'roster',
+        },
+      ]);
+    }
+  }, [selection, gameStatus, addPlayerToGameRoster, updatePosition]);
+
+  // React to external "Add to Field" trigger (button click in top panel)
+  useEffect(() => {
+    if (!externalAddToField) return;
+    onExternalAddToFieldHandled?.();
+    handleAddToField();
+  }, [externalAddToField, onExternalAddToFieldHandled, handleAddToField]);
+
   // Keep same lineup (halftime shortcut)
   const handleKeepSameLineup = useCallback(async () => {
     if (gameStatus !== 'HALFTIME') return;
@@ -1034,7 +1113,9 @@ export const LineupPanel = ({
       onKeepSameLineup={
         gameStatus === 'HALFTIME' ? handleKeepSameLineup : undefined
       }
+      trackPositions={trackPositions}
       onAddToBench={handleAddToBench}
+      onAddToField={handleAddToField}
       isExecuting={isExecuting}
       executionProgress={executionProgress}
       error={error}

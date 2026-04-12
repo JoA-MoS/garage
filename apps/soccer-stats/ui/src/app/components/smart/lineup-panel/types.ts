@@ -69,6 +69,13 @@ export type QueuedLineupItem =
     };
 
 /**
+ * Sentinel position value used in substitution-only mode (trackPositions=false).
+ * Players assigned this position are treated as "on field" by the position != null
+ * check, but the value is never displayed in the UI.
+ */
+export const FIELD_SENTINEL_POSITION = 'FIELD';
+
+/**
  * Props for the presentation component
  */
 export interface LineupPanelPresentationProps {
@@ -81,6 +88,8 @@ export interface LineupPanelPresentationProps {
   teamName: string;
   teamColor: string;
   playersPerTeam: number;
+  /** When false, positions are not tracked — show "Add to Field" instead of field position slots */
+  trackPositions?: boolean;
 
   // Player data
   onFieldPlayers: GqlRosterPlayer[];
@@ -108,6 +117,9 @@ export interface LineupPanelPresentationProps {
   // Add to bench (when player selected but no position needed)
   onAddToBench: () => void;
 
+  /** Add selected player to field (substitution-only mode, no position tracked) */
+  onAddToField?: () => void;
+
   // Execution state
   isExecuting: boolean;
   executionProgress: number;
@@ -128,6 +140,8 @@ export interface LineupPanelSmartProps {
   teamName: string;
   teamColor: string;
   playersPerTeam: number;
+  /** When false, field positions are not tracked — enables "Add to Field" flow */
+  trackPositions?: boolean;
 
   // Current lineup data
   formation: string | null;
@@ -169,4 +183,8 @@ export interface LineupPanelSmartProps {
   // Field highlighting coordination
   onSelectedFieldPlayerIdChange?: (gameEventId: string | null) => void;
   onQueuedPlayerIdsChange?: (queuedIds: Set<string>) => void;
+
+  // External "Add to Field" trigger (from top-panel click in substitution-only mode)
+  externalAddToField?: boolean | null;
+  onExternalAddToFieldHandled?: () => void;
 }

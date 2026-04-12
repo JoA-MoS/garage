@@ -89,6 +89,13 @@ interface GameLineupTabProps {
    * positional field is shown or a simplified on-field/bench list.
    */
   statsFeatures?: { trackPositions: boolean; trackSubstitutions: boolean };
+
+  /**
+   * Called when user taps "Add to Field" in the On Field header during lineup
+   * setup in substitution-only mode. Triggers the lineup panel to place the
+   * currently selected player onto the field.
+   */
+  onAddToFieldClick?: () => void;
 }
 
 type ModalMode =
@@ -183,6 +190,7 @@ export const GameLineupTab = memo(function GameLineupTab({
   onFieldPlayerClickForLineup,
   hideBench = false,
   statsFeatures,
+  onAddToFieldClick,
 }: GameLineupTabProps) {
   const trackPositions = statsFeatures?.trackPositions ?? true;
   const formations = getFormationsForTeamSize(playersPerTeam);
@@ -751,6 +759,8 @@ export const GameLineupTab = memo(function GameLineupTab({
           selectedFieldPlayerId={selectedFieldPlayerId}
           hasBenchSelectionActive={hasBenchSelectionActive}
           onFieldPlayerClick={handleOnFieldPlayerClick}
+          onAddToFieldClick={onAddToFieldClick}
+          getJerseyNumber={getJerseyNumber}
         />
       )}
 
