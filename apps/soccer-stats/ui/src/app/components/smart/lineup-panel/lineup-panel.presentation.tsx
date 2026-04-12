@@ -305,6 +305,7 @@ export const LineupPanelPresentation = ({
   teamName,
   teamColor,
   playersPerTeam,
+  trackPositions,
   onFieldPlayers,
   benchPlayers,
   availableRoster,
@@ -318,6 +319,7 @@ export const LineupPanelPresentation = ({
   onClearQueue,
   onKeepSameLineup,
   onAddToBench,
+  onAddToField,
   isExecuting,
   executionProgress,
   error,
@@ -358,7 +360,11 @@ export const LineupPanelPresentation = ({
                 <span className="font-medium text-blue-600">
                   {getPlayerDisplayName(selection.player!)}
                 </span>
-                <span className="text-gray-500"> — tap position on field</span>
+                <span className="text-gray-500">
+                  {trackPositions
+                    ? ' — tap position on field'
+                    : ' — expand panel to add'}
+                </span>
               </span>
               <button
                 type="button"
@@ -454,7 +460,9 @@ export const LineupPanelPresentation = ({
                   </span>
                   <span className="text-gray-500">
                     {' '}
-                    — tap position on field
+                    {trackPositions
+                      ? '— tap position on field'
+                      : '— tap Add to Field or Move to Bench'}
                   </span>
                 </span>
                 <button

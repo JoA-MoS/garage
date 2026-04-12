@@ -5,7 +5,7 @@ import { BaseEntity } from './base.entity';
 import { GameTeam } from './game-team.entity';
 import { GameEvent } from './game-event.entity';
 import { GameFormat } from './game-format.entity';
-import { StatsTrackingLevel } from './team-configuration.entity';
+import { StatsFeatures } from './stats-features.type';
 
 export enum GameStatus {
   SCHEDULED = 'SCHEDULED',
@@ -80,16 +80,13 @@ export class Game extends BaseEntity {
   @Column({ type: 'timestamptz', nullable: true })
   pausedAt?: Date;
 
-  @Field(() => StatsTrackingLevel, {
+  @Field(() => StatsFeatures, {
     nullable: true,
-    description: 'Override for stats tracking level (null = use team default)',
+    description:
+      'Stats feature overrides for this game (null = use team default)',
   })
-  @Column({
-    type: 'varchar',
-    length: 20,
-    nullable: true,
-  })
-  statsTrackingLevel?: StatsTrackingLevel;
+  @Column({ type: 'jsonb', nullable: true })
+  statsFeatures?: StatsFeatures;
 
   @Field({
     nullable: true,
@@ -99,8 +96,11 @@ export class Game extends BaseEntity {
   @Column({ type: 'int', nullable: true })
   durationMinutes?: number;
 
-  // Note: statsFeatureOverrides field is excluded from GraphQL schema to avoid type complexity
-  // Feature toggles can be overridden per-game (trackSubstitutions, trackPossession, etc.)
+  /**
+   * @deprecated Superseded by `statsFeatures` (added in migration 1770200000000).
+   * This column is no longer written to and will be removed in a future migration.
+   * TODO: Drop this column once confirmed safe.
+   */
   @Column({ type: 'json', nullable: true })
   statsFeatureOverrides?: {
     trackSubstitutions?: boolean;

@@ -284,6 +284,32 @@ export const FORMATIONS_5V5: Formation[] = [
   },
 ];
 
+// 4v4 formations (no goalkeeper)
+export const FORMATIONS_4V4: Formation[] = [
+  {
+    name: '1-2-1',
+    code: '1-2-1',
+    playersPerTeam: 4,
+    positions: [
+      { position: 'CB', x: 50, y: 22 },
+      { position: 'LM', x: 28, y: 52 },
+      { position: 'RM', x: 72, y: 52 },
+      { position: 'ST', x: 50, y: 80 },
+    ],
+  },
+  {
+    name: '2-2',
+    code: '2-2',
+    playersPerTeam: 4,
+    positions: [
+      { position: 'LB', x: 32, y: 30 },
+      { position: 'RB', x: 68, y: 30 },
+      { position: 'LM', x: 32, y: 72 },
+      { position: 'RM', x: 68, y: 72 },
+    ],
+  },
+];
+
 // 3v3 formations (U6)
 export const FORMATIONS_3V3: Formation[] = [
   {
@@ -311,6 +337,8 @@ export const FORMATIONS_3V3: Formation[] = [
 // Get formations by players per team
 export function getFormationsForTeamSize(playersPerTeam: number): Formation[] {
   switch (playersPerTeam) {
+    case 4:
+      return FORMATIONS_4V4;
     case 3:
       return FORMATIONS_3V3;
     case 5:
@@ -335,6 +363,7 @@ export function getDefaultFormation(playersPerTeam: number): Formation {
 // All formations combined
 export const ALL_FORMATIONS: Formation[] = [
   ...FORMATIONS_3V3,
+  ...FORMATIONS_4V4,
   ...FORMATIONS_5V5,
   ...FORMATIONS_7V7,
   ...FORMATIONS_9V9,

@@ -15,14 +15,16 @@ import {
   EventCard,
   type EventType as EventCardType,
   type ChildEventData,
+  UI_DEFAULT_STATS_FEATURES,
 } from '@garage/soccer-stats/ui-components';
 import {
   GameStatus,
-  StatsTrackingLevel,
+  StatsFeatures,
   RosterPlayer as GqlRosterPlayer,
   GameEventChangedDocument,
   GameEventAction,
   GameUpdatedDocument,
+  GameTeamUpdatedDocument,
 } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond, toPeriodSecond } from '@garage/soccer-stats/utils';
 
@@ -192,6 +194,13 @@ export const GamePage = () => {
   >(null);
   const [selectedFieldPlayerForLineup, setSelectedFieldPlayerForLineup] =
     useState<GqlRosterPlayer | null>(null);
+  // True while lineup panel has a bench/roster player selected (player-first flow)
+  const [lineupPanelHasPlayerSelected, setLineupPanelHasPlayerSelected] =
+    useState(false);
+  // Trigger for lineup panel to execute "Add to Field" from the top-panel button
+  const [addToFieldForLineup, setAddToFieldForLineup] = useState<
+    boolean | null
+  >(null);
 
   // Cascade delete state
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -880,6 +889,7 @@ export const GamePage = () => {
               gameUpdate.currentPeriodSecond ?? prev.game.currentPeriodSecond,
             serverTimestamp:
               gameUpdate.serverTimestamp ?? prev.game.serverTimestamp,
+            statsFeatures: gameUpdate.statsFeatures ?? prev.game.statsFeatures,
           },
         };
       },
@@ -888,7 +898,36 @@ export const GamePage = () => {
     return unsubscribe;
   }, [hasGameData, gameId, subscribeToMore]);
 
-  // Subscriptions are active when data is loaded (both subscribeToMore effects run)
+  // Subscribe to per-team stats feature changes
+  useEffect(() => {
+    if (!hasGameData || !gameId) return;
+
+    const unsubscribe = subscribeToMore({
+      document: GameTeamUpdatedDocument,
+      variables: { gameId },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      updateQuery: (prev: any, { subscriptionData }: any) => {
+        const gameTeamUpdate = subscriptionData.data?.gameTeamUpdated;
+        if (!gameTeamUpdate || !prev.game) return prev;
+
+        return {
+          ...prev,
+          game: {
+            ...prev.game,
+            teams: prev.game.teams?.map((gt: any) =>
+              gt.id === gameTeamUpdate.id
+                ? { ...gt, statsFeatures: gameTeamUpdate.statsFeatures }
+                : gt,
+            ),
+          },
+        };
+      },
+    });
+
+    return unsubscribe;
+  }, [hasGameData, gameId, subscribeToMore]);
+
+  // Subscriptions are active when data is loaded (all subscribeToMore effects run)
   const isConnected = !!data?.game && !!gameId;
 
   const handleResolveConflict = useCallback(
@@ -1211,14 +1250,14 @@ export const GamePage = () => {
     }
   };
 
-  // Change stats tracking level for this game
-  const handleStatsTrackingChange = async (level: StatsTrackingLevel) => {
+  // Change stats features for this game
+  const handleStatsTrackingChange = async (features: StatsFeatures) => {
     try {
       await updateGame({
         variables: {
           id: gameId!,
           updateGameInput: {
-            statsTrackingLevel: level,
+            statsFeatures: features,
           },
         },
       });
@@ -1284,10 +1323,10 @@ export const GamePage = () => {
     [panelBenchSelection],
   );
 
-  // Change stats tracking level for a specific team in this game
+  // Change stats features for a specific team in this game
   const handleTeamStatsTrackingChange = async (
     team: 'home' | 'away',
-    level: StatsTrackingLevel | null,
+    features: StatsFeatures | null,
   ) => {
     const gameTeamId = team === 'home' ? homeTeamData?.id : awayTeamData?.id;
     if (!gameTeamId) return;
@@ -1297,7 +1336,7 @@ export const GamePage = () => {
         variables: {
           gameTeamId,
           updateGameTeamInput: {
-            statsTrackingLevel: level,
+            statsFeatures: features,
           },
         },
       });
@@ -1311,29 +1350,29 @@ export const GamePage = () => {
     }
   };
 
-  // Get effective stats tracking level for a team
-  // Cascade: GameTeam.statsTrackingLevel → Game.statsTrackingLevel → default (FULL)
-  const getEffectiveTrackingLevel = useCallback(
-    (team: 'home' | 'away'): StatsTrackingLevel => {
+  // Get effective stats features for a team
+  // Cascade: GameTeam.statsFeatures → Game.statsFeatures → default (all on)
+  const getEffectiveStatsFeatures = useCallback(
+    (team: 'home' | 'away'): StatsFeatures => {
       const game = data?.game;
       const gameTeam = team === 'home' ? homeTeamData : awayTeamData;
 
-      // Priority: Per-team level > Game level > Default
+      // Priority: Per-team features > Game features > Default (all on)
       return (
-        gameTeam?.statsTrackingLevel ||
-        game?.statsTrackingLevel ||
-        StatsTrackingLevel.Full
+        gameTeam?.statsFeatures ||
+        game?.statsFeatures ||
+        (UI_DEFAULT_STATS_FEATURES as StatsFeatures)
       );
     },
     [data?.game, homeTeamData, awayTeamData],
   );
 
-  // Handle goal button click - skip modal for GOALS_ONLY mode
+  // Handle goal button click - skip modal when scorer tracking is disabled
   const handleGoalClick = async (team: 'home' | 'away') => {
     const game = data?.game;
-    const effectiveLevel = getEffectiveTrackingLevel(team);
+    const effectiveFeatures = getEffectiveStatsFeatures(team);
 
-    if (effectiveLevel === StatsTrackingLevel.GoalsOnly) {
+    if (!effectiveFeatures.trackScorer) {
       // Skip modal - record goal directly without player attribution
       const gameTeam = game?.teams?.find((gt) => gt.teamType === team);
       if (!gameTeam || !game) return;
@@ -1386,6 +1425,24 @@ export const GamePage = () => {
       main.style.scrollPaddingBottom = '';
     };
   }, [hasFixedPanel, panelScrollPadding]);
+
+  // If the active tab is no longer visible (e.g. lineup hidden after disabling
+  // substitutions), redirect to the first available tab so the content area
+  // is never blank and no tab appears selected.
+  // Must be declared before conditional returns to satisfy the rules of hooks.
+  // getEffectiveStatsFeatures falls back to UI_DEFAULT_STATS_FEATURES so this
+  // is safe to evaluate before game data has loaded.
+  useEffect(() => {
+    const showLineup =
+      getEffectiveStatsFeatures('home').trackSubstitutions ||
+      getEffectiveStatsFeatures('away').trackSubstitutions;
+    const tabs = (['lineup', 'stats', 'events'] as const).filter(
+      (tab) => tab !== 'lineup' || showLineup,
+    );
+    if (!tabs.includes(activeTab)) {
+      navigate(`/games/${gameId}/${tabs[0]}`, { replace: true });
+    }
+  }, [activeTab, getEffectiveStatsFeatures, navigate, gameId]);
 
   if (!gameId) {
     return <Navigate to="/games" replace />;
@@ -1442,6 +1499,19 @@ export const GamePage = () => {
   // HALFTIME: rearrange positions for second half, batch SUB_IN on period start
   const isLineupSetupPhase =
     game.status === GameStatus.Scheduled || game.status === GameStatus.Halftime;
+
+  // Effective features per team (used for both tab visibility and GameLineupTab)
+  const homeEffectiveFeatures = getEffectiveStatsFeatures('home');
+  const awayEffectiveFeatures = getEffectiveStatsFeatures('away');
+
+  // Show lineup tab if at least one team tracks substitutions
+  const showLineupTab =
+    homeEffectiveFeatures.trackSubstitutions ||
+    awayEffectiveFeatures.trackSubstitutions;
+
+  const visibleTabs = (['lineup', 'stats', 'events'] as const).filter(
+    (tab) => tab !== 'lineup' || showLineupTab,
+  );
 
   // Get current game time in minutes and seconds for goal recording
   // During HALFTIME, use the end-of-first-half time (half of total duration)
@@ -1514,7 +1584,9 @@ export const GamePage = () => {
         status={game.status}
         gameFormatName={game.format.name}
         durationMinutes={game.format.durationMinutes}
-        statsTrackingLevel={game.statsTrackingLevel || StatsTrackingLevel.Full}
+        statsFeatures={
+          game.statsFeatures || (UI_DEFAULT_STATS_FEATURES as StatsFeatures)
+        }
         isPaused={!!game.pausedAt}
         isConnected={isConnected}
         showGameMenu={showGameMenu}
@@ -1536,8 +1608,8 @@ export const GamePage = () => {
         // Per-team stats tracking
         homeTeamName={homeTeam?.team.name}
         awayTeamName={awayTeam?.team.name}
-        homeTeamStatsTrackingLevel={homeTeamData?.statsTrackingLevel}
-        awayTeamStatsTrackingLevel={awayTeamData?.statsTrackingLevel}
+        homeTeamStatsFeatures={homeTeamData?.statsFeatures}
+        awayTeamStatsFeatures={awayTeamData?.statsFeatures}
         onTeamStatsTrackingChange={handleTeamStatsTrackingChange}
         updatingTeamStats={updatingGameTeam}
       />
@@ -1576,7 +1648,7 @@ export const GamePage = () => {
         {/* Tab Navigation */}
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex">
-            {(['lineup', 'stats', 'events'] as const).map((tab) => (
+            {visibleTabs.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -1596,7 +1668,7 @@ export const GamePage = () => {
         {/* Tab Content */}
         <div className="p-4 sm:p-6">
           {/* Lineup Tab */}
-          {activeTab === 'lineup' && (
+          {activeTab === 'lineup' && showLineupTab && (
             <div className="space-y-4">
               {/* Team Selector */}
               <div className="flex justify-center gap-2">
@@ -1658,6 +1730,15 @@ export const GamePage = () => {
                       : undefined
                   }
                   hideBench={isLineupSetupPhase || isActivePlay}
+                  statsFeatures={homeEffectiveFeatures}
+                  onAddToFieldClick={
+                    isLineupSetupPhase &&
+                    !homeEffectiveFeatures.trackPositions &&
+                    lineupPanelHasPlayerSelected &&
+                    homeOnField.length < game.format.playersPerTeam
+                      ? () => setAddToFieldForLineup(true)
+                      : undefined
+                  }
                 />
               )}
               {activeTeam === 'away' && awayTeam && (
@@ -1693,6 +1774,15 @@ export const GamePage = () => {
                       : undefined
                   }
                   hideBench={isLineupSetupPhase || isActivePlay}
+                  statsFeatures={awayEffectiveFeatures}
+                  onAddToFieldClick={
+                    isLineupSetupPhase &&
+                    !awayEffectiveFeatures.trackPositions &&
+                    lineupPanelHasPlayerSelected &&
+                    awayOnField.length < game.format.playersPerTeam
+                      ? () => setAddToFieldForLineup(true)
+                      : undefined
+                  }
                 />
               )}
             </div>
@@ -2397,7 +2487,7 @@ export const GamePage = () => {
           period={currentPeriod}
           periodSecond={currentPeriodSeconds}
           onClose={() => setGoalModalTeam(null)}
-          statsTrackingLevel={getEffectiveTrackingLevel(goalModalTeam)}
+          statsFeatures={getEffectiveStatsFeatures(goalModalTeam)}
         />
       )}
 
@@ -2427,7 +2517,7 @@ export const GamePage = () => {
           periodSecond={editGoalData.goal.periodSecond}
           onClose={() => setEditGoalData(null)}
           editGoal={editGoalData.goal}
-          statsTrackingLevel={getEffectiveTrackingLevel(editGoalData.team)}
+          statsFeatures={getEffectiveStatsFeatures(editGoalData.team)}
         />
       )}
 
@@ -2443,7 +2533,7 @@ export const GamePage = () => {
             teamType: 'home',
             onField: homeOnField,
             bench: homeBench,
-            statsTrackingLevel: getEffectiveTrackingLevel('home'),
+            statsFeatures: getEffectiveStatsFeatures('home'),
           }}
           awayTeam={{
             gameTeamId: awayTeam.id,
@@ -2453,7 +2543,7 @@ export const GamePage = () => {
             teamType: 'away',
             onField: awayOnField,
             bench: awayBench,
-            statsTrackingLevel: getEffectiveTrackingLevel('away'),
+            statsFeatures: getEffectiveStatsFeatures('away'),
           }}
           onClose={() => setShowManualGoalModal(false)}
         />
@@ -2480,6 +2570,11 @@ export const GamePage = () => {
                 : awayTeam.team.homePrimaryColor || '#EF4444'
             }
             playersPerTeam={game?.format?.playersPerTeam || 5}
+            trackPositions={
+              activeTeam === 'home'
+                ? homeEffectiveFeatures.trackPositions
+                : awayEffectiveFeatures.trackPositions
+            }
             formation={
               (activeTeam === 'home'
                 ? homeTeam.formation
@@ -2519,8 +2614,11 @@ export const GamePage = () => {
             }
             onQueuedPositionsChange={setLineupQueuedPositions}
             onSelectedPositionChange={setLineupSelectedPosition}
+            onPlayerSelectionChange={setLineupPanelHasPlayerSelected}
             onSelectedFieldPlayerIdChange={setSelectedFieldPlayerId}
             onQueuedPlayerIdsChange={setQueuedPlayerIds}
+            externalAddToField={addToFieldForLineup}
+            onExternalAddToFieldHandled={() => setAddToFieldForLineup(null)}
           />,
           document.getElementById('panel-portal')!,
         )}

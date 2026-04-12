@@ -5,8 +5,8 @@ import {
   createTeamFormValues,
   TeamFormFields,
   type UICreateTeamInput,
+  type UIStatsFeatures,
 } from '@garage/soccer-stats/ui-components';
-import { StatsTrackingLevel } from '@garage/soccer-stats/graphql-codegen';
 
 import { UITeam, UIGameFormat, UIFormation } from '../types/ui.types';
 
@@ -16,7 +16,7 @@ interface TeamSettingsPresentationProps {
   team?: UITeam;
   selectedGameFormat?: string;
   selectedFormation?: string;
-  statsTrackingLevel: StatsTrackingLevel;
+  statsFeatures: UIStatsFeatures;
   gameFormats: UIGameFormat[];
   formations: UIFormation[];
   positions: Array<{
@@ -30,7 +30,7 @@ interface TeamSettingsPresentationProps {
     basicInfo: UICreateTeamInput;
     gameFormat?: string;
     formation?: string;
-    statsTrackingLevel: StatsTrackingLevel;
+    statsFeatures: UIStatsFeatures;
     positions: Array<{
       id: string;
       name: string;
@@ -41,7 +41,7 @@ interface TeamSettingsPresentationProps {
   }) => void;
   onGameFormatSelect: (formatId: string) => void;
   onFormationSelect: (formationId: string) => void;
-  onStatsTrackingLevelChange: (level: StatsTrackingLevel) => void;
+  onStatsFeaturesChange: (features: UIStatsFeatures) => void;
   onPositionUpdate: (
     positionId: string,
     updates: Partial<{
@@ -63,14 +63,14 @@ export const TeamSettingsPresentation = ({
   team,
   selectedGameFormat,
   selectedFormation,
-  statsTrackingLevel,
+  statsFeatures,
   gameFormats,
   formations,
   positions,
   onSaveSettings,
   onGameFormatSelect,
   onFormationSelect,
-  onStatsTrackingLevelChange,
+  onStatsFeaturesChange,
   onPositionUpdate,
   onAddPosition,
   onRemovePosition,
@@ -103,7 +103,7 @@ export const TeamSettingsPresentation = ({
       basicInfo,
       gameFormat: selectedGameFormat,
       formation: selectedFormation,
-      statsTrackingLevel,
+      statsFeatures,
       positions,
     };
 
@@ -112,7 +112,7 @@ export const TeamSettingsPresentation = ({
     basicInfo,
     selectedGameFormat,
     selectedFormation,
-    statsTrackingLevel,
+    statsFeatures,
     positions,
     onSaveSettings,
   ]);
@@ -158,11 +158,11 @@ export const TeamSettingsPresentation = ({
             Stats Tracking
           </h3>
           <StatsTrackingSelector
-            value={statsTrackingLevel}
-            onChange={onStatsTrackingLevelChange}
+            value={statsFeatures}
+            onChange={onStatsFeaturesChange}
             variant="grid"
             disabled={loading}
-            description="Choose how detailed you want to track statistics during games. This setting will be the default for all new games."
+            description="Choose which statistics to track during games. These settings will be the default for all new games."
           />
         </div>
 
