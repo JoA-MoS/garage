@@ -22,16 +22,16 @@ export class ReplaceStatsTrackingLevelWithStatsFeatures1770200000000
     // statsTrackingLevel is NOT NULL DEFAULT 'FULL', so we always have a value
     await queryRunner.query(`
       ALTER TABLE team_configurations
-        ADD COLUMN "statsFeatures" json NOT NULL DEFAULT '${ALL_ON}'
+        ADD COLUMN "statsFeatures" jsonb NOT NULL DEFAULT '${ALL_ON}'
     `);
 
     await queryRunner.query(`
       UPDATE team_configurations
       SET "statsFeatures" = CASE "statsTrackingLevel"
-        WHEN 'SCORER_ONLY'      THEN '{"trackGoals":true,"trackScorer":true,"trackAssists":false,"trackSubstitutions":true,"trackPositions":true}'::json
-        WHEN 'GOALS_ONLY'       THEN '{"trackGoals":true,"trackScorer":false,"trackAssists":false,"trackSubstitutions":true,"trackPositions":true}'::json
-        WHEN 'SUBSTITUTION_ONLY' THEN '{"trackGoals":true,"trackScorer":false,"trackAssists":false,"trackSubstitutions":true,"trackPositions":false}'::json
-        ELSE '${ALL_ON}'::json
+        WHEN 'SCORER_ONLY'      THEN '{"trackGoals":true,"trackScorer":true,"trackAssists":false,"trackSubstitutions":true,"trackPositions":true}'::jsonb
+        WHEN 'GOALS_ONLY'       THEN '{"trackGoals":true,"trackScorer":false,"trackAssists":false,"trackSubstitutions":true,"trackPositions":true}'::jsonb
+        WHEN 'SUBSTITUTION_ONLY' THEN '{"trackGoals":true,"trackScorer":false,"trackAssists":false,"trackSubstitutions":true,"trackPositions":false}'::jsonb
+        ELSE '${ALL_ON}'::jsonb
       END
     `);
 
@@ -42,16 +42,16 @@ export class ReplaceStatsTrackingLevelWithStatsFeatures1770200000000
     // ── games ─────────────────────────────────────────────────────────────
     // statsTrackingLevel is nullable (null = use team default)
     await queryRunner.query(`
-      ALTER TABLE games ADD COLUMN "statsFeatures" json DEFAULT NULL
+      ALTER TABLE games ADD COLUMN "statsFeatures" jsonb DEFAULT NULL
     `);
 
     await queryRunner.query(`
       UPDATE games
       SET "statsFeatures" = CASE "statsTrackingLevel"
-        WHEN 'FULL'             THEN '${ALL_ON}'::json
-        WHEN 'SCORER_ONLY'      THEN '{"trackGoals":true,"trackScorer":true,"trackAssists":false,"trackSubstitutions":true,"trackPositions":true}'::json
-        WHEN 'GOALS_ONLY'       THEN '{"trackGoals":true,"trackScorer":false,"trackAssists":false,"trackSubstitutions":true,"trackPositions":true}'::json
-        WHEN 'SUBSTITUTION_ONLY' THEN '{"trackGoals":true,"trackScorer":false,"trackAssists":false,"trackSubstitutions":true,"trackPositions":false}'::json
+        WHEN 'FULL'             THEN '${ALL_ON}'::jsonb
+        WHEN 'SCORER_ONLY'      THEN '{"trackGoals":true,"trackScorer":true,"trackAssists":false,"trackSubstitutions":true,"trackPositions":true}'::jsonb
+        WHEN 'GOALS_ONLY'       THEN '{"trackGoals":true,"trackScorer":false,"trackAssists":false,"trackSubstitutions":true,"trackPositions":true}'::jsonb
+        WHEN 'SUBSTITUTION_ONLY' THEN '{"trackGoals":true,"trackScorer":false,"trackAssists":false,"trackSubstitutions":true,"trackPositions":false}'::jsonb
         ELSE NULL
       END
       WHERE "statsTrackingLevel" IS NOT NULL
@@ -63,16 +63,16 @@ export class ReplaceStatsTrackingLevelWithStatsFeatures1770200000000
 
     // ── game_teams ────────────────────────────────────────────────────────
     await queryRunner.query(`
-      ALTER TABLE game_teams ADD COLUMN "statsFeatures" json DEFAULT NULL
+      ALTER TABLE game_teams ADD COLUMN "statsFeatures" jsonb DEFAULT NULL
     `);
 
     await queryRunner.query(`
       UPDATE game_teams
       SET "statsFeatures" = CASE "statsTrackingLevel"
-        WHEN 'FULL'             THEN '${ALL_ON}'::json
-        WHEN 'SCORER_ONLY'      THEN '{"trackGoals":true,"trackScorer":true,"trackAssists":false,"trackSubstitutions":true,"trackPositions":true}'::json
-        WHEN 'GOALS_ONLY'       THEN '{"trackGoals":true,"trackScorer":false,"trackAssists":false,"trackSubstitutions":true,"trackPositions":true}'::json
-        WHEN 'SUBSTITUTION_ONLY' THEN '{"trackGoals":true,"trackScorer":false,"trackAssists":false,"trackSubstitutions":true,"trackPositions":false}'::json
+        WHEN 'FULL'             THEN '${ALL_ON}'::jsonb
+        WHEN 'SCORER_ONLY'      THEN '{"trackGoals":true,"trackScorer":true,"trackAssists":false,"trackSubstitutions":true,"trackPositions":true}'::jsonb
+        WHEN 'GOALS_ONLY'       THEN '{"trackGoals":true,"trackScorer":false,"trackAssists":false,"trackSubstitutions":true,"trackPositions":true}'::jsonb
+        WHEN 'SUBSTITUTION_ONLY' THEN '{"trackGoals":true,"trackScorer":false,"trackAssists":false,"trackSubstitutions":true,"trackPositions":false}'::jsonb
         ELSE NULL
       END
       WHERE "statsTrackingLevel" IS NOT NULL
@@ -84,9 +84,9 @@ export class ReplaceStatsTrackingLevelWithStatsFeatures1770200000000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Exact reverse of the up() mappings. Configurations that have no
-    // equivalent old enum value (e.g. trackGoals=false) fall back to 'FULL'
-    // rather than silently mapping to a semantically wrong value.
+    // Reverse of the up() mappings. Configurations that have no equivalent old
+    // enum value fall back to 'FULL'. Note: 'SUBSTITUTION_ONLY' never existed
+    // in the old enum and is intentionally omitted — those rows map to 'FULL'.
     const teamConfigCase = `
       CASE
         WHEN ("statsFeatures"->>'trackGoals')::boolean     = true
@@ -104,11 +104,6 @@ export class ReplaceStatsTrackingLevelWithStatsFeatures1770200000000
          AND ("statsFeatures"->>'trackAssists')::boolean   = false
          AND ("statsFeatures"->>'trackSubstitutions')::boolean = true
          AND ("statsFeatures"->>'trackPositions')::boolean = true  THEN 'GOALS_ONLY'
-        WHEN ("statsFeatures"->>'trackGoals')::boolean     = true
-         AND ("statsFeatures"->>'trackScorer')::boolean    = false
-         AND ("statsFeatures"->>'trackAssists')::boolean   = false
-         AND ("statsFeatures"->>'trackSubstitutions')::boolean = true
-         AND ("statsFeatures"->>'trackPositions')::boolean = false THEN 'SUBSTITUTION_ONLY'
         ELSE 'FULL'
       END
     `;
@@ -131,11 +126,6 @@ export class ReplaceStatsTrackingLevelWithStatsFeatures1770200000000
          AND ("statsFeatures"->>'trackAssists')::boolean   = false
          AND ("statsFeatures"->>'trackSubstitutions')::boolean = true
          AND ("statsFeatures"->>'trackPositions')::boolean = true  THEN 'GOALS_ONLY'
-        WHEN ("statsFeatures"->>'trackGoals')::boolean     = true
-         AND ("statsFeatures"->>'trackScorer')::boolean    = false
-         AND ("statsFeatures"->>'trackAssists')::boolean   = false
-         AND ("statsFeatures"->>'trackSubstitutions')::boolean = true
-         AND ("statsFeatures"->>'trackPositions')::boolean = false THEN 'SUBSTITUTION_ONLY'
         ELSE 'FULL'
       END
     `;

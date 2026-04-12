@@ -1419,6 +1419,24 @@ export const GamePage = () => {
     };
   }, [hasFixedPanel, panelScrollPadding]);
 
+  // If the active tab is no longer visible (e.g. lineup hidden after disabling
+  // substitutions), redirect to the first available tab so the content area
+  // is never blank and no tab appears selected.
+  // Must be declared before conditional returns to satisfy the rules of hooks.
+  // getEffectiveStatsFeatures falls back to UI_DEFAULT_STATS_FEATURES so this
+  // is safe to evaluate before game data has loaded.
+  useEffect(() => {
+    const showLineup =
+      getEffectiveStatsFeatures('home').trackSubstitutions ||
+      getEffectiveStatsFeatures('away').trackSubstitutions;
+    const tabs = (['lineup', 'stats', 'events'] as const).filter(
+      (tab) => tab !== 'lineup' || showLineup,
+    );
+    if (!tabs.includes(activeTab)) {
+      navigate(`/games/${gameId}/${tabs[0]}`, { replace: true });
+    }
+  }, [activeTab, getEffectiveStatsFeatures, navigate, gameId]);
+
   if (!gameId) {
     return <Navigate to="/games" replace />;
   }

@@ -30,8 +30,9 @@ export const TeamSettingsSmart = () => {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [statsFeatures, setStatsFeatures] =
-    useState<UIStatsFeatures>(UI_DEFAULT_STATS_FEATURES);
+  const [statsFeatures, setStatsFeatures] = useState<UIStatsFeatures>(
+    UI_DEFAULT_STATS_FEATURES,
+  );
 
   // Team configuration manager
   const {
@@ -83,9 +84,24 @@ export const TeamSettingsSmart = () => {
       const team = teamData.team;
       const config = team.teamConfiguration;
 
-      // Initialize stats features from team configuration
+      // Initialize stats features from team configuration.
+      // Destructure to avoid spreading Apollo's __typename into component state,
+      // which would later be sent as an invalid field in StatsFeaturesInput mutations.
       if (config?.statsFeatures) {
-        setStatsFeatures(config.statsFeatures as UIStatsFeatures);
+        const {
+          trackGoals,
+          trackScorer,
+          trackAssists,
+          trackSubstitutions,
+          trackPositions,
+        } = config.statsFeatures;
+        setStatsFeatures({
+          trackGoals,
+          trackScorer,
+          trackAssists,
+          trackSubstitutions,
+          trackPositions,
+        });
       }
 
       // Initialize game format from configuration
@@ -155,7 +171,21 @@ export const TeamSettingsSmart = () => {
           variables: {
             teamId,
             input: {
-              statsFeatures: settingsData.statsFeatures as StatsFeatures,
+              // Destructure to send only boolean fields — strips Apollo's __typename
+              // which would cause GraphQL to reject the StatsFeaturesInput payload.
+              statsFeatures: (({
+                trackGoals,
+                trackScorer,
+                trackAssists,
+                trackSubstitutions,
+                trackPositions,
+              }) => ({
+                trackGoals,
+                trackScorer,
+                trackAssists,
+                trackSubstitutions,
+                trackPositions,
+              }))(settingsData.statsFeatures) as StatsFeatures,
               defaultFormation: settingsData.formation || undefined,
               defaultGameFormatId: backendGameFormatId,
             },
