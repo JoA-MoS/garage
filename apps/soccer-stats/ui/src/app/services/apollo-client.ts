@@ -5,6 +5,7 @@ import {
   ApolloLink,
   split,
 } from '@apollo/client';
+import { removeTypenameFromVariables } from '@apollo/client/link/remove-typename';
 import { CombinedGraphQLErrors } from '@apollo/client/errors';
 import { setContext } from '@apollo/client/link/context';
 import { ErrorLink } from '@apollo/client/link/error';
@@ -185,7 +186,12 @@ const splitLink = split(
     );
   },
   wsLink,
-  ApolloLink.from([errorLink, authLink, httpLink]),
+  ApolloLink.from([
+    removeTypenameFromVariables(),
+    errorLink,
+    authLink,
+    httpLink,
+  ]),
 );
 
 // Create Apollo Client instance

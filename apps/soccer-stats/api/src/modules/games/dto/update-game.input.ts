@@ -1,8 +1,9 @@
 import { InputType, PartialType, Field, Int } from '@nestjs/graphql';
-import { IsOptional, IsEnum, IsBoolean, IsInt, Min } from 'class-validator';
+import { IsOptional, IsEnum, IsBoolean, IsInt, Min, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
 import { GameStatus } from '../../../entities/game.entity';
-import { StatsTrackingLevel } from '../../../entities/team-configuration.entity';
+import { StatsFeaturesInput } from '../../../entities/stats-features.type';
 
 import { CreateGameInput } from './create-game.input';
 
@@ -63,12 +64,13 @@ export class UpdateGameInput extends PartialType(CreateGameInput) {
   @IsBoolean()
   clearEvents?: boolean;
 
-  @Field(() => StatsTrackingLevel, {
+  @Field(() => StatsFeaturesInput, {
     nullable: true,
     description:
-      'Override stats tracking level for this game (null = use team default)',
+      'Stats feature overrides for this game (null = use team default)',
   })
   @IsOptional()
-  @IsEnum(StatsTrackingLevel)
-  statsTrackingLevel?: StatsTrackingLevel;
+  @ValidateNested()
+  @Type(() => StatsFeaturesInput)
+  statsFeatures?: StatsFeaturesInput;
 }

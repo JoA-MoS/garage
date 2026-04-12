@@ -4,7 +4,7 @@ import { useMutation } from '@apollo/client/react';
 import { ModalPortal } from '@garage/soccer-stats/ui-components';
 import {
   RosterPlayer as GqlRosterPlayer,
-  StatsTrackingLevel,
+  StatsFeatures,
 } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond, toPeriodSecond } from '@garage/soccer-stats/utils';
 
@@ -39,8 +39,8 @@ interface GoalModalProps {
   onSuccess?: () => void;
   // Edit mode props
   editGoal?: EditGoalData;
-  // Stats tracking level - determines which fields to show
-  statsTrackingLevel?: StatsTrackingLevel | null;
+  // Stats features - determines which fields to show
+  statsFeatures?: StatsFeatures | null;
 }
 
 /**
@@ -84,12 +84,11 @@ export const GoalModal = ({
   onClose,
   onSuccess,
   editGoal,
-  statsTrackingLevel,
+  statsFeatures,
 }: GoalModalProps) => {
-  // Determine which fields to show based on tracking level
-  const showScorerField = statsTrackingLevel !== StatsTrackingLevel.GoalsOnly;
-  const showAssisterField =
-    statsTrackingLevel === StatsTrackingLevel.Full || !statsTrackingLevel;
+  // Determine which fields to show based on feature flags
+  const showScorerField = statsFeatures?.trackScorer ?? true;
+  const showAssisterField = statsFeatures?.trackAssists ?? true;
   const isEditMode = !!editGoal;
   const hasGqlRosterPlayers = onField.length > 0 || bench.length > 0;
 

@@ -7,6 +7,11 @@ import {
 } from '@nestjs/common';
 
 import { GameEvent } from '../../../entities/game-event.entity';
+import { GameTeam } from '../../../entities/game-team.entity';
+import {
+  StatsFeatures,
+  DEFAULT_STATS_FEATURES,
+} from '../../../entities/stats-features.type';
 import { SubstitutePlayerInput } from '../dto/substitute-player.input';
 import { BringPlayerOntoFieldInput } from '../dto/bring-player-onto-field.input';
 import { RemovePlayerFromFieldInput } from '../dto/remove-player-from-field.input';
@@ -38,6 +43,28 @@ export class SubstitutionService {
   }
 
   /**
+   * Resolve the effective stats features for a game team.
+   * Cascade: gameTeam.statsFeatures → game.statsFeatures → DEFAULT_STATS_FEATURES
+   */
+  private async getEffectiveFeatures(
+    gameTeam: GameTeam,
+  ): Promise<StatsFeatures> {
+    if (gameTeam.statsFeatures) {
+      return gameTeam.statsFeatures;
+    }
+    const game = await this.coreService.gamesRepository.findOne({
+      where: { id: gameTeam.gameId },
+      select: ['id', 'statsFeatures'],
+    });
+    if (!game) {
+      throw new NotFoundException(
+        `Game ${gameTeam.gameId} not found while resolving stats features for GameTeam ${gameTeam.id}`,
+      );
+    }
+    return game.statsFeatures ?? DEFAULT_STATS_FEATURES;
+  }
+
+  /**
    * Bring a player onto the field during a game (creates SUBSTITUTION_IN event).
    * Used at halftime or when adding a player to an empty position mid-game.
    * Unlike addPlayerToLineup, this doesn't check for existing bench/lineup events
@@ -54,6 +81,8 @@ export class SubstitutionService {
     );
 
     const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
+    const features = await this.getEffectiveFeatures(gameTeam);
+    const trackPosition = features.trackPositions;
     const eventType = this.coreService.getEventTypeByName('SUBSTITUTION_IN');
 
     // Build metadata object with optional fields
@@ -72,7 +101,7 @@ export class SubstitutionService {
       playerId: input.playerId,
       externalPlayerName: input.externalPlayerName,
       externalPlayerNumber: input.externalPlayerNumber,
-      position: input.position,
+      position: trackPosition ? input.position : undefined,
       recordedByUserId,
       period: input.period,
       periodSecond: input.periodSecond,
@@ -100,6 +129,8 @@ export class SubstitutionService {
   ): Promise<GameEvent> {
     // 1. Get the game team
     const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
+    const features = await this.getEffectiveFeatures(gameTeam);
+    const trackPosition = features.trackPositions;
 
     // 2. Get the player's current on-field event
     const playerEvent = await this.gameEventsRepository.findOne({
@@ -141,7 +172,7 @@ export class SubstitutionService {
       playerId: playerEvent.playerId,
       externalPlayerName: playerEvent.externalPlayerName,
       externalPlayerNumber: playerEvent.externalPlayerNumber,
-      position: playerEvent.position,
+      position: trackPosition ? playerEvent.position : undefined,
       recordedByUserId,
       period: input.period,
       periodSecond: input.periodSecond,
@@ -173,6 +204,8 @@ export class SubstitutionService {
     );
 
     const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
+    const features = await this.getEffectiveFeatures(gameTeam);
+    const trackPosition = features.trackPositions;
 
     // Get the player being subbed out
     const playerOutEvent = await this.gameEventsRepository.findOne({
@@ -200,7 +233,7 @@ export class SubstitutionService {
       recordedByUserId,
       period: input.period,
       periodSecond: input.periodSecond,
-      position: playerOutEvent.position,
+      position: trackPosition ? playerOutEvent.position : undefined,
     });
 
     const savedSubOut = await this.gameEventsRepository.save(subOutEvent);
@@ -216,7 +249,7 @@ export class SubstitutionService {
       recordedByUserId,
       period: input.period,
       periodSecond: input.periodSecond,
-      position: playerOutEvent.position,
+      position: trackPosition ? playerOutEvent.position : undefined,
       parentEventId: savedSubOut.id,
     });
 
@@ -374,6 +407,9 @@ export class SubstitutionService {
       throw new NotFoundException(`GameTeam ${gameTeamId} not found`);
     }
 
+    const features = await this.getEffectiveFeatures(gameTeam);
+    const trackPosition = features.trackPositions;
+
     // Batch create all SUB_OUT events
     const subOutEventsToCreate = lineup.currentOnField.map((player) =>
       this.gameEventsRepository.create({
@@ -383,7 +419,7 @@ export class SubstitutionService {
         playerId: player.playerId,
         externalPlayerName: player.externalPlayerName,
         externalPlayerNumber: player.externalPlayerNumber,
-        position: player.position,
+        position: trackPosition ? player.position : undefined,
         recordedByUserId,
         period,
         periodSecond,

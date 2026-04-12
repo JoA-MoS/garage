@@ -4,8 +4,12 @@ import { useParams, useNavigate } from 'react-router';
 
 import {
   GameFormat,
-  StatsTrackingLevel,
+  StatsFeatures,
 } from '@garage/soccer-stats/graphql-codegen';
+import {
+  UI_DEFAULT_STATS_FEATURES,
+  type UIStatsFeatures,
+} from '@garage/soccer-stats/ui-components';
 
 import {
   GET_TEAM_BY_ID,
@@ -26,8 +30,9 @@ export const TeamSettingsSmart = () => {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [statsTrackingLevel, setStatsTrackingLevel] =
-    useState<StatsTrackingLevel>(StatsTrackingLevel.Full);
+  const [statsFeatures, setStatsFeatures] = useState<UIStatsFeatures>(
+    UI_DEFAULT_STATS_FEATURES,
+  );
 
   // Team configuration manager
   const {
@@ -79,9 +84,24 @@ export const TeamSettingsSmart = () => {
       const team = teamData.team;
       const config = team.teamConfiguration;
 
-      // Initialize stats tracking level from team configuration
-      if (config?.statsTrackingLevel) {
-        setStatsTrackingLevel(config.statsTrackingLevel);
+      // Initialize stats features from team configuration.
+      // Destructure to avoid spreading Apollo's __typename into component state,
+      // which would later be sent as an invalid field in StatsFeaturesInput mutations.
+      if (config?.statsFeatures) {
+        const {
+          trackGoals,
+          trackScorer,
+          trackAssists,
+          trackSubstitutions,
+          trackPositions,
+        } = config.statsFeatures;
+        setStatsFeatures({
+          trackGoals,
+          trackScorer,
+          trackAssists,
+          trackSubstitutions,
+          trackPositions,
+        });
       }
 
       // Initialize game format from configuration
@@ -102,7 +122,7 @@ export const TeamSettingsSmart = () => {
       basicInfo: UICreateTeamInput;
       gameFormat?: string;
       formation?: string;
-      statsTrackingLevel: StatsTrackingLevel;
+      statsFeatures: UIStatsFeatures;
       positions: Array<{
         id: string;
         name: string;
@@ -151,7 +171,21 @@ export const TeamSettingsSmart = () => {
           variables: {
             teamId,
             input: {
-              statsTrackingLevel: settingsData.statsTrackingLevel,
+              // Destructure to send only boolean fields — strips Apollo's __typename
+              // which would cause GraphQL to reject the StatsFeaturesInput payload.
+              statsFeatures: (({
+                trackGoals,
+                trackScorer,
+                trackAssists,
+                trackSubstitutions,
+                trackPositions,
+              }) => ({
+                trackGoals,
+                trackScorer,
+                trackAssists,
+                trackSubstitutions,
+                trackPositions,
+              }))(settingsData.statsFeatures) as StatsFeatures,
               defaultFormation: settingsData.formation || undefined,
               defaultGameFormatId: backendGameFormatId,
             },
@@ -222,14 +256,14 @@ export const TeamSettingsSmart = () => {
         team={team as any} // TODO: Fix type when migrating to new architecture
         selectedGameFormat={selectedGameFormat}
         selectedFormation={selectedFormation}
-        statsTrackingLevel={statsTrackingLevel}
+        statsFeatures={statsFeatures}
         gameFormats={gameFormats}
         formations={availableFormations}
         positions={positions}
         onSaveSettings={handleSaveSettings}
         onGameFormatSelect={selectGameFormat}
         onFormationSelect={selectFormation}
-        onStatsTrackingLevelChange={setStatsTrackingLevel}
+        onStatsFeaturesChange={setStatsFeatures}
         onPositionUpdate={updatePosition}
         onAddPosition={handleAddPosition}
         onRemovePosition={removePosition}

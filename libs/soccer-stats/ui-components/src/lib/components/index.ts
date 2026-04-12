@@ -33,6 +33,7 @@ export * from './team-stats-tracking-radio-group';
 export * from './team-form-fields';
 export * from './team-stats';
 export * from './team-detail';
+export * from './stats-feature-toggles';
 
 // Navigation Components
 export * from './tab-navigation';

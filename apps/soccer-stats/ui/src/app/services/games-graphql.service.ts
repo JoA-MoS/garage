@@ -62,7 +62,13 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
       secondHalfStart
       actualEnd
       pausedAt
-      statsTrackingLevel
+      statsFeatures {
+        trackGoals
+        trackScorer
+        trackAssists
+        trackSubstitutions
+        trackPositions
+      }
       notes
       venue
       weatherConditions
@@ -81,7 +87,13 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
         teamType
         finalScore
         formation
-        statsTrackingLevel
+        statsFeatures {
+          trackGoals
+          trackScorer
+          trackAssists
+          trackSubstitutions
+          trackPositions
+        }
         team {
           id
           name
@@ -223,7 +235,13 @@ export const UPDATE_GAME_TEAM = graphql(/* GraphQL */ `
       id
       teamType
       formation
-      statsTrackingLevel
+      statsFeatures {
+        trackGoals
+        trackScorer
+        trackAssists
+        trackSubstitutions
+        trackPositions
+      }
       tacticalNotes
       team {
         id
@@ -759,7 +777,7 @@ export const GAME_EVENT_CHANGED = graphql(/* GraphQL */ `
   }
 `);
 
-// Subscription for real-time game state updates (start, pause, half-time, end, reset)
+// Subscription for real-time game state updates (start, pause, half-time, end, reset, stats changes)
 export const GAME_UPDATED = graphql(/* GraphQL */ `
   subscription GameUpdated($gameId: ID!) {
     gameUpdated(gameId: $gameId) {
@@ -774,6 +792,31 @@ export const GAME_UPDATED = graphql(/* GraphQL */ `
       currentPeriod
       currentPeriodSecond
       serverTimestamp
+      statsFeatures {
+        trackGoals
+        trackScorer
+        trackAssists
+        trackSubstitutions
+        trackPositions
+      }
+    }
+  }
+`);
+
+// Subscription for real-time per-team stats feature overrides
+export const GAME_TEAM_UPDATED = graphql(/* GraphQL */ `
+  subscription GameTeamUpdated($gameId: ID!) {
+    gameTeamUpdated(gameId: $gameId) {
+      id
+      gameId
+      teamType
+      statsFeatures {
+        trackGoals
+        trackScorer
+        trackAssists
+        trackSubstitutions
+        trackPositions
+      }
     }
   }
 `);
