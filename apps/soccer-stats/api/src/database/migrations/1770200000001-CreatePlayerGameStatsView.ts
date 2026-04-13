@@ -18,10 +18,10 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * sequential event processing (tracking position spans across SUB_IN/SUB_OUT
  * events with period-relative timing). That logic remains in the StatsService.
  */
-export class CreatePlayerGameStatsView1770200000000
+export class CreatePlayerGameStatsView1770200000001
   implements MigrationInterface
 {
-  name = 'CreatePlayerGameStatsView1770200000000';
+  name = 'CreatePlayerGameStatsView1770200000001';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`

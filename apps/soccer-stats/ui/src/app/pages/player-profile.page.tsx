@@ -290,7 +290,7 @@ export const PlayerProfilePage = () => {
       </div>
 
       {/* Career stat highlights */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard
           value={stats.totalGamesPlayed}
           label="Games Played"
@@ -314,6 +314,15 @@ export const PlayerProfilePage = () => {
         <StatCard
           value={formatPlayTime(stats.totalPlayTimeSeconds)}
           label="Total Time"
+          color="text-gray-700"
+        />
+        <StatCard
+          value={formatPlayTime(
+            stats.totalGamesPlayed > 0
+              ? Math.round(stats.totalPlayTimeSeconds / stats.totalGamesPlayed)
+              : 0,
+          )}
+          label="Avg Time/Game"
           color="text-gray-700"
         />
       </div>
