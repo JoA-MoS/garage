@@ -21,13 +21,15 @@ type PlayerData = GetAllPlayersQuery['players'][number];
 
 function getDisplayName(player: PlayerData): string {
   const name = `${player.firstName ?? ''} ${player.lastName ?? ''}`.trim();
-  return name || player.email;
+  return name || player.email || player.id;
 }
 
 function getInitials(player: PlayerData): string {
   const first = player.firstName?.[0] ?? '';
   const last = player.lastName?.[0] ?? '';
-  return (first + last).toUpperCase() || player.email[0].toUpperCase();
+  return (
+    (first + last).toUpperCase() || player.email?.[0]?.toUpperCase() || '?'
+  );
 }
 
 /**
