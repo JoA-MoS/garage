@@ -20,8 +20,7 @@ export const Default: Story = {
     isOpen: true,
     conflictId: 'conflict-1',
     eventType: 'GOAL',
-    gameMinute: 23,
-    gameSecond: 45,
+    periodSecond: 1425,
     conflictingEvents: [
       {
         eventId: 'event-1',
@@ -45,8 +44,7 @@ export const Substitution: Story = {
     isOpen: true,
     conflictId: 'conflict-2',
     eventType: 'SUBSTITUTION',
-    gameMinute: 45,
-    gameSecond: 0,
+    periodSecond: 2700,
     conflictingEvents: [
       {
         eventId: 'event-3',
@@ -70,8 +68,7 @@ export const Resolving: Story = {
     isOpen: true,
     conflictId: 'conflict-3',
     eventType: 'GOAL',
-    gameMinute: 67,
-    gameSecond: 30,
+    periodSecond: 4050,
     conflictingEvents: [
       {
         eventId: 'event-5',
@@ -95,8 +92,7 @@ export const MultipleConflicts: Story = {
     isOpen: true,
     conflictId: 'conflict-4',
     eventType: 'POSITION_SWAP',
-    gameMinute: 55,
-    gameSecond: 15,
+    periodSecond: 3315,
     conflictingEvents: [
       {
         eventId: 'event-7',
