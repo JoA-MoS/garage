@@ -1,48 +1,18 @@
-import { gql } from '@apollo/client';
+import {
+  graphql,
+  type GetPlayerCareerStatsQuery,
+} from '@garage/soccer-stats/graphql-codegen';
 
-export interface PlayerGameEntryData {
-  gameId: string;
-  gameTeamId: string;
-  gameDate?: string | null;
-  teamId: string;
-  teamName: string;
-  opponentName?: string | null;
-  teamScore?: number | null;
-  opponentScore?: number | null;
-  result: string;
-  goals: number;
-  assists: number;
-  unassistedGoals: number;
-  totalPlayTimeSeconds: number;
-}
+// Re-export codegen types under stable names consumed by callers
+export type GetPlayerCareerStatsResponse = GetPlayerCareerStatsQuery;
+export type PlayerCareerStatsData =
+  GetPlayerCareerStatsQuery['playerCareerStats'];
+export type PlayerTeamStatsData =
+  GetPlayerCareerStatsQuery['playerCareerStats']['teamStats'][number];
+export type PlayerGameEntryData =
+  GetPlayerCareerStatsQuery['playerCareerStats']['gameHistory'][number];
 
-export interface PlayerTeamStatsData {
-  teamId: string;
-  teamName: string;
-  gamesPlayed: number;
-  goals: number;
-  assists: number;
-  unassistedGoals: number;
-  totalPlayTimeSeconds: number;
-}
-
-export interface PlayerCareerStatsData {
-  playerId: string;
-  playerName: string;
-  totalGamesPlayed: number;
-  totalGoals: number;
-  totalAssists: number;
-  totalUnassistedGoals: number;
-  totalPlayTimeSeconds: number;
-  teamStats: PlayerTeamStatsData[];
-  gameHistory: PlayerGameEntryData[];
-}
-
-export interface GetPlayerCareerStatsResponse {
-  playerCareerStats: PlayerCareerStatsData;
-}
-
-export const GET_PLAYER_CAREER_STATS = gql`
+export const GET_PLAYER_CAREER_STATS = graphql(/* GraphQL */ `
   query GetPlayerCareerStats($playerId: ID!) {
     playerCareerStats(playerId: $playerId) {
       playerId
@@ -78,4 +48,4 @@ export const GET_PLAYER_CAREER_STATS = gql`
       }
     }
   }
-`;
+`);
