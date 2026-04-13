@@ -589,7 +589,9 @@ export const GamePage = () => {
 
   // Debounce roster refetches for stats-affecting events
   // Accumulates affected gameTeamIds and refetches once after events settle
-  const rosterRefetchTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const rosterRefetchTimerRef = useRef<
+    ReturnType<typeof setTimeout> | undefined
+  >(undefined);
   const pendingRosterRefetchIds = useRef<Set<string>>(new Set());
 
   // Trigger score animation when score actually changes (not on subscription message)
