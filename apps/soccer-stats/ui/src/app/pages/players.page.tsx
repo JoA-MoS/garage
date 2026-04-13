@@ -1,8 +1,12 @@
 import { Link } from 'react-router';
 import { useQuery } from '@apollo/client/react';
-import { gql } from '@apollo/client';
 
-const GET_ALL_PLAYERS = gql`
+import {
+  graphql,
+  type GetAllPlayersQuery,
+} from '@garage/soccer-stats/graphql-codegen';
+
+const GET_ALL_PLAYERS = graphql(/* GraphQL */ `
   query GetAllPlayers {
     players {
       id
@@ -11,18 +15,9 @@ const GET_ALL_PLAYERS = gql`
       email
     }
   }
-`;
+`);
 
-interface PlayerData {
-  id: string;
-  firstName?: string | null;
-  lastName?: string | null;
-  email: string;
-}
-
-interface GetAllPlayersResponse {
-  players: PlayerData[];
-}
+type PlayerData = GetAllPlayersQuery['players'][number];
 
 function getDisplayName(player: PlayerData): string {
   const name = `${player.firstName ?? ''} ${player.lastName ?? ''}`.trim();
@@ -40,10 +35,9 @@ function getInitials(player: PlayerData): string {
  * Accessed via /players
  */
 export const PlayersPage = () => {
-  const { data, loading, error } = useQuery<GetAllPlayersResponse>(
-    GET_ALL_PLAYERS,
-    { fetchPolicy: 'cache-and-network' },
-  );
+  const { data, loading, error } = useQuery(GET_ALL_PLAYERS, {
+    fetchPolicy: 'cache-and-network',
+  });
 
   if (loading && !data) {
     return (

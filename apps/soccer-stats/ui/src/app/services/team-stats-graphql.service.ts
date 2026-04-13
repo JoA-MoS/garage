@@ -1,86 +1,21 @@
-import { gql } from '@apollo/client';
+import {
+  graphql,
+  type GetTeamStatsQuery,
+  type GetGameTeamStatsQuery,
+} from '@garage/soccer-stats/graphql-codegen';
 
-// Response types for team stats queries
-// These will be replaced by codegen types once the schema is regenerated
+// Re-export codegen types under stable names consumed by callers
+export type GetTeamStatsResponse = GetTeamStatsQuery;
+export type GetGameTeamStatsResponse = GetGameTeamStatsQuery;
+export type TeamStatsResponseData = GetTeamStatsQuery['teamStats'];
+export type PlayerGameStatsRowData =
+  GetTeamStatsQuery['teamStats']['playerStats'][number];
+export type GameStatsSummaryData =
+  GetTeamStatsQuery['teamStats']['gameBreakdown'][number];
+export type TeamAggregateStatsData =
+  GetTeamStatsQuery['teamStats']['aggregateStats'];
 
-export interface PlayerGameStatsRowData {
-  playerId?: string | null;
-  playerName?: string | null;
-  externalPlayerName?: string | null;
-  externalPlayerNumber?: string | null;
-  goals: number;
-  unassistedGoals: number;
-  assists: number;
-  ownGoals: number;
-  totalMinutes: number;
-  totalSeconds: number;
-  totalPlayTimeSeconds: number;
-  gamesPlayed: number;
-}
-
-export interface TeamAggregateStatsData {
-  gamesPlayed: number;
-  wins: number;
-  draws: number;
-  losses: number;
-  winRate: number;
-  goalsFor: number;
-  goalsAgainst: number;
-  goalDifference: number;
-  totalAssists: number;
-  topScoringSquad?: string | null;
-  topScoringSquadGoalsFor: number;
-  topDefensiveSquad?: string | null;
-  topDefensiveSquadGoalsAgainst: number;
-  topScoringSquads: OnFieldSquadMetricData[];
-  topDefensiveSquads: OnFieldSquadMetricData[];
-  topComboPlayers: PlayerComboMetricData[];
-}
-
-export interface PlayerComboMetricData {
-  player1: string;
-  player2: string;
-  goals: number;
-}
-
-export interface OnFieldSquadMetricData {
-  squad: string;
-  goalsFor: number;
-  goalsAgainst: number;
-}
-
-export interface GameStatsSummaryData {
-  gameId: string;
-  gameTeamId: string;
-  gameName?: string | null;
-  gameDate?: string | null;
-  gameStatus: string;
-  opponentName?: string | null;
-  teamScore?: number | null;
-  opponentScore?: number | null;
-  result: string;
-  totalGoals: number;
-  totalAssists: number;
-  playerStats: PlayerGameStatsRowData[];
-}
-
-export interface TeamStatsResponseData {
-  teamId: string;
-  teamName: string;
-  aggregateStats: TeamAggregateStatsData;
-  playerStats: PlayerGameStatsRowData[];
-  gameBreakdown: GameStatsSummaryData[];
-}
-
-export interface GetTeamStatsResponse {
-  teamStats: TeamStatsResponseData;
-}
-
-export interface GetGameTeamStatsResponse {
-  gameTeamStats: GameStatsSummaryData;
-}
-
-export const GET_TEAM_STATS = gql`
+export const GET_TEAM_STATS = graphql(/* GraphQL */ `
   query GetTeamStats($input: TeamStatsInput!) {
     teamStats(input: $input) {
       teamId
@@ -158,9 +93,9 @@ export const GET_TEAM_STATS = gql`
       }
     }
   }
-`;
+`);
 
-export const GET_GAME_TEAM_STATS = gql`
+export const GET_GAME_TEAM_STATS = graphql(/* GraphQL */ `
   query GetGameTeamStats($gameTeamId: ID!) {
     gameTeamStats(gameTeamId: $gameTeamId) {
       gameId
@@ -190,4 +125,4 @@ export const GET_GAME_TEAM_STATS = gql`
       }
     }
   }
-`;
+`);
