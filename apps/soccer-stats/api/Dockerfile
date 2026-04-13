@@ -11,6 +11,11 @@ FROM docker.io/node:22-alpine AS production
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3333
+# Allow Node.js to use up to 400 MB of heap (container limit is 512 MB).
+# Without this, V8 may pick a conservative default that causes the heap
+# to fill quickly and report degraded health even when the container has
+# plenty of memory available.
+ENV NODE_OPTIONS=--max-old-space-size=400
 
 # Enable corepack for pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate

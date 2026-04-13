@@ -11,6 +11,7 @@ import {
 export interface MemoryMetrics {
   heapUsedMB: number;
   heapTotalMB: number;
+  heapSizeLimitMB: number;
   rssMB: number;
   heapUsagePercent: number;
 }
@@ -63,10 +64,16 @@ export class AppService {
   /**
    * Get health status with optional memory metrics.
    *
-   * Status is determined by heap usage:
-   * - ok: < 80% heap usage
-   * - degraded: 80-95% heap usage (high memory pressure)
-   * - unhealthy: > 95% heap usage (critical, may OOM soon)
+   * Status is determined by heap usage relative to V8's heap size limit
+   * (set by --max-old-space-size), not the currently-allocated heap total.
+   * Using the limit avoids false alarms: V8 freely grows heapTotal up to the
+   * limit, so heapUsed/heapTotal can spike above 80% even when the process
+   * has plenty of headroom left.
+   *
+   * Status thresholds (heapUsed / heapSizeLimit):
+   * - ok:        < 80%
+   * - degraded:  80–95%  (high memory pressure)
+   * - unhealthy: > 95%   (critical, may OOM soon)
    */
   getHealth(): HealthStatus {
     const uptime = Math.floor((Date.now() - this.startTime) / 1000);
@@ -82,8 +89,11 @@ export class AppService {
     }
 
     const snapshot = this.observabilityService.getMemorySnapshot();
+    // Use heapSizeLimitMB (the actual V8 max) so the percentage reflects true
+    // proximity to OOM rather than the transient heapTotal allocation.
     const heapUsagePercent =
-      Math.round((snapshot.heapUsedMB / snapshot.heapTotalMB) * 10000) / 100;
+      Math.round((snapshot.heapUsedMB / snapshot.heapSizeLimitMB) * 10000) /
+      100;
 
     // Determine status based on heap usage
     let status: 'ok' | 'degraded' | 'unhealthy' = 'ok';
@@ -100,6 +110,7 @@ export class AppService {
       memory: {
         heapUsedMB: snapshot.heapUsedMB,
         heapTotalMB: snapshot.heapTotalMB,
+        heapSizeLimitMB: snapshot.heapSizeLimitMB,
         rssMB: snapshot.rssMB,
         heapUsagePercent,
       },
