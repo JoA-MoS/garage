@@ -27,7 +27,7 @@ export function useSyncedGameTime(
   syncData: ServerTimeSync | undefined | null,
 ): GameTime {
   // Track the last known period so it persists across pauses/halftime
-  const lastPeriodRef = useRef<string | undefined>();
+  const lastPeriodRef = useRef<string | undefined>(undefined);
 
   // Track which serverTimestamp we're currently counting from
   const lastServerTimestamp = useRef<number | null>(null);

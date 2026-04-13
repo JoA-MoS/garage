@@ -4,6 +4,7 @@ import { Layout } from '../components/layout/layout';
 import { DashboardPage } from '../pages/dashboard.page';
 import { HistoryPage } from '../pages/history.page';
 import { PlayersPage } from '../pages/players.page';
+import { PlayerProfilePage } from '../pages/player-profile.page';
 import { UsersPage } from '../pages/users.page';
 import { TeamsPage } from '../pages/teams.page';
 import { CreateTeamPage } from '../pages/create-team.page';
@@ -15,6 +16,7 @@ import { TeamPlayersPage } from '../pages/team-players.page';
 import { TeamGamesPage } from '../pages/team-games.page';
 import { TeamOverviewPage } from '../pages/team-overview.page';
 import { TeamStatsPage } from '../pages/team-stats.page';
+import { TeamGameStatsPage } from '../pages/team-game-stats.page';
 import { TeamSettingsPage } from '../pages/team-settings.page';
 import { AllGamesPage } from '../pages/all-games.page';
 import { TeamLayout } from '../components/layout/team-layout';
@@ -64,6 +66,10 @@ export const router = createBrowserRouter([
         element: <PlayersPage />,
       },
       {
+        path: 'players/:playerId',
+        element: <PlayerProfilePage />,
+      },
+      {
         path: 'users',
         element: <UsersPage />,
       },
@@ -102,6 +108,10 @@ export const router = createBrowserRouter([
           {
             path: 'stats',
             element: <TeamStatsPage />,
+          },
+          {
+            path: 'games/:gameTeamId/stats',
+            element: <TeamGameStatsPage />,
           },
           {
             path: 'settings',

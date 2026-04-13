@@ -24,12 +24,18 @@ export class PlayerFullStats {
   @Field(() => Int)
   totalSeconds: number;
 
+  @Field(() => Int)
+  totalPlayTimeSeconds: number;
+
   @Field(() => [PositionTime])
   positionTimes: PositionTime[];
 
   // Scoring stats
   @Field(() => Int)
   goals: number;
+
+  @Field(() => Int)
+  unassistedGoals: number;
 
   @Field(() => Int)
   assists: number;

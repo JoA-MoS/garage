@@ -9,6 +9,11 @@ import {
 } from '../dto/player-position-stats.output';
 import { PlayerFullStats } from '../dto/player-full-stats.output';
 import { PlayerStatsInput } from '../dto/player-stats.input';
+import {
+  PlayerCareerStats,
+  PlayerGameEntry,
+  PlayerTeamStats,
+} from '../dto/player-career-stats.output';
 
 import { EventCoreService } from './event-core.service';
 
@@ -231,6 +236,7 @@ export class StatsService {
           externalPlayerNumber: playerData.externalPlayerNumber,
           totalMinutes: Math.floor(totalSeconds / 60),
           totalSeconds: totalSeconds % 60,
+          totalPlayTimeSeconds: totalSeconds,
           positionTimes,
         });
       }
@@ -270,16 +276,19 @@ export class StatsService {
     // Apply filters
     if (input.gameId) {
       gameTeamsQuery.andWhere('g.id = :gameId', { gameId: input.gameId });
-    } else if (input.startDate && input.endDate) {
-      gameTeamsQuery.andWhere(
-        'g.scheduledStart BETWEEN :startDate AND :endDate',
-        {
-          startDate: input.startDate,
-          endDate: input.endDate,
-        },
-      );
+    } else {
+      // Aggregate stats only count completed games
+      gameTeamsQuery.andWhere("g.status = 'COMPLETED'");
+      if (input.startDate && input.endDate) {
+        gameTeamsQuery.andWhere(
+          'g.scheduledStart BETWEEN :startDate AND :endDate',
+          {
+            startDate: input.startDate,
+            endDate: input.endDate,
+          },
+        );
+      }
     }
-    // If neither gameId nor dates: no additional filter (all-time stats)
 
     const gameTeams = await gameTeamsQuery.getMany();
 
@@ -312,6 +321,7 @@ export class StatsService {
       totalSeconds: number;
       positionSecondsMap: Map<string, number>;
       goals: number;
+      unassistedGoals: number;
       assists: number;
       gamesPlayed: Set<string>; // Set of gameTeamIds they participated in
       // For live time tracking (only relevant when filtering by single gameId)
@@ -340,6 +350,7 @@ export class StatsService {
           totalSeconds: 0,
           positionSecondsMap: new Map(),
           goals: 0,
+          unassistedGoals: 0,
           assists: 0,
           gamesPlayed: new Set(),
         };
@@ -347,6 +358,14 @@ export class StatsService {
       }
       return stats;
     };
+
+    // Build set of goal event IDs that have an associated assist (for unassisted goals tracking)
+    const assistedGoalIds = new Set<string>();
+    for (const event of events) {
+      if (event.eventType.name === 'ASSIST' && event.parentEventId) {
+        assistedGoalIds.add(event.parentEventId);
+      }
+    }
 
     // Group events by gameTeamId for processing
     const eventsByGameTeam = new Map<string, GameEvent[]>();
@@ -476,6 +495,9 @@ export class StatsService {
 
           case 'GOAL':
             playerStats.goals += 1;
+            if (!assistedGoalIds.has(event.id)) {
+              playerStats.unassistedGoals += 1;
+            }
             playerStats.gamesPlayed.add(gameTeamId);
             break;
 
@@ -540,8 +562,10 @@ export class StatsService {
         externalPlayerNumber: playerStats.externalPlayerNumber,
         totalMinutes: Math.floor(playerStats.totalSeconds / 60),
         totalSeconds: playerStats.totalSeconds % 60,
+        totalPlayTimeSeconds: playerStats.totalSeconds,
         positionTimes,
         goals: playerStats.goals,
+        unassistedGoals: playerStats.unassistedGoals,
         assists: playerStats.assists,
         gamesPlayed: playerStats.gamesPlayed.size,
         isOnField: playerStats.isOnField ?? false, // Explicitly false if not set
@@ -580,5 +604,311 @@ export class StatsService {
       teamId: gameTeam.teamId,
       gameId: gameTeam.gameId,
     });
+  }
+
+  /**
+   * Get career stats for a single registered player across all completed games.
+   * Returns aggregate totals, per-team breakdown, and full game history.
+   */
+  async getPlayerCareerStats(playerId: string): Promise<PlayerCareerStats> {
+    // Find distinct game team IDs where this player has events in completed games.
+    // Using a two-step approach (get IDs first, then load with relations) to avoid
+    // DISTINCT ON + ORDER BY issues with TypeORM.
+    const rawRows = await this.gameTeamsRepository
+      .createQueryBuilder('gt')
+      .select('gt.id', 'id')
+      .innerJoin('gt.game', 'g')
+      .innerJoin(
+        'game_events',
+        'ge',
+        'ge."gameTeamId" = gt.id AND ge."playerId" = :playerId',
+        { playerId },
+      )
+      .where("g.status = 'COMPLETED'")
+      .getRawMany<{ id: string }>();
+
+    const uniqueGameTeamIds = [...new Set(rawRows.map((r) => r.id))];
+
+    if (uniqueGameTeamIds.length === 0) {
+      return {
+        playerId,
+        playerName: 'Unknown',
+        totalGamesPlayed: 0,
+        totalGoals: 0,
+        totalAssists: 0,
+        totalUnassistedGoals: 0,
+        totalPlayTimeSeconds: 0,
+        teamStats: [],
+        gameHistory: [],
+      };
+    }
+
+    const participatingGameTeams = await this.gameTeamsRepository
+      .createQueryBuilder('gt')
+      .innerJoinAndSelect('gt.game', 'g')
+      .innerJoinAndSelect('gt.team', 't')
+      .where('gt.id IN (:...uniqueGameTeamIds)', { uniqueGameTeamIds })
+      .getMany();
+
+    // Load all events for these game teams (needed for span calc + assisted goals)
+    const allEvents = await this.gameEventsRepository
+      .createQueryBuilder('ge')
+      .innerJoinAndSelect('ge.eventType', 'et')
+      .leftJoinAndSelect('ge.player', 'p')
+      .where('ge.gameTeamId IN (:...uniqueGameTeamIds)', { uniqueGameTeamIds })
+      .orderBy('ge.gameTeamId', 'ASC')
+      .addOrderBy('ge.period', 'ASC')
+      .addOrderBy('ge.periodSecond', 'ASC')
+      .addOrderBy('ge.createdAt', 'ASC')
+      .getMany();
+
+    // Build set of goal IDs that were assisted (used for unassistedGoals calculation)
+    const assistedGoalIds = new Set<string>();
+    for (const event of allEvents) {
+      if (event.eventType.name === 'ASSIST' && event.parentEventId) {
+        assistedGoalIds.add(event.parentEventId);
+      }
+    }
+
+    // Group events by gameTeamId
+    const eventsByGameTeam = new Map<string, GameEvent[]>();
+    for (const event of allEvents) {
+      const list = eventsByGameTeam.get(event.gameTeamId) ?? [];
+      list.push(event);
+      eventsByGameTeam.set(event.gameTeamId, list);
+    }
+
+    // Build lookup maps for game teams and games
+    const gameTeamById = new Map(
+      participatingGameTeams.map((gt) => [gt.id, gt]),
+    );
+    const gameIds = [...new Set(participatingGameTeams.map((gt) => gt.gameId))];
+
+    // Load all game teams for these games to get opponent info
+    const allGameTeamsForGames = await this.gameTeamsRepository
+      .createQueryBuilder('gt')
+      .innerJoinAndSelect('gt.team', 't')
+      .where('gt.gameId IN (:...gameIds)', { gameIds })
+      .getMany();
+
+    const gameTeamsByGameId = new Map<string, typeof allGameTeamsForGames>();
+    for (const gt of allGameTeamsForGames) {
+      const list = gameTeamsByGameId.get(gt.gameId) ?? [];
+      list.push(gt);
+      gameTeamsByGameId.set(gt.gameId, list);
+    }
+
+    // Extract player name from first event that has the player relation loaded
+    const playerEvent = allEvents.find(
+      (e) => e.playerId === playerId && e.player,
+    );
+    const playerName: string = playerEvent?.player
+      ? ((`${playerEvent.player.firstName || ''} ${playerEvent.player.lastName || ''}`.trim() ||
+          playerEvent.player.email) ??
+        'Unknown')
+      : 'Unknown';
+
+    // Process each game team to build per-game stats for this player
+    const gameHistory: PlayerGameEntry[] = [];
+    const teamAggMap = new Map<
+      string,
+      {
+        teamId: string;
+        teamName: string;
+        gamesPlayed: number;
+        goals: number;
+        assists: number;
+        unassistedGoals: number;
+        totalPlayTimeSeconds: number;
+      }
+    >();
+
+    for (const [gameTeamId, gameTeamEvents] of eventsByGameTeam) {
+      const gt = gameTeamById.get(gameTeamId);
+      if (!gt) continue;
+
+      const game = gt.game as Game;
+      const team = gt.team;
+
+      const periodTiming = await this.gameTimingService.getPeriodTimingInfo(
+        game.id,
+        game.format?.durationMinutes,
+      );
+
+      const getPeriodEndSeconds = (period: string): number => {
+        if (period === '1') {
+          return periodTiming.currentPeriod === '1'
+            ? periodTiming.currentPeriodSeconds
+            : periodTiming.period1DurationSeconds;
+        } else if (period === '2') {
+          return periodTiming.currentPeriod === '2'
+            ? periodTiming.currentPeriodSeconds
+            : periodTiming.period2DurationSeconds;
+        }
+        return periodTiming.currentPeriod === period
+          ? periodTiming.currentPeriodSeconds
+          : 0;
+      };
+
+      let totalPlayTimeSeconds = 0;
+      let goals = 0;
+      let unassistedGoals = 0;
+      let assists = 0;
+      let participated = false;
+
+      type OpenSpan = {
+        position: string;
+        period: string;
+        startSeconds: number;
+      };
+      let openSpan: OpenSpan | null = null;
+
+      for (const event of gameTeamEvents) {
+        if (event.playerId !== playerId) continue;
+
+        participated = true;
+        const eventSeconds = event.periodSecond;
+        const eventPeriod = event.period ?? '1';
+
+        switch (event.eventType.name) {
+          case 'SUBSTITUTION_IN':
+            if (event.position) {
+              openSpan = {
+                position: event.position,
+                period: eventPeriod,
+                startSeconds: eventSeconds,
+              };
+            }
+            break;
+
+          case 'SUBSTITUTION_OUT':
+            if (openSpan) {
+              totalPlayTimeSeconds += Math.max(
+                0,
+                eventSeconds - openSpan.startSeconds,
+              );
+              openSpan = null;
+            }
+            break;
+
+          case 'POSITION_SWAP':
+          case 'POSITION_CHANGE':
+            if (openSpan) {
+              totalPlayTimeSeconds += Math.max(
+                0,
+                eventSeconds - openSpan.startSeconds,
+              );
+            }
+            if (event.position) {
+              openSpan = {
+                position: event.position,
+                period: eventPeriod,
+                startSeconds: eventSeconds,
+              };
+            }
+            break;
+
+          case 'GOAL':
+            goals++;
+            if (!assistedGoalIds.has(event.id)) {
+              unassistedGoals++;
+            }
+            break;
+
+          case 'ASSIST':
+            assists++;
+            break;
+
+          case 'GAME_ROSTER':
+            participated = true;
+            break;
+        }
+      }
+
+      // Close any open span at period end (defensive — COMPLETED games should have SUB_OUTs)
+      if (openSpan) {
+        totalPlayTimeSeconds += Math.max(
+          0,
+          getPeriodEndSeconds(openSpan.period) - openSpan.startSeconds,
+        );
+      }
+
+      if (!participated) continue;
+
+      // Determine opponent, score, and result
+      const allTeamsInGame = gameTeamsByGameId.get(game.id) ?? [];
+      const opponentGt = allTeamsInGame.find((ogt) => ogt.id !== gameTeamId);
+      const opponentName = opponentGt?.team?.name;
+      const teamScore = gt.finalScore;
+      const opponentScore = opponentGt?.finalScore;
+
+      let result = 'N/A';
+      if (teamScore !== undefined && opponentScore !== undefined) {
+        if (teamScore > opponentScore) result = 'W';
+        else if (teamScore < opponentScore) result = 'L';
+        else result = 'D';
+      }
+
+      gameHistory.push({
+        gameId: game.id,
+        gameTeamId,
+        gameDate: game.scheduledStart?.toISOString(),
+        teamId: team.id,
+        teamName: team.name,
+        opponentName,
+        teamScore,
+        opponentScore,
+        result,
+        goals,
+        assists,
+        unassistedGoals,
+        totalPlayTimeSeconds,
+      });
+
+      // Accumulate team-level stats
+      const existing = teamAggMap.get(team.id) ?? {
+        teamId: team.id,
+        teamName: team.name,
+        gamesPlayed: 0,
+        goals: 0,
+        assists: 0,
+        unassistedGoals: 0,
+        totalPlayTimeSeconds: 0,
+      };
+      existing.gamesPlayed++;
+      existing.goals += goals;
+      existing.assists += assists;
+      existing.unassistedGoals += unassistedGoals;
+      existing.totalPlayTimeSeconds += totalPlayTimeSeconds;
+      teamAggMap.set(team.id, existing);
+    }
+
+    // Sort game history newest first
+    gameHistory.sort((a, b) => {
+      if (!a.gameDate || !b.gameDate) return 0;
+      return new Date(b.gameDate).getTime() - new Date(a.gameDate).getTime();
+    });
+
+    const teamStats: PlayerTeamStats[] = [...teamAggMap.values()].sort(
+      (a, b) => b.gamesPlayed - a.gamesPlayed,
+    );
+
+    return {
+      playerId,
+      playerName,
+      totalGamesPlayed: gameHistory.length,
+      totalGoals: gameHistory.reduce((sum, g) => sum + g.goals, 0),
+      totalAssists: gameHistory.reduce((sum, g) => sum + g.assists, 0),
+      totalUnassistedGoals: gameHistory.reduce(
+        (sum, g) => sum + g.unassistedGoals,
+        0,
+      ),
+      totalPlayTimeSeconds: gameHistory.reduce(
+        (sum, g) => sum + g.totalPlayTimeSeconds,
+        0,
+      ),
+      teamStats,
+      gameHistory,
+    };
   }
 }

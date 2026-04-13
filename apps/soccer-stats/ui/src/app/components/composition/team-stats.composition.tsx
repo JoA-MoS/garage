@@ -1,9 +1,11 @@
+import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router';
 import { useQuery } from '@apollo/client/react';
 
 import {
-  GET_TEAM_BY_ID,
-  TeamResponse,
-} from '../../services/teams-graphql.service';
+  GET_TEAM_STATS,
+  type GetTeamStatsResponse,
+} from '../../services/team-stats-graphql.service';
 import { TeamStatsSmart } from '../smart/team-stats.smart';
 
 interface TeamStatsCompositionProps {
@@ -11,17 +13,50 @@ interface TeamStatsCompositionProps {
 }
 
 export const TeamStatsComposition = ({ teamId }: TeamStatsCompositionProps) => {
-  const { data, loading, error, refetch } = useQuery<TeamResponse>(
-    GET_TEAM_BY_ID,
+  const navigate = useNavigate();
+  const [startDate, setStartDate] = useState<string | undefined>();
+  const [endDate, setEndDate] = useState<string | undefined>();
+
+  const { data, loading, error, refetch } = useQuery<GetTeamStatsResponse>(
+    GET_TEAM_STATS,
     {
-      variables: { id: teamId },
+      variables: {
+        input: {
+          teamId,
+          ...(startDate && endDate
+            ? {
+                startDate: new Date(`${startDate}T00:00:00`).toISOString(),
+                endDate: new Date(`${endDate}T23:59:59`).toISOString(),
+              }
+            : {}),
+        },
+      },
       errorPolicy: 'all',
       fetchPolicy: 'cache-and-network',
       skip: !teamId,
-    }
+    },
   );
 
-  // Handle no team ID
+  const handleDateRangeChange = useCallback(
+    (newStartDate: string, newEndDate: string) => {
+      setStartDate(newStartDate);
+      setEndDate(newEndDate);
+    },
+    [],
+  );
+
+  const handleClearDateRange = useCallback(() => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+  }, []);
+
+  const handlePlayerClick = useCallback(
+    (playerId: string) => {
+      navigate(`/players/${playerId}`);
+    },
+    [navigate],
+  );
+
   if (!teamId) {
     return (
       <div className="p-4 sm:p-6 md:p-8">
@@ -30,50 +65,24 @@ export const TeamStatsComposition = ({ teamId }: TeamStatsCompositionProps) => {
     );
   }
 
-  // Handle loading state without data
   if (loading && !data) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div
-          className="
-          text-lg
-          sm:text-xl
-        "
-        >
-          Loading team statistics...
-        </div>
+        <div className="text-lg sm:text-xl">Loading team statistics...</div>
       </div>
     );
   }
 
-  // Handle error state without data
   if (error && !data) {
     return (
       <div className="p-4 text-center text-red-600 sm:p-6 md:p-8">
-        <div
-          className="
-          text-lg font-semibold
-          sm:text-xl
-        "
-        >
-          Error loading team
+        <div className="text-lg font-semibold sm:text-xl">
+          Error loading statistics
         </div>
-        <div
-          className="
-          mt-2 text-sm
-          sm:text-base
-        "
-        >
-          {error.message}
-        </div>
+        <div className="mt-2 text-sm sm:text-base">{error.message}</div>
         <button
           onClick={() => refetch()}
-          className="
-            mt-4 min-h-[44px] min-w-[44px] rounded bg-blue-600 px-4 py-3 text-white 
-            transition-colors active:scale-95
-            sm:py-2
-            lg:hover:bg-blue-700
-          "
+          className="mt-4 min-h-[44px] rounded bg-blue-600 px-4 py-3 text-white transition-colors active:scale-95 sm:py-2 lg:hover:bg-blue-700"
         >
           Try Again
         </button>
@@ -81,29 +90,25 @@ export const TeamStatsComposition = ({ teamId }: TeamStatsCompositionProps) => {
     );
   }
 
-  // Handle team not found
-  if (!data?.team) {
+  if (!data?.teamStats) {
     return (
       <div className="p-4 text-center sm:p-6 md:p-8">
-        <div
-          className="
-          text-lg
-          sm:text-xl
-        "
-        >
-          Team not found
-        </div>
+        <div className="text-lg sm:text-xl">No statistics available</div>
       </div>
     );
   }
 
-  // Render the smart component with team data
   return (
     <TeamStatsSmart
-      team={data.team}
+      data={data.teamStats}
+      startDate={startDate}
+      endDate={endDate}
+      onDateRangeChange={handleDateRangeChange}
+      onClearDateRange={handleClearDateRange}
       isLoading={loading}
       error={error?.message}
       onRetry={() => refetch()}
+      onPlayerClick={handlePlayerClick}
     />
   );
 };

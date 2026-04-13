@@ -10,6 +10,8 @@ export function toPeriodSecond(minute: number, second = 0): number {
 
 /**
  * Converts period-relative seconds to minute and second components.
+ *
+ * @deprecated Use toMinutesAndSeconds for generic second conversion.
  * @param periodSecond - Seconds elapsed within the period
  * @returns Object with minute (within period) and second (0-59)
  */
@@ -17,9 +19,21 @@ export function fromPeriodSecond(periodSecond: number): {
   minute: number;
   second: number;
 } {
+  return toMinutesAndSeconds(periodSecond);
+}
+
+/**
+ * Converts total seconds to minute and second components.
+ *
+ * Use this for any duration conversion that is not tied to a specific game period.
+ */
+export function toMinutesAndSeconds(totalSeconds: number): {
+  minute: number;
+  second: number;
+} {
   return {
-    minute: Math.floor(periodSecond / 60),
-    second: periodSecond % 60,
+    minute: Math.floor(totalSeconds / 60),
+    second: totalSeconds % 60,
   };
 }
 

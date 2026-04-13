@@ -37,38 +37,50 @@ export const DashboardPage = () => {
 
   if (error) {
     return (
-      <div className="rounded-lg bg-red-50 p-6 text-center text-red-700">
+      <div className="rounded-lg bg-red-50 p-4 text-center text-red-700">
         <p>Error loading dashboard: {error}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Section */}
-      <div className="rounded-lg bg-gradient-to-r from-blue-600 to-blue-800 p-6 text-white shadow">
-        <h1 className="mb-2 text-3xl font-bold">
-          Welcome back, {userDisplayName}!
-        </h1>
-        <p className="text-blue-100">
-          {hasLiveGames
-            ? `You have ${liveGames.length} live game${
-                liveGames.length > 1 ? 's' : ''
-              } in progress!`
-            : hasUpcomingGames
-              ? 'Check out your upcoming games below.'
-              : "Ready to track some soccer stats? Let's get started!"}
-        </p>
+    <div className="space-y-3">
+      {/* Header bar */}
+      <div className="flex items-center justify-between rounded-lg bg-gradient-to-r from-blue-600 to-blue-800 px-4 py-3 text-white shadow">
+        <div>
+          <h1 className="text-xl font-bold leading-tight">{userDisplayName}</h1>
+          <p className="text-xs text-blue-200">
+            {hasLiveGames
+              ? `${liveGames.length} live game${liveGames.length > 1 ? 's' : ''} in progress`
+              : hasUpcomingGames
+                ? `${upcomingGames.length} upcoming game${upcomingGames.length > 1 ? 's' : ''}`
+                : 'No upcoming games'}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Link
+            to="/games/new"
+            className="rounded bg-white/20 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-white/30"
+          >
+            + New Game
+          </Link>
+          <Link
+            to="/history"
+            className="rounded bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-white/20"
+          >
+            History
+          </Link>
+        </div>
       </div>
 
       {/* Live Games Alert */}
       {hasLiveGames && (
-        <div className="rounded-lg border-2 border-red-500 bg-red-50 p-4">
-          <h2 className="mb-3 flex items-center text-lg font-semibold text-red-700">
-            <span className="mr-2 inline-block h-3 w-3 animate-pulse rounded-full bg-red-500"></span>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-red-700">
+            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-red-500"></span>
             Live Now
-          </h2>
-          <div className="space-y-2">
+          </div>
+          <div className="space-y-1.5">
             {liveGames.map((game) => {
               const homeTeam = game.teams?.find((gt) => gt.teamType === 'HOME');
               const awayTeam = game.teams?.find((gt) => gt.teamType === 'AWAY');
@@ -76,20 +88,18 @@ export const DashboardPage = () => {
                 <Link
                   key={game.id}
                   to={`/games/${game.id}`}
-                  className="min-h-touch flex flex-col items-center justify-between gap-2 rounded-md bg-white p-3 shadow transition-shadow hover:shadow-md sm:flex-row sm:gap-4"
+                  className="flex items-center justify-between rounded bg-white px-3 py-2 shadow-sm transition-shadow hover:shadow"
                 >
-                  <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
-                    <span className="font-medium">
-                      {homeTeam?.team?.shortName || homeTeam?.team?.name}
-                    </span>
-                    <span className="rounded bg-gray-100 px-2 py-1 text-lg font-bold">
-                      {homeTeam?.finalScore ?? 0} - {awayTeam?.finalScore ?? 0}
-                    </span>
-                    <span className="font-medium">
-                      {awayTeam?.team?.shortName || awayTeam?.team?.name}
-                    </span>
-                  </div>
-                  <span className="text-sm text-red-600">View Game →</span>
+                  <span className="text-sm font-medium">
+                    {homeTeam?.team?.shortName || homeTeam?.team?.name}
+                  </span>
+                  <span className="rounded bg-gray-100 px-2 py-0.5 text-sm font-bold tabular-nums">
+                    {homeTeam?.finalScore ?? 0} – {awayTeam?.finalScore ?? 0}
+                  </span>
+                  <span className="text-sm font-medium">
+                    {awayTeam?.team?.shortName || awayTeam?.team?.name}
+                  </span>
+                  <span className="text-xs text-red-600">View →</span>
                 </Link>
               );
             })}
@@ -97,218 +107,195 @@ export const DashboardPage = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Teams Section */}
-        <div className="rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">My Teams</h2>
-          {hasTeams ? (
-            <div className="space-y-2">
-              {teams.map((team) => (
-                <Link
-                  key={team.id}
-                  to={`/teams/${team.id}`}
-                  className="min-h-touch flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-gray-50"
-                >
-                  <div
-                    className="h-8 w-8 rounded-full"
-                    style={{
-                      backgroundColor: team.homePrimaryColor || '#3b82f6',
-                    }}
-                  />
-                  <div>
-                    <p className="font-medium text-gray-900">{team.name}</p>
+      {/* Main grid */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+        {/* Teams */}
+        <div className="rounded-lg bg-white shadow">
+          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-700">
+              My Teams
+            </h2>
+            <Link to="/teams" className="text-xs text-blue-600 hover:underline">
+              Manage →
+            </Link>
+          </div>
+          <div className="p-2">
+            {hasTeams ? (
+              <div className="space-y-0.5">
+                {teams.map((team) => (
+                  <Link
+                    key={team.id}
+                    to={`/teams/${team.id}`}
+                    className="flex items-center gap-2.5 rounded px-2 py-1.5 transition-colors hover:bg-gray-50"
+                  >
+                    <div
+                      className="h-6 w-6 shrink-0 rounded-full border border-gray-200"
+                      style={{
+                        backgroundColor: team.homePrimaryColor || '#3b82f6',
+                      }}
+                    />
+                    <span className="truncate text-sm font-medium text-gray-900">
+                      {team.name}
+                    </span>
                     {team.isManaged && (
-                      <span className="text-xs text-blue-600">Manager</span>
+                      <span className="ml-auto shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
+                        Manager
+                      </span>
                     )}
-                  </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="px-2 py-4 text-center text-sm text-gray-500">
+                <p className="mb-2">Not part of any teams yet.</p>
+                <Link to="/teams" className="text-blue-600 hover:underline">
+                  Browse teams →
                 </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center text-gray-500">
-              <p className="mb-3">You're not part of any teams yet.</p>
-              <Link
-                to="/teams"
-                className="text-sm text-blue-600 hover:underline"
-              >
-                Browse teams →
-              </Link>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Upcoming Games */}
-        <div className="rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">
-            Upcoming Games
-          </h2>
-          {hasUpcomingGames ? (
-            <div className="space-y-3">
-              {upcomingGames.map((game) => {
-                const homeTeam = game.teams?.find(
-                  (gt) => gt.teamType === 'HOME',
-                );
-                const awayTeam = game.teams?.find(
-                  (gt) => gt.teamType === 'AWAY',
-                );
-                return (
-                  <Link
-                    key={game.id}
-                    to={`/games/${game.id}`}
-                    className="min-h-touch block rounded-md border border-gray-200 p-3 transition-shadow hover:shadow"
-                  >
-                    <div className="mb-1 text-sm font-medium text-gray-900">
-                      {homeTeam?.team?.shortName || 'TBD'} vs{' '}
-                      {awayTeam?.team?.shortName || 'TBD'}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {game.scheduledStart
-                        ? new Date(game.scheduledStart).toLocaleDateString(
-                            undefined,
-                            {
-                              weekday: 'short',
-                              month: 'short',
-                              day: 'numeric',
-                              hour: 'numeric',
-                              minute: '2-digit',
-                            },
-                          )
-                        : 'Time TBD'}
-                      {game.venue && ` • ${game.venue}`}
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center text-gray-500">
-              <p className="mb-3">No upcoming games scheduled.</p>
-              <Link
-                to="/games/new"
-                className="text-sm text-blue-600 hover:underline"
-              >
-                Schedule a game →
-              </Link>
-            </div>
-          )}
+        <div className="rounded-lg bg-white shadow">
+          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-700">
+              Upcoming
+            </h2>
+            <Link
+              to="/games/new"
+              className="text-xs text-blue-600 hover:underline"
+            >
+              + Schedule
+            </Link>
+          </div>
+          <div className="p-2">
+            {hasUpcomingGames ? (
+              <div className="space-y-0.5">
+                {upcomingGames.map((game) => {
+                  const homeTeam = game.teams?.find(
+                    (gt) => gt.teamType === 'HOME',
+                  );
+                  const awayTeam = game.teams?.find(
+                    (gt) => gt.teamType === 'AWAY',
+                  );
+                  return (
+                    <Link
+                      key={game.id}
+                      to={`/games/${game.id}`}
+                      className="block rounded px-2 py-1.5 transition-colors hover:bg-gray-50"
+                    >
+                      <div className="text-sm font-medium text-gray-900">
+                        {homeTeam?.team?.shortName || 'TBD'} vs{' '}
+                        {awayTeam?.team?.shortName || 'TBD'}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {game.scheduledStart
+                          ? new Date(game.scheduledStart).toLocaleDateString(
+                              undefined,
+                              {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                              },
+                            )
+                          : 'Time TBD'}
+                        {game.venue && ` • ${game.venue}`}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="px-2 py-4 text-center text-sm text-gray-500">
+                No upcoming games scheduled.
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Recent Games */}
-        <div className="rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">
-            Recent Games
-          </h2>
-          {hasRecentGames ? (
-            <div className="space-y-3">
-              {recentGames.map((game) => {
-                const homeTeam = game.teams?.find(
-                  (gt) => gt.teamType === 'HOME',
-                );
-                const awayTeam = game.teams?.find(
-                  (gt) => gt.teamType === 'AWAY',
-                );
-                return (
-                  <Link
-                    key={game.id}
-                    to={`/games/${game.id}`}
-                    className="min-h-touch block rounded-md border border-gray-200 p-3 transition-shadow hover:shadow"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">
+        <div className="rounded-lg bg-white shadow">
+          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-700">
+              Recent
+            </h2>
+            <Link
+              to="/history"
+              className="text-xs text-blue-600 hover:underline"
+            >
+              All →
+            </Link>
+          </div>
+          <div className="p-2">
+            {hasRecentGames ? (
+              <div className="space-y-0.5">
+                {recentGames.map((game) => {
+                  const homeTeam = game.teams?.find(
+                    (gt) => gt.teamType === 'HOME',
+                  );
+                  const awayTeam = game.teams?.find(
+                    (gt) => gt.teamType === 'AWAY',
+                  );
+                  return (
+                    <Link
+                      key={game.id}
+                      to={`/games/${game.id}`}
+                      className="flex items-center gap-2 rounded px-2 py-1.5 transition-colors hover:bg-gray-50"
+                    >
+                      <span className="truncate text-sm text-gray-700">
                         {homeTeam?.team?.shortName || 'Team'}
                       </span>
-                      <span className="rounded bg-gray-100 px-2 py-0.5 text-sm font-bold">
-                        {homeTeam?.finalScore ?? '-'} -{' '}
-                        {awayTeam?.finalScore ?? '-'}
+                      <span className="mx-auto shrink-0 rounded bg-gray-100 px-2 py-0.5 text-xs font-bold tabular-nums">
+                        {homeTeam?.finalScore ?? '–'} –{' '}
+                        {awayTeam?.finalScore ?? '–'}
                       </span>
-                      <span className="text-sm font-medium">
+                      <span className="truncate text-right text-sm text-gray-700">
                         {awayTeam?.team?.shortName || 'Team'}
                       </span>
-                    </div>
-                    <div className="mt-1 text-center text-xs text-gray-500">
-                      {game.actualEnd
-                        ? new Date(game.actualEnd).toLocaleDateString()
-                        : 'Completed'}
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center text-gray-500">
-              <p className="mb-3">No recent games.</p>
-              <p className="text-xs">
-                Games you play will appear here when completed.
-              </p>
-            </div>
-          )}
+                      <span className="shrink-0 text-xs text-gray-400">
+                        {game.actualEnd
+                          ? new Date(game.actualEnd).toLocaleDateString(
+                              undefined,
+                              {
+                                month: 'short',
+                                day: 'numeric',
+                              },
+                            )
+                          : ''}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="px-2 py-4 text-center text-sm text-gray-500">
+                No recent games.
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="rounded-lg bg-blue-50 p-6">
-        <h3 className="mb-4 text-lg font-semibold text-blue-900">
-          Quick Actions
-        </h3>
-        <div className="flex flex-wrap gap-3">
+      {/* Quick Nav */}
+      <div className="grid grid-cols-4 gap-2">
+        {[
+          { to: '/players', icon: '👥', label: 'Players' },
+          { to: '/teams', icon: '🏆', label: 'Teams' },
+          { to: '/analytics', icon: '📊', label: 'Analytics' },
+          { to: '/settings', icon: '⚙️', label: 'Settings' },
+        ].map(({ to, icon, label }) => (
           <Link
-            to="/games/new"
-            className="rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+            key={to}
+            to={to}
+            className="flex items-center gap-2 rounded-lg bg-white px-3 py-2.5 shadow transition-shadow hover:shadow-md"
           >
-            Start New Game
+            <span className="text-lg leading-none">{icon}</span>
+            <span className="text-sm font-medium text-gray-700">{label}</span>
           </Link>
-          <Link
-            to="/history"
-            className="rounded-md bg-gray-600 px-4 py-2 text-white transition-colors hover:bg-gray-700"
-          >
-            View All Games
-          </Link>
-          <Link
-            to="/teams"
-            className="rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700"
-          >
-            Manage Teams
-          </Link>
-        </div>
-      </div>
-
-      {/* Navigation Cards */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <Link
-          to="/players"
-          className="rounded-lg bg-white p-6 text-center shadow transition-shadow hover:shadow-md"
-        >
-          <div className="mb-2 text-3xl">👥</div>
-          <h3 className="font-medium text-gray-900">Players</h3>
-          <p className="text-sm text-gray-600">Manage player profiles</p>
-        </Link>
-
-        <Link
-          to="/teams"
-          className="rounded-lg bg-white p-6 text-center shadow transition-shadow hover:shadow-md"
-        >
-          <div className="mb-2 text-3xl">🏆</div>
-          <h3 className="font-medium text-gray-900">Teams</h3>
-          <p className="text-sm text-gray-600">Team management</p>
-        </Link>
-
-        <Link
-          to="/analytics"
-          className="rounded-lg bg-white p-6 text-center shadow transition-shadow hover:shadow-md"
-        >
-          <div className="mb-2 text-3xl">📊</div>
-          <h3 className="font-medium text-gray-900">Analytics</h3>
-          <p className="text-sm text-gray-600">Performance insights</p>
-        </Link>
-
-        <Link
-          to="/settings"
-          className="rounded-lg bg-white p-6 text-center shadow transition-shadow hover:shadow-md"
-        >
-          <div className="mb-2 text-3xl">⚙️</div>
-          <h3 className="font-medium text-gray-900">Settings</h3>
-          <p className="text-sm text-gray-600">App configuration</p>
-        </Link>
+        ))}
       </div>
     </div>
   );

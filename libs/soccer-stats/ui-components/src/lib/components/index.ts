@@ -26,6 +26,10 @@ export * from './quick-add-players';
 // User Components
 export * from './user-card';
 
+// Stats Components
+export * from './player-stats-table';
+export * from './game-stats-card';
+
 // Team Components
 export * from './teams-list';
 export * from './team-stats-card';

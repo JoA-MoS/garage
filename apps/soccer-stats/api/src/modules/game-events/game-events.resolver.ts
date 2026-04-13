@@ -34,6 +34,7 @@ import { GameRoster } from './dto/game-roster.output';
 import { PlayerPositionStats } from './dto/player-position-stats.output';
 import { PlayerFullStats } from './dto/player-full-stats.output';
 import { PlayerStatsInput } from './dto/player-stats.input';
+import { PlayerCareerStats } from './dto/player-career-stats.output';
 import { DependentEventsResult } from './dto/dependent-event.output';
 import { GameEventSubscriptionPayload } from './dto/game-event-subscription.output';
 import { SecondHalfLineupResult } from './dto/set-second-half-lineup.output';
@@ -285,6 +286,14 @@ export class GameEventsResolver {
     @Args('input') input: PlayerStatsInput,
   ): Promise<PlayerFullStats[]> {
     return this.gameEventsService.getPlayerStats(input);
+  }
+
+  @Query(() => PlayerCareerStats, { name: 'playerCareerStats' })
+  @Public()
+  getPlayerCareerStats(
+    @Args('playerId', { type: () => ID }) playerId: string,
+  ): Promise<PlayerCareerStats> {
+    return this.gameEventsService.getPlayerCareerStats(playerId);
   }
 
   @Query(() => DependentEventsResult, { name: 'dependentEvents' })

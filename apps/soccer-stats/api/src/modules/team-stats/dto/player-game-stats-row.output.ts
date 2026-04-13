@@ -1,19 +1,7 @@
 import { ObjectType, Field, Int, ID } from '@nestjs/graphql';
 
 @ObjectType()
-export class PositionTime {
-  @Field()
-  position: string;
-
-  @Field(() => Int)
-  minutes: number;
-
-  @Field(() => Int)
-  seconds: number;
-}
-
-@ObjectType()
-export class PlayerPositionStats {
+export class PlayerGameStatsRow {
   @Field(() => ID, { nullable: true })
   playerId?: string;
 
@@ -27,6 +15,24 @@ export class PlayerPositionStats {
   externalPlayerNumber?: string;
 
   @Field(() => Int)
+  goals: number;
+
+  @Field(() => Int)
+  unassistedGoals: number;
+
+  @Field(() => Int)
+  assists: number;
+
+  @Field(() => Int)
+  yellowCards: number;
+
+  @Field(() => Int)
+  redCards: number;
+
+  @Field(() => Int)
+  ownGoals: number;
+
+  @Field(() => Int)
   totalMinutes: number;
 
   @Field(() => Int)
@@ -35,6 +41,6 @@ export class PlayerPositionStats {
   @Field(() => Int)
   totalPlayTimeSeconds: number;
 
-  @Field(() => [PositionTime])
-  positionTimes: PositionTime[];
+  @Field(() => Int)
+  gamesPlayed: number;
 }
