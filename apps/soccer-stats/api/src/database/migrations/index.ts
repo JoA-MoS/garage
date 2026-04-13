@@ -33,6 +33,7 @@ import { CreatePlayerGameStatsView1770200000001 } from './1770200000001-CreatePl
 import { CreatePlayerPositionPlaytimeView1770300000000 } from './1770300000000-CreatePlayerPositionPlaytimeView';
 import { DefaultFinalScoreToZero1775509578482 } from './1775509578482-DefaultFinalScoreToZero';
 import { CreateGameEventsDetailView1775600000000 } from './1775600000000-CreateGameEventsDetailView';
+import { RemoveFinalScoreColumn1776000000000 } from './1776000000000-RemoveFinalScoreColumn';
 
 /**
  * All migrations in chronological order.
@@ -63,4 +64,5 @@ export const migrations = [
   CreatePlayerPositionPlaytimeView1770300000000,
   DefaultFinalScoreToZero1775509578482,
   CreateGameEventsDetailView1775600000000,
+  RemoveFinalScoreColumn1776000000000,
 ];

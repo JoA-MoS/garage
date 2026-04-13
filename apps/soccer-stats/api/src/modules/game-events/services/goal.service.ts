@@ -25,10 +25,6 @@ export class GoalService {
     return this.coreService.gameEventsRepository;
   }
 
-  private get gameTeamsRepository() {
-    return this.coreService.gameTeamsRepository;
-  }
-
   async recordGoal(
     input: RecordGoalInput,
     recordedByUserId: string,
@@ -113,17 +109,6 @@ export class GoalService {
       });
 
       await this.gameEventsRepository.save(assistEvent);
-    }
-
-    // Increment the team's score (handle null case)
-    const currentGameTeam = await this.gameTeamsRepository.findOne({
-      where: { id: input.gameTeamId },
-    });
-    if (currentGameTeam) {
-      await this.gameTeamsRepository.update(
-        { id: input.gameTeamId },
-        { finalScore: (currentGameTeam.finalScore ?? 0) + 1 },
-      );
     }
 
     // Publish the event to subscribers
@@ -281,17 +266,6 @@ export class GoalService {
     // Delete child events (e.g., ASSIST)
     if (gameEvent.childEvents && gameEvent.childEvents.length > 0) {
       await this.gameEventsRepository.remove(gameEvent.childEvents);
-    }
-
-    // Decrement the team's score
-    const gameTeam = await this.gameTeamsRepository.findOne({
-      where: { id: gameEvent.gameTeamId },
-    });
-    if (gameTeam && (gameTeam.finalScore ?? 0) > 0) {
-      await this.gameTeamsRepository.update(
-        { id: gameEvent.gameTeamId },
-        { finalScore: (gameTeam.finalScore ?? 0) - 1 },
-      );
     }
 
     // Store gameId before removing the event

@@ -698,6 +698,27 @@ export class StatsService {
       gameTeamsByGameId.set(gt.gameId, list);
     }
 
+    // Compute scores from GOAL events per game team (source of truth)
+    const allGameTeamIds = allGameTeamsForGames.map((gt) => gt.id);
+    const scoreByGameTeamId = new Map<string, number>();
+    if (allGameTeamIds.length > 0) {
+      const goalRows = await this.gameTeamsRepository.manager
+        .createQueryBuilder()
+        .select('ge."gameTeamId"', 'gameTeamId')
+        .addSelect('COUNT(*)', 'goals')
+        .from('game_events', 'ge')
+        .innerJoin('event_types', 'et', 'et.id = ge."eventTypeId"')
+        .where('ge."gameTeamId" IN (:...gameTeamIds)', {
+          gameTeamIds: allGameTeamIds,
+        })
+        .andWhere("et.name = 'GOAL'")
+        .groupBy('ge."gameTeamId"')
+        .getRawMany<{ gameTeamId: string; goals: string }>();
+      for (const row of goalRows) {
+        scoreByGameTeamId.set(row.gameTeamId, parseInt(row.goals, 10));
+      }
+    }
+
     // Extract player name from first event that has the player relation loaded
     const playerEvent = allEvents.find(
       (e) => e.playerId === playerId && e.player,
@@ -839,11 +860,13 @@ export class StatsService {
       const allTeamsInGame = gameTeamsByGameId.get(game.id) ?? [];
       const opponentGt = allTeamsInGame.find((ogt) => ogt.id !== gameTeamId);
       const opponentName = opponentGt?.team?.name;
-      const teamScore = gt.finalScore;
-      const opponentScore = opponentGt?.finalScore;
+      const teamScore = scoreByGameTeamId.get(gameTeamId) ?? 0;
+      const opponentScore = opponentGt
+        ? (scoreByGameTeamId.get(opponentGt.id) ?? 0)
+        : undefined;
 
       let result = 'N/A';
-      if (teamScore !== undefined && opponentScore !== undefined) {
+      if (opponentScore !== undefined) {
         if (teamScore > opponentScore) result = 'W';
         else if (teamScore < opponentScore) result = 'L';
         else result = 'D';

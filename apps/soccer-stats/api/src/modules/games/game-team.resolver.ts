@@ -1,4 +1,4 @@
-import { Resolver, ResolveField, Parent, Context } from '@nestjs/graphql';
+import { Resolver, ResolveField, Parent, Context, Int } from '@nestjs/graphql';
 
 import { GameTeam } from '../../entities/game-team.entity';
 import { Game } from '../../entities/game.entity';
@@ -36,6 +36,21 @@ export class GameTeamResolver {
     }
     // Otherwise, use DataLoader to batch the query
     return context.loaders.gameLoader.load(gameTeam.gameId);
+  }
+
+  /**
+   * Resolves the computed 'finalScore' field on GameTeam.
+   * Score is derived from GOAL event count — the source of truth.
+   * Uses DataLoader to batch multiple game team score lookups into a single query.
+   */
+  @ResolveField(() => Int, {
+    description: 'Computed final score derived from GOAL events',
+  })
+  async finalScore(
+    @Parent() gameTeam: GameTeam,
+    @Context() context: GraphQLContext,
+  ): Promise<number> {
+    return context.loaders.finalScoreByGameTeamLoader.load(gameTeam.id);
   }
 
   /**
