@@ -87,6 +87,8 @@ export const GameStats = memo(function GameStats({
           positionTimes: s.positionTimes,
           goals: s.goals,
           assists: s.assists,
+          totalPlayTimeSeconds: s.totalSeconds,
+          unassistedGoals: 0, // Not tracked at per-game event level
           gamesPlayed: 1, // Single game context
           isOnField: player.isOnField, // Use player-level isOnField (single source of truth)
           lastEntryGameSeconds: s.lastEntryPeriodSecond,
