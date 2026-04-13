@@ -105,74 +105,37 @@ export class RemoveFinalScoreColumn1776000000000 implements MigrationInterface {
         opp_gt.id, opp_gt."teamId", opp_t.name
     `);
 
-    // Recreate team_stats_summary view — score derived from GOAL event count
+    // Recreate team_stats_summary view — score pre-computed via CTE for efficiency
     await queryRunner.query(`
       CREATE OR REPLACE VIEW team_stats_summary AS
+      WITH goal_counts AS (
+        SELECT ge."gameTeamId", COUNT(*) AS goals
+        FROM game_events ge
+        INNER JOIN event_types et ON et.id = ge."eventTypeId"
+        WHERE et.name = 'GOAL'
+        GROUP BY ge."gameTeamId"
+      )
       SELECT
         gt."teamId" AS team_id,
         COUNT(DISTINCT gt.id) AS games_played,
         COUNT(DISTINCT gt.id) FILTER (
-          WHERE (
-            SELECT COUNT(*)
-            FROM game_events ge
-            INNER JOIN event_types et ON et.id = ge."eventTypeId"
-            WHERE ge."gameTeamId" = gt.id AND et.name = 'GOAL'
-          ) > (
-            SELECT COUNT(*)
-            FROM game_events ge
-            INNER JOIN event_types et ON et.id = ge."eventTypeId"
-            WHERE ge."gameTeamId" = opp_gt.id AND et.name = 'GOAL'
-          )
+          WHERE COALESCE(gc.goals, 0) > COALESCE(opp_gc.goals, 0)
         ) AS wins,
         COUNT(DISTINCT gt.id) FILTER (
-          WHERE (
-            SELECT COUNT(*)
-            FROM game_events ge
-            INNER JOIN event_types et ON et.id = ge."eventTypeId"
-            WHERE ge."gameTeamId" = gt.id AND et.name = 'GOAL'
-          ) = (
-            SELECT COUNT(*)
-            FROM game_events ge
-            INNER JOIN event_types et ON et.id = ge."eventTypeId"
-            WHERE ge."gameTeamId" = opp_gt.id AND et.name = 'GOAL'
-          )
+          WHERE COALESCE(gc.goals, 0) = COALESCE(opp_gc.goals, 0)
         ) AS draws,
         COUNT(DISTINCT gt.id) FILTER (
-          WHERE (
-            SELECT COUNT(*)
-            FROM game_events ge
-            INNER JOIN event_types et ON et.id = ge."eventTypeId"
-            WHERE ge."gameTeamId" = gt.id AND et.name = 'GOAL'
-          ) < (
-            SELECT COUNT(*)
-            FROM game_events ge
-            INNER JOIN event_types et ON et.id = ge."eventTypeId"
-            WHERE ge."gameTeamId" = opp_gt.id AND et.name = 'GOAL'
-          )
+          WHERE COALESCE(gc.goals, 0) < COALESCE(opp_gc.goals, 0)
         ) AS losses,
-        COALESCE((
-          SELECT SUM(goal_counts.cnt)
-          FROM (
-            SELECT COUNT(*) AS cnt
-            FROM game_events ge
-            INNER JOIN event_types et ON et.id = ge."eventTypeId"
-            WHERE ge."gameTeamId" = gt.id AND et.name = 'GOAL'
-          ) goal_counts
-        ), 0) AS total_goals_for,
-        COALESCE((
-          SELECT SUM(opp_counts.cnt)
-          FROM (
-            SELECT COUNT(*) AS cnt
-            FROM game_events ge
-            INNER JOIN event_types et ON et.id = ge."eventTypeId"
-            WHERE ge."gameTeamId" = opp_gt.id AND et.name = 'GOAL'
-          ) opp_counts
-        ), 0) AS total_goals_against
+        COALESCE(SUM(COALESCE(gc.goals, 0)), 0) AS total_goals_for,
+        COALESCE(SUM(COALESCE(opp_gc.goals, 0)), 0) AS total_goals_against
       FROM game_teams gt
       INNER JOIN games g ON g.id = gt."gameId"
       LEFT JOIN game_teams opp_gt ON opp_gt."gameId" = gt."gameId" AND opp_gt.id != gt.id
+      LEFT JOIN goal_counts gc ON gc."gameTeamId" = gt.id
+      LEFT JOIN goal_counts opp_gc ON opp_gc."gameTeamId" = opp_gt.id
       WHERE g.status IN ('COMPLETED', 'FIRST_HALF', 'HALFTIME', 'SECOND_HALF', 'IN_PROGRESS')
-      GROUP BY gt."teamId", gt.id, opp_gt.id
+      GROUP BY gt."teamId"
     `);
   }
 
