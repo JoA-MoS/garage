@@ -25,6 +25,7 @@ export const Goal: Story = {
   args: {
     id: '1',
     eventType: 'goal',
+    period: '1',
     periodSecond: 1425,
     teamName: 'Barcelona',
     teamColor: '#a50044',
@@ -37,7 +38,8 @@ export const GoalNoAssist: Story = {
   args: {
     id: '2',
     eventType: 'goal',
-    periodSecond: 4032,
+    period: '2',
+    periodSecond: 1344,
     teamName: 'Real Madrid',
     teamColor: '#ffffff',
     scorerName: 'Karim Benzema',
@@ -48,7 +50,8 @@ export const Substitution: Story = {
   args: {
     id: '3',
     eventType: 'substitution',
-    periodSecond: 3600,
+    period: '2',
+    periodSecond: 900,
     teamName: 'Barcelona',
     teamColor: '#a50044',
     playerInName: 'Pedri',
@@ -60,6 +63,7 @@ export const PositionSwap: Story = {
   args: {
     id: '4',
     eventType: 'position_swap',
+    period: '1',
     periodSecond: 2122,
     teamName: 'Real Madrid',
     teamColor: '#ffffff',
@@ -74,6 +78,7 @@ export const StarterEntry: Story = {
   args: {
     id: '5',
     eventType: 'starter_entry',
+    period: '1',
     periodSecond: 0,
     teamName: 'Barcelona',
     teamColor: '#a50044',
@@ -85,7 +90,8 @@ export const WithHighlight: Story = {
   args: {
     id: '6',
     eventType: 'goal',
-    periodSecond: 5395,
+    period: '2',
+    periodSecond: 2695,
     teamName: 'Barcelona',
     teamColor: '#a50044',
     scorerName: 'Robert Lewandowski',
@@ -97,7 +103,8 @@ export const Deleting: Story = {
   args: {
     id: '7',
     eventType: 'goal',
-    periodSecond: 2700,
+    period: '2',
+    periodSecond: 0,
     teamName: 'Real Madrid',
     teamColor: '#ffffff',
     scorerName: 'Jude Bellingham',
@@ -109,7 +116,8 @@ export const CheckingDependents: Story = {
   args: {
     id: '8',
     eventType: 'substitution',
-    periodSecond: 4230,
+    period: '2',
+    periodSecond: 1530,
     teamName: 'Barcelona',
     teamColor: '#a50044',
     playerInName: 'Ansu Fati',
