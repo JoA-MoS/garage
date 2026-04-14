@@ -23,6 +23,7 @@ export const Default: Story = {
       {
         id: '1',
         eventType: 'ASSIST',
+        period: '1',
         periodSecond: 1425,
         playerName: 'John Doe',
         description: 'Assist for goal',
@@ -41,21 +42,24 @@ export const MultipleDependents: Story = {
       {
         id: '1',
         eventType: 'SUBSTITUTION_OUT',
-        periodSecond: 2700,
+        period: '2',
+        periodSecond: 0,
         playerName: 'Player A',
         description: 'Substitution out',
       },
       {
         id: '2',
         eventType: 'SUBSTITUTION_IN',
-        periodSecond: 2700,
+        period: '2',
+        periodSecond: 0,
         playerName: 'Player B',
         description: 'Substitution in',
       },
       {
         id: '3',
         eventType: 'POSITION_SWAP',
-        periodSecond: 2790,
+        period: '2',
+        periodSecond: 90,
         playerName: 'Player C',
         description: 'Position swap after sub',
       },
@@ -72,6 +76,7 @@ export const Deleting: Story = {
       {
         id: '1',
         eventType: 'ASSIST',
+        period: '1',
         periodSecond: 1425,
         playerName: 'John Doe',
         description: 'Assist for goal',
