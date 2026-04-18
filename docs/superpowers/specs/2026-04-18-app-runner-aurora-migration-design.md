@@ -191,6 +191,58 @@ Aurora at 0 ACU pauses after ~5 minutes of no connections. First connection afte
 
 ---
 
+## Local Database Access
+
+Aurora Serverless v2 cannot be made publicly accessible (AWS limitation). To maintain local DB connectivity, a **SSM-enabled bastion EC2 instance** is added to the shared infrastructure.
+
+### Bastion Design
+
+- Instance type: `t4g.nano` (ARM, ~$3/month)
+- Placement: public subnet, no key pairs required
+- IAM: SSM instance profile only (`AmazonSSMManagedInstanceCore` policy)
+- Security group: allows outbound to Aurora on port 5432 only
+- Aurora security group ingress: add rule allowing from bastion security group
+
+### Usage
+
+```bash
+aws ssm start-session \
+  --target <bastion-instance-id> \
+  --document-name AWS-StartPortForwardingSessionToRemoteHost \
+  --parameters '{"host":["<aurora-endpoint>"],"portNumber":["5432"],"localPortNumber":["5432"]}'
+```
+
+Then connect any DB client (Adminer, psql, TablePlus) to `localhost:5432` with the credentials from Secrets Manager.
+
+A helper script (`scripts/db-tunnel.sh`) will be added to the repo to wrap this command with the correct instance ID and Aurora endpoint auto-populated from Pulumi stack outputs.
+
+### Pulumi Changes
+
+In `modules/bastion.ts` (new):
+
+- `aws.ec2.Instance` (t4g.nano, Amazon Linux 2023)
+- SSM instance profile + `AmazonSSMManagedInstanceCore` policy attachment
+- Bastion security group (egress to Aurora port 5432 only)
+
+In `shared-infrastructure.ts`:
+
+- Add `createBastion()` call
+- Add bastion instance ID to `SharedInfraOutputs`
+
+In `modules/security-groups.ts`:
+
+- Add bastion security group ingress rule to RDS security group
+
+### Cost Addition
+
+| Component        | Cost      |
+| ---------------- | --------- |
+| t4g.nano bastion | ~$3/month |
+
+Revised total: **~$11–16/month** (still down from $52/month).
+
+---
+
 ## What Does Not Change
 
 - Frontend: S3 + CloudFront (unchanged)
@@ -205,9 +257,10 @@ Aurora at 0 ACU pauses after ~5 minutes of no connections. First connection afte
 
 ## Risks and Mitigations
 
-| Risk                                            | Mitigation                                                                      |
-| ----------------------------------------------- | ------------------------------------------------------------------------------- |
-| Aurora cold start causes first-request timeout  | Increase `dbPoolConnectionTimeout` to 45s; TypeORM will wait for connection     |
-| Migrations fail on startup and block traffic    | App Runner health check fails → no traffic routed; old revision stays live      |
-| WebSocket (GraphQL subscriptions) drops         | App Runner supports WS natively; NestJS WS keepalive pings prevent idle timeout |
-| App Runner min=1 means never truly zero compute | Memory billing ~$2.52/month; acceptable vs. $15 ALB                             |
+| Risk                                                      | Mitigation                                                                      |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Aurora cold start causes first-request timeout            | Increase `dbPoolConnectionTimeout` to 45s; TypeORM will wait for connection     |
+| Migrations fail on startup and block traffic              | App Runner health check fails → no traffic routed; old revision stays live      |
+| WebSocket (GraphQL subscriptions) drops                   | App Runner supports WS natively; NestJS WS keepalive pings prevent idle timeout |
+| App Runner min=1 means never truly zero compute           | Memory billing ~$2.52/month; acceptable vs. $15 ALB                             |
+| Aurora not publicly accessible (Serverless v2 limitation) | SSM bastion provides secure tunnel for local dev access                         |
