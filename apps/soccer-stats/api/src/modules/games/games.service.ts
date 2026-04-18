@@ -827,15 +827,6 @@ export class GamesService {
           );
         }
 
-        // Ensure every team has a finalScore — teams that scored 0 goals never
-        // had their score written (goal events only increment, never initialize).
-        for (const gameTeam of gameTeams) {
-          if (gameTeam.finalScore == null) {
-            await this.gameTeamRepository.update(gameTeam.id, {
-              finalScore: 0,
-            });
-          }
-        }
         break;
       }
     }

@@ -57,6 +57,8 @@ export interface IDataLoaders {
   playerStatsByGameTeamLoader: DataLoader<string, PlayerFullStats[]>;
   /** Loads period timing info by composite key "gameId:durationMinutes" */
   periodTimingInfoLoader: DataLoader<string, PeriodTimingInfo>;
+  /** Loads computed final score (GOAL event count) for a game team by gameTeamId */
+  finalScoreByGameTeamLoader: DataLoader<string, number>;
 
   // Reference data loaders
   eventTypeLoader: DataLoader<string, EventType>;
@@ -146,6 +148,7 @@ export class DataLoadersService {
       lineupByGameTeamLoader: this.createLineupByGameTeamLoader(),
       playerStatsByGameTeamLoader: this.createPlayerStatsByGameTeamLoader(),
       periodTimingInfoLoader: this.createPeriodTimingInfoLoader(),
+      finalScoreByGameTeamLoader: this.createFinalScoreByGameTeamLoader(),
 
       // Reference data loaders
       eventTypeLoader: this.createEventTypeLoader(),
@@ -557,6 +560,38 @@ export class DataLoadersService {
   // ============================================================
   // Team Membership DataLoaders (New Unified Model)
   // ============================================================
+
+  /**
+   * Batch loads the computed final score for GameTeams by gameTeamId.
+   * Score is derived from GOAL event count — this is the source of truth
+   * now that the denormalized finalScore column has been removed.
+   */
+  private createFinalScoreByGameTeamLoader(): DataLoader<string, number> {
+    return this.createLoader<string, number>(
+      'finalScoreByGameTeamLoader',
+      async (gameTeamIds) => {
+        const rows = await this.gameTeamRepository.manager
+          .createQueryBuilder()
+          .select('ge."gameTeamId"', 'gameTeamId')
+          .addSelect('COUNT(*)', 'goals')
+          .from('game_events', 'ge')
+          .innerJoin('event_types', 'et', 'et.id = ge."eventTypeId"')
+          .where('ge."gameTeamId" IN (:...gameTeamIds)', {
+            gameTeamIds: [...gameTeamIds],
+          })
+          .andWhere("et.name = 'GOAL'")
+          .groupBy('ge."gameTeamId"')
+          .getRawMany<{ gameTeamId: string; goals: string }>();
+
+        const scoreMap = new Map<string, number>();
+        for (const row of rows) {
+          scoreMap.set(row.gameTeamId, parseInt(row.goals, 10));
+        }
+
+        return gameTeamIds.map((id) => scoreMap.get(id) ?? 0);
+      },
+    );
+  }
 
   /**
    * Batch loads TeamMembers by their IDs.

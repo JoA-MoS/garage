@@ -35,7 +35,6 @@ export class GameTeam extends BaseEntity {
   formation?: string;
 
   @Field(() => Int)
-  @Column({ type: 'int', nullable: false, default: 0 })
   finalScore: number;
 
   @Field({ nullable: true })
