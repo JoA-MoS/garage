@@ -7,7 +7,13 @@
     "start": "nx serve",
     "build": "nx build",
     "test": "nx test",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "deploy:infra": "NX_LOAD_DOT_ENV_FILES=false nx run soccer-stats-infra:up",
+    "deploy:api": "NX_LOAD_DOT_ENV_FILES=false nx run soccer-stats-api-infra:up",
+    "deploy:ui": "NX_LOAD_DOT_ENV_FILES=false nx run soccer-stats-ui-infra:up",
+    "deploy:all": "NX_LOAD_DOT_ENV_FILES=false nx run-many --targets=up --projects=soccer-stats-infra,soccer-stats-api-infra,soccer-stats-ui-infra",
+    "preview:api": "NX_LOAD_DOT_ENV_FILES=false nx run soccer-stats-api-infra:preview",
+    "migrate:run:prod": "NX_LOAD_DOT_ENV_FILES=false nx run soccer-stats-api:migration:run:cd"
   },
   "private": true,
   "devDependencies": {

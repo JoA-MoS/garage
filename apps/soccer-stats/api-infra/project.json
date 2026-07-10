@@ -23,7 +23,11 @@
       "parallelism": false,
       "options": {
         "command": "pulumi up --yes",
-        "cwd": "apps/soccer-stats/api-infra"
+        "cwd": "apps/soccer-stats/api-infra",
+        "env": {
+          "NODE_ENV": "production",
+          "NX_TUI": "false"
+        }
       },
       "dependsOn": [
         "^build",
@@ -37,7 +41,11 @@
       "parallelism": false,
       "options": {
         "command": "pulumi preview",
-        "cwd": "apps/soccer-stats/api-infra"
+        "cwd": "apps/soccer-stats/api-infra",
+        "env": {
+          "NODE_ENV": "production",
+          "NX_TUI": "false"
+        }
       },
       "dependsOn": [
         "build",
@@ -49,14 +57,22 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "pulumi refresh --yes",
-        "cwd": "apps/soccer-stats/api-infra"
+        "cwd": "apps/soccer-stats/api-infra",
+        "env": {
+          "NODE_ENV": "production",
+          "NX_TUI": "false"
+        }
       }
     },
     "import": {
       "executor": "nx:run-commands",
       "options": {
         "command": "pulumi import",
-        "cwd": "apps/soccer-stats/api-infra"
+        "cwd": "apps/soccer-stats/api-infra",
+        "env": {
+          "NODE_ENV": "production",
+          "NX_TUI": "false"
+        }
       }
     }
   },

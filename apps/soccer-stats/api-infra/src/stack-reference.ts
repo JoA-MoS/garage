@@ -28,7 +28,7 @@ export function getSharedInfraStackReference(
   organization?: string,
 ): StrongTypedStackReference {
   const config = new pulumi.Config();
-  const org = organization || config.get('pulumiOrganization') || 'JoA-MoS-org';
+  const org = organization || config.get('pulumiOrganization') || 'JoA-MoS';
   const stack = pulumi.getStack();
 
   // Reference format: {org}/{project}/{stack}

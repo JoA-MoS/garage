@@ -1,0 +1,18 @@
+# Environment files — never include in Docker build context
+.env
+.env.*
+.env.*.local
+.local.env
+
+# Development artifacts
+node_modules
+.nx/cache
+
+# Git
+.git
+.gitignore
+
+# Editor
+.vscode
+.idea
+*.swp
