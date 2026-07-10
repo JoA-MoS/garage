@@ -2,7 +2,7 @@ import * as pulumi from '@pulumi/pulumi';
 import * as aws from '@pulumi/aws';
 
 import { namePrefix, stack, customDomain, certificateArn } from './config';
-import { albDnsName } from './shared-infra';
+import { appRunnerServiceUrl } from './shared-infra';
 import { bucket } from './s3';
 
 // =============================================================================
@@ -29,7 +29,7 @@ export const distribution = new aws.cloudfront.Distribution(
     priceClass: stack === 'prod' ? 'PriceClass_All' : 'PriceClass_100', // Cheaper in dev
     // Custom domain (optional)
     aliases: customDomain ? [customDomain] : [],
-    // Origin configuration (S3 for UI, ALB for API)
+    // Origin configuration (S3 for UI, App Runner for API)
     origins: [
       {
         domainName: bucket.bucketRegionalDomainName,
@@ -37,12 +37,12 @@ export const distribution = new aws.cloudfront.Distribution(
         originAccessControlId: oac.id,
       },
       {
-        domainName: albDnsName,
-        originId: 'albOrigin',
+        domainName: appRunnerServiceUrl,
+        originId: 'appRunnerOrigin',
         customOriginConfig: {
           httpPort: 80,
           httpsPort: 443,
-          originProtocolPolicy: 'http-only', // ALB is HTTP, CloudFront handles HTTPS
+          originProtocolPolicy: 'https-only', // App Runner is HTTPS-only
           originSslProtocols: ['TLSv1.2'],
           originReadTimeout: 60,
           originKeepaliveTimeout: 5,
@@ -51,10 +51,10 @@ export const distribution = new aws.cloudfront.Distribution(
     ],
     // Ordered cache behaviors (evaluated before default)
     orderedCacheBehaviors: [
-      // API routing - forwards to ALB origin
+      // API routing - forwards to App Runner origin
       {
         pathPattern: '/api/*',
-        targetOriginId: 'albOrigin',
+        targetOriginId: 'appRunnerOrigin',
         viewerProtocolPolicy: 'redirect-to-https',
         allowedMethods: [
           'GET',

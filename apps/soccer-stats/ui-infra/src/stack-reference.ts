@@ -20,7 +20,6 @@ type StrongTypedStackReference = Omit<
 
 /**
  * Get a strongly-typed reference to the shared infrastructure stack.
- * This allows ui-infra to access ALB DNS name for API URL configuration.
  *
  * @param organization - Your Pulumi organization name
  */
@@ -34,4 +33,14 @@ export function getSharedInfraStackReference(
   return new pulumi.StackReference(
     `${org}/soccer-stats-infra/${stack}`,
   ) as StrongTypedStackReference;
+}
+
+/** Reference to the api-infra stack to get the App Runner service URL. */
+export function getApiInfraStackReference(
+  organization?: string,
+): pulumi.StackReference {
+  const config = new pulumi.Config();
+  const org = organization || config.get('pulumiOrganization') || 'JoA-MoS';
+  const stack = pulumi.getStack();
+  return new pulumi.StackReference(`${org}/soccer-stats-api-infra/${stack}`);
 }
