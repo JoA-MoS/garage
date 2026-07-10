@@ -5,9 +5,10 @@
  * No manual dotenv loading is needed.
  */
 
-import { DataSourceOptions } from 'typeorm';
+import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
 import {
+  getDatabaseUrl,
   getDbHost,
   getDbPort,
   getDbUsername,
@@ -21,6 +22,8 @@ import {
   getDbPoolConnectionTimeout,
 } from '../app/environment';
 
+import { migrations } from './migrations';
+
 /**
  * Migrations table name - must be consistent between CLI and runtime.
  */
@@ -29,17 +32,20 @@ export const MIGRATIONS_TABLE_NAME = 'typeorm_migrations';
 // Get validated pool config (warns and clamps if min > max)
 const poolConfig = getValidatedPoolConfig();
 
-/**
- * Base TypeORM configuration shared between NestJS app and CLI.
- * Does not include entities/migrations paths - those differ by context.
- */
+const databaseUrl = getDatabaseUrl();
+
+/** Base TypeORM configuration. Uses DATABASE_URL (App Runner) or individual vars (local dev). */
 export const baseTypeOrmConfig = {
   type: 'postgres' as const,
-  host: getDbHost(),
-  port: getDbPort(),
-  username: getDbUsername(),
-  password: getDbPassword(),
-  database: getDbName(),
+  ...(databaseUrl
+    ? { url: databaseUrl }
+    : {
+        host: getDbHost(),
+        port: getDbPort(),
+        username: getDbUsername(),
+        password: getDbPassword(),
+        database: getDbName(),
+      }),
   synchronize: getDbSynchronize(),
   logging: getDbLogging(),
   ssl: getDbSsl() ? { rejectUnauthorized: false } : false,
@@ -55,13 +61,10 @@ export const baseTypeOrmConfig = {
 
 /**
  * TypeORM configuration for NestJS runtime.
- * Uses autoLoadEntities for automatic entity discovery from modules.
- *
- * Note: Migrations are NOT loaded here - they run via a separate ECS container
- * before the app starts. See apps/soccer-stats/api-infra for deployment config.
+ * Includes migrations array so dataSource.runMigrations() works in main.ts.
  */
-export const nestTypeOrmConfig: DataSourceOptions = {
+export const nestTypeOrmConfig: TypeOrmModuleOptions = {
   ...baseTypeOrmConfig,
-  // NestJS discovers entities via TypeOrmModule.forFeature() in each module
   autoLoadEntities: true,
-} as DataSourceOptions;
+  migrations,
+};

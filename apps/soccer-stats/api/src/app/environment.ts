@@ -87,6 +87,12 @@ export const getDbUsername = (): string => getRequiredEnv('DB_USERNAME');
 export const getDbPassword = (): string => getRequiredEnv('DB_PASSWORD');
 export const getDbName = (): string => getRequiredEnv('DB_NAME');
 /**
+ * PostgreSQL connection URL (set by App Runner via Secrets Manager).
+ * When set, TypeORM uses this instead of individual DB_* variables.
+ * Local development continues to use DB_HOST, DB_PORT, etc. from .env
+ */
+export const getDatabaseUrl = (): string | undefined => getEnv('DATABASE_URL');
+/**
  * Database synchronize setting.
  * IMPORTANT: Should be false when using TypeORM migrations.
  * Only set to true for rapid prototyping without migrations.

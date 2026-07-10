@@ -5,6 +5,7 @@
 
 import { ConsoleLogger, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { DataSource } from 'typeorm';
 
 import { AppModule } from './app/app.module';
 import {
@@ -62,6 +63,21 @@ async function bootstrap() {
       },
       credentials: true,
     });
+
+    // Run pending TypeORM migrations before accepting traffic.
+    // App Runner health check won't pass until this completes, so no traffic
+    // is routed until the database schema is up to date.
+    const dataSource = app.get(DataSource);
+    // Fresh RDS/Aurora databases don't have the extensions our migrations
+    // rely on (locally these are created by database/init scripts).
+    await dataSource.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+    await dataSource.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+    const pendingMigrations = await dataSource.showMigrations();
+    if (pendingMigrations) {
+      logger.log('Running pending database migrations...');
+      await dataSource.runMigrations();
+      logger.log('Migrations complete.');
+    }
 
     const port = getPort();
     await app.listen(port);
