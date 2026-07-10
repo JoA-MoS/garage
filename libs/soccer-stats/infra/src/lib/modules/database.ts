@@ -26,6 +26,7 @@ export interface DatabaseOutputs {
   databaseName: string;
   databaseUsername: string;
   databaseSecretArn: pulumi.Output<string>;
+  databaseUrlSecretArn: pulumi.Output<string>;
 }
 
 /**
@@ -141,6 +142,33 @@ export function createDatabase(config: DatabaseConfig): DatabaseOutputs {
     { provider: awsProvider },
   );
 
+  // Plain-string secret containing just the PostgreSQL connection URL.
+  // App Runner cannot extract individual JSON fields from Secrets Manager,
+  // so this separate secret lets App Runner set DATABASE_URL directly.
+  const dbUrlSecret = new aws.secretsmanager.Secret(
+    `${namePrefix}-db-url-secret`,
+    {
+      name: `${namePrefix}/database-url`,
+      description: `PostgreSQL connection URL for ${namePrefix} (used by App Runner)`,
+      tags: { Name: `${namePrefix}-db-url-secret`, Environment: stack },
+    },
+    { provider: awsProvider },
+  );
+
+  new aws.secretsmanager.SecretVersion(
+    `${namePrefix}-db-url-secret-version`,
+    {
+      secretId: dbUrlSecret.id,
+      secretString: pulumi
+        .all([dbEndpoint, dbPort, dbPassword.result])
+        .apply(
+          ([endpoint, port, password]) =>
+            `postgresql://${dbUsername}:${encodeURIComponent(password)}@${endpoint}:${port}/${dbName}?sslmode=require`,
+        ),
+    },
+    { provider: awsProvider },
+  );
+
   return {
     dbEndpoint,
     dbPort,
@@ -148,6 +176,7 @@ export function createDatabase(config: DatabaseConfig): DatabaseOutputs {
     databaseName: dbName,
     databaseUsername: dbUsername,
     databaseSecretArn: dbSecret.arn,
+    databaseUrlSecretArn: dbUrlSecret.arn,
   };
 }
 
