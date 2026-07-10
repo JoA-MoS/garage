@@ -5,126 +5,96 @@ export interface SecurityGroupsConfig {
   namePrefix: string;
   stack: string;
   vpcId: pulumi.Output<string>;
-  containerPort: number;
   awsProvider: aws.Provider;
-  /** Allow public access to RDS (dev only - for local development) */
-  allowPublicRdsAccess?: boolean;
 }
 
 export interface SecurityGroupsOutputs {
-  albSecurityGroup: aws.ec2.SecurityGroup;
-  ecsSecurityGroup: aws.ec2.SecurityGroup;
+  appRunnerConnectorSecurityGroup: aws.ec2.SecurityGroup;
+  bastionSecurityGroup: aws.ec2.SecurityGroup;
   rdsSecurityGroup: aws.ec2.SecurityGroup;
 }
 
-/**
- * Creates security groups for ALB, ECS tasks, and RDS.
- */
+/** Creates security groups for App Runner VPC Connector, bastion, and Aurora. */
 export function createSecurityGroups(
   config: SecurityGroupsConfig,
 ): SecurityGroupsOutputs {
-  const {
-    namePrefix,
-    stack,
-    vpcId,
-    containerPort,
-    awsProvider,
-    allowPublicRdsAccess = false,
-  } = config;
+  const { namePrefix, stack, vpcId, awsProvider } = config;
 
-  // ALB Security Group - allows HTTP/HTTPS from internet
-  const albSecurityGroup = new aws.ec2.SecurityGroup(
-    `${namePrefix}-alb-sg`,
+  // App Runner VPC Connector SG — outbound to Aurora only
+  const appRunnerConnectorSecurityGroup = new aws.ec2.SecurityGroup(
+    `${namePrefix}-apprunner-connector-sg`,
     {
       vpcId,
-      description: 'Security group for Application Load Balancer',
-      ingress: [
+      description:
+        'Security group for App Runner VPC Connector — egress to Aurora',
+      egress: [
         {
           protocol: 'tcp',
-          fromPort: 80,
-          toPort: 80,
+          fromPort: 5432,
+          toPort: 5432,
           cidrBlocks: ['0.0.0.0/0'],
-          description: 'HTTP',
+          description: 'Allow PostgreSQL outbound to Aurora',
+        },
+      ],
+      tags: {
+        Name: `${namePrefix}-apprunner-connector-sg`,
+        Environment: stack,
+      },
+    },
+    { provider: awsProvider },
+  );
+
+  // Bastion SG — no inbound (SSM connects without open ports), outbound to Aurora + internet for SSM
+  const bastionSecurityGroup = new aws.ec2.SecurityGroup(
+    `${namePrefix}-bastion-sg`,
+    {
+      vpcId,
+      description:
+        'Security group for SSM bastion — no inbound, outbound to Aurora and internet',
+      egress: [
+        {
+          protocol: 'tcp',
+          fromPort: 5432,
+          toPort: 5432,
+          cidrBlocks: ['0.0.0.0/0'],
+          description: 'Allow PostgreSQL outbound to Aurora',
         },
         {
           protocol: 'tcp',
           fromPort: 443,
           toPort: 443,
           cidrBlocks: ['0.0.0.0/0'],
-          description: 'HTTPS',
+          description: 'Allow HTTPS for SSM agent communication',
         },
       ],
-      egress: [
-        {
-          protocol: '-1',
-          fromPort: 0,
-          toPort: 0,
-          cidrBlocks: ['0.0.0.0/0'],
-          description: 'Allow all outbound',
-        },
-      ],
-      tags: { Name: `${namePrefix}-alb-sg`, Environment: stack },
+      tags: { Name: `${namePrefix}-bastion-sg`, Environment: stack },
     },
     { provider: awsProvider },
   );
 
-  // ECS Security Group - allows traffic from ALB only
-  const ecsSecurityGroup = new aws.ec2.SecurityGroup(
-    `${namePrefix}-ecs-sg`,
-    {
-      vpcId,
-      description: 'Security group for ECS tasks',
-      ingress: [
-        {
-          protocol: 'tcp',
-          fromPort: containerPort,
-          toPort: containerPort,
-          securityGroups: [albSecurityGroup.id],
-          description: 'Allow traffic from ALB',
-        },
-      ],
-      egress: [
-        {
-          protocol: '-1',
-          fromPort: 0,
-          toPort: 0,
-          cidrBlocks: ['0.0.0.0/0'],
-          description: 'Allow all outbound',
-        },
-      ],
-      tags: { Name: `${namePrefix}-ecs-sg`, Environment: stack },
-    },
-    { provider: awsProvider },
-  );
-
-  // RDS Security Group - allows PostgreSQL from ECS tasks (and optionally from internet in dev)
-  const rdsIngressRules: aws.types.input.ec2.SecurityGroupIngress[] = [
-    {
-      protocol: 'tcp',
-      fromPort: 5432,
-      toPort: 5432,
-      securityGroups: [ecsSecurityGroup.id],
-      description: 'Allow PostgreSQL from ECS tasks',
-    },
-  ];
-
-  // In dev, allow direct access from the internet for local development
-  if (allowPublicRdsAccess) {
-    rdsIngressRules.push({
-      protocol: 'tcp',
-      fromPort: 5432,
-      toPort: 5432,
-      cidrBlocks: ['0.0.0.0/0'],
-      description: 'Allow PostgreSQL from internet (dev only)',
-    });
-  }
-
+  // RDS SG — inbound from App Runner connector and bastion only
   const rdsSecurityGroup = new aws.ec2.SecurityGroup(
     `${namePrefix}-rds-sg`,
     {
       vpcId,
-      description: 'Security group for RDS PostgreSQL',
-      ingress: rdsIngressRules,
+      description:
+        'Security group for Aurora — ingress from App Runner connector and bastion',
+      ingress: [
+        {
+          protocol: 'tcp',
+          fromPort: 5432,
+          toPort: 5432,
+          securityGroups: [appRunnerConnectorSecurityGroup.id],
+          description: 'Allow PostgreSQL from App Runner VPC Connector',
+        },
+        {
+          protocol: 'tcp',
+          fromPort: 5432,
+          toPort: 5432,
+          securityGroups: [bastionSecurityGroup.id],
+          description: 'Allow PostgreSQL from bastion for local dev access',
+        },
+      ],
       egress: [
         {
           protocol: '-1',
@@ -140,8 +110,8 @@ export function createSecurityGroups(
   );
 
   return {
-    albSecurityGroup,
-    ecsSecurityGroup,
+    appRunnerConnectorSecurityGroup,
+    bastionSecurityGroup,
     rdsSecurityGroup,
   };
 }
