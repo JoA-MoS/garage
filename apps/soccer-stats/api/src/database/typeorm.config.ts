@@ -37,6 +37,10 @@ const databaseUrl = getDatabaseUrl();
 /** Base TypeORM configuration. Uses DATABASE_URL (App Runner) or individual vars (local dev). */
 export const baseTypeOrmConfig = {
   type: 'postgres' as const,
+  // In the DATABASE_URL path, TLS is governed by the URL's sslmode and the
+  // server certificate is fully verified against the RDS CA bundle shipped
+  // in the Docker image (NODE_EXTRA_CA_CERTS). The relaxed ssl option below
+  // applies only to the individual-vars path used outside App Runner.
   ...(databaseUrl
     ? { url: databaseUrl }
     : {
@@ -45,10 +49,10 @@ export const baseTypeOrmConfig = {
         username: getDbUsername(),
         password: getDbPassword(),
         database: getDbName(),
+        ssl: getDbSsl() ? { rejectUnauthorized: false } : false,
       }),
   synchronize: getDbSynchronize(),
   logging: getDbLogging(),
-  ssl: getDbSsl() ? { rejectUnauthorized: false } : false,
   migrationsTableName: MIGRATIONS_TABLE_NAME,
   // Connection pool configuration for PostgreSQL
   extra: {

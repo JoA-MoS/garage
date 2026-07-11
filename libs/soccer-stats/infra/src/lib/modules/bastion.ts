@@ -8,6 +8,12 @@ export interface BastionConfig {
   privateSubnetIds: pulumi.Output<string[]>;
   /** Number of private subnets (static, used to create NAT routes) */
   azCount: number;
+  /**
+   * Install 0.0.0.0/0 routes for the private subnets through this instance.
+   * Must be false when the VPC has managed NAT gateways, which own those
+   * routes — otherwise the two fight over the same route table entries.
+   */
+  manageNatRoutes: boolean;
   bastionSecurityGroupId: pulumi.Output<string>;
   awsProvider: aws.Provider;
 }
@@ -32,6 +38,7 @@ export function createBastion(config: BastionConfig): BastionOutputs {
     publicSubnetIds,
     privateSubnetIds,
     azCount,
+    manageNatRoutes,
     bastionSecurityGroupId,
     awsProvider,
   } = config;
@@ -101,7 +108,7 @@ export function createBastion(config: BastionConfig): BastionOutputs {
 
   // Route each private subnet's default route through the NAT instance.
   // azCount is static, so routes are created outside of .apply().
-  for (let i = 0; i < azCount; i++) {
+  for (let i = 0; i < (manageNatRoutes ? azCount : 0); i++) {
     const routeTable = aws.ec2.getRouteTableOutput(
       { subnetId: privateSubnetIds.apply((ids) => ids[i]) },
       { provider: awsProvider },

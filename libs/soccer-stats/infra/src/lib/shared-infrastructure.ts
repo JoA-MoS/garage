@@ -67,6 +67,9 @@ export function createSharedInfrastructure(
     publicSubnetIds: vpc.publicSubnetIds,
     privateSubnetIds: vpc.privateSubnetIds,
     azCount,
+    // Managed NAT gateways own the private default routes when enabled;
+    // otherwise the fck-nat bastion provides them
+    manageNatRoutes: !enableNatGateway,
     bastionSecurityGroupId: securityGroups.bastionSecurityGroup.id,
     awsProvider,
   });

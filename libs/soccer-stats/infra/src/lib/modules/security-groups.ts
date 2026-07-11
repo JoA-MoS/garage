@@ -34,8 +34,8 @@ export function createSecurityGroups(
           protocol: 'tcp',
           fromPort: 5432,
           toPort: 5432,
-          cidrBlocks: ['0.0.0.0/0'],
-          description: 'Allow PostgreSQL outbound to Aurora',
+          cidrBlocks: [vpcCidr],
+          description: 'Allow PostgreSQL outbound to Aurora (VPC only)',
         },
         {
           protocol: 'tcp',
