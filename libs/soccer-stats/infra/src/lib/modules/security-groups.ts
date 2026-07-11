@@ -5,6 +5,8 @@ export interface SecurityGroupsConfig {
   namePrefix: string;
   stack: string;
   vpcId: pulumi.Output<string>;
+  /** VPC CIDR — used to allow NAT forwarding from private subnets through the bastion */
+  vpcCidr: string;
   awsProvider: aws.Provider;
 }
 
@@ -18,39 +20,15 @@ export interface SecurityGroupsOutputs {
 export function createSecurityGroups(
   config: SecurityGroupsConfig,
 ): SecurityGroupsOutputs {
-  const { namePrefix, stack, vpcId, awsProvider } = config;
+  const { namePrefix, stack, vpcId, vpcCidr, awsProvider } = config;
 
-  // App Runner VPC Connector SG — outbound to Aurora only
+  // App Runner VPC Connector SG — outbound to Aurora and HTTPS (Clerk API via NAT)
   const appRunnerConnectorSecurityGroup = new aws.ec2.SecurityGroup(
     `${namePrefix}-apprunner-connector-sg`,
     {
       vpcId,
       description:
-        'Security group for App Runner VPC Connector — egress to Aurora',
-      egress: [
-        {
-          protocol: 'tcp',
-          fromPort: 5432,
-          toPort: 5432,
-          cidrBlocks: ['0.0.0.0/0'],
-          description: 'Allow PostgreSQL outbound to Aurora',
-        },
-      ],
-      tags: {
-        Name: `${namePrefix}-apprunner-connector-sg`,
-        Environment: stack,
-      },
-    },
-    { provider: awsProvider },
-  );
-
-  // Bastion SG — no inbound (SSM connects without open ports), outbound to Aurora + internet for SSM
-  const bastionSecurityGroup = new aws.ec2.SecurityGroup(
-    `${namePrefix}-bastion-sg`,
-    {
-      vpcId,
-      description:
-        'Security group for SSM bastion — no inbound, outbound to Aurora and internet',
+        'Security group for App Runner VPC Connector — egress to Aurora and HTTPS',
       egress: [
         {
           protocol: 'tcp',
@@ -64,7 +42,43 @@ export function createSecurityGroups(
           fromPort: 443,
           toPort: 443,
           cidrBlocks: ['0.0.0.0/0'],
-          description: 'Allow HTTPS for SSM agent communication',
+          description:
+            'Allow HTTPS outbound (Clerk API, AWS APIs) via NAT bastion',
+        },
+      ],
+      tags: {
+        Name: `${namePrefix}-apprunner-connector-sg`,
+        Environment: stack,
+      },
+    },
+    { provider: awsProvider },
+  );
+
+  // Bastion/NAT SG — no inbound from internet (SSM connects without open ports).
+  // Ingress from VPC CIDR so private subnets can route internet traffic through
+  // the fck-nat instance; egress open for NAT forwarding and SSM.
+  const bastionSecurityGroup = new aws.ec2.SecurityGroup(
+    `${namePrefix}-bastion-sg`,
+    {
+      vpcId,
+      description:
+        'Security group for SSM bastion + fck-nat — ingress from VPC only, open egress for NAT',
+      ingress: [
+        {
+          protocol: '-1',
+          fromPort: 0,
+          toPort: 0,
+          cidrBlocks: [vpcCidr],
+          description: 'Allow all traffic from VPC for NAT forwarding',
+        },
+      ],
+      egress: [
+        {
+          protocol: '-1',
+          fromPort: 0,
+          toPort: 0,
+          cidrBlocks: ['0.0.0.0/0'],
+          description: 'Allow all outbound (NAT forwarding, SSM, Aurora)',
         },
       ],
       tags: { Name: `${namePrefix}-bastion-sg`, Environment: stack },

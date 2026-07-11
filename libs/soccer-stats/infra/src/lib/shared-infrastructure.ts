@@ -48,6 +48,7 @@ export function createSharedInfrastructure(
     namePrefix,
     stack,
     vpcId: vpc.vpcId,
+    vpcCidr,
     awsProvider,
   });
 
@@ -63,6 +64,8 @@ export function createSharedInfrastructure(
     namePrefix,
     stack,
     publicSubnetIds: vpc.publicSubnetIds,
+    privateSubnetIds: vpc.privateSubnetIds,
+    azCount,
     bastionSecurityGroupId: securityGroups.bastionSecurityGroup.id,
     awsProvider,
   });

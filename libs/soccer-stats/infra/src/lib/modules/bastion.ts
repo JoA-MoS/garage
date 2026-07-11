@@ -5,6 +5,9 @@ export interface BastionConfig {
   namePrefix: string;
   stack: string;
   publicSubnetIds: pulumi.Output<string[]>;
+  privateSubnetIds: pulumi.Output<string[]>;
+  /** Number of private subnets (static, used to create NAT routes) */
+  azCount: number;
   bastionSecurityGroupId: pulumi.Output<string>;
   awsProvider: aws.Provider;
 }
@@ -14,12 +17,21 @@ export interface BastionOutputs {
   instanceId: pulumi.Output<string>;
 }
 
-/** Creates a t4g.nano EC2 bastion with SSM agent for SSM port-forward tunnels to Aurora. */
+/**
+ * Creates a t4g.nano fck-nat instance that doubles as:
+ * - NAT for private subnets (App Runner VPC egress needs internet for Clerk API calls)
+ * - SSM bastion for port-forward tunnels to Aurora (no SSH keys, no open inbound ports)
+ *
+ * fck-nat is AL2023-based, so the SSM agent is preinstalled.
+ * See https://fck-nat.dev for details.
+ */
 export function createBastion(config: BastionConfig): BastionOutputs {
   const {
     namePrefix,
     stack,
     publicSubnetIds,
+    privateSubnetIds,
+    azCount,
     bastionSecurityGroupId,
     awsProvider,
   } = config;
@@ -58,13 +70,13 @@ export function createBastion(config: BastionConfig): BastionOutputs {
     { provider: awsProvider },
   );
 
-  // Amazon Linux 2023 ARM64 (us-west-2) — t4g requires ARM64
+  // fck-nat AMI (AL2023 arm64 with NAT preconfigured) — t4g requires ARM64
   const ami = aws.ec2.getAmiOutput(
     {
       mostRecent: true,
-      owners: ['amazon'],
+      owners: ['568608671756'], // fck-nat official AMI owner
       filters: [
-        { name: 'name', values: ['al2023-ami-*-arm64'] },
+        { name: 'name', values: ['fck-nat-al2023-*-arm64-ebs'] },
         { name: 'state', values: ['available'] },
       ],
     },
@@ -80,10 +92,30 @@ export function createBastion(config: BastionConfig): BastionOutputs {
       vpcSecurityGroupIds: [bastionSecurityGroupId],
       iamInstanceProfile: bastionInstanceProfile.name,
       associatePublicIpAddress: true,
+      // Required for NAT: the instance forwards traffic that is not addressed to itself
+      sourceDestCheck: false,
       tags: { Name: `${namePrefix}-bastion`, Environment: stack },
     },
     { provider: awsProvider },
   );
+
+  // Route each private subnet's default route through the NAT instance.
+  // azCount is static, so routes are created outside of .apply().
+  for (let i = 0; i < azCount; i++) {
+    const routeTable = aws.ec2.getRouteTableOutput(
+      { subnetId: privateSubnetIds.apply((ids) => ids[i]) },
+      { provider: awsProvider },
+    );
+    new aws.ec2.Route(
+      `${namePrefix}-private-nat-route-${i}`,
+      {
+        routeTableId: routeTable.id,
+        destinationCidrBlock: '0.0.0.0/0',
+        networkInterfaceId: instance.primaryNetworkInterfaceId,
+      },
+      { provider: awsProvider, deleteBeforeReplace: true },
+    );
+  }
 
   return {
     instance,
