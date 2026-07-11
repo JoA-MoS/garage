@@ -28,7 +28,7 @@ export function createSecurityGroups(
     {
       vpcId,
       description:
-        'Security group for App Runner VPC Connector — egress to Aurora and HTTPS',
+        'Security group for App Runner VPC Connector - egress to Aurora and HTTPS',
       egress: [
         {
           protocol: 'tcp',
@@ -62,7 +62,7 @@ export function createSecurityGroups(
     {
       vpcId,
       description:
-        'Security group for SSM bastion + fck-nat — ingress from VPC only, open egress for NAT',
+        'Security group for SSM bastion + fck-nat - ingress from VPC only, open egress for NAT',
       ingress: [
         {
           protocol: '-1',
@@ -92,7 +92,7 @@ export function createSecurityGroups(
     {
       vpcId,
       description:
-        'Security group for Aurora — ingress from App Runner connector and bastion',
+        'Security group for Aurora - ingress from App Runner connector and bastion',
       ingress: [
         {
           protocol: 'tcp',
