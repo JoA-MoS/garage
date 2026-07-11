@@ -40,6 +40,8 @@ export const databaseSecretArn = outputs.databaseSecretArn;
 export const databaseUrlSecretArn = outputs.databaseUrlSecretArn;
 // Bastion
 export const bastionInstanceId = outputs.bastionInstanceId;
+// CI/CD
+export const cdRoleArn = outputs.cdRoleArn;
 // Convenience
 export const environment = outputs.environment;
 export const region = outputs.region;

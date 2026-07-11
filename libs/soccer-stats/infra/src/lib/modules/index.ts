@@ -23,6 +23,11 @@ export {
   type IamOutputs,
 } from './iam';
 export {
+  createGithubOidc,
+  type GithubOidcConfig,
+  type GithubOidcOutputs,
+} from './github-oidc';
+export {
   createDatabase,
   type DatabaseConfig,
   type DatabaseOutputs,

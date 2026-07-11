@@ -1,0 +1,5 @@
+config:
+  aws:region: us-west-2
+  pulumi:tags:
+    pulumi:template: aws-typescript
+  soccer-stats-ui-infra:pulumiOrganization: JoA-MoS

@@ -11,6 +11,7 @@ import {
   createIamRoles,
   grantSecretAccess,
   createDatabase,
+  createGithubOidc,
 } from './modules';
 
 /**
@@ -90,6 +91,14 @@ export function createSharedInfrastructure(
     publiclyAccessible: false,
   });
 
+  // GitHub Actions OIDC provider + CD role for deploys from CI
+  const githubOidc = createGithubOidc({
+    namePrefix,
+    stack,
+    githubRepo: 'JoA-MoS/garage',
+    awsProvider,
+  });
+
   // Grant instance role access to both database secrets
   grantSecretAccess(
     namePrefix,
@@ -125,6 +134,7 @@ export function createSharedInfrastructure(
     databaseSecretArn: database.databaseSecretArn,
     databaseUrlSecretArn: database.databaseUrlSecretArn,
     bastionInstanceId: bastion.instanceId,
+    cdRoleArn: githubOidc.cdRoleArn,
     environment: stack,
     region: pulumi.output(aws.config.region || 'us-west-2'),
   };

@@ -86,6 +86,11 @@ node_modules/
 # Pulumi
 Pulumi.*.yaml
 !Pulumi.yaml
+# Stack configs needed by CI deploys — secret values inside are encrypted
+# per-stack by Pulumi (safe to commit)
+!libs/soccer-stats/infra/Pulumi.dev.yaml
+!apps/soccer-stats/api-infra/Pulumi.dev.yaml
+!apps/soccer-stats/ui-infra/Pulumi.dev.yaml
 .env.serve.dev
 
 /.remember

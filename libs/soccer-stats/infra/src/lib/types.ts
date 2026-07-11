@@ -36,6 +36,9 @@ export interface SharedInfraOutputs {
   // Bastion
   bastionInstanceId: pulumi.Output<string>;
 
+  // CI/CD
+  cdRoleArn: pulumi.Output<string>;
+
   // Convenience
   environment: string;
   region: pulumi.Output<string>;
