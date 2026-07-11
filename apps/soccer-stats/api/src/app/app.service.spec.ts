@@ -1,6 +1,9 @@
 import { Test } from '@nestjs/testing';
 
-import { MemorySnapshot } from '../modules/observability/observability.service';
+import {
+  MemorySnapshot,
+  ObservabilityService,
+} from '../modules/observability/observability.service';
 
 import { AppService } from './app.service';
 
@@ -33,9 +36,14 @@ describe('AppService', () => {
     });
 
     function createServiceWithMemory(snapshot: MemorySnapshot): AppService {
-      return new AppService({
+      const observabilityService: Pick<
+        ObservabilityService,
+        'getMemorySnapshot'
+      > = {
         getMemorySnapshot: () => snapshot,
-      } as never);
+      };
+
+      return new AppService(observabilityService as ObservabilityService);
     }
 
     it('keeps status ok when V8 heap is mostly full but RSS is low', () => {
@@ -68,6 +76,34 @@ describe('AppService', () => {
 
       expect(result.status).toBe('degraded');
       expect(result.memory?.rssUsagePercent).toBe(78.13);
+    });
+
+    it('marks status degraded when RSS is exactly 75 percent of container memory', () => {
+      process.env['CONTAINER_MEMORY_LIMIT_MB'] = '512';
+
+      const result = createServiceWithMemory({
+        heapUsedMB: 80,
+        heapTotalMB: 120,
+        rssMB: 384,
+        externalMB: 10,
+      }).getHealth();
+
+      expect(result.status).toBe('degraded');
+      expect(result.memory?.rssUsagePercent).toBe(75);
+    });
+
+    it('marks status unhealthy when RSS is exactly 90 percent of container memory', () => {
+      process.env['CONTAINER_MEMORY_LIMIT_MB'] = '512';
+
+      const result = createServiceWithMemory({
+        heapUsedMB: 100,
+        heapTotalMB: 120,
+        rssMB: 460.8,
+        externalMB: 10,
+      }).getHealth();
+
+      expect(result.status).toBe('unhealthy');
+      expect(result.memory?.rssUsagePercent).toBe(90);
     });
 
     it('marks status unhealthy when RSS exceeds 90 percent of container memory', () => {

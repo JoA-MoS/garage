@@ -100,9 +100,9 @@ export class AppService {
 
     // Determine status based on RSS/container memory, not V8 heap fullness.
     let status: 'ok' | 'degraded' | 'unhealthy' = 'ok';
-    if (rssUsagePercent > 90) {
+    if (rssUsagePercent >= 90) {
       status = 'unhealthy';
-    } else if (rssUsagePercent > 75) {
+    } else if (rssUsagePercent >= 75) {
       status = 'degraded';
     }
 
