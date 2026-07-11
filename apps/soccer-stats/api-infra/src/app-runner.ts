@@ -57,6 +57,7 @@ export const service = new aws.apprunner.Service(
           runtimeEnvironmentVariables: {
             NODE_ENV: 'production',
             PORT: containerPort.toString(),
+            CONTAINER_MEMORY_LIMIT_MB: '512',
             DB_SYNCHRONIZE: 'false',
             DB_POOL_MAX: dbPoolMax.toString(),
             DB_POOL_MIN: dbPoolMin.toString(),

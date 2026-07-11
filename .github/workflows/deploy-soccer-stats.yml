@@ -10,6 +10,7 @@ on:
 permissions:
   id-token: write # OIDC token for assuming the AWS CD role
   contents: read
+  deployments: write
 
 # Never run two pulumi ups against the same stacks concurrently
 concurrency:
@@ -21,6 +22,7 @@ env:
   NX_LOAD_DOT_ENV_FILES: 'false'
   NX_TUI: 'false'
   PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+  SOCCER_STATS_SITE_URL: https://d26g1hjb51pz2g.cloudfront.net
 
 jobs:
   deploy:
@@ -73,7 +75,7 @@ jobs:
       - name: Verify deployment health
         run: |
           for i in $(seq 1 20); do
-            STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 https://d26g1hjb51pz2g.cloudfront.net/api/health || true)
+            STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SOCCER_STATS_SITE_URL/api/health" || true)
             if [ "$STATUS" = "200" ]; then
               echo "Health check passed"
               exit 0
@@ -83,3 +85,44 @@ jobs:
           done
           echo "Health check failed after 5 minutes"
           exit 1
+
+      - name: Record GitHub deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat > deployment.json <<JSON
+          {
+            "ref": "$GITHUB_SHA",
+            "environment": "soccer-stats-production",
+            "auto_merge": false,
+            "required_contexts": [],
+            "production_environment": true,
+            "description": "Soccer Stats production deployment"
+          }
+          JSON
+
+          DEPLOYMENT_ID=$(gh api \
+            --method POST \
+            "/repos/$GITHUB_REPOSITORY/deployments" \
+            --input deployment.json \
+            --jq '.id')
+
+          gh api \
+            --method POST \
+            "/repos/$GITHUB_REPOSITORY/deployments/$DEPLOYMENT_ID/statuses" \
+            -f state="success" \
+            -f environment="soccer-stats-production" \
+            -f environment_url="$SOCCER_STATS_SITE_URL" \
+            -f target_url="$SOCCER_STATS_SITE_URL" \
+            -f log_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            -f description="Soccer Stats deployment verified healthy"
+
+      - name: Deployment summary
+        run: |
+          {
+            echo "## Soccer Stats deployment"
+            echo ""
+            echo "- URL: $SOCCER_STATS_SITE_URL"
+            echo "- Health: $SOCCER_STATS_SITE_URL/api/health"
+            echo "- GraphQL: $SOCCER_STATS_SITE_URL/api/graphql"
+          } >> "$GITHUB_STEP_SUMMARY"
