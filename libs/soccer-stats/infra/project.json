@@ -22,7 +22,7 @@
       "executor": "nx:run-commands",
       "parallelism": false,
       "options": {
-        "command": "pulumi up --yes",
+        "command": "pulumi up --yes --stack JoA-MoS/dev",
         "cwd": "libs/soccer-stats/infra"
       },
       "dependsOn": ["^build", "build"]
@@ -31,7 +31,7 @@
       "executor": "nx:run-commands",
       "parallelism": false,
       "options": {
-        "command": "pulumi preview",
+        "command": "pulumi preview --stack JoA-MoS/dev",
         "cwd": "libs/soccer-stats/infra"
       },
       "dependsOn": ["^build", "build"]
@@ -39,7 +39,7 @@
     "refresh": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pulumi refresh --yes",
+        "command": "pulumi refresh --yes --stack JoA-MoS/dev",
         "cwd": "libs/soccer-stats/infra"
       }
     },
