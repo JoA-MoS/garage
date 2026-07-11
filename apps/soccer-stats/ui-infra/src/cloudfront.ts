@@ -69,8 +69,9 @@ export const distribution = new aws.cloudfront.Distribution(
         compress: true,
         // Disable caching for API responses (dynamic content)
         cachePolicyId: '4135ea2d-6df8-44a3-9df3-4b5a84be39ad', // CachingDisabled
-        // Forward all headers, cookies, and query strings to origin
-        originRequestPolicyId: '216adef6-5c7f-47e4-b989-5492eafa07d3', // AllViewer
+        // Forward all headers except Host — App Runner routes requests by Host
+        // header, so forwarding the CloudFront domain would 404 every request
+        originRequestPolicyId: 'b689b0a8-53d0-40ab-baf2-68738e2966ac', // AllViewerExceptHostHeader
       },
       // SPA entry point - minimal caching to ensure users get latest version after deployments
       // Note: defaultRootObject rewrites "/" to "/index.html" before cache behavior matching
