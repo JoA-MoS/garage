@@ -5,6 +5,33 @@
 
 ---
 
+## ⚠️ App Runner Sunset Notice (added 2026-07-11)
+
+AWS stopped accepting **new** App Runner customers on **April 30, 2026**
+([availability change](https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html)).
+This deployment is unaffected: existing customers can keep using the service
+and creating new resources (verified — our service was created 2026-07-10),
+AWS continues security/availability maintenance, and **no end-of-support date
+has been announced**. No new features will ship.
+
+Implications:
+
+- **Keep running on App Runner** until AWS announces an actual end-of-support
+  date — it remains the cheapest option for this app.
+- AWS's recommended successor, **ECS Express Mode**, provisions an ALB and
+  always-on Fargate, which reinstates most of the cost this migration removed.
+  When migration becomes necessary, re-evaluate against Lambda + Web Adapter
+  (scales to zero) or a minimal hand-rolled Fargate setup.
+- App Runner-specific code is deliberately isolated for a bounded future swap:
+  `apps/soccer-stats/api-infra/src/app-runner.ts`, the VPC Connector module,
+  the two App Runner IAM roles, and CloudFront's API origin config. Aurora,
+  VPC, bastion/NAT, and secrets all carry over unchanged.
+- **New AWS accounts cannot create App Runner services** — if this stack is
+  ever stood up in a fresh account (e.g., a prod account split), the successor
+  decision must be made then.
+
+---
+
 ## Problem
 
 The current AWS stack has three always-on cost anchors that cannot scale to zero:

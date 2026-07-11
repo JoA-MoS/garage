@@ -5,6 +5,7 @@
 
 import { ConsoleLogger, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { DataSource } from 'typeorm';
 
 import { AppModule } from './app/app.module';
 import {
@@ -14,6 +15,9 @@ import {
   getFrontendUrl,
   useJsonLogging,
 } from './app/environment';
+
+// App-specific advisory lock key for serializing startup migrations
+const MIGRATION_LOCK_ID = 784_512_301;
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -62,6 +66,35 @@ async function bootstrap() {
       },
       credentials: true,
     });
+
+    // Run pending TypeORM migrations before accepting traffic.
+    // App Runner health check won't pass until this completes, so no traffic
+    // is routed until the database schema is up to date.
+    //
+    // A Postgres advisory lock serializes concurrent instances (App Runner
+    // can start several during deploys/scale-out): the first runs migrations
+    // while the rest block on the lock, then find nothing pending. Advisory
+    // locks are session-scoped, so acquire and release must happen on the
+    // same connection — hence the dedicated query runner instead of the pool.
+    const dataSource = app.get(DataSource);
+    const lockRunner = dataSource.createQueryRunner();
+    await lockRunner.connect();
+    await lockRunner.query(`SELECT pg_advisory_lock(${MIGRATION_LOCK_ID})`);
+    try {
+      // Fresh RDS/Aurora databases don't have the extensions our migrations
+      // rely on (locally these are created by database/init scripts).
+      await lockRunner.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+      await lockRunner.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+      const pendingMigrations = await dataSource.showMigrations();
+      if (pendingMigrations) {
+        logger.log('Running pending database migrations...');
+        await dataSource.runMigrations();
+        logger.log('Migrations complete.');
+      }
+    } finally {
+      await lockRunner.query(`SELECT pg_advisory_unlock(${MIGRATION_LOCK_ID})`);
+      await lockRunner.release();
+    }
 
     const port = getPort();
     await app.listen(port);

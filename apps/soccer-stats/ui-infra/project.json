@@ -33,7 +33,8 @@
         "^build",
         "build",
         "soccer-stats-ui:build",
-        "soccer-stats-infra:up"
+        "soccer-stats-infra:up",
+        "soccer-stats-api-infra:up"
       ]
     },
     "preview": {

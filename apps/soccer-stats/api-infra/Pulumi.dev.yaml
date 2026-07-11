@@ -1,0 +1,14 @@
+config:
+  aws:region: us-west-2
+  pulumi:tags:
+    pulumi:template: aws-typescript
+  soccer-stats-api-infra:clerkPublishableKey: pk_test_YWJvdmUtYnVsbGRvZy03LmNsZXJrLmFjY291bnRzLmRldiQ
+  soccer-stats-api-infra:clerkSecretKey:
+    secure: AAABAG76tdYxXT77dFFzWywt8XDl1yh35zEI9cIW3fK2iYGOYSoCXlOKLi6YoFfLkU5dzv+J5SQJuW7BNLhWcKTgaEnEPkY2WZ0L4o+WhzbHJQ==
+  soccer-stats-api-infra:dataLoaderBatchSizeWarning: '100'
+  soccer-stats-api-infra:dbPoolConnectionTimeout: '45000'
+  soccer-stats-api-infra:frontendUrl: https://soccer-stats-ten.vercel.app,https://soccer-stats-joamos-projects.vercel.app,https://d26g1hjb51pz2g.cloudfront.net,http://localhost:4200
+  soccer-stats-api-infra:observabilityLogLevel: verbose
+  soccer-stats-api-infra:pulumiOrganization: JoA-MoS
+  soccer-stats-api-infra:queryComplexityLimit: '100'
+  soccer-stats-api-infra:slowQueryThresholdMs: '1000'
