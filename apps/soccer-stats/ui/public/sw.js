@@ -1,6 +1,7 @@
 /* eslint-disable no-restricted-globals */
 
-const CACHE_VERSION = 'soccer-stats-v1';
+const CACHE_PREFIX = 'soccer-stats-';
+const CACHE_VERSION = `${CACHE_PREFIX}v2`;
 const APP_SHELL_CACHE = `${CACHE_VERSION}-app-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -9,6 +10,9 @@ const APP_SHELL_URLS = [
   '/index.html',
   '/manifest.webmanifest',
   '/icons/icon.svg',
+  '/icons/icon-180.png',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
   '/favicon.ico',
 ];
 
@@ -28,7 +32,9 @@ self.addEventListener('activate', (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => !key.startsWith(CACHE_VERSION))
+            .filter(
+              (key) => key.startsWith(CACHE_PREFIX) && !key.startsWith(CACHE_VERSION),
+            )
             .map((key) => caches.delete(key)),
         ),
       )
@@ -64,8 +70,12 @@ self.addEventListener('fetch', (event) => {
 async function networkFirstNavigation(request) {
   try {
     const networkResponse = await fetch(request);
-    const cache = await caches.open(APP_SHELL_CACHE);
-    cache.put('/index.html', networkResponse.clone());
+
+    if (networkResponse.ok) {
+      const cache = await caches.open(APP_SHELL_CACHE);
+      cache.put('/index.html', networkResponse.clone());
+    }
+
     return networkResponse;
   } catch (error) {
     const cachedResponse = await caches.match('/index.html');
@@ -87,7 +97,7 @@ async function staleWhileRevalidate(request) {
       }
       return networkResponse;
     })
-    .catch(() => cachedResponse);
+    .catch(() => cachedResponse || Response.error());
 
   return cachedResponse || networkResponsePromise;
 }
