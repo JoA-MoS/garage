@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router';
 
 import { GamesList } from '@garage/soccer-stats/ui-components';
 
+import { findGameTeam, getTeamDisplayName } from '../../utils/game-team-display';
+
 /**
  * Layer 2: Smart Component (Fragment Wrapper) - Temporary without generated GraphQL
  * - Uses existing GraphQL service temporarily during migration
@@ -28,18 +30,14 @@ export const GamesListSmart = ({
   // Transform data to presentation props - temporary implementation
   const games = gameData.map((game: any) => {
     // Business logic: Extract team information
-    const homeTeam = game.teams?.find((gt: any) => gt.teamType === 'HOME')
-      ?.team || { id: '', name: 'TBD' };
-    const awayTeam = game.teams?.find((gt: any) => gt.teamType === 'AWAY')
-      ?.team || { id: '', name: 'TBD' };
+    const homeGameTeam = findGameTeam(game.teams, 'home');
+    const awayGameTeam = findGameTeam(game.teams, 'away');
+    const homeTeam = homeGameTeam?.team || { id: '', name: 'Unassigned' };
+    const awayTeam = awayGameTeam?.team || { id: '', name: 'Unassigned' };
 
     // Business logic: Extract scores
-    const homeScore = game.teams?.find(
-      (gt: any) => gt.teamType === 'HOME',
-    )?.finalScore;
-    const awayScore = game.teams?.find(
-      (gt: any) => gt.teamType === 'AWAY',
-    )?.finalScore;
+    const homeScore = homeGameTeam?.finalScore ?? undefined;
+    const awayScore = awayGameTeam?.finalScore ?? undefined;
 
     return {
       id: game.id,
@@ -52,12 +50,12 @@ export const GamesListSmart = ({
         | 'COMPLETED'
         | 'CANCELLED',
       homeTeam: {
-        id: homeTeam.id,
-        name: homeTeam.name,
+        id: homeTeam.id ?? '',
+        name: getTeamDisplayName(homeGameTeam),
       },
       awayTeam: {
-        id: awayTeam.id,
-        name: awayTeam.name,
+        id: awayTeam.id ?? '',
+        name: getTeamDisplayName(awayGameTeam),
       },
       homeScore,
       awayScore,
