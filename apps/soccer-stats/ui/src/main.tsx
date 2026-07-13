@@ -8,6 +8,7 @@ import { router } from './app/router/router';
 import { apolloClient, setTokenGetter } from './app/services/apollo-client';
 import { fetchPublicConfig, PublicConfig } from './app/services/config.service';
 import { AuthErrorProvider } from './app/providers/auth-error-provider';
+import { registerServiceWorker } from './app/pwa/register-service-worker';
 
 // Component that sets up the auth token getter for Apollo
 function AuthApolloProvider({ children }: { children: React.ReactNode }) {
@@ -114,3 +115,5 @@ root.render(
     <App />
   </StrictMode>,
 );
+
+registerServiceWorker();
