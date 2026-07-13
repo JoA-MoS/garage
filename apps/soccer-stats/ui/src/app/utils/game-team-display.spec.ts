@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   findGameTeam,
@@ -8,6 +8,10 @@ import {
 } from './game-team-display';
 
 describe('game team display helpers', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   const teams = [
     {
       teamType: 'home',
@@ -38,6 +42,25 @@ describe('game team display helpers', () => {
     expect(getTeamDisplayName(findGameTeam(legacyTeams, 'away'))).toBe(
       'Seattle United NW B15 Black',
     );
+  });
+
+  it('formats scheduled date-times with the locale string formatter', () => {
+    const toLocaleString = vi
+      .spyOn(Date.prototype, 'toLocaleString')
+      .mockReturnValue('Mon, Jul 13, 5:30 PM');
+    const toLocaleDateString = vi.spyOn(Date.prototype, 'toLocaleDateString');
+
+    expect(formatGameDateTime('2026-07-13T17:30:00.000Z')).toBe(
+      'Mon, Jul 13, 5:30 PM',
+    );
+    expect(toLocaleString).toHaveBeenCalledWith(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    expect(toLocaleDateString).not.toHaveBeenCalled();
   });
 
   it('uses explicit fallback copy instead of leaking TBD/Team placeholders', () => {
