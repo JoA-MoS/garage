@@ -2,6 +2,12 @@ import { Link } from 'react-router';
 
 import { useMyDashboard } from '../hooks/use-my-dashboard';
 import { useUserProfile } from '../hooks/use-user-profile';
+import {
+  findGameTeam,
+  formatGameDate,
+  formatGameDateTime,
+  getTeamDisplayName,
+} from '../utils/game-team-display';
 
 /**
  * Dashboard page - main landing page with game overview
@@ -82,8 +88,8 @@ export const DashboardPage = () => {
           </div>
           <div className="space-y-1.5">
             {liveGames.map((game) => {
-              const homeTeam = game.teams?.find((gt) => gt.teamType === 'HOME');
-              const awayTeam = game.teams?.find((gt) => gt.teamType === 'AWAY');
+              const homeTeam = findGameTeam(game.teams, 'home');
+              const awayTeam = findGameTeam(game.teams, 'away');
               return (
                 <Link
                   key={game.id}
@@ -91,13 +97,13 @@ export const DashboardPage = () => {
                   className="flex items-center justify-between rounded bg-white px-3 py-2 shadow-sm transition-shadow hover:shadow"
                 >
                   <span className="text-sm font-medium">
-                    {homeTeam?.team?.shortName || homeTeam?.team?.name}
+                    {getTeamDisplayName(homeTeam)}
                   </span>
                   <span className="rounded bg-gray-100 px-2 py-0.5 text-sm font-bold tabular-nums">
                     {homeTeam?.finalScore ?? 0} – {awayTeam?.finalScore ?? 0}
                   </span>
                   <span className="text-sm font-medium">
-                    {awayTeam?.team?.shortName || awayTeam?.team?.name}
+                    {getTeamDisplayName(awayTeam)}
                   </span>
                   <span className="text-xs text-red-600">View →</span>
                 </Link>
@@ -173,12 +179,8 @@ export const DashboardPage = () => {
             {hasUpcomingGames ? (
               <div className="space-y-0.5">
                 {upcomingGames.map((game) => {
-                  const homeTeam = game.teams?.find(
-                    (gt) => gt.teamType === 'HOME',
-                  );
-                  const awayTeam = game.teams?.find(
-                    (gt) => gt.teamType === 'AWAY',
-                  );
+                  const homeTeam = findGameTeam(game.teams, 'home');
+                  const awayTeam = findGameTeam(game.teams, 'away');
                   return (
                     <Link
                       key={game.id}
@@ -186,22 +188,11 @@ export const DashboardPage = () => {
                       className="block rounded px-2 py-1.5 transition-colors hover:bg-gray-50"
                     >
                       <div className="text-sm font-medium text-gray-900">
-                        {homeTeam?.team?.shortName || 'TBD'} vs{' '}
-                        {awayTeam?.team?.shortName || 'TBD'}
+                        {getTeamDisplayName(homeTeam)} vs{' '}
+                        {getTeamDisplayName(awayTeam)}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {game.scheduledStart
-                          ? new Date(game.scheduledStart).toLocaleDateString(
-                              undefined,
-                              {
-                                weekday: 'short',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: 'numeric',
-                                minute: '2-digit',
-                              },
-                            )
-                          : 'Time TBD'}
+                        {formatGameDateTime(game.scheduledStart)}
                         {game.venue && ` • ${game.venue}`}
                       </div>
                     </Link>
@@ -233,12 +224,8 @@ export const DashboardPage = () => {
             {hasRecentGames ? (
               <div className="space-y-0.5">
                 {recentGames.map((game) => {
-                  const homeTeam = game.teams?.find(
-                    (gt) => gt.teamType === 'HOME',
-                  );
-                  const awayTeam = game.teams?.find(
-                    (gt) => gt.teamType === 'AWAY',
-                  );
+                  const homeTeam = findGameTeam(game.teams, 'home');
+                  const awayTeam = findGameTeam(game.teams, 'away');
                   return (
                     <Link
                       key={game.id}
@@ -246,25 +233,17 @@ export const DashboardPage = () => {
                       className="flex items-center gap-2 rounded px-2 py-1.5 transition-colors hover:bg-gray-50"
                     >
                       <span className="truncate text-sm text-gray-700">
-                        {homeTeam?.team?.shortName || 'Team'}
+                        {getTeamDisplayName(homeTeam)}
                       </span>
                       <span className="mx-auto shrink-0 rounded bg-gray-100 px-2 py-0.5 text-xs font-bold tabular-nums">
                         {homeTeam?.finalScore ?? '–'} –{' '}
                         {awayTeam?.finalScore ?? '–'}
                       </span>
                       <span className="truncate text-right text-sm text-gray-700">
-                        {awayTeam?.team?.shortName || 'Team'}
+                        {getTeamDisplayName(awayTeam)}
                       </span>
                       <span className="shrink-0 text-xs text-gray-400">
-                        {game.actualEnd
-                          ? new Date(game.actualEnd).toLocaleDateString(
-                              undefined,
-                              {
-                                month: 'short',
-                                day: 'numeric',
-                              },
-                            )
-                          : ''}
+                        {formatGameDate(game.actualEnd)}
                       </span>
                     </Link>
                   );
