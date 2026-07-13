@@ -38,7 +38,7 @@ export const formatGameDateTime = (
     return fallback;
   }
 
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleString(undefined, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
