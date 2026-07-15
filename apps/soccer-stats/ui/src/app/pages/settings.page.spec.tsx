@@ -46,4 +46,24 @@ describe('SettingsPage', () => {
       expect(screen.getByText('api12345')).toBeTruthy();
     });
   });
+
+  it('uses touch-friendly targets for settings controls', async () => {
+    render(<SettingsPage />);
+
+    for (const select of screen.getAllByRole('combobox')) {
+      expect(select.className).toContain('min-h-[44px]');
+      expect(select.className).toContain('min-w-[44px]');
+    }
+
+    expect(
+      screen.getByRole('button', { name: 'Export Game Data' }).className,
+    ).toContain('min-h-[44px]');
+    expect(
+      screen.getByRole('button', { name: 'Clear All Data' }).className,
+    ).toContain('min-h-[44px]');
+
+    await waitFor(() => {
+      expect(screen.getByText('api12345')).toBeTruthy();
+    });
+  });
 });

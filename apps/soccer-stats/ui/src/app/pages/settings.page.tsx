@@ -131,7 +131,7 @@ export const SettingsPage = () => {
                   Default length for new games
                 </p>
               </div>
-              <select className="rounded-md border border-gray-300 px-3 py-2">
+              <select className="min-h-[44px] min-w-[44px] rounded-md border border-gray-300 px-3 py-2">
                 <option value="90">90 minutes</option>
                 <option value="80">80 minutes</option>
                 <option value="70">70 minutes</option>
@@ -166,7 +166,7 @@ export const SettingsPage = () => {
                   Choose your preferred color scheme
                 </p>
               </div>
-              <select className="rounded-md border border-gray-300 px-3 py-2">
+              <select className="min-h-[44px] min-w-[44px] rounded-md border border-gray-300 px-3 py-2">
                 <option value="light">Light</option>
                 <option value="dark">Dark</option>
                 <option value="auto">Auto</option>
@@ -180,10 +180,10 @@ export const SettingsPage = () => {
             Data Management
           </h2>
           <div className="space-y-4">
-            <button className="rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700">
+            <button className="min-h-[44px] min-w-[44px] rounded-md bg-blue-600 px-4 py-3 text-white transition-colors hover:bg-blue-700">
               Export Game Data
             </button>
-            <button className="ml-3 rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700">
+            <button className="ml-3 min-h-[44px] min-w-[44px] rounded-md bg-red-600 px-4 py-3 text-white transition-colors hover:bg-red-700">
               Clear All Data
             </button>
           </div>
