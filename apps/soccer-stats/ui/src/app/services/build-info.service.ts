@@ -29,5 +29,30 @@ export async function fetchApiBuildInfo(): Promise<BuildInfo> {
     );
   }
 
-  return response.json() as Promise<BuildInfo>;
+  const contentType = response.headers.get('content-type') ?? '';
+  if (contentType.toLowerCase().includes('application/json')) {
+    return response.json() as Promise<BuildInfo>;
+  }
+
+  return fetchApiBuildInfoFromHealth(apiUrl);
+}
+
+async function fetchApiBuildInfoFromHealth(apiUrl: string): Promise<BuildInfo> {
+  const healthUrl = `${apiUrl}/${API_PREFIX}/health`;
+  const response = await fetch(healthUrl);
+
+  if (!response.ok) {
+    throw new Error(
+      `API build info unavailable: /${API_PREFIX}/version returned non-JSON and /${API_PREFIX}/health failed with ${response.status} ${response.statusText}`,
+    );
+  }
+
+  const health = (await response.json()) as { build?: BuildInfo };
+  if (!health.build) {
+    throw new Error(
+      `API build info unavailable: /${API_PREFIX}/version returned non-JSON and /${API_PREFIX}/health did not include build metadata`,
+    );
+  }
+
+  return health.build;
 }
