@@ -48,9 +48,12 @@ export const service = new aws.apprunner.Service(
       },
       autoDeploymentsEnabled: true,
       imageRepository: {
-        // Reference the stack-tagged image (:dev, :prod, etc.)
-        // App Runner auto-deploys when docker.ts pushes a new image with this tag
-        imageIdentifier: pulumi.interpolate`${ecrRepositoryUrl}:${stack}`,
+        // Use the immutable git-SHA tag so each service update points App Runner
+        // at the exact image pushed by this deploy. The mutable stack tag (:dev,
+        // :prod, etc.) is still pushed for human convenience, but App Runner
+        // may not pull a fresh digest when the imageIdentifier string is
+        // unchanged.
+        imageIdentifier: pulumi.interpolate`${ecrRepositoryUrl}:${gitSha}`,
         imageRepositoryType: 'ECR',
         imageConfiguration: {
           port: containerPort.toString(),
