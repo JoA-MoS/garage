@@ -196,4 +196,14 @@ describe('CalendarSyncService', () => {
     expect(results).toHaveLength(2);
     expect(service.fetchFeed).toHaveBeenCalledTimes(2);
   });
+
+  it('rejects non-PlayMetrics calendar URLs before saving a source', async () => {
+    await expect(
+      service.createSource({
+        teamId: managedTeam.id,
+        provider: CalendarProvider.PLAYMETRICS,
+        feedUrl: 'http://169.254.169.254/latest/meta-data',
+      }),
+    ).rejects.toThrow('PlayMetrics calendar feed URL must use HTTPS');
+  });
 });

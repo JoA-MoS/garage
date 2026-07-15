@@ -34,6 +34,8 @@ export interface CalendarSyncResult {
 
 @Injectable()
 export class CalendarSyncService {
+  private readonly activeSourceSyncs = new Set<string>();
+
   constructor(
     @InjectRepository(CalendarSource)
     private readonly calendarSourceRepository: Repository<CalendarSource>,
@@ -120,6 +122,12 @@ export class CalendarSyncService {
       return { sourceId, created: 0, updated: 0, skipped: 0, errors: [] };
     }
 
+    if (this.activeSourceSyncs.has(sourceId)) {
+      return { sourceId, created: 0, updated: 0, skipped: 1, errors: [] };
+    }
+
+    this.activeSourceSyncs.add(sourceId);
+
     const result: CalendarSyncResult = {
       sourceId,
       created: 0,
@@ -161,6 +169,8 @@ export class CalendarSyncService {
         error instanceof Error ? error.message : String(error);
       await this.calendarSourceRepository.save(source);
       throw error;
+    } finally {
+      this.activeSourceSyncs.delete(sourceId);
     }
   }
 
@@ -169,7 +179,7 @@ export class CalendarSyncService {
     const response = await axios.get<string>(feedUrl, {
       responseType: 'text',
       timeout: 15_000,
-      maxRedirects: 3,
+      maxRedirects: 0,
     });
 
     return response.data;
@@ -376,8 +386,16 @@ export class CalendarSyncService {
       throw new BadRequestException('Calendar feed URL must be a valid URL');
     }
 
-    if (!['http:', 'https:'].includes(parsed.protocol)) {
-      throw new BadRequestException('Calendar feed URL must use HTTP or HTTPS');
+    if (parsed.protocol !== 'https:') {
+      throw new BadRequestException(
+        'PlayMetrics calendar feed URL must use HTTPS',
+      );
+    }
+
+    if (parsed.hostname !== 'calendar.playmetrics.com') {
+      throw new BadRequestException(
+        'PlayMetrics calendar feed URL must use calendar.playmetrics.com',
+      );
     }
   }
 }

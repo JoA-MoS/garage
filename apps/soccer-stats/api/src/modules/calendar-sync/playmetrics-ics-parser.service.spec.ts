@@ -69,4 +69,13 @@ describe('PlayMetricsIcsParserService', () => {
 
     expect(service.parse(ics).games).toHaveLength(0);
   });
+
+  it('does not emit NaN for malformed sequence values', () => {
+    const ics = gamesCalendarIcs.replace(
+      'SEQUENCE:1783365109',
+      'SEQUENCE:not-a-number',
+    );
+
+    expect(service.parse(ics).games[0].sequence).toBeUndefined();
+  });
 });

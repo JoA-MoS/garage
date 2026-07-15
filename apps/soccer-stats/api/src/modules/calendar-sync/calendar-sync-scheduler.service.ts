@@ -15,6 +15,7 @@ export class CalendarSyncSchedulerService
 {
   private readonly logger = new Logger(CalendarSyncSchedulerService.name);
   private timer?: NodeJS.Timeout;
+  private syncInProgress = false;
 
   constructor(private readonly calendarSyncService: CalendarSyncService) {}
 
@@ -42,6 +43,15 @@ export class CalendarSyncSchedulerService
   }
 
   private async syncEnabledSources(): Promise<void> {
+    if (this.syncInProgress) {
+      this.logger.warn(
+        'Skipping team calendar sync: previous sync still running',
+      );
+      return;
+    }
+
+    this.syncInProgress = true;
+
     try {
       const results = await this.calendarSyncService.syncEnabledSources();
       const created = results.reduce((sum, result) => sum + result.created, 0);
@@ -57,6 +67,8 @@ export class CalendarSyncSchedulerService
       this.logger.error(
         `Team calendar sync failed: ${error instanceof Error ? error.message : String(error)}`,
       );
+    } finally {
+      this.syncInProgress = false;
     }
   }
 

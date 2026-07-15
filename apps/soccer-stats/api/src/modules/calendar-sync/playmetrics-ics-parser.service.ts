@@ -343,6 +343,11 @@ export class PlayMetricsIcsParserService {
   }
 
   private parseNumber(value?: string): number | undefined {
-    return value ? Number(value) : undefined;
+    if (!value) {
+      return undefined;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
   }
 }
