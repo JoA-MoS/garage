@@ -28,6 +28,17 @@ export interface HealthStatus {
 }
 
 /**
+ * Build metadata for identifying the deployed API artifact.
+ */
+export interface BuildInfo {
+  name: string;
+  version: string;
+  gitSha: string;
+  buildTime: string;
+  environment: string;
+}
+
+/**
  * Detailed process metrics response
  */
 export interface ProcessMetrics {
@@ -61,6 +72,16 @@ export class AppService {
 
   getData(): { message: string } {
     return { message: 'Hello API' };
+  }
+
+  getVersion(): BuildInfo {
+    return {
+      name: 'soccer-stats-api',
+      version: process.env['APP_VERSION'] || '0.0.1',
+      gitSha: process.env['GIT_SHA'] || 'unknown',
+      buildTime: process.env['BUILD_TIME'] || 'unknown',
+      environment: process.env['NODE_ENV'] || 'unknown',
+    };
   }
 
   /**

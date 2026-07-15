@@ -24,7 +24,7 @@ import {
   databaseUrlSecretArn,
 } from './shared-infra';
 import { clerkSecretKeySecretArn } from './secrets';
-import { image } from './docker';
+import { apiVersion, buildTime, gitSha, image } from './docker';
 
 const autoScalingConfig = new aws.apprunner.AutoScalingConfigurationVersion(
   `${namePrefix}-autoscaling`,
@@ -56,6 +56,9 @@ export const service = new aws.apprunner.Service(
           port: containerPort.toString(),
           runtimeEnvironmentVariables: {
             NODE_ENV: 'production',
+            APP_VERSION: apiVersion,
+            GIT_SHA: gitSha,
+            BUILD_TIME: buildTime,
             PORT: containerPort.toString(),
             CONTAINER_MEMORY_LIMIT_MB: '512',
             DB_SYNCHRONIZE: 'false',
