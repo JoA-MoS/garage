@@ -84,6 +84,21 @@ describe('AppService', () => {
       }
     });
 
+    it('includes API build metadata', () => {
+      process.env['APP_VERSION'] = '1.2.3';
+      process.env['GIT_SHA'] = 'abc1234';
+      process.env['BUILD_TIME'] = '2026-07-15T02:22:42.000Z';
+      process.env['NODE_ENV'] = 'production';
+
+      expect(service.getHealth().build).toEqual({
+        name: 'soccer-stats-api',
+        version: '1.2.3',
+        gitSha: 'abc1234',
+        buildTime: '2026-07-15T02:22:42.000Z',
+        environment: 'production',
+      });
+    });
+
     function createServiceWithMemory(snapshot: MemorySnapshot): AppService {
       const observabilityService: Pick<
         ObservabilityService,

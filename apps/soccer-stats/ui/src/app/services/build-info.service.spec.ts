@@ -30,6 +30,7 @@ describe('Build info service', () => {
     global.fetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve(apiBuildInfo),
       } as Response),
     );
@@ -43,6 +44,7 @@ describe('Build info service', () => {
     global.fetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({}),
       } as Response),
     );
@@ -50,5 +52,32 @@ describe('Build info service', () => {
     await fetchApiBuildInfo();
 
     expect(fetch).toHaveBeenCalledWith('https://api.example.com/api/version');
+  });
+
+  it('falls back to API health metadata when the version route returns HTML', async () => {
+    const apiBuildInfo = {
+      name: 'soccer-stats-api',
+      version: '1.2.3',
+      gitSha: 'abc1234',
+      buildTime: '2026-07-15T02:22:42.000Z',
+      environment: 'production',
+    };
+
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'text/html' }),
+        text: () => Promise.resolve('<!DOCTYPE html><html></html>'),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: () => Promise.resolve({ build: apiBuildInfo }),
+      } as Response);
+
+    await expect(fetchApiBuildInfo()).resolves.toEqual(apiBuildInfo);
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/version');
+    expect(fetch).toHaveBeenNthCalledWith(2, '/api/health');
   });
 });

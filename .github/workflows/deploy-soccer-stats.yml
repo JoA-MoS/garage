@@ -75,15 +75,16 @@ jobs:
       - name: Verify deployment health
         run: |
           for i in $(seq 1 20); do
-            STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SOCCER_STATS_SITE_URL/api/health" || true)
-            if [ "$STATUS" = "200" ]; then
-              echo "Health check passed"
+            HEALTH_STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SOCCER_STATS_SITE_URL/api/health" || true)
+            VERSION_CONTENT_TYPE=$(curl -s -o /dev/null -w '%{content_type}' --max-time 30 "$SOCCER_STATS_SITE_URL/api/version" || true)
+            if [ "$HEALTH_STATUS" = "200" ] && echo "$VERSION_CONTENT_TYPE" | grep -qi 'application/json'; then
+              echo "Health and version checks passed"
               exit 0
             fi
-            echo "Attempt $i: /api/health returned $STATUS — retrying in 15s (Aurora may be resuming)"
+            echo "Attempt $i: /api/health returned $HEALTH_STATUS; /api/version content-type was ${VERSION_CONTENT_TYPE:-none} — retrying in 15s (Aurora/App Runner may still be updating)"
             sleep 15
           done
-          echo "Health check failed after 5 minutes"
+          echo "Deployment verification failed after 5 minutes"
           exit 1
 
       - name: Record GitHub deployment

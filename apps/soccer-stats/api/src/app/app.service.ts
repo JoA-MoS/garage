@@ -24,6 +24,7 @@ export interface HealthStatus {
   status: 'ok' | 'degraded' | 'unhealthy';
   timestamp: string;
   uptime: number;
+  build: BuildInfo;
   memory?: MemoryMetrics;
 }
 
@@ -106,6 +107,7 @@ export class AppService {
         status: 'ok',
         timestamp,
         uptime,
+        build: this.getVersion(),
       };
     }
 
@@ -131,6 +133,7 @@ export class AppService {
       status,
       timestamp,
       uptime,
+      build: this.getVersion(),
       memory: {
         heapUsedMB: snapshot.heapUsedMB,
         heapTotalMB: snapshot.heapTotalMB,
