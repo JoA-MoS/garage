@@ -7,10 +7,17 @@
 
 FROM docker.io/node:22-alpine AS production
 
+ARG APP_VERSION=0.0.1
+ARG GIT_SHA=unknown
+ARG BUILD_TIME=unknown
+
 # Set environment variables
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3333
+ENV APP_VERSION=${APP_VERSION}
+ENV GIT_SHA=${GIT_SHA}
+ENV BUILD_TIME=${BUILD_TIME}
 
 # Enable corepack for pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate

@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import * as pulumi from '@pulumi/pulumi';
 import * as aws from '@pulumi/aws';
 import * as docker from '@pulumi/docker-build';
@@ -13,7 +16,17 @@ import { ecrRepositoryUrl } from './shared-infra';
 export const currentRegion = aws.getRegionOutput();
 
 // Git SHA for immutable image tags (from CI or local fallback)
-const gitSha = process.env.GITHUB_SHA?.substring(0, 7) || 'local';
+export const gitSha = process.env.GITHUB_SHA?.substring(0, 7) || 'local';
+export const buildTime = new Date().toISOString();
+export const apiVersion =
+  (
+    JSON.parse(
+      readFileSync(
+        join(workspaceRoot, 'apps/soccer-stats/api/package.json'),
+        'utf8',
+      ),
+    ) as { version?: string }
+  ).version ?? '0.0.1';
 
 // Tag strategy:
 // - Non-prod stacks: :dev, :staging + :abc123 (git sha)
@@ -49,6 +62,9 @@ export const image = new docker.Image(`${namePrefix}-image`, {
   ],
   // Build args if needed
   buildArgs: {
+    APP_VERSION: apiVersion,
+    GIT_SHA: gitSha,
+    BUILD_TIME: buildTime,
     NODE_ENV: 'production',
   },
   // Cache configuration for faster builds

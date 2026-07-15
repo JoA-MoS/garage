@@ -9,6 +9,12 @@ import { AppService } from './app.service';
 
 describe('AppService', () => {
   let service: AppService;
+  const originalEnv = {
+    APP_VERSION: process.env['APP_VERSION'],
+    GIT_SHA: process.env['GIT_SHA'],
+    BUILD_TIME: process.env['BUILD_TIME'],
+    NODE_ENV: process.env['NODE_ENV'],
+  };
 
   beforeAll(async () => {
     const app = await Test.createTestingModule({
@@ -24,8 +30,51 @@ describe('AppService', () => {
     });
   });
 
+  describe('getVersion', () => {
+    afterEach(() => {
+      for (const [key, value] of Object.entries(originalEnv)) {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+    });
+
+    it('returns build metadata from environment variables', () => {
+      process.env['APP_VERSION'] = '1.2.3';
+      process.env['GIT_SHA'] = 'abc1234';
+      process.env['BUILD_TIME'] = '2026-07-15T02:22:42.000Z';
+      process.env['NODE_ENV'] = 'production';
+
+      expect(service.getVersion()).toEqual({
+        name: 'soccer-stats-api',
+        version: '1.2.3',
+        gitSha: 'abc1234',
+        buildTime: '2026-07-15T02:22:42.000Z',
+        environment: 'production',
+      });
+    });
+
+    it('uses safe fallback values when build metadata is unavailable', () => {
+      delete process.env['APP_VERSION'];
+      delete process.env['GIT_SHA'];
+      delete process.env['BUILD_TIME'];
+      delete process.env['NODE_ENV'];
+
+      expect(service.getVersion()).toEqual({
+        name: 'soccer-stats-api',
+        version: '0.0.1',
+        gitSha: 'unknown',
+        buildTime: 'unknown',
+        environment: 'unknown',
+      });
+    });
+  });
+
   describe('getHealth', () => {
-    const originalContainerMemoryLimit = process.env['CONTAINER_MEMORY_LIMIT_MB'];
+    const originalContainerMemoryLimit =
+      process.env['CONTAINER_MEMORY_LIMIT_MB'];
 
     afterEach(() => {
       if (originalContainerMemoryLimit === undefined) {

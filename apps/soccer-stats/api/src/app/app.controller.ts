@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 
 import { AppService, HealthStatus, ProcessMetrics } from './app.service';
+import type { BuildInfo } from './app.service';
 
 @Controller()
 export class AppController {
@@ -18,6 +19,14 @@ export class AppController {
   @Get('health')
   getHealth(): HealthStatus {
     return this.appService.getHealth();
+  }
+
+  /**
+   * Build metadata endpoint for verifying the deployed API artifact.
+   */
+  @Get('version')
+  getVersion(): BuildInfo {
+    return this.appService.getVersion();
   }
 
   /**
