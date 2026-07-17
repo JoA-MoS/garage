@@ -12,6 +12,12 @@ import {
   TeamResponse,
 } from '../../services/teams-graphql.service';
 
+const fallbackTeamColor = '#2563eb';
+
+function readableTeamColor(color?: string | null) {
+  return color?.trim() || fallbackTeamColor;
+}
+
 /**
  * Layout component that provides common navigation and header for team pages
  */
@@ -20,7 +26,7 @@ export const TeamLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { data, loading } = useQuery<TeamResponse>(GET_TEAM_BY_ID, {
+  const { data, loading, refetch } = useQuery<TeamResponse>(GET_TEAM_BY_ID, {
     variables: { id: teamId },
     errorPolicy: 'all',
     fetchPolicy: 'cache-and-network',
@@ -30,7 +36,9 @@ export const TeamLayout = () => {
   if (!teamId) {
     return (
       <div className="p-4">
-        <div className="text-red-600">Error: No team ID provided</div>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+          Error: No team ID provided
+        </div>
       </div>
     );
   }
@@ -38,6 +46,7 @@ export const TeamLayout = () => {
   // TODO: Implement mapServiceTeamToUITeam when migrating to new architecture
   // const team = data?.team ? mapServiceTeamToUITeam(data.team) : null;
   const team = data?.team || null;
+  const teamColor = readableTeamColor(team?.homePrimaryColor);
 
   const tabs = [
     {
@@ -67,112 +76,109 @@ export const TeamLayout = () => {
     },
   ];
 
-  const currentTab = tabs.find((tab) => location.pathname === tab.path);
+  const currentTab = tabs.find(
+    (tab) =>
+      location.pathname === tab.path ||
+      location.pathname.startsWith(`${tab.path}/`),
+  );
 
   return (
-    <div className="mx-auto max-w-6xl p-4 sm:p-6">
-      {/* Header */}
-      <div className="mb-6 rounded-lg bg-white shadow-lg">
-        <div className="border-b border-gray-200 px-4 py-4 sm:px-6">
-          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-            <div className="flex items-center space-x-4">
+    <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 lg:px-8">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div
+          className="relative isolate px-4 py-5 text-white sm:px-6 sm:py-7"
+          style={{
+            background: `linear-gradient(135deg, ${teamColor}, #0f172a 72%)`,
+          }}
+        >
+          <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_34%)]" />
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
               <button
                 onClick={() => navigate('/teams')}
-                className="flex items-center text-gray-600 transition-colors hover:text-gray-800"
+                className="mt-1 inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white/15 text-xl backdrop-blur transition hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/70"
+                aria-label="Back to teams"
               >
-                <span className="mr-2 text-xl">←</span>
-                <span className="text-sm font-medium">Back to Teams</span>
+                ←
               </button>
-            </div>
 
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => window.location.reload()}
-                disabled={loading}
-                className="rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50"
-              >
-                {loading ? '⟳' : '🔄'} Refresh
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Team Info */}
-        {team && (
-          <div className="px-4 py-6 sm:px-6">
-            <div className="flex flex-col items-start space-y-4 sm:flex-row sm:items-center sm:space-x-6 sm:space-y-0">
-              <div
-                className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full text-2xl font-bold text-white"
-                style={{ backgroundColor: team.homePrimaryColor }}
-              >
-                {team.name.charAt(0).toUpperCase()}
-              </div>
-              <div className="flex-grow">
-                <h1 className="mb-2 text-2xl font-bold text-gray-900 sm:text-3xl">
-                  {team.name}
-                </h1>
-                <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-medium">Created:</span>
-                    <span>
-                      {team.createdAt
-                        ? new Date(team.createdAt).toLocaleDateString()
-                        : 'N/A'}
-                    </span>
+              <div className="min-w-0">
+                <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-medium uppercase tracking-wide text-white/75">
+                  <span>Teams</span>
+                  <span aria-hidden="true">/</span>
+                  <span>{currentTab?.label ?? 'Team'}</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div
+                    className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-white/95 text-2xl font-black shadow-sm"
+                    style={{ color: teamColor }}
+                  >
+                    {team?.name?.charAt(0).toUpperCase() ?? 'T'}
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="font-medium">Primary Color:</span>
-                    <div
-                      className="h-4 w-4 rounded border border-gray-300"
-                      style={{ backgroundColor: team.homePrimaryColor }}
-                    />
-                    <span>{team.homePrimaryColor}</span>
-                  </div>
-                  {team.homeSecondaryColor && (
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium">Secondary Color:</span>
-                      <div
-                        className="h-4 w-4 rounded border border-gray-300"
-                        style={{ backgroundColor: team.homeSecondaryColor }}
-                      />
-                      <span>{team.homeSecondaryColor}</span>
+                  <div className="min-w-0">
+                    <h1 className="truncate text-2xl font-black tracking-tight sm:text-4xl">
+                      {team?.name ?? (loading ? 'Loading team…' : 'Team')}
+                    </h1>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-white/80">
+                      {team?.shortName && (
+                        <span className="rounded-full bg-white/15 px-2.5 py-1 font-semibold text-white">
+                          {team.shortName}
+                        </span>
+                      )}
+                      <span>
+                        {team?.isManaged ? 'Managed team' : 'Unmanaged team'}
+                      </span>
+                      {team?.createdAt && (
+                        <span>
+                          Created{' '}
+                          {new Date(team.createdAt).toLocaleDateString()}
+                        </span>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
 
-      {/* Tab Navigation */}
-      <div className="mb-6 rounded-lg bg-white shadow-lg">
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-0 overflow-x-auto">
-            {tabs.map((tab) => (
+            <button
+              onClick={() => refetch()}
+              disabled={loading}
+              className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <span className={loading ? 'mr-2 animate-spin' : 'mr-2'}>⟳</span>
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        <nav
+          className="flex gap-2 overflow-x-auto border-t border-slate-200 bg-slate-50/80 px-3 py-3 sm:px-5"
+          aria-label="Team navigation"
+        >
+          {tabs.map((tab) => {
+            const isActive = currentTab?.id === tab.id;
+            return (
               <Link
                 key={tab.id}
                 to={tab.path}
-                className={`
-                  flex items-center space-x-2 whitespace-nowrap border-b-2 px-4 py-4 text-sm
-                  font-medium transition-colors sm:px-6
-                  ${
-                    currentTab?.id === tab.id
-                      ? 'border-blue-500 bg-blue-50 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                  }
-                `}
+                className={`inline-flex min-h-[44px] items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  isActive
+                    ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200'
+                    : 'text-slate-600 hover:bg-white hover:text-slate-900'
+                }`}
+                aria-current={isActive ? 'page' : undefined}
               >
-                <span>{tab.icon}</span>
+                <span aria-hidden="true">{tab.icon}</span>
                 <span>{tab.label}</span>
               </Link>
-            ))}
-          </nav>
-        </div>
-      </div>
+            );
+          })}
+        </nav>
+      </section>
 
-      {/* Page Content */}
-      <Outlet />
+      <main className="mt-6">
+        <Outlet />
+      </main>
     </div>
   );
 };
