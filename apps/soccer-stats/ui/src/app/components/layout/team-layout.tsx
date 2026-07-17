@@ -26,7 +26,7 @@ export const TeamLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { data, loading, refetch } = useQuery<TeamResponse>(GET_TEAM_BY_ID, {
+  const { data, loading } = useQuery<TeamResponse>(GET_TEAM_BY_ID, {
     variables: { id: teamId },
     errorPolicy: 'all',
     fetchPolicy: 'cache-and-network',
@@ -92,7 +92,7 @@ export const TeamLayout = () => {
           }}
         >
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_34%)]" />
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
             <div className="flex items-start gap-4">
               <button
                 onClick={() => navigate('/teams')}
@@ -139,15 +139,6 @@ export const TeamLayout = () => {
                 </div>
               </div>
             </div>
-
-            <button
-              onClick={() => refetch()}
-              disabled={loading}
-              className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <span className={loading ? 'mr-2 animate-spin' : 'mr-2'}>⟳</span>
-              Refresh
-            </button>
           </div>
         </div>
 
