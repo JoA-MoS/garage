@@ -217,18 +217,18 @@ export const TeamPlayersPage = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="rounded-lg bg-white p-6 shadow-lg">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Team Roster</h2>
-            <p className="mt-1 text-gray-600">
+            <h2 className="text-2xl font-black text-slate-950">Team Roster</h2>
+            <p className="mt-1 text-sm text-slate-600">
               {activePlayers.length} active player
               {activePlayers.length !== 1 ? 's' : ''}
               {inactivePlayers.length > 0 &&
-                ` (${inactivePlayers.length} inactive)`}
+                ` · ${inactivePlayers.length} inactive`}
             </p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             {inactivePlayers.length > 0 && (
               <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
                 <input
@@ -242,7 +242,7 @@ export const TeamPlayersPage = () => {
             )}
             <button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               <svg
                 className="mr-2 h-4 w-4"
@@ -265,7 +265,7 @@ export const TeamPlayersPage = () => {
 
       {/* Players Grid */}
       {teamPlayers.length === 0 ? (
-        <div className="rounded-lg border-2 border-dashed border-gray-300 bg-white p-12 text-center">
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
           <svg
             className="mx-auto h-12 w-12 text-gray-400"
             fill="none"
@@ -286,7 +286,7 @@ export const TeamPlayersPage = () => {
           <div className="mt-6">
             <button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               <svg
                 className="mr-2 h-4 w-4"

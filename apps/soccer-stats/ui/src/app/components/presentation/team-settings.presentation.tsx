@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Link } from 'react-router';
 
 import {
   createTeamFormValues,
@@ -118,24 +117,24 @@ export const TeamSettingsPresentation = ({
   ]);
 
   return (
-    <div className="rounded-lg bg-white shadow-lg">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       {/* Header */}
-      <div className="border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
+      <div className="border-b border-slate-200 bg-slate-50 px-6 py-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className="text-2xl font-black text-slate-950">
               Team Settings
             </h2>
-            <p className="mt-1 text-gray-600">
-              Configure your team's basic information, formation, and roster
+            <p className="mt-1 max-w-2xl text-sm text-slate-600">
+              Configure basic details, default game format, formations, and stat
+              tracking in one place.
             </p>
           </div>
-          <Link
-            to="/teams"
-            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-          >
-            ← Back to Teams
-          </Link>
+          {saveSuccess && (
+            <div className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-800">
+              Saved
+            </div>
+          )}
         </div>
       </div>
 
