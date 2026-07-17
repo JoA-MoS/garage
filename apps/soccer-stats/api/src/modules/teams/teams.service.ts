@@ -515,6 +515,7 @@ export class TeamsService {
   ): Promise<TeamConfiguration | null> {
     return this.teamConfigurationRepository.findOne({
       where: { teamId },
+      relations: { defaultGameFormat: true },
     });
   }
 
@@ -545,6 +546,15 @@ export class TeamsService {
       });
     }
 
-    return this.teamConfigurationRepository.save(config);
+    await this.teamConfigurationRepository.save(config);
+
+    const updatedConfig = await this.getTeamConfiguration(teamId);
+    if (!updatedConfig) {
+      throw new NotFoundException(
+        `Team configuration for team "${teamId}" not found after save`,
+      );
+    }
+
+    return updatedConfig;
   }
 }
