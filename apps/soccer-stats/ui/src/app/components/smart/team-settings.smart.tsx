@@ -21,6 +21,14 @@ import {
   GET_TEAMS,
 } from '../../services/teams-graphql.service';
 import { GET_GAME_FORMATS } from '../../services/games-graphql.service';
+import {
+  CREATE_TEAM_CALENDAR_SOURCE,
+  CreateTeamCalendarSourceResponse,
+  SYNC_TEAM_CALENDAR_SOURCE,
+  SyncTeamCalendarSourceResponse,
+  TEAM_CALENDAR_SOURCES,
+  TeamCalendarSourcesResponse,
+} from '../../services/calendar-sync-graphql.service';
 import { TeamSettingsPresentation } from '../presentation/team-settings.presentation';
 import { UICreateTeamInput, UIPosition } from '../types/ui.types';
 
@@ -29,6 +37,9 @@ import { useTeamConfigurationManager } from './team-configuration-manager.smart'
 export const TeamSettingsSmart = () => {
   const { teamId } = useParams<{ teamId: string }>();
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [calendarSuccessMessage, setCalendarSuccessMessage] =
+    useState<string>();
+  const [calendarErrorMessage, setCalendarErrorMessage] = useState<string>();
   const [statsFeatures, setStatsFeatures] = useState<UIStatsFeatures>(
     UI_DEFAULT_STATS_FEATURES,
   );
@@ -60,6 +71,31 @@ export const TeamSettingsSmart = () => {
   const { data: gameFormatsData } = useQuery<{ gameFormats: GameFormat[] }>(
     GET_GAME_FORMATS,
   );
+
+  const {
+    data: calendarSourcesData,
+    loading: calendarSourcesLoading,
+    error: calendarSourcesError,
+  } = useQuery<TeamCalendarSourcesResponse>(TEAM_CALENDAR_SOURCES, {
+    variables: { teamId },
+    skip: !teamId,
+  });
+
+  const [createCalendarSource, { loading: creatingCalendarSource }] =
+    useMutation<CreateTeamCalendarSourceResponse>(CREATE_TEAM_CALENDAR_SOURCE, {
+      refetchQueries: [
+        { query: TEAM_CALENDAR_SOURCES, variables: { teamId } },
+        { query: GET_TEAM_BY_ID, variables: { id: teamId } },
+      ],
+    });
+
+  const [syncCalendarSource, { loading: syncingCalendarSource }] =
+    useMutation<SyncTeamCalendarSourceResponse>(SYNC_TEAM_CALENDAR_SOURCE, {
+      refetchQueries: [
+        { query: TEAM_CALENDAR_SOURCES, variables: { teamId } },
+        { query: GET_TEAM_BY_ID, variables: { id: teamId } },
+      ],
+    });
 
   // Update team mutation
   const [updateTeam, { loading: updateLoading, error: updateError }] =
@@ -201,6 +237,70 @@ export const TeamSettingsSmart = () => {
     [teamId, updateTeam, updateTeamConfiguration, gameFormatsData],
   );
 
+  const handleCreateCalendarSource = useCallback(
+    async (feedUrl: string) => {
+      if (!teamId) return;
+
+      setCalendarErrorMessage(undefined);
+      setCalendarSuccessMessage(undefined);
+
+      try {
+        await createCalendarSource({
+          variables: {
+            input: {
+              teamId,
+              provider: 'PLAYMETRICS',
+              feedUrl,
+              enabled: true,
+            },
+          },
+        });
+        setCalendarSuccessMessage('Calendar feed connected.');
+      } catch (err) {
+        setCalendarErrorMessage(
+          err instanceof Error
+            ? err.message
+            : 'Failed to connect calendar feed',
+        );
+      }
+    },
+    [createCalendarSource, teamId],
+  );
+
+  const handleSyncCalendarSource = useCallback(
+    async (sourceId: string) => {
+      if (!teamId) return;
+
+      setCalendarErrorMessage(undefined);
+      setCalendarSuccessMessage(undefined);
+
+      try {
+        const result = await syncCalendarSource({
+          variables: { teamId, sourceId },
+        });
+        const syncResult = result.data?.syncTeamCalendarSource;
+        if (syncResult) {
+          const summary = [
+            `${syncResult.created} created`,
+            `${syncResult.updated} updated`,
+            `${syncResult.skipped} skipped`,
+          ].join(', ');
+          setCalendarSuccessMessage(`Calendar sync complete: ${summary}.`);
+          if (syncResult.errors.length > 0) {
+            setCalendarErrorMessage(syncResult.errors.join('\n'));
+          }
+        } else {
+          setCalendarSuccessMessage('Calendar sync complete.');
+        }
+      } catch (err) {
+        setCalendarErrorMessage(
+          err instanceof Error ? err.message : 'Failed to sync calendar feed',
+        );
+      }
+    },
+    [syncCalendarSource, teamId],
+  );
+
   // Show loading state for fetching
   if (fetchLoading) {
     return (
@@ -252,6 +352,15 @@ export const TeamSettingsSmart = () => {
       gameFormats={gameFormats}
       formations={availableFormations}
       positions={positions}
+      calendarSources={calendarSourcesData?.teamCalendarSources ?? []}
+      calendarSourcesLoading={calendarSourcesLoading}
+      calendarSourcesError={calendarSourcesError?.message}
+      creatingCalendarSource={creatingCalendarSource}
+      syncingCalendarSource={syncingCalendarSource}
+      calendarSuccessMessage={calendarSuccessMessage}
+      calendarErrorMessage={calendarErrorMessage}
+      onCreateCalendarSource={handleCreateCalendarSource}
+      onSyncCalendarSource={handleSyncCalendarSource}
       onSaveSettings={handleSaveSettings}
       onGameFormatSelect={selectGameFormat}
       onFormationSelect={selectFormation}
