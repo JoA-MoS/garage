@@ -56,6 +56,13 @@ import { LineupPanel } from '../components/smart/lineup-panel';
 import { GameStats } from '../components/smart/game-stats.smart';
 import { GameSummaryPresentation } from '../components/presentation/game-summary.presentation';
 import { useSyncedGameTime } from '../hooks/use-synced-game-time';
+import {
+  areGameEventNotificationsEnabled,
+  enableGameEventNotifications,
+  disableGameEventNotifications,
+  getNotificationPermission,
+  notifyGameEvent,
+} from '../pwa/game-event-notifications';
 
 import { computeScore, GameHeader, StickyScoreBar } from './game';
 
@@ -147,6 +154,15 @@ export const GamePage = () => {
   const [clearEventsOnReset, setClearEventsOnReset] = useState(false);
   const [showReopenConfirm, setShowReopenConfirm] = useState(false);
   const [showManualGoalModal, setShowManualGoalModal] = useState(false);
+  const [gameEventNotificationsEnabled, setGameEventNotificationsEnabled] =
+    useState(
+      () =>
+        areGameEventNotificationsEnabled() &&
+        getNotificationPermission() === 'granted',
+    );
+  const [notificationPermission, setNotificationPermission] = useState(() =>
+    getNotificationPermission(),
+  );
 
   // Action error state - displayed as dismissible banner
   const [actionError, setActionError] = useState<string | null>(null);
@@ -639,6 +655,12 @@ export const GamePage = () => {
       playerId?: string | null;
       externalPlayerName?: string | null;
       externalPlayerNumber?: string | null;
+      player?: {
+        id: string;
+        firstName?: string | null;
+        lastName?: string | null;
+      } | null;
+      formation?: string | null;
       eventType: { id: string; name: string; category: string };
       childEvents?: Array<{
         id: string;
@@ -675,11 +697,18 @@ export const GamePage = () => {
                 period: event.period ?? null,
                 periodSecond: event.periodSecond,
                 position: event.position ?? null,
-                formation: null,
+                formation: event.formation ?? null,
                 playerId: event.playerId,
                 externalPlayerName: event.externalPlayerName,
                 externalPlayerNumber: event.externalPlayerNumber,
-                player: null, // Will be populated by server response
+                player: event.player
+                  ? {
+                      __typename: 'User',
+                      id: event.player.id,
+                      firstName: event.player.firstName,
+                      lastName: event.player.lastName,
+                    }
+                  : null,
                 eventType: {
                   __typename: 'EventType',
                   ...event.eventType,
@@ -748,11 +777,49 @@ export const GamePage = () => {
         }, 150);
       }
 
+      const eventTeam =
+        event.gameTeamId === homeTeamData?.id
+          ? homeTeamData
+          : event.gameTeamId === awayTeamData?.id
+            ? awayTeamData
+            : null;
+      if (eventTeam) {
+        const teamType = eventTeam.teamType as 'home' | 'away';
+        const notificationHomeScore =
+          event.eventType.name === 'GOAL' && teamType === 'home'
+            ? homeScore + 1
+            : homeScore;
+        const notificationAwayScore =
+          event.eventType.name === 'GOAL' && teamType === 'away'
+            ? awayScore + 1
+            : awayScore;
+
+        notifyGameEvent(event, {
+          gameName: data?.game?.name || 'Game update',
+          teamName: eventTeam.team.name,
+          opponentName:
+            teamType === 'home'
+              ? awayTeamData?.team.name
+              : homeTeamData?.team.name,
+          teamType,
+          homeScore: notificationHomeScore,
+          awayScore: notificationAwayScore,
+        });
+      }
+
       // Note: Score highlight animations are now triggered by useEffect watching
       // homeScore/awayScore changes, ensuring animation is synchronized with
       // the displayed score update (not the subscription message timing).
     },
-    [apolloClient, gameId],
+    [
+      apolloClient,
+      gameId,
+      homeTeamData,
+      awayTeamData,
+      homeScore,
+      awayScore,
+      data?.game?.name,
+    ],
   );
 
   const handleEventDeleted = useCallback(
@@ -789,6 +856,27 @@ export const GamePage = () => {
     },
     [],
   );
+
+  const handleToggleGameEventNotifications = useCallback(async () => {
+    if (gameEventNotificationsEnabled) {
+      disableGameEventNotifications();
+      setGameEventNotificationsEnabled(false);
+      setNotificationPermission(getNotificationPermission());
+      return;
+    }
+
+    const permission = await enableGameEventNotifications();
+    setNotificationPermission(permission);
+    setGameEventNotificationsEnabled(permission === 'granted');
+
+    if (permission === 'denied') {
+      setActionError(
+        'Notifications are blocked for this browser. Enable them in browser settings to receive game alerts.',
+      );
+    } else if (permission === 'unsupported') {
+      setActionError('This browser does not support game event notifications.');
+    }
+  }, [gameEventNotificationsEnabled]);
 
   // Refs for subscription callbacks - keeps subscriptions stable across re-renders.
   // Without refs, every cache update creates new callback references, which would
@@ -1591,6 +1679,8 @@ export const GamePage = () => {
         }
         isPaused={!!game.pausedAt}
         isConnected={isConnected}
+        gameEventNotificationsEnabled={gameEventNotificationsEnabled}
+        notificationPermission={notificationPermission}
         showGameMenu={showGameMenu}
         showResetConfirm={showResetConfirm}
         clearEventsOnReset={clearEventsOnReset}
@@ -1598,6 +1688,7 @@ export const GamePage = () => {
         onToggleMenu={() => setShowGameMenu(!showGameMenu)}
         onCloseMenu={() => setShowGameMenu(false)}
         onTogglePause={handleTogglePause}
+        onToggleGameEventNotifications={handleToggleGameEventNotifications}
         onStatsTrackingChange={handleStatsTrackingChange}
         onShowResetConfirm={setShowResetConfirm}
         onClearEventsChange={setClearEventsOnReset}
