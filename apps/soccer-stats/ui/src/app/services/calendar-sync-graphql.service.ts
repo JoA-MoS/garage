@@ -1,6 +1,5 @@
+import { gql } from '@apollo/client';
 import type { TypedDocumentNode } from '@graphql-typed-document-node/core';
-
-import { graphql } from '@garage/soccer-stats/graphql-codegen';
 
 export interface CalendarSourceViewModel {
   id: string;
@@ -59,7 +58,7 @@ interface SyncTeamCalendarSourceVariables {
   sourceId: string;
 }
 
-export const TEAM_CALENDAR_SOURCES = graphql(/* GraphQL */ `
+export const TEAM_CALENDAR_SOURCES = gql`
   query TeamCalendarSources($teamId: ID!) {
     teamCalendarSources(teamId: $teamId) {
       id
@@ -75,12 +74,12 @@ export const TEAM_CALENDAR_SOURCES = graphql(/* GraphQL */ `
       updatedAt
     }
   }
-`) as TypedDocumentNode<
+` as TypedDocumentNode<
   TeamCalendarSourcesResponse,
   TeamCalendarSourcesVariables
 >;
 
-export const CREATE_TEAM_CALENDAR_SOURCE = graphql(/* GraphQL */ `
+export const CREATE_TEAM_CALENDAR_SOURCE = gql`
   mutation CreateTeamCalendarSource($input: CreateCalendarSourceInput!) {
     createTeamCalendarSource(input: $input) {
       id
@@ -96,12 +95,12 @@ export const CREATE_TEAM_CALENDAR_SOURCE = graphql(/* GraphQL */ `
       updatedAt
     }
   }
-`) as TypedDocumentNode<
+` as TypedDocumentNode<
   CreateTeamCalendarSourceResponse,
   CreateTeamCalendarSourceVariables
 >;
 
-export const SYNC_TEAM_CALENDAR_SOURCE = graphql(/* GraphQL */ `
+export const SYNC_TEAM_CALENDAR_SOURCE = gql`
   mutation SyncTeamCalendarSource($teamId: ID!, $sourceId: ID!) {
     syncTeamCalendarSource(teamId: $teamId, sourceId: $sourceId) {
       sourceId
@@ -111,7 +110,7 @@ export const SYNC_TEAM_CALENDAR_SOURCE = graphql(/* GraphQL */ `
       errors
     }
   }
-`) as TypedDocumentNode<
+` as TypedDocumentNode<
   SyncTeamCalendarSourceResponse,
   SyncTeamCalendarSourceVariables
 >;
