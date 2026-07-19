@@ -13,6 +13,8 @@ export interface MemoryMetrics {
   heapTotalMB: number;
   rssMB: number;
   heapUsagePercent: number;
+  containerLimitMB: number;
+  rssUsagePercent: number;
 }
 
 /**
@@ -22,7 +24,19 @@ export interface HealthStatus {
   status: 'ok' | 'degraded' | 'unhealthy';
   timestamp: string;
   uptime: number;
+  build: BuildInfo;
   memory?: MemoryMetrics;
+}
+
+/**
+ * Build metadata for identifying the deployed API artifact.
+ */
+export interface BuildInfo {
+  name: string;
+  version: string;
+  gitSha: string;
+  buildTime: string;
+  environment: string;
 }
 
 /**
@@ -50,6 +64,7 @@ export interface ProcessMetrics {
 export class AppService {
   private readonly startTime = Date.now();
   private readonly logger = new Logger(AppService.name);
+  private readonly containerMemoryLimitMB = this.getContainerMemoryLimitMB();
 
   constructor(
     @Optional()
@@ -60,13 +75,27 @@ export class AppService {
     return { message: 'Hello API' };
   }
 
+  getVersion(): BuildInfo {
+    return {
+      name: 'soccer-stats-api',
+      version: process.env['APP_VERSION'] || '0.0.1',
+      gitSha: process.env['GIT_SHA'] || 'unknown',
+      buildTime: process.env['BUILD_TIME'] || 'unknown',
+      environment: process.env['NODE_ENV'] || 'unknown',
+    };
+  }
+
   /**
    * Get health status with optional memory metrics.
    *
-   * Status is determined by heap usage:
-   * - ok: < 80% heap usage
-   * - degraded: 80-95% heap usage (high memory pressure)
-   * - unhealthy: > 95% heap usage (critical, may OOM soon)
+   * Status is determined by resident memory usage against the configured
+   * container memory limit. `heapUsed / heapTotal` is still reported for
+   * debugging, but it is intentionally not the health gate: V8 can keep a
+   * small heap nearly full on an otherwise healthy process.
+   *
+   * - ok: RSS < 75% of container limit
+   * - degraded: RSS is 75-90% of container limit
+   * - unhealthy: RSS > 90% of container limit
    */
   getHealth(): HealthStatus {
     const uptime = Math.floor((Date.now() - this.startTime) / 1000);
@@ -78,18 +107,25 @@ export class AppService {
         status: 'ok',
         timestamp,
         uptime,
+        build: this.getVersion(),
       };
     }
 
     const snapshot = this.observabilityService.getMemorySnapshot();
-    const heapUsagePercent =
-      Math.round((snapshot.heapUsedMB / snapshot.heapTotalMB) * 10000) / 100;
+    const heapUsagePercent = this.toPercent(
+      snapshot.heapUsedMB,
+      snapshot.heapTotalMB,
+    );
+    const rssUsagePercent = this.toPercent(
+      snapshot.rssMB,
+      this.containerMemoryLimitMB,
+    );
 
-    // Determine status based on heap usage
+    // Determine status based on RSS/container memory, not V8 heap fullness.
     let status: 'ok' | 'degraded' | 'unhealthy' = 'ok';
-    if (heapUsagePercent > 95) {
+    if (rssUsagePercent >= 90) {
       status = 'unhealthy';
-    } else if (heapUsagePercent > 80) {
+    } else if (rssUsagePercent >= 75) {
       status = 'degraded';
     }
 
@@ -97,13 +133,39 @@ export class AppService {
       status,
       timestamp,
       uptime,
+      build: this.getVersion(),
       memory: {
         heapUsedMB: snapshot.heapUsedMB,
         heapTotalMB: snapshot.heapTotalMB,
         rssMB: snapshot.rssMB,
         heapUsagePercent,
+        containerLimitMB: this.containerMemoryLimitMB,
+        rssUsagePercent,
       },
     };
+  }
+
+  private getContainerMemoryLimitMB(): number {
+    const rawLimit = process.env['CONTAINER_MEMORY_LIMIT_MB'];
+    const parsedLimit = rawLimit ? Number(rawLimit) : 512;
+
+    if (!Number.isFinite(parsedLimit) || parsedLimit <= 0) {
+      this.logger.warn({
+        message: 'Invalid CONTAINER_MEMORY_LIMIT_MB, defaulting to 512MB',
+        value: rawLimit,
+      });
+      return 512;
+    }
+
+    return parsedLimit;
+  }
+
+  private toPercent(used: number, total: number): number {
+    if (total <= 0) {
+      return 0;
+    }
+
+    return Math.round((used / total) * 10000) / 100;
   }
 
   /**

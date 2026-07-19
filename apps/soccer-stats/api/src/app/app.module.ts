@@ -17,6 +17,7 @@ import { EventTypesModule } from '../modules/event-types/event-types.module';
 import { GameEventsModule } from '../modules/game-events/game-events.module';
 import { TeamMembersModule } from '../modules/team-members/team-members.module';
 import { TeamStatsModule } from '../modules/team-stats/team-stats.module';
+import { CalendarSyncModule } from '../modules/calendar-sync/calendar-sync.module';
 import { MyModule } from '../modules/my/my.module';
 import { PubSubModule } from '../modules/pubsub/pubsub.module';
 import { DataLoadersModule, DataLoadersService } from '../modules/dataloaders';
@@ -126,6 +127,7 @@ interface AuthenticatedRequest extends Request {
     GameEventsModule,
     TeamMembersModule,
     TeamStatsModule,
+    CalendarSyncModule,
     MyModule,
   ],
   controllers: [AppController, ConfigController],

@@ -1,0 +1,149 @@
+name: Deploy Soccer Stats
+
+on:
+  push:
+    branches:
+      - main
+  # Manual escape hatch: deploys all three stacks regardless of what changed
+  workflow_dispatch:
+
+permissions:
+  id-token: write # OIDC token for assuming the AWS CD role
+  contents: read
+  deployments: write
+
+# Never run two pulumi ups against the same stacks concurrently
+concurrency:
+  group: deploy-soccer-stats
+  cancel-in-progress: false
+
+env:
+  NX_NO_CLOUD: 'true'
+  NX_LOAD_DOT_ENV_FILES: 'false'
+  NX_TUI: 'false'
+  PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+  SOCCER_STATS_SITE_URL: https://d26g1hjb51pz2g.cloudfront.net
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Derive SHAs for nx affected
+        uses: nrwl/nx-set-shas@0e2d18b530b83b68263ff7b74e46b1ba300c83fc # v3
+      - name: Ensure affected base exists in history
+        # The tracked "last successful run" SHA can be orphaned by a history
+        # rewrite; fall back to HEAD~1 so nx affected doesn't crash
+        run: |
+          if ! git cat-file -e "$NX_BASE" 2>/dev/null; then
+            echo "Base $NX_BASE not found in history; falling back to HEAD~1"
+            echo "NX_BASE=$(git rev-parse HEAD~1)" >> "$GITHUB_ENV"
+          fi
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ vars.AWS_CD_ROLE_ARN }}
+          aws-region: us-west-2
+
+      - name: Install Pulumi CLI
+        run: |
+          curl -fsSL https://get.pulumi.com | sh -s -- --version 3.251.0
+          echo "$HOME/.pulumi/bin" >> "$GITHUB_PATH"
+
+      # Push to main: deploy only affected stacks. Nx dependsOn encodes the
+      # ordering (infra -> api-infra -> ui-infra) and pulls in builds and the
+      # Docker image push. API deploys use immutable git-SHA image tags so
+      # App Runner is pointed at the exact image built by this run.
+      - name: Deploy affected stacks
+        if: github.event_name == 'push'
+        run: pnpm nx affected --target=up --parallel=1
+
+      - name: Deploy all stacks (manual dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: pnpm nx run-many --target=up --projects=soccer-stats-infra,soccer-stats-api-infra,soccer-stats-ui-infra --parallel=1
+
+      - name: Verify deployment health
+        run: |
+          pushd apps/soccer-stats/api-infra >/dev/null
+          APP_RUNNER_SERVICE_URL=$(pulumi stack output serviceUrl --stack JoA-MoS/dev)
+          popd >/dev/null
+
+          API_DIRECT_URL="https://${APP_RUNNER_SERVICE_URL}"
+          EXPECTED_GIT_SHA="${GITHUB_SHA::7}"
+
+          for i in $(seq 1 20); do
+            HEALTH_STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SOCCER_STATS_SITE_URL/api/health" || true)
+            VERSION_RESPONSE=$(curl -sS --max-time 30 "$API_DIRECT_URL/api/version" || true)
+            VERSION_GIT_SHA=$(echo "$VERSION_RESPONSE" | node -e "let body=''; process.stdin.on('data', c => body += c); process.stdin.on('end', () => { try { const parsed = JSON.parse(body); process.stdout.write(parsed.gitSha || ''); } catch { process.stdout.write(''); } });")
+            PUBLIC_VERSION_RESPONSE=$(curl -sS --max-time 30 "$SOCCER_STATS_SITE_URL/api/version" || true)
+            PUBLIC_VERSION_GIT_SHA=$(echo "$PUBLIC_VERSION_RESPONSE" | node -e "let body=''; process.stdin.on('data', c => body += c); process.stdin.on('end', () => { try { const parsed = JSON.parse(body); process.stdout.write(parsed.gitSha || ''); } catch { process.stdout.write(''); } });")
+
+            if [ "$HEALTH_STATUS" = "200" ] && [ "$VERSION_GIT_SHA" = "$EXPECTED_GIT_SHA" ] && [ "$PUBLIC_VERSION_GIT_SHA" = "$EXPECTED_GIT_SHA" ]; then
+              echo "Health and API version checks passed"
+              echo "Verified direct API version gitSha=$VERSION_GIT_SHA at $API_DIRECT_URL/api/version"
+              echo "Verified public API version gitSha=$PUBLIC_VERSION_GIT_SHA at $SOCCER_STATS_SITE_URL/api/version"
+              exit 0
+            fi
+
+            echo "Attempt $i: /api/health returned $HEALTH_STATUS; direct /api/version gitSha was ${VERSION_GIT_SHA:-missing}; public /api/version gitSha was ${PUBLIC_VERSION_GIT_SHA:-missing}; expected $EXPECTED_GIT_SHA — retrying in 15s (Aurora/App Runner/CloudFront may still be updating)"
+            echo "Direct /api/version response:"
+            echo "$VERSION_RESPONSE" | head -c 1000
+            echo ""
+            echo "Public /api/version response:"
+            echo "$PUBLIC_VERSION_RESPONSE" | head -c 1000
+            echo ""
+            sleep 15
+          done
+          echo "Deployment verification failed after 5 minutes"
+          exit 1
+
+      - name: Record GitHub deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat > deployment.json <<JSON
+          {
+            "ref": "$GITHUB_SHA",
+            "environment": "soccer-stats-production",
+            "auto_merge": false,
+            "required_contexts": [],
+            "production_environment": true,
+            "description": "Soccer Stats production deployment"
+          }
+          JSON
+
+          DEPLOYMENT_ID=$(gh api \
+            --method POST \
+            "/repos/$GITHUB_REPOSITORY/deployments" \
+            --input deployment.json \
+            --jq '.id')
+
+          gh api \
+            --method POST \
+            "/repos/$GITHUB_REPOSITORY/deployments/$DEPLOYMENT_ID/statuses" \
+            -f state="success" \
+            -f environment="soccer-stats-production" \
+            -f environment_url="$SOCCER_STATS_SITE_URL" \
+            -f target_url="$SOCCER_STATS_SITE_URL" \
+            -f log_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            -f description="Soccer Stats deployment verified healthy"
+
+      - name: Deployment summary
+        run: |
+          {
+            echo "## Soccer Stats deployment"
+            echo ""
+            echo "- URL: $SOCCER_STATS_SITE_URL"
+            echo "- Health: $SOCCER_STATS_SITE_URL/api/health"
+            echo "- GraphQL: $SOCCER_STATS_SITE_URL/api/graphql"
+          } >> "$GITHUB_STEP_SUMMARY"

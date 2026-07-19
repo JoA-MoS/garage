@@ -5,82 +5,71 @@ export interface SecurityGroupsConfig {
   namePrefix: string;
   stack: string;
   vpcId: pulumi.Output<string>;
-  containerPort: number;
+  /** VPC CIDR — used to allow NAT forwarding from private subnets through the bastion */
+  vpcCidr: string;
   awsProvider: aws.Provider;
-  /** Allow public access to RDS (dev only - for local development) */
-  allowPublicRdsAccess?: boolean;
 }
 
 export interface SecurityGroupsOutputs {
-  albSecurityGroup: aws.ec2.SecurityGroup;
-  ecsSecurityGroup: aws.ec2.SecurityGroup;
+  appRunnerConnectorSecurityGroup: aws.ec2.SecurityGroup;
+  bastionSecurityGroup: aws.ec2.SecurityGroup;
   rdsSecurityGroup: aws.ec2.SecurityGroup;
 }
 
-/**
- * Creates security groups for ALB, ECS tasks, and RDS.
- */
+/** Creates security groups for App Runner VPC Connector, bastion, and Aurora. */
 export function createSecurityGroups(
   config: SecurityGroupsConfig,
 ): SecurityGroupsOutputs {
-  const {
-    namePrefix,
-    stack,
-    vpcId,
-    containerPort,
-    awsProvider,
-    allowPublicRdsAccess = false,
-  } = config;
+  const { namePrefix, stack, vpcId, vpcCidr, awsProvider } = config;
 
-  // ALB Security Group - allows HTTP/HTTPS from internet
-  const albSecurityGroup = new aws.ec2.SecurityGroup(
-    `${namePrefix}-alb-sg`,
+  // App Runner VPC Connector SG — outbound to Aurora and HTTPS (Clerk API via NAT)
+  const appRunnerConnectorSecurityGroup = new aws.ec2.SecurityGroup(
+    `${namePrefix}-apprunner-connector-sg`,
     {
       vpcId,
-      description: 'Security group for Application Load Balancer',
-      ingress: [
+      description:
+        'Security group for App Runner VPC Connector - egress to Aurora and HTTPS',
+      egress: [
         {
           protocol: 'tcp',
-          fromPort: 80,
-          toPort: 80,
-          cidrBlocks: ['0.0.0.0/0'],
-          description: 'HTTP',
+          fromPort: 5432,
+          toPort: 5432,
+          cidrBlocks: [vpcCidr],
+          description: 'Allow PostgreSQL outbound to Aurora (VPC only)',
         },
         {
           protocol: 'tcp',
           fromPort: 443,
           toPort: 443,
           cidrBlocks: ['0.0.0.0/0'],
-          description: 'HTTPS',
+          description:
+            'Allow HTTPS outbound (Clerk API, AWS APIs) via NAT bastion',
         },
       ],
-      egress: [
-        {
-          protocol: '-1',
-          fromPort: 0,
-          toPort: 0,
-          cidrBlocks: ['0.0.0.0/0'],
-          description: 'Allow all outbound',
-        },
-      ],
-      tags: { Name: `${namePrefix}-alb-sg`, Environment: stack },
+      tags: {
+        Name: `${namePrefix}-apprunner-connector-sg`,
+        Environment: stack,
+      },
     },
     { provider: awsProvider },
   );
 
-  // ECS Security Group - allows traffic from ALB only
-  const ecsSecurityGroup = new aws.ec2.SecurityGroup(
-    `${namePrefix}-ecs-sg`,
+  // Bastion/NAT SG — no inbound from internet (SSM connects without open ports).
+  // Ingress from VPC CIDR so private subnets can route internet traffic through
+  // the fck-nat instance; egress open for NAT forwarding and SSM.
+  const bastionSecurityGroup = new aws.ec2.SecurityGroup(
+    `${namePrefix}-bastion-sg`,
     {
       vpcId,
-      description: 'Security group for ECS tasks',
+      description:
+        'Security group for SSM bastion + fck-nat - ingress from VPC only, open egress for NAT',
       ingress: [
         {
-          protocol: 'tcp',
-          fromPort: containerPort,
-          toPort: containerPort,
-          securityGroups: [albSecurityGroup.id],
-          description: 'Allow traffic from ALB',
+          protocol: '-1',
+          fromPort: 0,
+          toPort: 0,
+          cidrBlocks: [vpcCidr],
+          description: 'Allow all traffic from VPC for NAT forwarding',
         },
       ],
       egress: [
@@ -89,42 +78,37 @@ export function createSecurityGroups(
           fromPort: 0,
           toPort: 0,
           cidrBlocks: ['0.0.0.0/0'],
-          description: 'Allow all outbound',
+          description: 'Allow all outbound (NAT forwarding, SSM, Aurora)',
         },
       ],
-      tags: { Name: `${namePrefix}-ecs-sg`, Environment: stack },
+      tags: { Name: `${namePrefix}-bastion-sg`, Environment: stack },
     },
     { provider: awsProvider },
   );
 
-  // RDS Security Group - allows PostgreSQL from ECS tasks (and optionally from internet in dev)
-  const rdsIngressRules: aws.types.input.ec2.SecurityGroupIngress[] = [
-    {
-      protocol: 'tcp',
-      fromPort: 5432,
-      toPort: 5432,
-      securityGroups: [ecsSecurityGroup.id],
-      description: 'Allow PostgreSQL from ECS tasks',
-    },
-  ];
-
-  // In dev, allow direct access from the internet for local development
-  if (allowPublicRdsAccess) {
-    rdsIngressRules.push({
-      protocol: 'tcp',
-      fromPort: 5432,
-      toPort: 5432,
-      cidrBlocks: ['0.0.0.0/0'],
-      description: 'Allow PostgreSQL from internet (dev only)',
-    });
-  }
-
+  // RDS SG — inbound from App Runner connector and bastion only
   const rdsSecurityGroup = new aws.ec2.SecurityGroup(
     `${namePrefix}-rds-sg`,
     {
       vpcId,
-      description: 'Security group for RDS PostgreSQL',
-      ingress: rdsIngressRules,
+      description:
+        'Security group for Aurora - ingress from App Runner connector and bastion',
+      ingress: [
+        {
+          protocol: 'tcp',
+          fromPort: 5432,
+          toPort: 5432,
+          securityGroups: [appRunnerConnectorSecurityGroup.id],
+          description: 'Allow PostgreSQL from App Runner VPC Connector',
+        },
+        {
+          protocol: 'tcp',
+          fromPort: 5432,
+          toPort: 5432,
+          securityGroups: [bastionSecurityGroup.id],
+          description: 'Allow PostgreSQL from bastion for local dev access',
+        },
+      ],
       egress: [
         {
           protocol: '-1',
@@ -140,8 +124,8 @@ export function createSecurityGroups(
   );
 
   return {
-    albSecurityGroup,
-    ecsSecurityGroup,
+    appRunnerConnectorSecurityGroup,
+    bastionSecurityGroup,
     rdsSecurityGroup,
   };
 }

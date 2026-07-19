@@ -67,6 +67,16 @@ interface TeamGamesPresentationProps {
   onViewGame: (gameId: string) => void;
 }
 
+function formatGameDate(value?: string | null) {
+  if (!value) return 'Date not scheduled';
+  return new Date(value).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
 export const TeamGamesPresentation = ({
   teamId,
   games,
@@ -85,8 +95,13 @@ export const TeamGamesPresentation = ({
 }: TeamGamesPresentationProps) => {
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-lg text-gray-600">Loading games...</div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {[0, 1, 2].map((item) => (
+          <div
+            key={item}
+            className="h-44 animate-pulse rounded-2xl bg-slate-200/80"
+          />
+        ))}
       </div>
     );
   }
@@ -105,11 +120,11 @@ export const TeamGamesPresentation = ({
       case 'PAUSED':
         return { text: 'Paused', color: 'bg-yellow-100 text-yellow-800' };
       case 'FINISHED':
-        return { text: 'Finished', color: 'bg-gray-100 text-gray-800' };
+        return { text: 'Finished', color: 'bg-slate-100 text-slate-800' };
       case 'CANCELLED':
         return { text: 'Cancelled', color: 'bg-red-100 text-red-800' };
       default:
-        return { text: status, color: 'bg-gray-100 text-gray-800' };
+        return { text: status, color: 'bg-slate-100 text-slate-800' };
     }
   };
 
@@ -121,30 +136,71 @@ export const TeamGamesPresentation = ({
     return game.currentTeamType === 'home';
   };
 
+  const scheduledGames = games.filter(
+    (game) => game.status === 'NOT_STARTED',
+  ).length;
+  const completedGames = games.filter(
+    (game) => game.status === 'FINISHED',
+  ).length;
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Games</h3>
-        <button
-          onClick={onCreateGame}
-          className="flex items-center space-x-2 rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
-        >
-          <span>⚽</span>
-          <span>Create New Game</span>
-        </button>
-      </div>
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-black text-slate-950">Games</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Schedule matches, then jump straight into tracking when it is
+              time.
+            </p>
+          </div>
+          <button
+            onClick={onCreateGame}
+            className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            <span aria-hidden="true">⚽</span>
+            <span>Create Game</span>
+          </button>
+        </div>
 
-      {/* Create Game Form Modal */}
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl bg-slate-50 p-4">
+            <div className="text-2xl font-black text-slate-950">
+              {games.length}
+            </div>
+            <div className="text-sm text-slate-500">total games</div>
+          </div>
+          <div className="rounded-xl bg-blue-50 p-4">
+            <div className="text-2xl font-black text-blue-900">
+              {scheduledGames}
+            </div>
+            <div className="text-sm text-blue-700">scheduled</div>
+          </div>
+          <div className="rounded-xl bg-emerald-50 p-4">
+            <div className="text-2xl font-black text-emerald-900">
+              {completedGames}
+            </div>
+            <div className="text-sm text-emerald-700">completed</div>
+          </div>
+        </div>
+      </section>
+
       {showCreateForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6">
-            <h3 className="mb-4 text-lg font-semibold">Create New Game</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="border-b border-slate-200 px-6 py-5">
+              <h3 className="text-xl font-black text-slate-950">
+                Create New Game
+              </h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Pick the opponent, venue, and format. You can fill in deeper
+                details later.
+              </p>
+            </div>
 
-            <div className="space-y-4">
-              {/* Opponent Selection */}
+            <div className="space-y-4 px-6 py-5">
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
                   Opponent Team
                 </label>
                 <select
@@ -152,7 +208,7 @@ export const TeamGamesPresentation = ({
                   onChange={(e) =>
                     onFormChange('opponentTeamId', e.target.value)
                   }
-                  className="w-full rounded-md border border-gray-300 p-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  className="min-h-[44px] w-full rounded-xl border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                   required
                 >
                   <option value="">Select opponent...</option>
@@ -164,91 +220,94 @@ export const TeamGamesPresentation = ({
                 </select>
               </div>
 
-              {/* Home/Away Selection */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
+              <fieldset>
+                <legend className="mb-2 block text-sm font-semibold text-slate-700">
                   Venue
-                </label>
-                <div className="flex space-x-4">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="venue"
-                      checked={gameForm.isHome}
-                      onChange={() => onFormChange('isHome', true)}
-                      className="mr-2"
-                    />
-                    Home
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="venue"
-                      checked={!gameForm.isHome}
-                      onChange={() => onFormChange('isHome', false)}
-                      className="mr-2"
-                    />
-                    Away
-                  </label>
-                </div>
-              </div>
-
-              {/* Game Format */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Game Format
-                </label>
-                <select
-                  value={gameForm.gameFormatId}
-                  onChange={(e) => onFormChange('gameFormatId', e.target.value)}
-                  className="w-full rounded-md border border-gray-300 p-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select game format</option>
-                  {formatOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
+                </legend>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: 'Home', value: true, icon: '🏠' },
+                    { label: 'Away', value: false, icon: '✈️' },
+                  ].map((option) => (
+                    <button
+                      key={option.label}
+                      type="button"
+                      onClick={() => onFormChange('isHome', option.value)}
+                      className={`min-h-[44px] rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                        gameForm.isHome === option.value
+                          ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-100'
+                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="mr-2" aria-hidden="true">
+                        {option.icon}
+                      </span>
                       {option.label}
-                    </option>
+                    </button>
                   ))}
-                </select>
-              </div>
+                </div>
+              </fieldset>
 
-              {/* Duration */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Duration (minutes)
-                </label>
-                <input
-                  type="number"
-                  value={gameForm.duration}
-                  onChange={(e) =>
-                    onFormChange('duration', parseInt(e.target.value) || 90)
-                  }
-                  min="1"
-                  max="120"
-                  className="w-full rounded-md border border-gray-300 p-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                />
+              <div className="grid gap-4 sm:grid-cols-[1fr_140px]">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Game Format
+                  </label>
+                  <select
+                    value={gameForm.gameFormatId}
+                    onChange={(e) =>
+                      onFormChange('gameFormatId', e.target.value)
+                    }
+                    className="min-h-[44px] w-full rounded-xl border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select format</option>
+                    {formatOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Duration
+                  </label>
+                  <input
+                    type="number"
+                    value={gameForm.duration}
+                    onChange={(e) =>
+                      onFormChange('duration', parseInt(e.target.value) || 90)
+                    }
+                    min="1"
+                    max="120"
+                    className="min-h-[44px] w-full rounded-xl border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Error Display */}
             {error && (
-              <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+              <div className="mx-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 {error}
               </div>
             )}
 
-            {/* Form Actions */}
-            <div className="mt-6 flex space-x-3">
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-200 px-6 py-5 sm:flex-row sm:justify-end">
               <button
                 onClick={onCancelCreate}
-                className="flex-1 rounded-md bg-gray-200 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-300"
+                className="min-h-[44px] rounded-xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50"
               >
                 Cancel
               </button>
               <button
                 onClick={onSubmitGame}
-                disabled={!gameForm.opponentTeamId || createLoading}
-                className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={
+                  !gameForm.opponentTeamId ||
+                  !gameForm.gameFormatId ||
+                  createLoading
+                }
+                className="min-h-[44px] rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {createLoading ? 'Creating...' : 'Create Game'}
               </button>
@@ -257,85 +316,84 @@ export const TeamGamesPresentation = ({
         </div>
       )}
 
-      {/* Games List */}
       {games.length === 0 ? (
-        <div className="py-12 text-center">
-          <div className="mb-4 text-gray-500">
-            <span className="text-4xl">⚽</span>
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
+          <div className="text-5xl" aria-hidden="true">
+            ⚽
           </div>
-          <h3 className="mb-2 text-lg font-semibold text-gray-900">
-            No Games Yet
+          <h3 className="mt-4 text-xl font-black text-slate-950">
+            No games yet
           </h3>
-          <p className="mb-6 text-gray-600">
-            Create your first game to start tracking stats and managing lineups.
+          <p className="mx-auto mt-2 max-w-md text-slate-500">
+            Create the first game to unlock lineup tracking, stats, and match
+            history.
           </p>
+          <button
+            onClick={onCreateGame}
+            className="mt-6 inline-flex min-h-[44px] items-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+          >
+            Create first game
+          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {games.map((game) => {
             const opponent = getOpponentTeam(game);
             const isHome = isHomeTeam(game);
             const statusInfo = getGameStatus(game.status);
 
             return (
-              <div
+              <button
                 key={game.id}
-                className="cursor-pointer rounded-lg border border-gray-200 bg-white p-4 transition-shadow hover:shadow-md"
+                type="button"
+                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 onClick={() => onViewGame(game.id)}
               >
-                {/* Game Header */}
-                <div className="mb-3 flex items-center justify-between">
+                <div className="mb-4 flex items-center justify-between gap-3">
                   <span
-                    className={`rounded-full px-2 py-1 text-xs font-medium ${statusInfo.color}`}
+                    className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusInfo.color}`}
                   >
                     {statusInfo.text}
                   </span>
-                  <span className="text-sm text-gray-500">
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
                     {game.format?.name || 'Unknown Format'}
                   </span>
                 </div>
 
-                {/* Teams */}
-                <div className="mb-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium">
-                        {isHome ? '🏠' : '✈️'}
-                      </span>
-                      <span className="text-sm">
-                        {isHome ? 'vs' : 'at'} {opponent?.name || 'Unknown'}
-                      </span>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
+                    {isHome ? '🏠' : '✈️'}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="truncate text-lg font-black text-slate-950">
+                      {isHome ? 'vs' : 'at'}{' '}
+                      {opponent?.name || 'Unknown opponent'}
+                    </h3>
+                    <p className="text-sm text-slate-500">
+                      {formatGameDate(game.scheduledStart)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <div className="text-slate-500">Score</div>
+                    <div className="mt-1 font-black text-slate-950">
+                      {game.currentTeamScore ?? '—'}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <div className="text-slate-500">Created</div>
+                    <div className="mt-1 font-semibold text-slate-950">
+                      {new Date(game.createdAt).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
 
-                {/* Game Info */}
-                <div className="space-y-1 text-xs text-gray-500">
-                  {game.scheduledStart && (
-                    <div>
-                      Scheduled:{' '}
-                      {new Date(game.scheduledStart).toLocaleString()}
-                    </div>
-                  )}
-                  <div>
-                    Created: {new Date(game.createdAt).toLocaleDateString()}
-                  </div>
+                <div className="mt-4 border-t border-slate-100 pt-4 text-sm font-semibold text-blue-700 group-hover:text-blue-900">
+                  {game.status === 'NOT_STARTED' ? 'Start Game' : 'View Game'} →
                 </div>
-
-                {/* Action Button */}
-                <div className="mt-3 border-t border-gray-100 pt-3">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewGame(game.id);
-                    }}
-                    className="w-full text-sm font-medium text-blue-600 hover:text-blue-800"
-                  >
-                    {game.status === 'NOT_STARTED' ? 'Start Game' : 'View Game'}{' '}
-                    →
-                  </button>
-                </div>
-              </div>
+              </button>
             );
           })}
         </div>

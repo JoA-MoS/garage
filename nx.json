@@ -90,7 +90,7 @@
     },
     "@nx-extend/pulumi:up": {
       "options": {
-        "tti": false
+        "tui": false
       }
     },
     "@nx-extend/pulumi:preview": {

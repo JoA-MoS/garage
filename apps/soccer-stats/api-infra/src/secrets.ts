@@ -1,51 +1,33 @@
-import * as pulumi from '@pulumi/pulumi';
 import * as aws from '@pulumi/aws';
 
-import {
-  namePrefix,
-  stack,
-  clerkSecretKey,
-  clerkPublishableKey,
-} from './config';
-import { taskExecutionRoleArn } from './shared-infra';
+import { namePrefix, stack, clerkSecretKey } from './config';
+import { appRunnerInstanceRoleArn } from './shared-infra';
 
-// =============================================================================
-// Clerk Secrets
-// =============================================================================
-// Store Clerk credentials in Secrets Manager for secure access by ECS
-export const clerkSecret = new aws.secretsmanager.Secret(
-  `${namePrefix}-clerk`,
+// Store Clerk secret key as a plain string (not JSON) so App Runner can inject it directly
+export const clerkSecretKeySecret = new aws.secretsmanager.Secret(
+  `${namePrefix}-clerk-secret-key`,
   {
-    name: `soccer-stats-${stack}/clerk`,
-    description: 'Clerk authentication credentials for soccer-stats API',
-    tags: {
-      Name: `${namePrefix}-clerk`,
-      Environment: stack,
-    },
+    name: `soccer-stats-${stack}/clerk-secret-key`,
+    description:
+      'Clerk secret key for soccer-stats API (plain string for App Runner)',
+    tags: { Name: `${namePrefix}-clerk-secret-key`, Environment: stack },
   },
 );
 
-export const clerkSecretVersion = new aws.secretsmanager.SecretVersion(
-  `${namePrefix}-clerk-version`,
+export const clerkSecretKeySecretVersion = new aws.secretsmanager.SecretVersion(
+  `${namePrefix}-clerk-secret-key-version`,
   {
-    secretId: clerkSecret.id,
-    secretString: pulumi
-      .all([clerkSecretKey, clerkPublishableKey])
-      .apply(([secretKey, publishableKey]) =>
-        JSON.stringify({
-          secretKey,
-          publishableKey,
-        }),
-      ),
+    secretId: clerkSecretKeySecret.id,
+    secretString: clerkSecretKey,
   },
 );
 
-// Grant task execution role access to the Clerk secret
+// Grant App Runner instance role access to the Clerk secret
 export const clerkSecretPolicy = new aws.iam.RolePolicy(
   `${namePrefix}-clerk-secret-policy`,
   {
-    role: taskExecutionRoleArn.apply((arn: string) => arn.split('/').pop()!),
-    policy: clerkSecret.arn.apply((secretArn) =>
+    role: appRunnerInstanceRoleArn.apply((arn) => arn.split('/').pop()!),
+    policy: clerkSecretKeySecret.arn.apply((secretArn) =>
       JSON.stringify({
         Version: '2012-10-17',
         Statement: [
@@ -59,3 +41,5 @@ export const clerkSecretPolicy = new aws.iam.RolePolicy(
     ),
   },
 );
+
+export const clerkSecretKeySecretArn = clerkSecretKeySecret.arn;

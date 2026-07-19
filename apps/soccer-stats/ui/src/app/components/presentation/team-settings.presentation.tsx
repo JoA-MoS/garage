@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Link } from 'react-router';
 
 import {
   createTeamFormValues,
@@ -8,6 +7,7 @@ import {
   type UIStatsFeatures,
 } from '@garage/soccer-stats/ui-components';
 
+import { CalendarSourceViewModel } from '../../services/calendar-sync-graphql.service';
 import { UITeam, UIGameFormat, UIFormation } from '../types/ui.types';
 
 import { StatsTrackingSelector } from './stats-tracking-selector.presentation';
@@ -26,6 +26,15 @@ interface TeamSettingsPresentationProps {
     x: number;
     y: number;
   }>;
+  calendarSources: CalendarSourceViewModel[];
+  calendarSourcesLoading: boolean;
+  calendarSourcesError?: string;
+  creatingCalendarSource: boolean;
+  syncingCalendarSource: boolean;
+  calendarSuccessMessage?: string;
+  calendarErrorMessage?: string;
+  onCreateCalendarSource: (feedUrl: string) => void;
+  onSyncCalendarSource: (sourceId: string) => void;
   onSaveSettings: (settingsData: {
     basicInfo: UICreateTeamInput;
     gameFormat?: string;
@@ -67,6 +76,15 @@ export const TeamSettingsPresentation = ({
   gameFormats,
   formations,
   positions,
+  calendarSources,
+  calendarSourcesLoading,
+  calendarSourcesError,
+  creatingCalendarSource,
+  syncingCalendarSource,
+  calendarSuccessMessage,
+  calendarErrorMessage,
+  onCreateCalendarSource,
+  onSyncCalendarSource,
   onSaveSettings,
   onGameFormatSelect,
   onFormationSelect,
@@ -90,8 +108,11 @@ export const TeamSettingsPresentation = ({
           logoUrl: '',
         },
   );
+  const [calendarFeedUrl, setCalendarFeedUrl] = useState('');
 
-  // Update form data when team changes
+  const normalizedCalendarFeedUrl = calendarFeedUrl.trim();
+  const canCreateCalendarSource =
+    normalizedCalendarFeedUrl.length > 0 && !creatingCalendarSource;
   useEffect(() => {
     if (team) {
       setBasicInfo(createTeamFormValues(team));
@@ -117,25 +138,54 @@ export const TeamSettingsPresentation = ({
     onSaveSettings,
   ]);
 
+  const handleCreateCalendarSource = useCallback(() => {
+    if (!canCreateCalendarSource) return;
+    onCreateCalendarSource(normalizedCalendarFeedUrl);
+    setCalendarFeedUrl('');
+  }, [
+    canCreateCalendarSource,
+    normalizedCalendarFeedUrl,
+    onCreateCalendarSource,
+  ]);
+
+  const formatSyncStatus = (status: string) =>
+    status
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/^./, (char) => char.toUpperCase());
+
+  const formatProvider = (provider: string) => {
+    if (provider.toLowerCase() === 'playmetrics') return 'PlayMetrics';
+    return provider.replace(/_/g, ' ');
+  };
+
+  const formatSyncedAt = (value?: string | null) => {
+    if (!value) return 'Never synced';
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date(value));
+  };
+
   return (
-    <div className="rounded-lg bg-white shadow-lg">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       {/* Header */}
-      <div className="border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
+      <div className="border-b border-slate-200 bg-slate-50 px-6 py-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className="text-2xl font-black text-slate-950">
               Team Settings
             </h2>
-            <p className="mt-1 text-gray-600">
-              Configure your team's basic information, formation, and roster
+            <p className="mt-1 max-w-2xl text-sm text-slate-600">
+              Configure basic details, default game format, formations, and stat
+              tracking in one place.
             </p>
           </div>
-          <Link
-            to="/teams"
-            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-          >
-            ← Back to Teams
-          </Link>
+          {saveSuccess && (
+            <div className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-800">
+              Saved
+            </div>
+          )}
         </div>
       </div>
 
@@ -330,6 +380,164 @@ export const TeamSettingsPresentation = ({
             </div>
           </div>
         )}
+
+        {/* Calendar Import */}
+        <div className="space-y-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-950">
+                Calendar Import
+              </h3>
+              <p className="mt-1 max-w-2xl text-sm text-slate-600">
+                Connect a PlayMetrics ICS calendar feed to import scheduled
+                games for this team. Imports are idempotent, so syncing the same
+                feed again updates existing games instead of duplicating them.
+              </p>
+            </div>
+            <span className="inline-flex w-fit rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700">
+              ICS
+            </span>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <label
+              htmlFor="calendar-feed-url"
+              className="text-sm font-semibold text-slate-800"
+            >
+              PlayMetrics calendar URL
+            </label>
+            <div className="mt-2 flex flex-col gap-3 lg:flex-row">
+              <input
+                id="calendar-feed-url"
+                type="url"
+                value={calendarFeedUrl}
+                onChange={(event) => setCalendarFeedUrl(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    handleCreateCalendarSource();
+                  }
+                }}
+                placeholder="https://calendar.playmetrics.com/calendars/.../games-calendar.ics"
+                className="min-h-[44px] flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                disabled={creatingCalendarSource}
+              />
+              <button
+                type="button"
+                onClick={handleCreateCalendarSource}
+                disabled={!canCreateCalendarSource}
+                className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+              >
+                {creatingCalendarSource ? 'Connecting…' : 'Connect Feed'}
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">
+              Paste the team games `.ics` URL. The backend validates the URL and
+              fetches the feed server-side.
+            </p>
+          </div>
+
+          {(calendarSourcesError || calendarErrorMessage) && (
+            <div className="whitespace-pre-wrap rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              {calendarErrorMessage || calendarSourcesError}
+            </div>
+          )}
+
+          {calendarSuccessMessage && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">
+              {calendarSuccessMessage}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                Connected feeds
+              </h4>
+              {calendarSourcesLoading && (
+                <span className="text-xs text-slate-500">Loading…</span>
+              )}
+            </div>
+
+            {!calendarSourcesLoading && calendarSources.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center">
+                <p className="font-semibold text-slate-900">
+                  No calendar feeds connected yet
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Add the first PlayMetrics ICS feed above, then run Sync Now to
+                  import this team's schedule.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {calendarSources.map((source) => {
+                  const isError =
+                    source.lastSyncStatus.toLowerCase() === 'error';
+                  const isSuccess =
+                    source.lastSyncStatus.toLowerCase() === 'success';
+
+                  return (
+                    <div
+                      key={source.id}
+                      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                    >
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-slate-950">
+                              {source.calendarName ||
+                                `${formatProvider(source.provider)} calendar`}
+                            </p>
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                                source.enabled
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : 'bg-slate-100 text-slate-600'
+                              }`}
+                            >
+                              {source.enabled ? 'Enabled' : 'Disabled'}
+                            </span>
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                                isError
+                                  ? 'bg-red-100 text-red-700'
+                                  : isSuccess
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'bg-slate-100 text-slate-600'
+                              }`}
+                            >
+                              {formatSyncStatus(source.lastSyncStatus)}
+                            </span>
+                          </div>
+                          <p className="mt-2 truncate text-sm text-slate-600">
+                            {source.feedUrl}
+                          </p>
+                          <p className="mt-2 text-xs text-slate-500">
+                            Last sync: {formatSyncedAt(source.lastSyncedAt)}
+                          </p>
+                          {source.lastSyncError && (
+                            <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+                              {source.lastSyncError}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onSyncCalendarSource(source.id)}
+                          disabled={syncingCalendarSource}
+                          className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {syncingCalendarSource ? 'Syncing…' : 'Sync Now'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Error Display */}
         {error && (

@@ -18,6 +18,8 @@ export interface GameHeaderProps {
   statsFeatures: StatsFeatures;
   isPaused: boolean;
   isConnected: boolean;
+  gameEventNotificationsEnabled: boolean;
+  notificationPermission: NotificationPermission | 'unsupported';
   showGameMenu: boolean;
   showResetConfirm: boolean;
   clearEventsOnReset: boolean;
@@ -25,6 +27,7 @@ export interface GameHeaderProps {
   onToggleMenu: () => void;
   onCloseMenu: () => void;
   onTogglePause: () => void;
+  onToggleGameEventNotifications: () => void;
   onStatsTrackingChange: (features: StatsFeatures) => void;
   onShowResetConfirm: (show: boolean) => void;
   onClearEventsChange: (clear: boolean) => void;
@@ -57,6 +60,8 @@ export function GameHeader({
   statsFeatures,
   isPaused,
   isConnected,
+  gameEventNotificationsEnabled,
+  notificationPermission,
   showGameMenu,
   showResetConfirm,
   clearEventsOnReset,
@@ -64,6 +69,7 @@ export function GameHeader({
   onToggleMenu,
   onCloseMenu,
   onTogglePause,
+  onToggleGameEventNotifications,
   onStatsTrackingChange,
   onShowResetConfirm,
   onClearEventsChange,
@@ -200,6 +206,35 @@ export function GameHeader({
                         )}
                       </button>
                     )}
+
+                    <button
+                      onClick={() => {
+                        onToggleGameEventNotifications();
+                        onCloseMenu();
+                      }}
+                      disabled={notificationPermission === 'unsupported'}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      type="button"
+                    >
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0m6 0H9"
+                        />
+                      </svg>
+                      {gameEventNotificationsEnabled
+                        ? 'Disable Game Alerts'
+                        : notificationPermission === 'denied'
+                          ? 'Notifications Blocked'
+                          : 'Enable Game Alerts'}
+                    </button>
 
                     {/* Stats Tracking Configuration */}
                     <div className="border-t border-gray-100">
