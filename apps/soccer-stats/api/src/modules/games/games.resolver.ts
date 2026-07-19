@@ -44,7 +44,6 @@ export class GamesResolver {
   }
 
   @Mutation(() => Game)
-  @Public() // TODO(#186): Restore auth guard after MVP
   async createGame(@Args('createGameInput') createGameInput: CreateGameInput) {
     this.logger.log(
       `Creating game with input: ${JSON.stringify(createGameInput)}`,
@@ -124,7 +123,6 @@ export class GamesResolver {
   @Mutation(() => GameTeam, {
     description: 'Update game team settings (formation, stats tracking level)',
   })
-  @Public() // TODO(#186): Restore auth guard after MVP
   async updateGameTeam(
     @Args('gameTeamId', { type: () => ID }) gameTeamId: string,
     @Args('updateGameTeamInput') updateGameTeamInput: UpdateGameTeamInput,
