@@ -74,14 +74,23 @@ jobs:
 
       - name: Verify deployment health
         run: |
+          CALENDAR_SCHEMA_PROBE='{"query":"mutation CalendarImportSchemaProbe($input: CreateCalendarSourceInput!) { createTeamCalendarSource(input: $input) { id } }","variables":{"input":{"teamId":"00000000-0000-0000-0000-000000000000","provider":"PLAYMETRICS","feedUrl":"https://example.com/calendar.ics","enabled":true}}}'
+
           for i in $(seq 1 20); do
             HEALTH_STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SOCCER_STATS_SITE_URL/api/health" || true)
-            VERSION_CONTENT_TYPE=$(curl -s -o /dev/null -w '%{content_type}' --max-time 30 "$SOCCER_STATS_SITE_URL/api/version" || true)
-            if [ "$HEALTH_STATUS" = "200" ] && echo "$VERSION_CONTENT_TYPE" | grep -qi 'application/json'; then
-              echo "Health and version checks passed"
+            GRAPHQL_RESPONSE=$(curl -sS --max-time 30 \
+              -H 'content-type: application/json' \
+              --data "$CALENDAR_SCHEMA_PROBE" \
+              "$SOCCER_STATS_SITE_URL/api/graphql" || true)
+
+            if [ "$HEALTH_STATUS" = "200" ] && ! echo "$GRAPHQL_RESPONSE" | grep -q 'GRAPHQL_VALIDATION_FAILED'; then
+              echo "Health and calendar import schema checks passed"
               exit 0
             fi
-            echo "Attempt $i: /api/health returned $HEALTH_STATUS; /api/version content-type was ${VERSION_CONTENT_TYPE:-none} — retrying in 15s (Aurora/App Runner may still be updating)"
+
+            echo "Attempt $i: /api/health returned $HEALTH_STATUS; calendar import schema probe did not pass — retrying in 15s (Aurora/App Runner may still be updating)"
+            echo "$GRAPHQL_RESPONSE" | head -c 1000
+            echo ""
             sleep 15
           done
           echo "Deployment verification failed after 5 minutes"
