@@ -62,8 +62,8 @@ jobs:
 
       # Push to main: deploy only affected stacks. Nx dependsOn encodes the
       # ordering (infra -> api-infra -> ui-infra) and pulls in builds and the
-      # Docker image push. An API-code-only change rebuilds and pushes the
-      # image; App Runner auto-deploys the new :dev tag on its own.
+      # Docker image push. API deploys use immutable git-SHA image tags so
+      # App Runner is pointed at the exact image built by this run.
       - name: Deploy affected stacks
         if: github.event_name == 'push'
         run: pnpm nx affected --target=up --parallel=1
@@ -74,22 +74,33 @@ jobs:
 
       - name: Verify deployment health
         run: |
-          CALENDAR_SCHEMA_PROBE='{"query":"mutation CalendarImportSchemaProbe($input: CreateCalendarSourceInput!) { createTeamCalendarSource(input: $input) { id } }","variables":{"input":{"teamId":"00000000-0000-0000-0000-000000000000","provider":"PLAYMETRICS","feedUrl":"https://example.com/calendar.ics","enabled":true}}}'
+          pushd apps/soccer-stats/api-infra >/dev/null
+          APP_RUNNER_SERVICE_URL=$(pulumi stack output serviceUrl --stack JoA-MoS/dev)
+          popd >/dev/null
+
+          API_DIRECT_URL="https://${APP_RUNNER_SERVICE_URL}"
+          EXPECTED_GIT_SHA="${GITHUB_SHA::7}"
 
           for i in $(seq 1 20); do
             HEALTH_STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SOCCER_STATS_SITE_URL/api/health" || true)
-            GRAPHQL_RESPONSE=$(curl -sS --max-time 30 \
-              -H 'content-type: application/json' \
-              --data "$CALENDAR_SCHEMA_PROBE" \
-              "$SOCCER_STATS_SITE_URL/api/graphql" || true)
+            VERSION_RESPONSE=$(curl -sS --max-time 30 "$API_DIRECT_URL/api/version" || true)
+            VERSION_GIT_SHA=$(echo "$VERSION_RESPONSE" | node -e "let body=''; process.stdin.on('data', c => body += c); process.stdin.on('end', () => { try { const parsed = JSON.parse(body); process.stdout.write(parsed.gitSha || ''); } catch { process.stdout.write(''); } });")
+            PUBLIC_VERSION_RESPONSE=$(curl -sS --max-time 30 "$SOCCER_STATS_SITE_URL/api/version" || true)
+            PUBLIC_VERSION_GIT_SHA=$(echo "$PUBLIC_VERSION_RESPONSE" | node -e "let body=''; process.stdin.on('data', c => body += c); process.stdin.on('end', () => { try { const parsed = JSON.parse(body); process.stdout.write(parsed.gitSha || ''); } catch { process.stdout.write(''); } });")
 
-            if [ "$HEALTH_STATUS" = "200" ] && ! echo "$GRAPHQL_RESPONSE" | grep -q 'GRAPHQL_VALIDATION_FAILED'; then
-              echo "Health and calendar import schema checks passed"
+            if [ "$HEALTH_STATUS" = "200" ] && [ "$VERSION_GIT_SHA" = "$EXPECTED_GIT_SHA" ] && [ "$PUBLIC_VERSION_GIT_SHA" = "$EXPECTED_GIT_SHA" ]; then
+              echo "Health and API version checks passed"
+              echo "Verified direct API version gitSha=$VERSION_GIT_SHA at $API_DIRECT_URL/api/version"
+              echo "Verified public API version gitSha=$PUBLIC_VERSION_GIT_SHA at $SOCCER_STATS_SITE_URL/api/version"
               exit 0
             fi
 
-            echo "Attempt $i: /api/health returned $HEALTH_STATUS; calendar import schema probe did not pass — retrying in 15s (Aurora/App Runner may still be updating)"
-            echo "$GRAPHQL_RESPONSE" | head -c 1000
+            echo "Attempt $i: /api/health returned $HEALTH_STATUS; direct /api/version gitSha was ${VERSION_GIT_SHA:-missing}; public /api/version gitSha was ${PUBLIC_VERSION_GIT_SHA:-missing}; expected $EXPECTED_GIT_SHA — retrying in 15s (Aurora/App Runner/CloudFront may still be updating)"
+            echo "Direct /api/version response:"
+            echo "$VERSION_RESPONSE" | head -c 1000
+            echo ""
+            echo "Public /api/version response:"
+            echo "$PUBLIC_VERSION_RESPONSE" | head -c 1000
             echo ""
             sleep 15
           done
