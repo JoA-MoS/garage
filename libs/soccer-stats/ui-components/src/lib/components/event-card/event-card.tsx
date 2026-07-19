@@ -77,10 +77,10 @@ export const EventCard = memo(function EventCard({
   // State for expanding/collapsing child events (period events only)
   const [isExpanded, setIsExpanded] = useState(false);
   const hasChildren = childEvents && childEvents.length > 0;
-  const gameMinute = Math.floor(periodSecond / 60);
-  const gameSecond = periodSecond % 60;
-  const formattedTime = `${String(gameMinute).padStart(2, '0')}:${String(
-    gameSecond,
+  const periodMinute = Math.floor(periodSecond / 60);
+  const secondWithinMinute = periodSecond % 60;
+  const formattedTime = `${String(periodMinute).padStart(2, '0')}:${String(
+    secondWithinMinute,
   ).padStart(2, '0')}`;
 
   const renderIcon = () => {

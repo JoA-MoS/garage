@@ -39,7 +39,6 @@ export const PLAYER_CARD_FRAGMENT = graphql(`
     #   eventType {
     #     name
     #   }
-    #   gameMinute
     #   game {
     #     id
     #   }
