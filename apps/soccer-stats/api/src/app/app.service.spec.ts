@@ -116,6 +116,7 @@ describe('AppService', () => {
       const result = createServiceWithMemory({
         heapUsedMB: 46,
         heapTotalMB: 50,
+        heapSizeLimitMB: 400,
         rssMB: 124,
         externalMB: 5,
       }).getHealth();
@@ -134,6 +135,7 @@ describe('AppService', () => {
       const result = createServiceWithMemory({
         heapUsedMB: 80,
         heapTotalMB: 120,
+        heapSizeLimitMB: 400,
         rssMB: 400,
         externalMB: 10,
       }).getHealth();
@@ -148,6 +150,7 @@ describe('AppService', () => {
       const result = createServiceWithMemory({
         heapUsedMB: 80,
         heapTotalMB: 120,
+        heapSizeLimitMB: 400,
         rssMB: 384,
         externalMB: 10,
       }).getHealth();
@@ -162,6 +165,7 @@ describe('AppService', () => {
       const result = createServiceWithMemory({
         heapUsedMB: 100,
         heapTotalMB: 120,
+        heapSizeLimitMB: 400,
         rssMB: 460.8,
         externalMB: 10,
       }).getHealth();
@@ -176,12 +180,27 @@ describe('AppService', () => {
       const result = createServiceWithMemory({
         heapUsedMB: 100,
         heapTotalMB: 120,
+        heapSizeLimitMB: 400,
         rssMB: 470,
         externalMB: 10,
       }).getHealth();
 
       expect(result.status).toBe('unhealthy');
       expect(result.memory?.rssUsagePercent).toBe(91.8);
+    });
+
+    it('exposes the V8 heap size limit in the memory metrics', () => {
+      process.env['CONTAINER_MEMORY_LIMIT_MB'] = '512';
+
+      const result = createServiceWithMemory({
+        heapUsedMB: 46,
+        heapTotalMB: 50,
+        heapSizeLimitMB: 400,
+        rssMB: 124,
+        externalMB: 5,
+      }).getHealth();
+
+      expect(result.memory?.heapSizeLimitMB).toBe(400);
     });
   });
 });

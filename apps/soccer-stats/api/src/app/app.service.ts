@@ -11,6 +11,7 @@ import {
 export interface MemoryMetrics {
   heapUsedMB: number;
   heapTotalMB: number;
+  heapSizeLimitMB: number;
   rssMB: number;
   heapUsagePercent: number;
   containerLimitMB: number;
@@ -137,6 +138,7 @@ export class AppService {
       memory: {
         heapUsedMB: snapshot.heapUsedMB,
         heapTotalMB: snapshot.heapTotalMB,
+        heapSizeLimitMB: snapshot.heapSizeLimitMB,
         rssMB: snapshot.rssMB,
         heapUsagePercent,
         containerLimitMB: this.containerMemoryLimitMB,
