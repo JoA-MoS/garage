@@ -130,7 +130,12 @@ export class GameEventsResolver {
   @Public() // TODO: Add proper auth
   updatePlayerPosition(
     @Args('gameEventId', { type: () => ID }) gameEventId: string,
-    @Args('position') position: string,
+    @Args('position', {
+      type: () => String,
+      nullable: true,
+      description: 'Field position code; null moves the player to the bench',
+    })
+    position: string | null,
   ): Promise<GameEvent> {
     return this.gameEventsService.updatePlayerPosition(gameEventId, position);
   }

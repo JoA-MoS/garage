@@ -443,7 +443,7 @@ export const REMOVE_FROM_LINEUP = graphql(/* GraphQL */ `
 `);
 
 export const UPDATE_PLAYER_POSITION = graphql(/* GraphQL */ `
-  mutation UpdatePlayerPosition($gameEventId: ID!, $position: String!) {
+  mutation UpdatePlayerPosition($gameEventId: ID!, $position: String) {
     updatePlayerPosition(gameEventId: $gameEventId, position: $position) {
       id
       position

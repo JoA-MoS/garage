@@ -23,8 +23,11 @@ export class RosterPlayer {
   @Field({ nullable: true })
   externalPlayerNumber?: string;
 
-  @Field({ nullable: true, description: 'Position on field. null = on bench' })
-  position?: string;
+  @Field(() => String, {
+    nullable: true,
+    description: 'Position on field. null = on bench',
+  })
+  position?: string | null;
 }
 
 @ObjectType()

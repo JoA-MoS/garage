@@ -73,9 +73,13 @@ export class GameEvent extends BaseEntity {
   @Column({ type: 'int', default: 0 })
   periodSecond: number;
 
-  @Field({ nullable: true })
-  @Column({ length: 50, nullable: true })
-  position?: string;
+  // types must be explicit: reflection cannot infer String/varchar from the
+  // union. null is significant on save: TypeORM ignores undefined but
+  // persists null, and a null position is what moves a roster player to
+  // the bench
+  @Field(() => String, { nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  position?: string | null;
 
   @Field({
     nullable: true,

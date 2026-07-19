@@ -83,7 +83,7 @@ export class GameEventsService implements OnModuleInit {
 
   async updatePlayerPosition(
     gameEventId: string,
-    position: string,
+    position: string | null,
   ): Promise<GameEvent> {
     return this.lineupService.updatePlayerPosition(gameEventId, position);
   }

@@ -107,6 +107,44 @@ export type BringPlayerOntoFieldInput = {
   reason?: InputMaybe<SubstitutionReason>;
 };
 
+/** External calendar provider used as a team schedule source */
+export enum CalendarProvider {
+  Playmetrics = 'PLAYMETRICS',
+}
+
+export type CalendarSource = {
+  __typename?: 'CalendarSource';
+  calendarName?: Maybe<Scalars['String']['output']>;
+  createdAt: Scalars['DateTime']['output'];
+  enabled: Scalars['Boolean']['output'];
+  externalGameMappings?: Maybe<Array<ExternalGameMapping>>;
+  feedUrl: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  lastSyncError?: Maybe<Scalars['String']['output']>;
+  lastSyncStatus: CalendarSyncStatus;
+  lastSyncedAt?: Maybe<Scalars['DateTime']['output']>;
+  provider: CalendarProvider;
+  team: Team;
+  teamId: Scalars['ID']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type CalendarSyncResultType = {
+  __typename?: 'CalendarSyncResultType';
+  created: Scalars['Int']['output'];
+  errors: Array<Scalars['String']['output']>;
+  skipped: Scalars['Int']['output'];
+  sourceId: Scalars['ID']['output'];
+  updated: Scalars['Int']['output'];
+};
+
+/** Most recent sync result for a team calendar source */
+export enum CalendarSyncStatus {
+  Error = 'ERROR',
+  NeverSynced = 'NEVER_SYNCED',
+  Success = 'SUCCESS',
+}
+
 export type ConflictInfo = {
   __typename?: 'ConflictInfo';
   conflictId: Scalars['ID']['output'];
@@ -124,6 +162,13 @@ export type ConflictingEvent = {
   playerId?: Maybe<Scalars['ID']['output']>;
   playerName: Scalars['String']['output'];
   recordedByUserName: Scalars['String']['output'];
+};
+
+export type CreateCalendarSourceInput = {
+  enabled?: InputMaybe<Scalars['Boolean']['input']>;
+  feedUrl: Scalars['String']['input'];
+  provider?: CalendarProvider;
+  teamId: Scalars['ID']['input'];
 };
 
 export type CreateGameFormatInput = {
@@ -209,6 +254,21 @@ export type EventType = {
   id: Scalars['ID']['output'];
   name: Scalars['String']['output'];
   requiresPosition: Scalars['Boolean']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type ExternalGameMapping = {
+  __typename?: 'ExternalGameMapping';
+  calendarSource: CalendarSource;
+  calendarSourceId: Scalars['ID']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  externalCreatedAt?: Maybe<Scalars['DateTime']['output']>;
+  externalLastModified?: Maybe<Scalars['DateTime']['output']>;
+  externalSequence?: Maybe<Scalars['Float']['output']>;
+  externalUid: Scalars['String']['output'];
+  game: Game;
+  gameId: Scalars['ID']['output'];
+  id: Scalars['ID']['output'];
   updatedAt: Scalars['DateTime']['output'];
 };
 
@@ -420,6 +480,8 @@ export type Mutation = {
   createGame: Game;
   createGameFormat: GameFormat;
   createTeam: Team;
+  /** Connect a team to an external calendar feed, such as PlayMetrics ICS */
+  createTeamCalendarSource: CalendarSource;
   createUnmanagedTeam: Team;
   createUser: User;
   deleteEventWithCascade: Scalars['Boolean']['output'];
@@ -456,6 +518,8 @@ export type Mutation = {
   startPeriod: PeriodResult;
   substitutePlayer: Array<GameEvent>;
   swapPositions: Array<GameEvent>;
+  /** Immediately import or update games from a connected team calendar feed */
+  syncTeamCalendarSource: CalendarSyncResultType;
   /** Returns the new owner */
   transferTeamOwnership: TeamMember;
   updateGame: Game;
@@ -514,6 +578,10 @@ export type MutationCreateGameFormatArgs = {
 
 export type MutationCreateTeamArgs = {
   createTeamInput: CreateTeamInput;
+};
+
+export type MutationCreateTeamCalendarSourceArgs = {
+  input: CreateCalendarSourceInput;
 };
 
 export type MutationCreateUnmanagedTeamArgs = {
@@ -636,6 +704,11 @@ export type MutationSwapPositionsArgs = {
   input: SwapPositionsInput;
 };
 
+export type MutationSyncTeamCalendarSourceArgs = {
+  sourceId: Scalars['ID']['input'];
+  teamId: Scalars['ID']['input'];
+};
+
 export type MutationTransferTeamOwnershipArgs = {
   newOwnerId: Scalars['ID']['input'];
   teamId: Scalars['ID']['input'];
@@ -657,7 +730,7 @@ export type MutationUpdateGoalArgs = {
 
 export type MutationUpdatePlayerPositionArgs = {
   gameEventId: Scalars['ID']['input'];
-  position: Scalars['String']['input'];
+  position?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type MutationUpdateTeamArgs = {
@@ -906,6 +979,8 @@ export type Query = {
   playersByPosition: Array<User>;
   playersByTeam: Array<User>;
   team: Team;
+  /** Calendar feeds connected to a team for schedule imports */
+  teamCalendarSources: Array<CalendarSource>;
   teamMember?: Maybe<TeamMember>;
   teamMembers: Array<TeamMember>;
   /** Get comprehensive team statistics with player breakdown and game-by-game analysis. Supports optional date range filtering for season/period stats. */
@@ -1014,6 +1089,10 @@ export type QueryPlayersByTeamArgs = {
 
 export type QueryTeamArgs = {
   id: Scalars['ID']['input'];
+};
+
+export type QueryTeamCalendarSourcesArgs = {
+  teamId: Scalars['ID']['input'];
 };
 
 export type QueryTeamMemberArgs = {
@@ -1801,6 +1880,67 @@ export type GetAllPlayersQuery = {
   }>;
 };
 
+export type TeamCalendarSourcesQueryVariables = Exact<{
+  teamId: Scalars['ID']['input'];
+}>;
+
+export type TeamCalendarSourcesQuery = {
+  __typename?: 'Query';
+  teamCalendarSources: Array<{
+    __typename?: 'CalendarSource';
+    id: string;
+    teamId: string;
+    provider: CalendarProvider;
+    feedUrl: string;
+    calendarName?: string | null;
+    enabled: boolean;
+    lastSyncedAt?: any | null;
+    lastSyncStatus: CalendarSyncStatus;
+    lastSyncError?: string | null;
+    createdAt: any;
+    updatedAt: any;
+  }>;
+};
+
+export type CreateTeamCalendarSourceMutationVariables = Exact<{
+  input: CreateCalendarSourceInput;
+}>;
+
+export type CreateTeamCalendarSourceMutation = {
+  __typename?: 'Mutation';
+  createTeamCalendarSource: {
+    __typename?: 'CalendarSource';
+    id: string;
+    teamId: string;
+    provider: CalendarProvider;
+    feedUrl: string;
+    calendarName?: string | null;
+    enabled: boolean;
+    lastSyncedAt?: any | null;
+    lastSyncStatus: CalendarSyncStatus;
+    lastSyncError?: string | null;
+    createdAt: any;
+    updatedAt: any;
+  };
+};
+
+export type SyncTeamCalendarSourceMutationVariables = Exact<{
+  teamId: Scalars['ID']['input'];
+  sourceId: Scalars['ID']['input'];
+}>;
+
+export type SyncTeamCalendarSourceMutation = {
+  __typename?: 'Mutation';
+  syncTeamCalendarSource: {
+    __typename?: 'CalendarSyncResultType';
+    sourceId: string;
+    created: number;
+    updated: number;
+    skipped: number;
+    errors: Array<string>;
+  };
+};
+
 export type GetGameFormatsQueryVariables = Exact<{ [key: string]: never }>;
 
 export type GetGameFormatsQuery = {
@@ -2216,7 +2356,7 @@ export type RemoveFromLineupMutation = {
 
 export type UpdatePlayerPositionMutationVariables = Exact<{
   gameEventId: Scalars['ID']['input'];
-  position: Scalars['String']['input'];
+  position?: InputMaybe<Scalars['String']['input']>;
 }>;
 
 export type UpdatePlayerPositionMutation = {
@@ -4914,6 +5054,229 @@ export const GetAllPlayersDocument = {
     },
   ],
 } as unknown as DocumentNode<GetAllPlayersQuery, GetAllPlayersQueryVariables>;
+export const TeamCalendarSourcesDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'query',
+      name: { kind: 'Name', value: 'TeamCalendarSources' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'teamId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'teamCalendarSources' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'teamId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'teamId' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'teamId' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'provider' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'feedUrl' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'calendarName' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'enabled' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'lastSyncedAt' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'lastSyncStatus' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'lastSyncError' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  TeamCalendarSourcesQuery,
+  TeamCalendarSourcesQueryVariables
+>;
+export const CreateTeamCalendarSourceDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'mutation',
+      name: { kind: 'Name', value: 'CreateTeamCalendarSource' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'input' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: {
+              kind: 'NamedType',
+              name: { kind: 'Name', value: 'CreateCalendarSourceInput' },
+            },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'createTeamCalendarSource' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'input' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'input' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'teamId' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'provider' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'feedUrl' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'calendarName' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'enabled' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'lastSyncedAt' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'lastSyncStatus' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'lastSyncError' },
+                },
+                { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  CreateTeamCalendarSourceMutation,
+  CreateTeamCalendarSourceMutationVariables
+>;
+export const SyncTeamCalendarSourceDocument = {
+  kind: 'Document',
+  definitions: [
+    {
+      kind: 'OperationDefinition',
+      operation: 'mutation',
+      name: { kind: 'Name', value: 'SyncTeamCalendarSource' },
+      variableDefinitions: [
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'teamId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'sourceId' },
+          },
+          type: {
+            kind: 'NonNullType',
+            type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: 'SelectionSet',
+        selections: [
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'syncTeamCalendarSource' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'teamId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'teamId' },
+                },
+              },
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'sourceId' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'sourceId' },
+                },
+              },
+            ],
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                { kind: 'Field', name: { kind: 'Name', value: 'sourceId' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'created' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'updated' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'skipped' } },
+                { kind: 'Field', name: { kind: 'Name', value: 'errors' } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<
+  SyncTeamCalendarSourceMutation,
+  SyncTeamCalendarSourceMutationVariables
+>;
 export const GetGameFormatsDocument = {
   kind: 'Document',
   definitions: [
@@ -6468,13 +6831,7 @@ export const UpdatePlayerPositionDocument = {
             kind: 'Variable',
             name: { kind: 'Name', value: 'position' },
           },
-          type: {
-            kind: 'NonNullType',
-            type: {
-              kind: 'NamedType',
-              name: { kind: 'Name', value: 'String' },
-            },
-          },
+          type: { kind: 'NamedType', name: { kind: 'Name', value: 'String' } },
         },
       ],
       selectionSet: {

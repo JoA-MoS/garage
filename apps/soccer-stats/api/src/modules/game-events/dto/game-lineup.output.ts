@@ -26,8 +26,8 @@ export class LineupPlayer {
   @Field({ nullable: true })
   externalPlayerNumber?: string;
 
-  @Field({ nullable: true })
-  position?: string;
+  @Field(() => String, { nullable: true })
+  position?: string | null;
 
   @Field()
   isOnField: boolean;

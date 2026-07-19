@@ -92,6 +92,24 @@ describe('LineupService', () => {
     createQueryBuilder: jest.fn(),
   };
 
+  // Chainable repository query builder resolving to a single raw row
+  // (used by the FORMATION_CHANGE lookups)
+  function mockRawOneQueryBuilder(raw: unknown = null) {
+    const mockQb = {
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      getRawOne: jest.fn().mockResolvedValue(raw),
+    } as unknown as jest.Mocked<SelectQueryBuilder<GameEvent>>;
+    mockGameEventsRepository.createQueryBuilder = jest
+      .fn()
+      .mockReturnValue(mockQb);
+    return mockQb;
+  }
+
   beforeEach(async () => {
     // Create mock repositories
     mockGameEventsRepository = {
@@ -143,6 +161,9 @@ describe('LineupService', () => {
         mockGameRosterEventType,
       );
       mockGameEventsRepository.findOne.mockResolvedValue(null); // No existing roster entry
+      // Capacity validation resolves no formation → check is skipped
+      mockGameTeamsRepository.findOne.mockResolvedValue(mockGameTeamNoConfig);
+      mockRawOneQueryBuilder(null);
     });
 
     it('should create a GAME_ROSTER event for internal player with playerId', async () => {
@@ -583,6 +604,15 @@ describe('LineupService', () => {
   });
 
   describe('updatePlayerPosition', () => {
+    beforeEach(() => {
+      mockCoreService.getEventTypeByName.mockReturnValue(
+        mockFormationChangeEventType,
+      );
+      // Capacity validation resolves no formation → check is skipped
+      mockGameTeamsRepository.findOne.mockResolvedValue(mockGameTeamNoConfig);
+      mockRawOneQueryBuilder(null);
+    });
+
     it('should throw NotFoundException when event not found', async () => {
       mockGameEventsRepository.findOne.mockResolvedValue(null);
 
@@ -625,6 +655,227 @@ describe('LineupService', () => {
         'UPDATED',
         savedEvent,
       );
+    });
+  });
+
+  describe('position capacity validation', () => {
+    // Chainable query builder whose getRawOne resolves to the latest
+    // FORMATION_CHANGE row (or null when no formation change was recorded).
+    function mockFormationQuery(formation: string | null) {
+      const mockQb = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        getRawOne: jest
+          .fn()
+          .mockResolvedValue(formation ? { formation } : null),
+      } as unknown as jest.Mocked<SelectQueryBuilder<GameEvent>>;
+      mockGameEventsRepository.createQueryBuilder = jest
+        .fn()
+        .mockReturnValue(mockQb);
+    }
+
+    function mockGameTeamLookup(
+      formation: string | null,
+      playersPerTeam?: number,
+    ) {
+      mockGameTeamsRepository.findOne.mockResolvedValue({
+        id: mockGameTeamId,
+        gameId: mockGameId,
+        team: {
+          id: 'team-1',
+          teamConfiguration: formation ? { defaultFormation: formation } : null,
+        },
+        game: playersPerTeam
+          ? { id: mockGameId, format: { playersPerTeam } }
+          : { id: mockGameId, format: null },
+      } as unknown as GameTeam);
+    }
+
+    function mockOccupants(events: Partial<GameEvent>[]) {
+      mockGameEventsRepository.find.mockResolvedValue(events as GameEvent[]);
+    }
+
+    beforeEach(() => {
+      mockCoreService.getGameTeam.mockResolvedValue(mockGameTeam);
+      mockCoreService.getEventTypeByName.mockImplementation((name: string) => {
+        switch (name) {
+          case 'GAME_ROSTER':
+            return mockGameRosterEventType;
+          case 'FORMATION_CHANGE':
+            return mockFormationChangeEventType;
+          default:
+            throw new Error(`Unknown event type: ${name}`);
+        }
+      });
+      // ensurePlayerNotInGameRoster: player not already in roster
+      mockGameEventsRepository.findOne.mockResolvedValue(null);
+      mockGameEventsRepository.create.mockImplementation(
+        (input) => input as GameEvent,
+      );
+      mockGameEventsRepository.save.mockImplementation((event) =>
+        Promise.resolve(event as GameEvent),
+      );
+    });
+
+    describe('addPlayerToGameRoster', () => {
+      it('rejects assignment when every slot for the position is occupied', async () => {
+        // 2-3-1 (7v7) has exactly one ST slot, already taken
+        mockGameTeamLookup('2-3-1', 7);
+        mockFormationQuery(null);
+        mockOccupants([
+          { id: 'evt-other', playerId: 'player-2', position: 'ST' },
+        ]);
+
+        await expect(
+          service.addPlayerToGameRoster(
+            {
+              gameTeamId: mockGameTeamId,
+              playerId: mockPlayerId,
+              position: 'ST',
+            },
+            mockUserId,
+          ),
+        ).rejects.toThrow(BadRequestException);
+        expect(mockGameEventsRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('allows assignment while a same-code slot is still free', async () => {
+        // 4-4-2 has two CB slots, only one taken
+        mockGameTeamLookup('4-4-2', 11);
+        mockFormationQuery(null);
+        mockOccupants([
+          { id: 'evt-other', playerId: 'player-2', position: 'CB' },
+        ]);
+
+        await expect(
+          service.addPlayerToGameRoster(
+            {
+              gameTeamId: mockGameTeamId,
+              playerId: mockPlayerId,
+              position: 'CB',
+            },
+            mockUserId,
+          ),
+        ).resolves.toBeDefined();
+      });
+
+      it('skips validation when no formation is resolvable', async () => {
+        mockGameTeamLookup(null);
+        mockFormationQuery(null);
+        mockOccupants([
+          { id: 'evt-other', playerId: 'player-2', position: 'ST' },
+        ]);
+
+        await expect(
+          service.addPlayerToGameRoster(
+            {
+              gameTeamId: mockGameTeamId,
+              playerId: mockPlayerId,
+              position: 'ST',
+            },
+            mockUserId,
+          ),
+        ).resolves.toBeDefined();
+      });
+
+      it('skips validation for position codes outside the formation (FIELD sentinel)', async () => {
+        mockGameTeamLookup('2-3-1', 7);
+        mockFormationQuery(null);
+        mockOccupants([
+          { id: 'evt-other', playerId: 'player-2', position: 'FIELD' },
+        ]);
+
+        await expect(
+          service.addPlayerToGameRoster(
+            {
+              gameTeamId: mockGameTeamId,
+              playerId: mockPlayerId,
+              position: 'FIELD',
+            },
+            mockUserId,
+          ),
+        ).resolves.toBeDefined();
+      });
+
+      it('validates against the latest FORMATION_CHANGE over the team default', async () => {
+        // Team default 4-4-2 would allow a second CB, but the game switched
+        // to 2-3-1 which has no CB slot backline pair — use ST (1 slot) to
+        // prove the FORMATION_CHANGE formation is the one enforced.
+        mockGameTeamLookup('4-4-2', 7);
+        mockFormationQuery('2-3-1');
+        mockOccupants([
+          { id: 'evt-other', playerId: 'player-2', position: 'ST' },
+        ]);
+
+        await expect(
+          service.addPlayerToGameRoster(
+            {
+              gameTeamId: mockGameTeamId,
+              playerId: mockPlayerId,
+              position: 'ST',
+            },
+            mockUserId,
+          ),
+        ).rejects.toThrow(BadRequestException);
+      });
+    });
+
+    describe('updatePlayerPosition', () => {
+      it('rejects moving a player into a fully occupied position', async () => {
+        const gameEvent = createMockEvent('evt-1', mockGameRosterEventType, {
+          playerId: mockPlayerId,
+          position: 'CM',
+        });
+        mockGameEventsRepository.findOne.mockResolvedValue(gameEvent);
+        mockGameTeamLookup('2-3-1', 7);
+        mockFormationQuery(null);
+        mockOccupants([
+          { id: 'evt-other', playerId: 'player-2', position: 'ST' },
+        ]);
+
+        await expect(
+          service.updatePlayerPosition('evt-1', 'ST'),
+        ).rejects.toThrow(BadRequestException);
+        expect(mockGameEventsRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('does not count the moving player against the capacity', async () => {
+        // Player already at CB stays at CB (e.g. idempotent retry): the
+        // occupant list contains their own event, which must be excluded.
+        const gameEvent = createMockEvent('evt-1', mockGameRosterEventType, {
+          playerId: mockPlayerId,
+          position: 'CB',
+        });
+        mockGameEventsRepository.findOne.mockResolvedValue(gameEvent);
+        mockGameTeamLookup('4-4-2', 11);
+        mockFormationQuery(null);
+        mockOccupants([
+          { id: 'evt-1', playerId: mockPlayerId, position: 'CB' },
+          { id: 'evt-other', playerId: 'player-2', position: 'CB' },
+        ]);
+
+        await expect(
+          service.updatePlayerPosition('evt-1', 'CB'),
+        ).resolves.toBeDefined();
+      });
+
+      it('accepts null to demote a player to the bench', async () => {
+        const gameEvent = createMockEvent('evt-1', mockGameRosterEventType, {
+          playerId: mockPlayerId,
+          position: 'ST',
+        });
+        mockGameEventsRepository.findOne.mockResolvedValue(gameEvent);
+
+        const result = await service.updatePlayerPosition('evt-1', null);
+
+        expect(gameEvent.position).toBeNull();
+        expect(mockGameEventsRepository.save).toHaveBeenCalledWith(gameEvent);
+        expect(result).toBeDefined();
+      });
     });
   });
 
