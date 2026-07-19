@@ -9,6 +9,7 @@ import { GameFormat } from '../../entities/game-format.entity';
 import { Team } from '../../entities/team.entity';
 import { TeamConfiguration } from '../../entities/team-configuration.entity';
 import { AuthModule } from '../auth/auth.module';
+import { TeamMembersModule } from '../team-members/team-members.module';
 
 import { CalendarSyncResolver } from './calendar-sync.resolver';
 import { CalendarSyncSchedulerService } from './calendar-sync-scheduler.service';
@@ -27,6 +28,9 @@ import { PlayMetricsIcsParserService } from './playmetrics-ics-parser.service';
       TeamConfiguration,
     ]),
     AuthModule,
+    // TeamAccessGuard is instantiated in this module's context via @UseGuards,
+    // so its TeamMembersService dependency must be resolvable here
+    TeamMembersModule,
   ],
   providers: [
     CalendarSyncResolver,
