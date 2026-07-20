@@ -552,34 +552,46 @@ export const LineupPanel = ({
         if (!position) return;
 
         if (gameStatus === 'SCHEDULED') {
-          // Pre-game: execute immediately
+          // Pre-game: execute immediately. Bench the outgoing player first so
+          // the position slot is free before the incoming player takes it —
+          // otherwise both end up recorded at the same position (#269).
           try {
-            if (
-              selection.playerSource === 'bench' &&
-              'gameEventId' in selectedPlayer &&
-              selectedPlayer.gameEventId
-            ) {
-              await updatePosition(selectedPlayer.gameEventId, position);
-            } else {
-              const pid =
-                'oduserId' in selectedPlayer
-                  ? selectedPlayer.oduserId
-                  : selectedPlayer.playerId;
-              const extName =
-                'externalPlayerName' in selectedPlayer
-                  ? selectedPlayer.externalPlayerName
-                  : undefined;
-              const extNum =
-                'externalPlayerNumber' in selectedPlayer
-                  ? selectedPlayer.externalPlayerNumber
-                  : undefined;
+            await updatePosition(onFieldPlayer.gameEventId, null);
+            try {
+              if (
+                selection.playerSource === 'bench' &&
+                'gameEventId' in selectedPlayer &&
+                selectedPlayer.gameEventId
+              ) {
+                await updatePosition(selectedPlayer.gameEventId, position);
+              } else {
+                const pid =
+                  'oduserId' in selectedPlayer
+                    ? selectedPlayer.oduserId
+                    : selectedPlayer.playerId;
+                const extName =
+                  'externalPlayerName' in selectedPlayer
+                    ? selectedPlayer.externalPlayerName
+                    : undefined;
+                const extNum =
+                  'externalPlayerNumber' in selectedPlayer
+                    ? selectedPlayer.externalPlayerNumber
+                    : undefined;
 
-              await addPlayerToGameRoster({
-                playerId: pid || undefined,
-                externalPlayerName: extName || undefined,
-                externalPlayerNumber: extNum || undefined,
-                position,
-              });
+                await addPlayerToGameRoster({
+                  playerId: pid || undefined,
+                  externalPlayerName: extName || undefined,
+                  externalPlayerNumber: extNum || undefined,
+                  position,
+                });
+              }
+            } catch (err) {
+              // Incoming assignment failed - restore the outgoing player so
+              // the position is not left empty
+              await updatePosition(onFieldPlayer.gameEventId, position).catch(
+                () => undefined,
+              );
+              throw err;
             }
           } catch (err) {
             console.error('[LineupPanel] Failed to replace player:', err);
@@ -828,6 +840,12 @@ export const LineupPanel = ({
                 'externalPlayerNumber' in item.player
                   ? item.player.externalPlayerNumber
                   : undefined;
+
+              // Bench the player being replaced first so the position slot
+              // is free for the incoming player (#269)
+              if (item.replacingPlayer) {
+                await updatePosition(item.replacingPlayer.gameEventId, null);
+              }
 
               await addPlayerToGameRoster({
                 playerId: playerId || undefined,

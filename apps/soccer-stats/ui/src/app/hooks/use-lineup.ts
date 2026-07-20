@@ -261,8 +261,9 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     [removeFromLineupMutation],
   );
 
+  // position null moves the player to the bench
   const updatePosition = useCallback(
-    async (gameEventId: string, position: string) => {
+    async (gameEventId: string, position: string | null) => {
       try {
         return await updatePositionMutation({
           variables: { gameEventId, position },

@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { getPositionSlotCount } from '@garage/soccer-stats/utils';
 
 import { GameEvent } from '../../../entities/game-event.entity';
 import { GameLineup, LineupPlayer } from '../dto/game-lineup.output';
@@ -61,7 +62,7 @@ export class LineupService {
 
   async updatePlayerPosition(
     gameEventId: string,
-    position: string,
+    position: string | null,
   ): Promise<GameEvent> {
     const gameEvent = await this.gameEventsRepository.findOne({
       where: { id: gameEventId },
@@ -70,6 +71,16 @@ export class LineupService {
 
     if (!gameEvent) {
       throw new NotFoundException(`GameEvent ${gameEventId} not found`);
+    }
+
+    // null demotes the player to the bench; only field assignments on
+    // pre-game roster entries need the capacity check
+    if (position !== null && gameEvent.eventType.name === 'GAME_ROSTER') {
+      await this.assertPositionCapacity(
+        gameEvent.gameTeamId,
+        position,
+        gameEvent.id,
+      );
     }
 
     gameEvent.position = position;
@@ -419,6 +430,10 @@ export class LineupService {
       input.externalPlayerName,
     );
 
+    if (input.position) {
+      await this.assertPositionCapacity(gameTeam.id, input.position);
+    }
+
     const gameEvent = this.gameEventsRepository.create({
       gameId: gameTeam.gameId,
       gameTeamId: input.gameTeamId,
@@ -441,6 +456,82 @@ export class LineupService {
     );
 
     return savedEvent;
+  }
+
+  /**
+   * Reject a field assignment when the team's formation has no free slot
+   * left for the position code.
+   *
+   * The formation is resolved the same way `getGameRoster` reports it
+   * (latest FORMATION_CHANGE event, else the team's default formation), and
+   * occupancy is measured against pre-game GAME_ROSTER events — the lineup
+   * primitives this backstops are pre-game tools. The check fails open:
+   * an unknown formation, or a position code the formation does not define
+   * (e.g. the FIELD sentinel used in substitution-only mode), skips
+   * validation entirely.
+   *
+   * @param excludeEventId event being moved, so a player changing between
+   *   same-code slots does not count against their own capacity
+   * @throws BadRequestException when every slot for the position is taken
+   */
+  private async assertPositionCapacity(
+    gameTeamId: string,
+    position: string,
+    excludeEventId?: string,
+  ): Promise<void> {
+    const gameTeam = await this.gameTeamsRepository.findOne({
+      where: { id: gameTeamId },
+      relations: ['team', 'team.teamConfiguration', 'game', 'game.format'],
+    });
+
+    const formationChangeType =
+      this.coreService.getEventTypeByName('FORMATION_CHANGE');
+    const latestFormation = await this.gameEventsRepository
+      .createQueryBuilder('e')
+      .select('e.formation', 'formation')
+      .where('e.gameTeamId = :gameTeamId', { gameTeamId })
+      .andWhere('e.eventTypeId = :eventTypeId', {
+        eventTypeId: formationChangeType.id,
+      })
+      .orderBy('e.period', 'DESC')
+      .addOrderBy('e.periodSecond', 'DESC')
+      .addOrderBy('e.createdAt', 'DESC')
+      .limit(1)
+      .getRawOne();
+
+    const formation =
+      latestFormation?.formation ??
+      gameTeam?.team?.teamConfiguration?.defaultFormation;
+    if (!formation) {
+      return;
+    }
+
+    const slots = getPositionSlotCount(
+      formation,
+      position,
+      gameTeam?.game?.format?.playersPerTeam,
+    );
+    if (!slots) {
+      return;
+    }
+
+    const gameRosterType = this.coreService.getEventTypeByName('GAME_ROSTER');
+    const occupants = await this.gameEventsRepository.find({
+      where: {
+        gameTeamId,
+        eventTypeId: gameRosterType.id,
+        position,
+      },
+    });
+    const occupied = occupants.filter((e) => e.id !== excludeEventId).length;
+
+    if (occupied >= slots) {
+      throw new BadRequestException(
+        `Position ${position} is already filled: formation ${formation} has ` +
+          `${slots} slot${slots === 1 ? '' : 's'} for it. Move or bench the ` +
+          `current player first.`,
+      );
+    }
   }
 
   /**
