@@ -8,7 +8,11 @@ import { Injectable, Logger } from '@nestjs/common';
 export interface MemorySnapshot {
   readonly heapUsedMB: number;
   readonly heapTotalMB: number;
-  /** Max size the V8 heap can grow to (set by --max-old-space-size) */
+  /**
+   * Max size the V8 heap can grow to. Influenced by --max-old-space-size
+   * but not equal to it: the limit also covers young-gen and other heap
+   * spaces, so expect a value somewhat above the flag.
+   */
   readonly heapSizeLimitMB: number;
   readonly rssMB: number;
   readonly externalMB: number;
