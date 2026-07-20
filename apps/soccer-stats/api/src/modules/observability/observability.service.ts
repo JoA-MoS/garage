@@ -1,11 +1,19 @@
+import * as v8 from 'v8';
+
 import { Injectable, Logger } from '@nestjs/common';
 
 /**
- * Memory snapshot from process.memoryUsage()
+ * Memory snapshot from process.memoryUsage() and v8.getHeapStatistics()
  */
 export interface MemorySnapshot {
   readonly heapUsedMB: number;
   readonly heapTotalMB: number;
+  /**
+   * Max size the V8 heap can grow to. Influenced by --max-old-space-size
+   * but not equal to it: the limit also covers young-gen and other heap
+   * spaces, so expect a value somewhat above the flag.
+   */
+  readonly heapSizeLimitMB: number;
   readonly rssMB: number;
   readonly externalMB: number;
 }
@@ -46,12 +54,14 @@ export class ObservabilityService {
    */
   getMemorySnapshot(): MemorySnapshot {
     const usage = process.memoryUsage();
+    const heapStats = v8.getHeapStatistics();
     const bytesToMB = (bytes: number) =>
       Math.round((bytes / 1024 / 1024) * 100) / 100;
 
     return {
       heapUsedMB: bytesToMB(usage.heapUsed),
       heapTotalMB: bytesToMB(usage.heapTotal),
+      heapSizeLimitMB: bytesToMB(heapStats.heap_size_limit),
       rssMB: bytesToMB(usage.rss),
       externalMB: bytesToMB(usage.external),
     };
