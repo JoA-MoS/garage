@@ -119,7 +119,6 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => Boolean, { name: 'removeFromLineup' })
-  @Public() // TODO: Add proper auth
   removeFromLineup(
     @Args('gameEventId', { type: () => ID }) gameEventId: string,
   ): Promise<boolean> {
@@ -127,7 +126,6 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => GameEvent, { name: 'updatePlayerPosition' })
-  @Public() // TODO: Add proper auth
   updatePlayerPosition(
     @Args('gameEventId', { type: () => ID }) gameEventId: string,
     @Args('position', {
@@ -180,7 +178,6 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => Boolean, { name: 'deleteGoal' })
-  @Public() // TODO: Add proper auth
   deleteGoal(
     @Args('gameEventId', { type: () => ID }) gameEventId: string,
   ): Promise<boolean> {
@@ -188,7 +185,6 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => Boolean, { name: 'deleteSubstitution' })
-  @Public() // TODO: Add proper auth
   deleteSubstitution(
     @Args('gameEventId', { type: () => ID }) gameEventId: string,
   ): Promise<boolean> {
@@ -196,7 +192,6 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => Boolean, { name: 'deletePositionSwap' })
-  @Public() // TODO: Add proper auth
   deletePositionSwap(
     @Args('gameEventId', { type: () => ID }) gameEventId: string,
   ): Promise<boolean> {
@@ -204,7 +199,6 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => Boolean, { name: 'deleteStarterEntry' })
-  @Public() // TODO: Add proper auth
   deleteStarterEntry(
     @Args('gameEventId', { type: () => ID }) gameEventId: string,
   ): Promise<boolean> {
@@ -212,7 +206,6 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => GameEvent, { name: 'updateGoal' })
-  @Public() // TODO: Add proper auth
   updateGoal(@Args('input') input: UpdateGoalInput): Promise<GameEvent> {
     return this.gameEventsService.updateGoal(input);
   }
@@ -310,7 +303,6 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => Boolean, { name: 'deleteEventWithCascade' })
-  @Public() // TODO: Add proper auth
   deleteEventWithCascade(
     @Args('gameEventId', { type: () => ID }) gameEventId: string,
     @Args('eventType') eventType: string,
@@ -335,7 +327,6 @@ export class GameEventsResolver {
   }
 
   @Mutation(() => GameEvent, { name: 'resolveEventConflict' })
-  @Public() // TODO: Add proper auth
   resolveEventConflict(
     @Args('conflictId', { type: () => ID }) conflictId: string,
     @Args('selectedEventId', { type: () => ID }) selectedEventId: string,

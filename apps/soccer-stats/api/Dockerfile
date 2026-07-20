@@ -18,6 +18,10 @@ ENV PORT=3333
 ENV APP_VERSION=${APP_VERSION}
 ENV GIT_SHA=${GIT_SHA}
 ENV BUILD_TIME=${BUILD_TIME}
+# Cap the V8 heap below the 512 MB App Runner instance memory so GC kicks in
+# before the container is OOM-killed. Node does not reliably derive this from
+# container limits on its own. Verify in prod via /api/health heapSizeLimitMB.
+ENV NODE_OPTIONS=--max-old-space-size=400
 
 # Enable corepack for pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
