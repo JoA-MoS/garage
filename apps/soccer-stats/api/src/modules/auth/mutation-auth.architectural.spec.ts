@@ -20,7 +20,9 @@ import { IS_PUBLIC_KEY } from './public.decorator';
  * This spec discovers every *.resolver.ts file under src/modules, loads its
  * exported classes, and asserts that no method decorated with @Mutation()
  * also carries @Public() metadata — the same metadata ClerkAuthGuard's
- * Reflector reads at runtime.
+ * Reflector reads at runtime. The guard uses getAllAndOverride over both
+ * the handler and the class, so a class-level @Public() opens every
+ * mutation in that resolver; classes are checked for the same reason.
  */
 describe('Mutation Auth Architecture', () => {
   // Set by @Mutation() via addResolverMetadata (see @nestjs/graphql
@@ -63,6 +65,11 @@ describe('Mutation Auth Architecture', () => {
           continue;
         }
 
+        // ClerkAuthGuard checks class metadata too (getAllAndOverride), so a
+        // class-level @Public() makes every mutation in the resolver public.
+        const classIsPublic =
+          Reflect.getMetadata(IS_PUBLIC_KEY, exported) === true;
+
         for (const methodName of Object.getOwnPropertyNames(
           exported.prototype,
         )) {
@@ -83,10 +90,15 @@ describe('Mutation Auth Architecture', () => {
           }
           mutationsChecked++;
 
-          if (Reflect.getMetadata(IS_PUBLIC_KEY, handler) === true) {
+          if (
+            classIsPublic ||
+            Reflect.getMetadata(IS_PUBLIC_KEY, handler) === true
+          ) {
             violations.push({
               file: path.relative(modulesDir, file),
-              method: `${exported.name}.${methodName}`,
+              method: `${exported.name}.${methodName}${
+                classIsPublic ? ' (class-level @Public())' : ''
+              }`,
               mutation:
                 Reflect.getMetadata('graphql:resolver_name', handler) ??
                 methodName,
