@@ -26,15 +26,13 @@ export class GameFormatsResolver {
   }
 
   @Mutation(() => GameFormat)
-  @Public() // Temporarily public for MVP
   async createGameFormat(
-    @Args('input') input: CreateGameFormatInput
+    @Args('input') input: CreateGameFormatInput,
   ): Promise<GameFormat> {
     return this.gameFormatsService.create(input);
   }
 
   @Mutation(() => Boolean)
-  @Public() // Temporarily public for MVP
   async seedGameFormats(): Promise<boolean> {
     await this.gameFormatsService.seedDefaultFormats();
     return true;
