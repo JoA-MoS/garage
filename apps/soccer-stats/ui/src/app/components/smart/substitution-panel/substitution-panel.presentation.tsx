@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond } from '@garage/soccer-stats/utils';
 
+import { FIELD_SENTINEL_POSITION } from '../lineup-panel/types';
+
 import { SubstitutionPanelPresentationProps, QueuedItem } from './types';
 
 /**
@@ -424,52 +426,51 @@ function PlayerSelectionTabs({
   isExecuting: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<'bench' | 'onField'>('bench');
-  const showTabs =
+  const isSwapping =
     selection.direction === 'field-first' && selection.fieldPlayer;
 
   if (isExecuting) return null;
 
-  // Filter on-field players to exclude the selected one
-  const swappablePlayers = onFieldPlayers.filter(
-    (p) => p.gameEventId !== selection.fieldPlayer?.gameEventId,
-  );
+  // While swapping, exclude the already-selected field player from the list
+  const visibleOnFieldPlayers = isSwapping
+    ? onFieldPlayers.filter(
+        (p) => p.gameEventId !== selection.fieldPlayer?.gameEventId,
+      )
+    : onFieldPlayers;
 
   return (
     <div className="px-4 py-3">
-      {/* Tab header */}
-      {showTabs ? (
-        <div className="mb-3 flex gap-1 rounded-lg bg-gray-100 p-1">
-          <button
-            type="button"
-            onClick={() => setActiveTab('bench')}
-            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              activeTab === 'bench'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Bench ({benchPlayers.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('onField')}
-            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              activeTab === 'onField'
-                ? 'bg-white text-purple-700 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Swap Position ({swappablePlayers.length})
-          </button>
-        </div>
-      ) : (
-        <div className="mb-2 text-xs font-medium uppercase text-gray-500">
-          Bench
-        </div>
-      )}
+      {/* Tab header - both tabs are always available so play time can be
+          compared across the full roster, not just the bench, before
+          deciding who to sub. */}
+      <div className="mb-3 flex gap-1 rounded-lg bg-gray-100 p-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab('bench')}
+          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+            activeTab === 'bench'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Bench ({benchPlayers.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('onField')}
+          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+            activeTab === 'onField'
+              ? 'bg-white text-purple-700 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          {isSwapping ? 'Swap Position' : 'On Field'} (
+          {visibleOnFieldPlayers.length})
+        </button>
+      </div>
 
       {/* Bench players */}
-      {(!showTabs || activeTab === 'bench') && (
+      {activeTab === 'bench' && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {benchPlayers.map((player) => {
             const id = getPlayerId(player);
@@ -511,11 +512,17 @@ function PlayerSelectionTabs({
         </div>
       )}
 
-      {/* On-field players for swaps */}
-      {showTabs && activeTab === 'onField' && (
+      {/* On-field players */}
+      {activeTab === 'onField' && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {swappablePlayers.map((player) => {
+          {visibleOnFieldPlayers.map((player) => {
             const id = getPlayerId(player);
+            const playTime = playTimeByPlayer.get(id);
+            // The "FIELD" position is a sentinel used internally when
+            // position tracking is off - never show it as a real position.
+            const hasRealPosition =
+              player.position && player.position !== FIELD_SENTINEL_POSITION;
+
             return (
               <button
                 key={id}
@@ -534,7 +541,8 @@ function PlayerSelectionTabs({
                   </span>
                 </div>
                 <span className="text-xs text-purple-600">
-                  {player.position || 'No position'}
+                  {playTime?.minutes ?? 0} min
+                  {hasRealPosition ? ` · ${player.position}` : ''}
                 </span>
               </button>
             );

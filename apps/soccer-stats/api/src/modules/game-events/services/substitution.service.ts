@@ -23,6 +23,17 @@ import { EventCoreService } from './event-core.service';
 import { LineupService } from './lineup.service';
 
 /**
+ * Sentinel position stored on a SUBSTITUTION_IN event when the team has
+ * position tracking disabled. On-field status is derived elsewhere (e.g.
+ * LineupService.getGameRoster) from `position != null`, so a subbed-in
+ * player still needs a non-null position even though no real position code
+ * applies. Must match the frontend's FIELD_SENTINEL_POSITION
+ * (lineup-panel/types.ts), which uses this same convention for pre-game and
+ * halftime field placements.
+ */
+const NON_TRACKED_FIELD_POSITION = 'FIELD';
+
+/**
  * Service responsible for substitution operations.
  * Handles player substitutions, field entries/exits, and batch changes.
  */
@@ -238,7 +249,10 @@ export class SubstitutionService {
 
     const savedSubOut = await this.gameEventsRepository.save(subOutEvent);
 
-    // Create SUBSTITUTION_IN event (takes the position of the player going out)
+    // Create SUBSTITUTION_IN event (takes the position of the player going out).
+    // When position tracking is off, this still needs a non-null position -
+    // otherwise the incoming player is indistinguishable from a benched one
+    // (see LineupService.getGameRoster's `position != null` on-field check).
     const subInEvent = this.gameEventsRepository.create({
       gameId: gameTeam.gameId,
       gameTeamId: input.gameTeamId,
@@ -249,7 +263,9 @@ export class SubstitutionService {
       recordedByUserId,
       period: input.period,
       periodSecond: input.periodSecond,
-      position: trackPosition ? playerOutEvent.position : undefined,
+      position: trackPosition
+        ? playerOutEvent.position
+        : NON_TRACKED_FIELD_POSITION,
       parentEventId: savedSubOut.id,
     });
 

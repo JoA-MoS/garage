@@ -199,6 +199,12 @@ export class LineupService {
    * Position logic:
    * - position != null → player is on field at that position
    * - position == null → player is on bench
+   *
+   * This holds even when position tracking is disabled for the team:
+   * SubstitutionService stores a sentinel position ('FIELD') on
+   * SUBSTITUTION_IN events instead of leaving position null, so on-field
+   * status can still be derived the same way. See
+   * SubstitutionService.substitutePlayer.
    */
   async getGameRoster(gameTeamId: string): Promise<GameRoster> {
     // Get gameTeam with team configuration for default formation fallback
