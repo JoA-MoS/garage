@@ -303,16 +303,33 @@ describe('SubstitutionPanelPresentation', () => {
       expect(screen.getByText(/Swap Position \(\d+\)/)).toBeTruthy();
     });
 
-    it('does not show tabs when no selection active', () => {
+    it('shows an "On Field" tab (not "Swap Position") when no selection is active', () => {
       const props = {
         ...defaultProps,
         panelState: 'bench-view' as PanelState,
         selection: { direction: null, fieldPlayer: null, benchPlayer: null },
       };
       render(<SubstitutionPanelPresentation {...props} />);
-      // Should only show "Bench" label, not tabs
-      expect(screen.getByText('Bench')).toBeTruthy();
+      // Both tabs are always available so play time can be compared across
+      // the full roster before deciding who to sub - see PlayerSelectionTabs.
+      expect(screen.getByText(/Bench \(\d+\)/)).toBeTruthy();
+      expect(screen.getByText(/On Field \(\d+\)/)).toBeTruthy();
       expect(screen.queryByText(/Swap Position/)).toBeFalsy();
+    });
+
+    it('shows play time for on-field players, not just the bench', () => {
+      const props = {
+        ...defaultProps,
+        panelState: 'bench-view' as PanelState,
+        selection: { direction: null, fieldPlayer: null, benchPlayer: null },
+      };
+      render(<SubstitutionPanelPresentation {...props} />);
+
+      fireEvent.click(screen.getByText(/On Field/));
+
+      // Sarah Smith (15 min) and Alex Jones (10 min) per defaultProps.playTimeByPlayer
+      expect(screen.getByText(/15 min/)).toBeTruthy();
+      expect(screen.getByText(/10 min/)).toBeTruthy();
     });
 
     it('switches to swap position tab when clicked', () => {

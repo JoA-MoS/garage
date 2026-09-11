@@ -1052,6 +1052,37 @@ describe('LineupService', () => {
       expect(result.players[0].position).toBeNull();
     });
 
+    it('treats the sentinel "FIELD" position (used when position tracking is off) as on field', async () => {
+      // Regression test: SubstitutionService stores position: 'FIELD' (not
+      // null) on SUBSTITUTION_IN events for teams with trackPositions=false,
+      // specifically so this query's `position != null` on-field check still
+      // works. See SubstitutionService.substitutePlayer.
+      const rawPlayers = [
+        {
+          gameEventId: 'evt-in',
+          playerId: 'player-in',
+          firstName: 'Incoming',
+          lastName: 'Player',
+          externalPlayerName: null,
+          externalPlayerNumber: null,
+          position: 'FIELD',
+        },
+      ];
+
+      const mockQb = createMockQueryBuilder(rawPlayers);
+      const mockFormationQb = createMockQueryBuilder([]);
+
+      mockManager.createQueryBuilder.mockReturnValue(mockQb);
+      mockGameEventsRepository.createQueryBuilder = jest
+        .fn()
+        .mockReturnValue(mockFormationQb);
+      mockGameEventsRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.getGameRoster(mockGameTeamId);
+
+      expect(result.players[0].position).toBe('FIELD');
+    });
+
     it('should return latest formation from FORMATION_CHANGE events', async () => {
       const mockQb = createMockQueryBuilder([]);
       const mockFormationQb = createMockQueryBuilder([]);

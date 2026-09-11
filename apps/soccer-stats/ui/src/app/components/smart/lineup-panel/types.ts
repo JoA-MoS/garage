@@ -71,7 +71,8 @@ export type QueuedLineupItem =
 /**
  * Sentinel position value used in substitution-only mode (trackPositions=false).
  * Players assigned this position are treated as "on field" by the position != null
- * check, but the value is never displayed in the UI.
+ * check, but the value is never displayed in the UI. The API applies the same
+ * convention to mid-game substitutions - see SubstitutionService.substitutePlayer.
  */
 export const FIELD_SENTINEL_POSITION = 'FIELD';
 

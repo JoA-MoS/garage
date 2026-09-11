@@ -148,7 +148,7 @@ describe('SubstitutionService', () => {
       );
 
       expect(mockGamesRepository.findOne).toHaveBeenCalled();
-      expect(saved.position).toBeUndefined();
+      expect(saved.position).toBe('FIELD');
     });
 
     it('falls through to DEFAULT_STATS_FEATURES when both gameTeam and game have none', async () => {
@@ -217,7 +217,7 @@ describe('SubstitutionService', () => {
       expect(saved.position).toBe('ST');
     });
 
-    it('strips position when trackPositions=false', async () => {
+    it('uses FIELD sentinel when trackPositions=false', async () => {
       (mockCoreService.getGameTeam as jest.Mock).mockResolvedValue(
         makeGameTeam({
           statsFeatures: { ...DEFAULT_STATS_FEATURES, trackPositions: false },
@@ -235,7 +235,7 @@ describe('SubstitutionService', () => {
         USER_ID,
       );
 
-      expect(saved.position).toBeUndefined();
+      expect(saved.position).toBe('FIELD');
     });
   });
 
@@ -327,7 +327,13 @@ describe('SubstitutionService', () => {
       expect(subInCreate.position).toBe('LM');
     });
 
-    it('strips position on both SUB_OUT and SUB_IN when trackPositions=false', async () => {
+    it('strips the real position on SUB_OUT but stamps the "FIELD" sentinel on SUB_IN when trackPositions=false', async () => {
+      // Regression test: the incoming player must still read as on-field
+      // (position != null) even though position tracking is off, or a
+      // freshly subbed-in player is indistinguishable from one on the bench.
+      // The outgoing player's real position code ('LM' here) must not leak
+      // onto the new events - SUB_OUT is stripped like before, and SUB_IN
+      // gets the sentinel instead of the real code.
       (mockCoreService.getGameTeam as jest.Mock).mockResolvedValue(
         makeGameTeam({
           statsFeatures: { ...DEFAULT_STATS_FEATURES, trackPositions: false },
@@ -353,7 +359,7 @@ describe('SubstitutionService', () => {
       const subInCreate = (mockGameEventsRepository.create as jest.Mock).mock
         .calls[1][0];
       expect(subOutCreate.position).toBeUndefined();
-      expect(subInCreate.position).toBeUndefined();
+      expect(subInCreate.position).toBe('FIELD');
     });
   });
 
