@@ -2175,6 +2175,9 @@ export type UpdateGameMutation = {
     weatherConditions?: string | null;
     createdAt: any;
     updatedAt: any;
+    currentPeriod?: string | null;
+    currentPeriodSecond: number;
+    serverTimestamp: number;
   };
 };
 
@@ -6113,6 +6116,18 @@ export const UpdateGameDocument = {
                 },
                 { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                 { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'currentPeriod' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'currentPeriodSecond' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'serverTimestamp' },
+                },
               ],
             },
           },

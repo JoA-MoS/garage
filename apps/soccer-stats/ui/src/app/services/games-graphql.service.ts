@@ -203,6 +203,9 @@ export const UPDATE_GAME = graphql(/* GraphQL */ `
       weatherConditions
       createdAt
       updatedAt
+      currentPeriod
+      currentPeriodSecond
+      serverTimestamp
     }
   }
 `);
