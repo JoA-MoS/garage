@@ -112,7 +112,7 @@ export class SubstitutionService {
       playerId: input.playerId,
       externalPlayerName: input.externalPlayerName,
       externalPlayerNumber: input.externalPlayerNumber,
-      position: trackPosition ? input.position : undefined,
+      position: trackPosition ? input.position : NON_TRACKED_FIELD_POSITION,
       recordedByUserId,
       period: input.period,
       periodSecond: input.periodSecond,

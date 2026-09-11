@@ -427,7 +427,7 @@ function PlayerSelectionTabs({
 }) {
   const [activeTab, setActiveTab] = useState<'bench' | 'onField'>('bench');
   const isSwapping =
-    selection.direction === 'field-first' && selection.fieldPlayer;
+    !!(selection.direction === 'field-first' && selection.fieldPlayer);
 
   if (isExecuting) return null;
 

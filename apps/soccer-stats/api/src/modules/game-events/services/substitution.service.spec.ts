@@ -148,7 +148,7 @@ describe('SubstitutionService', () => {
       );
 
       expect(mockGamesRepository.findOne).toHaveBeenCalled();
-      expect(saved.position).toBeUndefined();
+      expect(saved.position).toBe('FIELD');
     });
 
     it('falls through to DEFAULT_STATS_FEATURES when both gameTeam and game have none', async () => {
@@ -217,7 +217,7 @@ describe('SubstitutionService', () => {
       expect(saved.position).toBe('ST');
     });
 
-    it('strips position when trackPositions=false', async () => {
+    it('uses FIELD sentinel when trackPositions=false', async () => {
       (mockCoreService.getGameTeam as jest.Mock).mockResolvedValue(
         makeGameTeam({
           statsFeatures: { ...DEFAULT_STATS_FEATURES, trackPositions: false },
@@ -235,7 +235,7 @@ describe('SubstitutionService', () => {
         USER_ID,
       );
 
-      expect(saved.position).toBeUndefined();
+      expect(saved.position).toBe('FIELD');
     });
   });
 
