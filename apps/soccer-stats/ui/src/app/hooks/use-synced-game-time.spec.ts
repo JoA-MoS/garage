@@ -69,6 +69,26 @@ describe('useSyncedGameTime', () => {
     expect(result.current.periodSecond).toBe(0);
   });
 
+  it('does not advance periodSecond while the game is paused', () => {
+    const syncData = {
+      currentPeriod: '1',
+      currentPeriodSecond: 100,
+      serverTimestamp: Date.now(),
+      pausedAt: new Date().toISOString(),
+    };
+
+    const { result } = renderHook(() => useSyncedGameTime(syncData));
+
+    expect(result.current.periodSecond).toBe(100);
+
+    // A long stoppage should not inflate the clock
+    act(() => {
+      vi.advanceTimersByTime(120000); // 2 minutes
+    });
+
+    expect(result.current.periodSecond).toBe(100);
+  });
+
   it('resets elapsed time when sync data changes', () => {
     const initialSync = {
       currentPeriod: '1',

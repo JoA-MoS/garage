@@ -4,6 +4,8 @@ interface ServerTimeSync {
   currentPeriod: string | null | undefined;
   currentPeriodSecond: number;
   serverTimestamp: number;
+  /** ISO timestamp of when the game clock was paused, or null/undefined if not paused. */
+  pausedAt?: string | null;
 }
 
 interface GameTime {
@@ -52,15 +54,15 @@ export function useSyncedGameTime(
 
   // Tick the clock every second (only when game is active)
   useEffect(() => {
-    // Don't tick if no sync data or game is paused/halftime
-    if (!syncData?.currentPeriod) return;
+    // Don't tick if no sync data, no current period, or game is paused/halftime
+    if (!syncData?.currentPeriod || syncData?.pausedAt) return;
 
     const interval = setInterval(() => {
       setTickCount((prev) => prev + 1);
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [syncData?.currentPeriod, syncData?.serverTimestamp]);
+  }, [syncData?.currentPeriod, syncData?.serverTimestamp, syncData?.pausedAt]);
 
   // Compute current time
   const result = useMemo(() => {
