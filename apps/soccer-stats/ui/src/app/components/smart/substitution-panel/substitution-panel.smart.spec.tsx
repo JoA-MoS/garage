@@ -362,6 +362,92 @@ describe('SubstitutionPanel Smart Component', () => {
     });
   });
 
+  describe('addition flow (bring bench player onto field, no removal)', () => {
+    it('shows the "Add to Field" button after selecting a bench player, and queues it on click', async () => {
+      const props = createDefaultProps({ playersPerTeam: 3 });
+      render(<SubstitutionPanel {...props} />);
+
+      fireEvent.click(screen.getByText('Substitutions'));
+      await waitFor(() => {
+        expect(screen.getByText('Jimmy Brown')).toBeTruthy();
+      });
+
+      // Select bench player (bench-first)
+      fireEvent.click(screen.getByText('Jimmy Brown'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Add to Field (No Removal)')).toBeTruthy();
+      });
+
+      fireEvent.click(screen.getByText('Add to Field (No Removal)'));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Queued \(1\)/)).toBeTruthy();
+        expect(screen.getByText('Confirm All (1)')).toBeTruthy();
+      });
+    });
+
+    it('calls bringPlayerOntoField mutation with FIELD sentinel position on confirm', async () => {
+      const props = createDefaultProps({ playersPerTeam: 3 });
+      render(<SubstitutionPanel {...props} />);
+
+      fireEvent.click(screen.getByText('Substitutions'));
+      await waitFor(() => {
+        expect(screen.getByText('Jimmy Brown')).toBeTruthy();
+      });
+
+      fireEvent.click(screen.getByText('Jimmy Brown'));
+      await waitFor(() => {
+        expect(screen.getByText('Add to Field (No Removal)')).toBeTruthy();
+      });
+      fireEvent.click(screen.getByText('Add to Field (No Removal)'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Confirm All (1)')).toBeTruthy();
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByText('Confirm All (1)'));
+      });
+
+      await waitFor(() => {
+        expect(mockBatchLineupChanges).toHaveBeenCalledWith({
+          variables: {
+            input: {
+              gameTeamId: 'game-team-1',
+              playerId: '3',
+              externalPlayerName: undefined,
+              externalPlayerNumber: undefined,
+              position: 'FIELD',
+              period: '1',
+              periodSecond: 900,
+            },
+          },
+        });
+      });
+    });
+
+    it('disables the button once the field is at the format capacity', async () => {
+      // Default onField has 2 players; cap matches it
+      const props = createDefaultProps({ playersPerTeam: 2 });
+      render(<SubstitutionPanel {...props} />);
+
+      fireEvent.click(screen.getByText('Substitutions'));
+      await waitFor(() => {
+        expect(screen.getByText('Jimmy Brown')).toBeTruthy();
+      });
+
+      fireEvent.click(screen.getByText('Jimmy Brown'));
+
+      await waitFor(() => {
+        const button = screen.getByText(
+          'Field Full (2/2)',
+        ) as HTMLButtonElement;
+        expect(button.disabled).toBe(true);
+      });
+    });
+  });
+
   describe('handleConfirmAll', () => {
     it('executes mutation with correct inputs', async () => {
       const onSubstitutionComplete = vi.fn();

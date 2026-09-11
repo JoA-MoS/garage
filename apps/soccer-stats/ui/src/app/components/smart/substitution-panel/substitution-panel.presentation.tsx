@@ -51,6 +51,8 @@ export const SubstitutionPanelPresentation = ({
   onRemoveFromQueue,
   onConfirmAll,
   onRequestRemoval,
+  onRequestAddition,
+  maxOnField,
   isExecuting,
   executionProgress,
   error,
@@ -265,6 +267,24 @@ export const SubstitutionPanelPresentation = ({
                 Remove from Field (No Sub)
               </button>
             )}
+
+            {/* Add to field - shown when a bench player is selected (e.g.
+                filling a gap when the team is short a player). Disabled once
+                the field is already at the format's roster size. */}
+            {selection.direction === 'bench-first' && selection.benchPlayer && (
+              <button
+                type="button"
+                disabled={
+                  maxOnField != null && onFieldPlayers.length >= maxOnField
+                }
+                onClick={() => onRequestAddition(selection.benchPlayer!)}
+                className="w-full rounded-md border border-green-300 px-3 py-1.5 text-xs font-medium text-green-600 transition-colors hover:bg-green-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400 disabled:hover:bg-transparent"
+              >
+                {maxOnField != null && onFieldPlayers.length >= maxOnField
+                  ? `Field Full (${onFieldPlayers.length}/${maxOnField})`
+                  : 'Add to Field (No Removal)'}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -295,6 +315,43 @@ function QueuedItemRow({
             {getPlayerDisplayName(item.playerOut)}
           </span>
           <span className="text-gray-400">off</span>
+        </div>
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={disabled}
+          className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+          aria-label="Remove from queue"
+        >
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
+    );
+  }
+
+  if (item.type === 'addition') {
+    return (
+      <div className="flex items-center justify-between rounded-lg border border-green-200 bg-white p-2">
+        <div className="flex items-center gap-2 text-sm">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-green-100 text-xs font-medium text-green-600">
+            A
+          </span>
+          <span className="text-green-600">
+            {getPlayerDisplayName(item.playerIn)}
+          </span>
+          <span className="text-gray-400">on</span>
         </div>
         <button
           type="button"
@@ -426,8 +483,9 @@ function PlayerSelectionTabs({
   isExecuting: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<'bench' | 'onField'>('bench');
-  const isSwapping =
-    !!(selection.direction === 'field-first' && selection.fieldPlayer);
+  const isSwapping = !!(
+    selection.direction === 'field-first' && selection.fieldPlayer
+  );
 
   if (isExecuting) return null;
 
