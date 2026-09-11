@@ -363,7 +363,10 @@ describe('SubstitutionPanel Smart Component', () => {
   });
 
   describe('addition flow (bring bench player onto field, no removal)', () => {
-    it('shows the "Add to Field" button after selecting a bench player, and queues it on click', async () => {
+    // The addition action is a placeholder card inside the "On Field" tab
+    // grid (matching the lineup-panel's "Add to Field" card placement), so
+    // these tests switch to that tab after selecting a bench player.
+    it('shows the "Add to Field" placeholder after selecting a bench player, and queues it on click', async () => {
       const props = createDefaultProps({ playersPerTeam: 3 });
       render(<SubstitutionPanel {...props} />);
 
@@ -375,11 +378,12 @@ describe('SubstitutionPanel Smart Component', () => {
       // Select bench player (bench-first)
       fireEvent.click(screen.getByText('Jimmy Brown'));
 
+      fireEvent.click(screen.getByText(/On Field/));
       await waitFor(() => {
-        expect(screen.getByText('Add to Field (No Removal)')).toBeTruthy();
+        expect(screen.getByText('Add to Field')).toBeTruthy();
       });
 
-      fireEvent.click(screen.getByText('Add to Field (No Removal)'));
+      fireEvent.click(screen.getByText('Add to Field'));
 
       await waitFor(() => {
         expect(screen.getByText(/Queued \(1\)/)).toBeTruthy();
@@ -397,10 +401,11 @@ describe('SubstitutionPanel Smart Component', () => {
       });
 
       fireEvent.click(screen.getByText('Jimmy Brown'));
+      fireEvent.click(screen.getByText(/On Field/));
       await waitFor(() => {
-        expect(screen.getByText('Add to Field (No Removal)')).toBeTruthy();
+        expect(screen.getByText('Add to Field')).toBeTruthy();
       });
-      fireEvent.click(screen.getByText('Add to Field (No Removal)'));
+      fireEvent.click(screen.getByText('Add to Field'));
 
       await waitFor(() => {
         expect(screen.getByText('Confirm All (1)')).toBeTruthy();
@@ -427,7 +432,7 @@ describe('SubstitutionPanel Smart Component', () => {
       });
     });
 
-    it('disables the button once the field is at the format capacity', async () => {
+    it('disables the placeholder once the field is at the format capacity', async () => {
       // Default onField has 2 players; cap matches it
       const props = createDefaultProps({ playersPerTeam: 2 });
       render(<SubstitutionPanel {...props} />);
@@ -438,11 +443,12 @@ describe('SubstitutionPanel Smart Component', () => {
       });
 
       fireEvent.click(screen.getByText('Jimmy Brown'));
+      fireEvent.click(screen.getByText(/On Field/));
 
       await waitFor(() => {
-        const button = screen.getByText(
-          'Field Full (2/2)',
-        ) as HTMLButtonElement;
+        const button = screen
+          .getByText('Field Full (2/2)')
+          .closest('button') as HTMLButtonElement;
         expect(button.disabled).toBe(true);
       });
     });
@@ -460,24 +466,29 @@ describe('SubstitutionPanel Smart Component', () => {
 
       // Queue one addition (Jimmy Brown) - this fills the last open slot
       fireEvent.click(screen.getByText('Jimmy Brown'));
+      fireEvent.click(screen.getByText(/On Field/));
       await waitFor(() => {
-        expect(screen.getByText('Add to Field (No Removal)')).toBeTruthy();
+        expect(screen.getByText('Add to Field')).toBeTruthy();
       });
-      fireEvent.click(screen.getByText('Add to Field (No Removal)'));
+      fireEvent.click(screen.getByText('Add to Field'));
 
       await waitFor(() => {
         expect(screen.getByText(/Queued \(1\)/)).toBeTruthy();
       });
 
+      // Switch back to the Bench tab to select the remaining bench player
+      fireEvent.click(screen.getByText(/Bench/));
+      fireEvent.click(screen.getByText('Taylor White'));
+
       // Selecting the remaining bench player should now show the field as
       // full (2 on field + 1 queued addition = 3, the cap) - even though
       // the raw onField list still only has 2 players.
-      fireEvent.click(screen.getByText('Taylor White'));
+      fireEvent.click(screen.getByText(/On Field/));
 
       await waitFor(() => {
-        const button = screen.getByText(
-          'Field Full (3/3)',
-        ) as HTMLButtonElement;
+        const button = screen
+          .getByText('Field Full (3/3)')
+          .closest('button') as HTMLButtonElement;
         expect(button.disabled).toBe(true);
       });
     });

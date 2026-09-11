@@ -143,6 +143,9 @@ describe('SubstitutionPanelPresentation', () => {
   });
 
   describe('addition flow (bring bench player onto field, no removal)', () => {
+    // The addition action lives as a placeholder card inside the "On Field"
+    // tab grid (same shape/placement as the lineup-panel's "Add to Field"
+    // card), not a standalone footer button - so tests switch to that tab.
     const benchFirstProps = {
       ...defaultProps,
       panelState: 'bench-view' as PanelState,
@@ -153,13 +156,24 @@ describe('SubstitutionPanelPresentation', () => {
       },
     };
 
-    it('shows an enabled "Add to Field" button when below capacity', () => {
+    it('shows an enabled "Add to Field" placeholder card in the On Field tab when below capacity', () => {
       render(
         <SubstitutionPanelPresentation {...benchFirstProps} maxOnField={3} />,
       );
-      const button = screen.getByText('Add to Field (No Removal)');
+      fireEvent.click(screen.getByText(/On Field/));
+      const button = screen.getByText('Add to Field').closest('button');
       expect(button).toBeTruthy();
       expect((button as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it('renders the placeholder alongside the real on-field player chips, not in place of them', () => {
+      render(
+        <SubstitutionPanelPresentation {...benchFirstProps} maxOnField={3} />,
+      );
+      fireEvent.click(screen.getByText(/On Field/));
+      expect(screen.getByText('Sarah Smith')).toBeTruthy();
+      expect(screen.getByText('Alex Jones')).toBeTruthy();
+      expect(screen.getByText('Add to Field')).toBeTruthy();
     });
 
     it('calls onRequestAddition with the selected bench player when clicked', () => {
@@ -171,27 +185,33 @@ describe('SubstitutionPanelPresentation', () => {
           onRequestAddition={onRequestAddition}
         />,
       );
-      fireEvent.click(screen.getByText('Add to Field (No Removal)'));
+      fireEvent.click(screen.getByText(/On Field/));
+      fireEvent.click(screen.getByText('Add to Field'));
       expect(onRequestAddition).toHaveBeenCalledWith(
         expect.objectContaining({ playerName: 'Jimmy Brown' }),
       );
     });
 
-    it('disables the button and shows the field-full count at capacity', () => {
+    it('disables the placeholder and shows the field-full count at capacity', () => {
       // defaultProps has 2 onFieldPlayers; cap it at 2
       render(
         <SubstitutionPanelPresentation {...benchFirstProps} maxOnField={2} />,
       );
-      const button = screen.getByText(/Field Full/);
+      fireEvent.click(screen.getByText(/On Field/));
+      const button = screen.getByText('Field Full (2/2)').closest('button');
       expect((button as HTMLButtonElement).disabled).toBe(true);
-      expect(screen.getByText('Field Full (2/2)')).toBeTruthy();
     });
 
-    it('does not show the addition button when no bench player is selected', () => {
+    it('does not show the addition placeholder when no bench player is selected', () => {
       render(
-        <SubstitutionPanelPresentation {...defaultProps} maxOnField={3} />,
+        <SubstitutionPanelPresentation
+          {...defaultProps}
+          panelState="bench-view"
+          maxOnField={3}
+        />,
       );
-      expect(screen.queryByText(/Add to Field/)).toBeFalsy();
+      fireEvent.click(screen.getByText(/On Field/));
+      expect(screen.queryByText('Add to Field')).toBeFalsy();
       expect(screen.queryByText(/Field Full/)).toBeFalsy();
     });
   });
