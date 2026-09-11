@@ -14,8 +14,8 @@ describe('UPDATE_GAME mutation', () => {
     // See useSyncedGameTime, which is fed exactly these three fields.
     const printed = print(UPDATE_GAME);
 
-    expect(printed).toContain('currentPeriod');
-    expect(printed).toContain('currentPeriodSecond');
-    expect(printed).toContain('serverTimestamp');
+    expect(printed).toMatch(/\bcurrentPeriod\b/);
+    expect(printed).toMatch(/\bcurrentPeriodSecond\b/);
+    expect(printed).toMatch(/\bserverTimestamp\b/);
   });
 });
