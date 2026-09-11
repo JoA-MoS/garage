@@ -41,6 +41,10 @@ const defaultProps: SubstitutionPanelPresentationProps = {
   queue: [],
   onRemoveFromQueue: vi.fn(),
   onConfirmAll: vi.fn(),
+  onRequestRemoval: vi.fn(),
+  onRequestAddition: vi.fn(),
+  currentOnFieldCount: 2,
+  maxOnField: null,
   isExecuting: false,
   executionProgress: 0,
   error: null,
@@ -135,6 +139,60 @@ describe('SubstitutionPanelPresentation', () => {
       expect(onBenchPlayerClick).toHaveBeenCalledWith(
         expect.objectContaining({ playerName: 'Jimmy Brown' }),
       );
+    });
+  });
+
+  describe('addition flow (bring bench player onto field, no removal)', () => {
+    const benchFirstProps = {
+      ...defaultProps,
+      panelState: 'bench-view' as PanelState,
+      selection: {
+        direction: 'bench-first' as const,
+        fieldPlayer: null,
+        benchPlayer: mockPlayer('3', 'Jimmy Brown', '12'),
+      },
+    };
+
+    it('shows an enabled "Add to Field" button when below capacity', () => {
+      render(
+        <SubstitutionPanelPresentation {...benchFirstProps} maxOnField={3} />,
+      );
+      const button = screen.getByText('Add to Field (No Removal)');
+      expect(button).toBeTruthy();
+      expect((button as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it('calls onRequestAddition with the selected bench player when clicked', () => {
+      const onRequestAddition = vi.fn();
+      render(
+        <SubstitutionPanelPresentation
+          {...benchFirstProps}
+          maxOnField={3}
+          onRequestAddition={onRequestAddition}
+        />,
+      );
+      fireEvent.click(screen.getByText('Add to Field (No Removal)'));
+      expect(onRequestAddition).toHaveBeenCalledWith(
+        expect.objectContaining({ playerName: 'Jimmy Brown' }),
+      );
+    });
+
+    it('disables the button and shows the field-full count at capacity', () => {
+      // defaultProps has 2 onFieldPlayers; cap it at 2
+      render(
+        <SubstitutionPanelPresentation {...benchFirstProps} maxOnField={2} />,
+      );
+      const button = screen.getByText(/Field Full/);
+      expect((button as HTMLButtonElement).disabled).toBe(true);
+      expect(screen.getByText('Field Full (2/2)')).toBeTruthy();
+    });
+
+    it('does not show the addition button when no bench player is selected', () => {
+      render(
+        <SubstitutionPanelPresentation {...defaultProps} maxOnField={3} />,
+      );
+      expect(screen.queryByText(/Add to Field/)).toBeFalsy();
+      expect(screen.queryByText(/Field Full/)).toBeFalsy();
     });
   });
 

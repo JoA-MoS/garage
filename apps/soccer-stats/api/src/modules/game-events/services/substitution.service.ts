@@ -76,6 +76,36 @@ export class SubstitutionService {
   }
 
   /**
+   * Reject bringing a player onto the field when the team is already at its
+   * format's on-field limit (playersPerTeam, e.g. 11 for 11v11 - not the
+   * full roster size, which is typically larger). This guard exists
+   * specifically for the "add without a removal" path - normal
+   * substitutions always pair an out with an in, so they can never exceed
+   * capacity on their own.
+   *
+   * Fails open (skips the check) when the game's format can't be resolved,
+   * matching LineupService.assertPositionCapacity's philosophy of not
+   * blocking a legitimate operation over a data gap.
+   */
+  private async assertFieldCapacity(gameTeam: GameTeam): Promise<void> {
+    const game = await this.coreService.gamesRepository.findOne({
+      where: { id: gameTeam.gameId },
+      relations: ['format'],
+    });
+    const playersPerTeam = game?.format?.playersPerTeam;
+    if (playersPerTeam == null) {
+      return;
+    }
+
+    const lineup = await this.lineupService.getGameLineup(gameTeam.id);
+    if (lineup.currentOnField.length >= playersPerTeam) {
+      throw new BadRequestException(
+        `Cannot add player: team already has the maximum of ${playersPerTeam} players on the field`,
+      );
+    }
+  }
+
+  /**
    * Bring a player onto the field during a game (creates SUBSTITUTION_IN event).
    * Used at halftime or when adding a player to an empty position mid-game.
    * Unlike addPlayerToLineup, this doesn't check for existing bench/lineup events
@@ -95,6 +125,8 @@ export class SubstitutionService {
     const features = await this.getEffectiveFeatures(gameTeam);
     const trackPosition = features.trackPositions;
     const eventType = this.coreService.getEventTypeByName('SUBSTITUTION_IN');
+
+    await this.assertFieldCapacity(gameTeam);
 
     // Build metadata object with optional fields
     const metadata: Record<string, string | null> = {};

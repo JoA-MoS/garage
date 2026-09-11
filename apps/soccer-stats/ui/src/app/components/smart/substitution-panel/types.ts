@@ -57,6 +57,11 @@ export type QueuedItem =
       id: string;
       type: 'removal';
       playerOut: GqlRosterPlayer;
+    }
+  | {
+      id: string;
+      type: 'addition';
+      playerIn: GqlRosterPlayer;
     };
 
 /**
@@ -90,6 +95,20 @@ export interface SubstitutionPanelPresentationProps {
   // Removal flow
   onRequestRemoval: (player: GqlRosterPlayer) => void;
 
+  // Addition flow (bring a bench player onto the field with no one subbed
+  // out - e.g. filling a gap when the team is short a player)
+  onRequestAddition: (player: GqlRosterPlayer) => void;
+  // Projected on-field count if every queued change were applied (raw
+  // onField count, adjusted for queued additions/removals - substitutions
+  // and swaps are net-zero). Compared against maxOnField to gate the
+  // button, so queuing multiple additions can't silently exceed capacity.
+  currentOnFieldCount: number;
+  // Format's maximum number of players allowed on the field at once (e.g.
+  // 11 for 11v11 - NOT the full roster size, which is typically larger).
+  // Null when unknown - in that case the addition button is never disabled
+  // client-side (the backend still enforces capacity server-side).
+  maxOnField: number | null;
+
   // Execution state
   isExecuting: boolean;
   executionProgress: number;
@@ -112,6 +131,14 @@ export interface SubstitutionPanelSmartProps {
   bench: GqlRosterPlayer[];
   period: string;
   periodSecond: number;
+
+  /**
+   * The team's format roster size (e.g. 11 for 11v11). Used to disable the
+   * "Add to Field (No Removal)" action once the field is already full.
+   * Undefined/null skips the client-side gate - the backend still enforces
+   * capacity server-side.
+   */
+  playersPerTeam?: number | null;
 
   /**
    * When true, substitutions execute immediately instead of queueing.

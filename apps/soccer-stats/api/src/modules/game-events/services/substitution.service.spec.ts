@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 
 import { GameEvent } from '../../../entities/game-event.entity';
@@ -122,8 +122,13 @@ describe('SubstitutionService', () => {
         USER_ID,
       );
 
-      // gamesRepository should NOT be consulted when gameTeam has features
-      expect(mockGamesRepository.findOne).not.toHaveBeenCalled();
+      // gamesRepository is still consulted once for the capacity guard, but
+      // not for feature resolution (gameTeam already has features) - so the
+      // one call it does see is the capacity check's relations-based lookup.
+      expect(mockGamesRepository.findOne).toHaveBeenCalledTimes(1);
+      expect(mockGamesRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({ relations: ['format'] }),
+      );
     });
 
     it('falls through to game.statsFeatures when gameTeam has none', async () => {
@@ -236,6 +241,96 @@ describe('SubstitutionService', () => {
       );
 
       expect(saved.position).toBe('FIELD');
+    });
+  });
+
+  // ─── bringPlayerOntoField — capacity guard ────────────────────────────────
+
+  describe('bringPlayerOntoField — capacity guard', () => {
+    it('rejects the add when the team already has playersPerTeam players on the field', async () => {
+      (mockCoreService.getGameTeam as jest.Mock).mockResolvedValue(
+        makeGameTeam({
+          statsFeatures: { ...DEFAULT_STATS_FEATURES, trackPositions: true },
+        }),
+      );
+      mockGamesRepository.findOne!.mockResolvedValue({
+        id: GAME_ID,
+        format: { playersPerTeam: 2 },
+      } as Game);
+      (mockLineupService.getGameLineup as jest.Mock).mockResolvedValue({
+        currentOnField: [{ playerId: 'a' }, { playerId: 'b' }],
+      });
+
+      await expect(
+        service.bringPlayerOntoField(
+          {
+            gameTeamId: GAME_TEAM_ID,
+            playerId: PLAYER_ID,
+            position: 'ST',
+            period: '1',
+            periodSecond: 0,
+          },
+          USER_ID,
+        ),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockGameEventsRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('allows the add when the team is below the format capacity', async () => {
+      (mockCoreService.getGameTeam as jest.Mock).mockResolvedValue(
+        makeGameTeam({
+          statsFeatures: { ...DEFAULT_STATS_FEATURES, trackPositions: true },
+        }),
+      );
+      mockGamesRepository.findOne!.mockResolvedValue({
+        id: GAME_ID,
+        format: { playersPerTeam: 2 },
+      } as Game);
+      (mockLineupService.getGameLineup as jest.Mock).mockResolvedValue({
+        currentOnField: [{ playerId: 'a' }],
+      });
+
+      const saved = await service.bringPlayerOntoField(
+        {
+          gameTeamId: GAME_TEAM_ID,
+          playerId: PLAYER_ID,
+          position: 'ST',
+          period: '1',
+          periodSecond: 0,
+        },
+        USER_ID,
+      );
+
+      expect(saved.position).toBe('ST');
+    });
+
+    it('does not block the add when the format is unknown (fails open)', async () => {
+      (mockCoreService.getGameTeam as jest.Mock).mockResolvedValue(
+        makeGameTeam({
+          statsFeatures: { ...DEFAULT_STATS_FEATURES, trackPositions: true },
+        }),
+      );
+      mockGamesRepository.findOne!.mockResolvedValue({
+        id: GAME_ID,
+        format: null,
+      } as unknown as Game);
+      (mockLineupService.getGameLineup as jest.Mock).mockResolvedValue({
+        currentOnField: [{ playerId: 'a' }, { playerId: 'b' }],
+      });
+
+      const saved = await service.bringPlayerOntoField(
+        {
+          gameTeamId: GAME_TEAM_ID,
+          playerId: PLAYER_ID,
+          position: 'ST',
+          period: '1',
+          periodSecond: 0,
+        },
+        USER_ID,
+      );
+
+      expect(saved.position).toBe('ST');
     });
   });
 
