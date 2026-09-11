@@ -43,6 +43,7 @@ const defaultProps: SubstitutionPanelPresentationProps = {
   onConfirmAll: vi.fn(),
   onRequestRemoval: vi.fn(),
   onRequestAddition: vi.fn(),
+  currentOnFieldCount: 2,
   maxOnField: null,
   isExecuting: false,
   executionProgress: 0,

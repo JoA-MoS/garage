@@ -77,9 +77,11 @@ export class SubstitutionService {
 
   /**
    * Reject bringing a player onto the field when the team is already at its
-   * format's roster size (e.g. 11 for 11v11). This guard exists specifically
-   * for the "add without a removal" path - normal substitutions always pair
-   * an out with an in, so they can never exceed capacity on their own.
+   * format's on-field limit (playersPerTeam, e.g. 11 for 11v11 - not the
+   * full roster size, which is typically larger). This guard exists
+   * specifically for the "add without a removal" path - normal
+   * substitutions always pair an out with an in, so they can never exceed
+   * capacity on their own.
    *
    * Fails open (skips the check) when the game's format can't be resolved,
    * matching LineupService.assertPositionCapacity's philosophy of not

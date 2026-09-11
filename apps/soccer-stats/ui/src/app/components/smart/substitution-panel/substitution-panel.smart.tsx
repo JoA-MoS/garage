@@ -328,6 +328,16 @@ export const SubstitutionPanel = ({
     [onField, outIds, swapPlayerIds],
   );
 
+  // Projected on-field count if every queued change were applied - used to
+  // gate the "Add to Field" button. Substitutions and swaps are net-zero
+  // (one comes in as one goes out), so only queued additions (+1 each) and
+  // removals (-1 each) shift the count away from the raw onField list.
+  const projectedOnFieldCount = useMemo(() => {
+    const queuedAdditions = queue.filter((q) => q.type === 'addition').length;
+    const queuedRemovals = queue.filter((q) => q.type === 'removal').length;
+    return onField.length + queuedAdditions - queuedRemovals;
+  }, [onField.length, queue]);
+
   const availableBench = useMemo(
     () =>
       bench.filter((b) => {
@@ -844,6 +854,7 @@ export const SubstitutionPanel = ({
       onConfirmAll={handleConfirmAll}
       onRequestRemoval={handleRequestRemoval}
       onRequestAddition={handleRequestAddition}
+      currentOnFieldCount={projectedOnFieldCount}
       maxOnField={playersPerTeam ?? null}
       isExecuting={isExecuting}
       executionProgress={executionProgress}

@@ -446,6 +446,41 @@ describe('SubstitutionPanel Smart Component', () => {
         expect(button.disabled).toBe(true);
       });
     });
+
+    it('accounts for already-queued additions, not just the current on-field list', async () => {
+      // Default onField has 2 players; cap it one above so there's exactly
+      // room for one queued addition before the next one should be blocked.
+      const props = createDefaultProps({ playersPerTeam: 3 });
+      render(<SubstitutionPanel {...props} />);
+
+      fireEvent.click(screen.getByText('Substitutions'));
+      await waitFor(() => {
+        expect(screen.getByText('Jimmy Brown')).toBeTruthy();
+      });
+
+      // Queue one addition (Jimmy Brown) - this fills the last open slot
+      fireEvent.click(screen.getByText('Jimmy Brown'));
+      await waitFor(() => {
+        expect(screen.getByText('Add to Field (No Removal)')).toBeTruthy();
+      });
+      fireEvent.click(screen.getByText('Add to Field (No Removal)'));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Queued \(1\)/)).toBeTruthy();
+      });
+
+      // Selecting the remaining bench player should now show the field as
+      // full (2 on field + 1 queued addition = 3, the cap) - even though
+      // the raw onField list still only has 2 players.
+      fireEvent.click(screen.getByText('Taylor White'));
+
+      await waitFor(() => {
+        const button = screen.getByText(
+          'Field Full (3/3)',
+        ) as HTMLButtonElement;
+        expect(button.disabled).toBe(true);
+      });
+    });
   });
 
   describe('handleConfirmAll', () => {

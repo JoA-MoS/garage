@@ -98,9 +98,15 @@ export interface SubstitutionPanelPresentationProps {
   // Addition flow (bring a bench player onto the field with no one subbed
   // out - e.g. filling a gap when the team is short a player)
   onRequestAddition: (player: GqlRosterPlayer) => void;
-  // Format's roster size (e.g. 11 for 11v11). Null when unknown - in that
-  // case the addition button is never disabled client-side (the backend
-  // still enforces capacity server-side).
+  // Projected on-field count if every queued change were applied (raw
+  // onField count, adjusted for queued additions/removals - substitutions
+  // and swaps are net-zero). Compared against maxOnField to gate the
+  // button, so queuing multiple additions can't silently exceed capacity.
+  currentOnFieldCount: number;
+  // Format's maximum number of players allowed on the field at once (e.g.
+  // 11 for 11v11 - NOT the full roster size, which is typically larger).
+  // Null when unknown - in that case the addition button is never disabled
+  // client-side (the backend still enforces capacity server-side).
   maxOnField: number | null;
 
   // Execution state

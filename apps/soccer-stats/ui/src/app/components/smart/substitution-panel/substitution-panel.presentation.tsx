@@ -52,6 +52,7 @@ export const SubstitutionPanelPresentation = ({
   onConfirmAll,
   onRequestRemoval,
   onRequestAddition,
+  currentOnFieldCount,
   maxOnField,
   isExecuting,
   executionProgress,
@@ -270,18 +271,23 @@ export const SubstitutionPanelPresentation = ({
 
             {/* Add to field - shown when a bench player is selected (e.g.
                 filling a gap when the team is short a player). Disabled once
-                the field is already at the format's roster size. */}
+                the field is already at the format's on-field limit.
+                Gated on currentOnFieldCount (raw onField adjusted for
+                queued additions/removals), not onFieldPlayers.length -
+                that list is filtered by queued subs/swaps and doesn't
+                reflect already-queued additions, so it would let a user
+                queue past capacity before the backend catches it. */}
             {selection.direction === 'bench-first' && selection.benchPlayer && (
               <button
                 type="button"
                 disabled={
-                  maxOnField != null && onFieldPlayers.length >= maxOnField
+                  maxOnField != null && currentOnFieldCount >= maxOnField
                 }
                 onClick={() => onRequestAddition(selection.benchPlayer!)}
                 className="w-full rounded-md border border-green-300 px-3 py-1.5 text-xs font-medium text-green-600 transition-colors hover:bg-green-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400 disabled:hover:bg-transparent"
               >
-                {maxOnField != null && onFieldPlayers.length >= maxOnField
-                  ? `Field Full (${onFieldPlayers.length}/${maxOnField})`
+                {maxOnField != null && currentOnFieldCount >= maxOnField
+                  ? `Field Full (${currentOnFieldCount}/${maxOnField})`
                   : 'Add to Field (No Removal)'}
               </button>
             )}
