@@ -166,6 +166,18 @@ describe('SubstitutionPanelPresentation', () => {
       expect((button as HTMLButtonElement).disabled).toBe(false);
     });
 
+    it('automatically switches to the On Field tab as soon as a bench player is selected', () => {
+      // Regression: selecting a bench player used to leave the panel on the
+      // Bench tab, hiding the "Add to Field" card behind an undiscoverable
+      // manual tab switch - a user with 0 players on field had no visible
+      // way to bring anyone on. The tab should jump to "On Field"
+      // automatically, without the user tapping it first.
+      render(
+        <SubstitutionPanelPresentation {...benchFirstProps} maxOnField={3} />,
+      );
+      expect(screen.getByText('Add to Field')).toBeTruthy();
+    });
+
     it('renders the placeholder alongside the real on-field player chips, not in place of them', () => {
       render(
         <SubstitutionPanelPresentation {...benchFirstProps} maxOnField={3} />,
