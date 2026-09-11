@@ -272,6 +272,7 @@ export const GamePage = () => {
           currentPeriod: data.game.currentPeriod,
           currentPeriodSecond: data.game.currentPeriodSecond,
           serverTimestamp: data.game.serverTimestamp,
+          pausedAt: data.game.pausedAt,
         }
       : null,
   );
