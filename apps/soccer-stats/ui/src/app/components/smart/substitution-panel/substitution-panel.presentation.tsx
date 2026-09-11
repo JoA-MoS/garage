@@ -223,6 +223,9 @@ export const SubstitutionPanelPresentation = ({
             playTimeByPlayer={playTimeByPlayer}
             onBenchPlayerClick={onBenchPlayerClick}
             onFieldPlayerClick={onFieldPlayerClick}
+            onRequestAddition={onRequestAddition}
+            currentOnFieldCount={currentOnFieldCount}
+            maxOnField={maxOnField}
             isExecuting={isExecuting}
           />
 
@@ -266,29 +269,6 @@ export const SubstitutionPanelPresentation = ({
                 className="w-full rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
               >
                 Remove from Field (No Sub)
-              </button>
-            )}
-
-            {/* Add to field - shown when a bench player is selected (e.g.
-                filling a gap when the team is short a player). Disabled once
-                the field is already at the format's on-field limit.
-                Gated on currentOnFieldCount (raw onField adjusted for
-                queued additions/removals), not onFieldPlayers.length -
-                that list is filtered by queued subs/swaps and doesn't
-                reflect already-queued additions, so it would let a user
-                queue past capacity before the backend catches it. */}
-            {selection.direction === 'bench-first' && selection.benchPlayer && (
-              <button
-                type="button"
-                disabled={
-                  maxOnField != null && currentOnFieldCount >= maxOnField
-                }
-                onClick={() => onRequestAddition(selection.benchPlayer!)}
-                className="w-full rounded-md border border-green-300 px-3 py-1.5 text-xs font-medium text-green-600 transition-colors hover:bg-green-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400 disabled:hover:bg-transparent"
-              >
-                {maxOnField != null && currentOnFieldCount >= maxOnField
-                  ? `Field Full (${currentOnFieldCount}/${maxOnField})`
-                  : 'Add to Field (No Removal)'}
               </button>
             )}
           </div>
@@ -474,6 +454,9 @@ function PlayerSelectionTabs({
   playTimeByPlayer,
   onBenchPlayerClick,
   onFieldPlayerClick,
+  onRequestAddition,
+  currentOnFieldCount,
+  maxOnField,
   isExecuting,
 }: {
   selection: {
@@ -486,6 +469,9 @@ function PlayerSelectionTabs({
   playTimeByPlayer: Map<string, { minutes: number; isOnField: boolean }>;
   onBenchPlayerClick: (player: GqlRosterPlayer) => void;
   onFieldPlayerClick: (player: GqlRosterPlayer) => void;
+  onRequestAddition: (player: GqlRosterPlayer) => void;
+  currentOnFieldCount: number;
+  maxOnField: number | null;
   isExecuting: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<'bench' | 'onField'>('bench');
@@ -611,6 +597,35 @@ function PlayerSelectionTabs({
               </button>
             );
           })}
+
+          {/* Add to field - placeholder card, shown when a bench player is
+              selected (e.g. filling a gap when the team is short a player).
+              Matches the lineup-panel's "Add to Field" card (same grid,
+              same dashed-border style) so the action lives where field
+              players are normally shown instead of a separate button.
+              Disabled once the field is already at the format's on-field
+              limit. Gated on currentOnFieldCount (raw onField adjusted for
+              queued additions/removals), not onFieldPlayers.length - that
+              list is filtered by queued subs/swaps and doesn't reflect
+              already-queued additions, so it would let a user queue past
+              capacity before the backend catches it. */}
+          {selection.direction === 'bench-first' && selection.benchPlayer && (
+            <button
+              type="button"
+              disabled={maxOnField != null && currentOnFieldCount >= maxOnField}
+              onClick={() => onRequestAddition(selection.benchPlayer!)}
+              className="flex w-full items-center gap-2 rounded-lg border-2 border-dashed border-blue-400 bg-blue-50 px-3 py-2 text-left text-sm transition-colors hover:bg-blue-100 disabled:opacity-50"
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-500 text-base font-bold text-white">
+                +
+              </span>
+              <span className="truncate font-medium text-blue-600">
+                {maxOnField != null && currentOnFieldCount >= maxOnField
+                  ? `Field Full (${currentOnFieldCount}/${maxOnField})`
+                  : 'Add to Field'}
+              </span>
+            </button>
+          )}
         </div>
       )}
     </div>
