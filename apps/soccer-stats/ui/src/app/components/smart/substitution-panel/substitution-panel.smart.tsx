@@ -16,6 +16,7 @@ import {
   GET_GAME_ROSTER,
 } from '../../../services/games-graphql.service';
 import { calculatePlayTime } from '../../../hooks/use-play-time';
+import { FIELD_SENTINEL_POSITION } from '../lineup-panel/types';
 
 import { SubstitutionPanelPresentation } from './substitution-panel.presentation';
 import {
@@ -43,6 +44,7 @@ export const SubstitutionPanel = ({
   bench,
   period,
   periodSecond,
+  playersPerTeam,
   executeImmediately = false,
   gameEvents,
   onSubstitutionComplete,
@@ -189,6 +191,8 @@ export const SubstitutionPanel = ({
         inIds.add(getPlayerId(item.playerIn));
       } else if (item.type === 'removal') {
         outIds.add(item.playerOut.gameEventId);
+      } else if (item.type === 'addition') {
+        inIds.add(getPlayerId(item.playerIn));
       } else {
         swapPlayerIds.add(getPlayerId(item.player1.player));
         swapPlayerIds.add(getPlayerId(item.player2.player));
@@ -543,6 +547,56 @@ export const SubstitutionPanel = ({
     ],
   );
 
+  // Handle addition request (bench player comes onto the field, no one
+  // subbed out - e.g. filling a gap when the team is short a player)
+  const handleRequestAddition = useCallback(
+    (player: GqlRosterPlayer) => {
+      setSelection({ direction: null, fieldPlayer: null, benchPlayer: null });
+
+      if (executeImmediately) {
+        // Execute immediately (halftime mode - unlikely but handle for consistency)
+        bringPlayerOntoFieldMutation({
+          variables: {
+            input: {
+              gameTeamId,
+              playerId: player.playerId || undefined,
+              externalPlayerName: player.externalPlayerName || undefined,
+              externalPlayerNumber: player.externalPlayerNumber || undefined,
+              position: FIELD_SENTINEL_POSITION,
+              period,
+              periodSecond,
+            },
+          },
+          refetchQueries: [
+            { query: GET_GAME_ROSTER, variables: { gameTeamId } },
+          ],
+          awaitRefetchQueries: true,
+        }).catch((err) => {
+          console.error('Failed to bring player onto field:', err);
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Failed to bring player onto field',
+          );
+        });
+      } else {
+        const additionItem: QueuedItem = {
+          id: `addition-${Date.now()}-${Math.random()}`,
+          type: 'addition',
+          playerIn: player,
+        };
+        setQueue((prev) => [...prev, additionItem]);
+      }
+    },
+    [
+      executeImmediately,
+      gameTeamId,
+      period,
+      periodSecond,
+      bringPlayerOntoFieldMutation,
+    ],
+  );
+
   // Handle external empty position click (fill empty position during bench-first flow)
   useEffect(() => {
     if (
@@ -630,6 +684,10 @@ export const SubstitutionPanel = ({
       (q): q is Extract<QueuedItem, { type: 'removal' }> =>
         q.type === 'removal',
     );
+    const additions = queue.filter(
+      (q): q is Extract<QueuedItem, { type: 'addition' }> =>
+        q.type === 'addition',
+    );
 
     const subIdToIndex = new Map<string, number>();
     subs.forEach((sub, index) => {
@@ -680,6 +738,25 @@ export const SubstitutionPanel = ({
             input: {
               gameTeamId,
               playerEventId: removal.playerOut.gameEventId,
+              period,
+              periodSecond,
+            },
+          },
+        });
+      }
+
+      // Execute additions (each is a separate mutation)
+      for (const addition of additions) {
+        await bringPlayerOntoFieldMutation({
+          variables: {
+            input: {
+              gameTeamId,
+              playerId: addition.playerIn.playerId || undefined,
+              externalPlayerName:
+                addition.playerIn.externalPlayerName || undefined,
+              externalPlayerNumber:
+                addition.playerIn.externalPlayerNumber || undefined,
+              position: FIELD_SENTINEL_POSITION,
               period,
               periodSecond,
             },
@@ -744,6 +821,7 @@ export const SubstitutionPanel = ({
     periodSecond,
     batchLineupChanges,
     removePlayerFromFieldMutation,
+    bringPlayerOntoFieldMutation,
     client,
     onSubstitutionComplete,
   ]);
@@ -765,6 +843,8 @@ export const SubstitutionPanel = ({
       onRemoveFromQueue={handleRemoveFromQueue}
       onConfirmAll={handleConfirmAll}
       onRequestRemoval={handleRequestRemoval}
+      onRequestAddition={handleRequestAddition}
+      maxOnField={playersPerTeam ?? null}
       isExecuting={isExecuting}
       executionProgress={executionProgress}
       error={error}

@@ -2734,6 +2734,7 @@ export const GamePage = () => {
           bench={activeTeam === 'home' ? homeBench : awayBench}
           period={currentPeriod}
           periodSecond={currentPeriodSeconds}
+          playersPerTeam={game.format.playersPerTeam}
           executeImmediately={false}
           gameEvents={
             (activeTeam === 'home' ? homeTeam.events : awayTeam.events)?.map(
