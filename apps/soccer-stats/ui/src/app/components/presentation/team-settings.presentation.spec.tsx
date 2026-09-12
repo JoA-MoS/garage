@@ -55,7 +55,7 @@ describe('TeamSettingsPresentation calendar import', () => {
     render(<TeamSettingsPresentation {...baseProps} />);
 
     expect(screen.getByText('Calendar Import')).toBeTruthy();
-    expect(screen.getByLabelText('PlayMetrics calendar URL')).toBeTruthy();
+    expect(screen.getByLabelText('Calendar feed URL')).toBeTruthy();
     expect(screen.getByText('No calendar feeds connected yet')).toBeTruthy();
   });
 
@@ -68,7 +68,7 @@ describe('TeamSettingsPresentation calendar import', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText('PlayMetrics calendar URL'), {
+    fireEvent.change(screen.getByLabelText('Calendar feed URL'), {
       target: {
         value:
           '  https://calendar.playmetrics.com/calendars/team/games-calendar.ics  ',

@@ -1,10 +1,24 @@
 import { gql } from '@apollo/client';
 import type { TypedDocumentNode } from '@graphql-typed-document-node/core';
 
+export type CreateCalendarProvider = 'PLAYMETRICS' | 'SPORTSENGINE';
+
+export const inferCalendarProvider = (
+  feedUrl: string,
+): CreateCalendarProvider =>
+  /^(webcal:\/\/|https:\/\/)ical\.sportngin\.com\//i.test(feedUrl.trim())
+    ? 'SPORTSENGINE'
+    : 'PLAYMETRICS';
+
 export interface CalendarSourceViewModel {
   id: string;
   teamId: string;
-  provider: 'PLAYMETRICS' | 'playmetrics' | string;
+  provider:
+    | 'PLAYMETRICS'
+    | 'SPORTSENGINE'
+    | 'playmetrics'
+    | 'sportsengine'
+    | string;
   feedUrl: string;
   calendarName?: string | null;
   enabled: boolean;
@@ -47,7 +61,7 @@ interface TeamCalendarSourcesVariables {
 interface CreateTeamCalendarSourceVariables {
   input: {
     teamId: string;
-    provider: 'PLAYMETRICS';
+    provider: 'PLAYMETRICS' | 'SPORTSENGINE';
     feedUrl: string;
     enabled: boolean;
   };
