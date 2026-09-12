@@ -217,6 +217,23 @@ export const GamePage = () => {
   const [addToFieldForLineup, setAddToFieldForLineup] = useState<
     boolean | null
   >(null);
+  // Same trigger during active play, routed to the substitution panel so the
+  // add is queued alongside any other pending changes
+  const [addToFieldForSub, setAddToFieldForSub] = useState<boolean | null>(
+    null,
+  );
+  // On-field count the substitution panel projects once its queued changes
+  // are applied - gates the "Add to Field" card so queued adds can't exceed
+  // the format's on-field limit
+  const [projectedOnFieldCount, setProjectedOnFieldCount] = useState<
+    number | null
+  >(null);
+
+  // Reset the projected count when the active team changes so stale gating
+  // from the previous team is not carried over to the newly selected team
+  useEffect(() => {
+    setProjectedOnFieldCount(null);
+  }, [activeTeam]);
 
   // Cascade delete state
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -1591,6 +1608,42 @@ export const GamePage = () => {
   const isLineupSetupPhase =
     game.status === GameStatus.Scheduled || game.status === GameStatus.Halftime;
 
+  /**
+   * Handler for the "Add to Field" card in the Lineup tab's On Field section,
+   * or undefined to hide the card.
+   *
+   * Pre-game/halftime routes to the lineup panel (applied immediately or on
+   * its own confirm); during active play it routes to the substitution panel
+   * so the add is queued alongside any other pending changes. Only applies
+   * in substitution-only mode - with position tracking on, players are added
+   * by tapping an empty slot on the formation instead.
+   */
+  const getAddToFieldHandler = (
+    onFieldCount: number,
+    trackPositions: boolean,
+  ): (() => void) | undefined => {
+    if (trackPositions) return undefined;
+    const maxOnField = game.format.playersPerTeam;
+
+    if (isLineupSetupPhase) {
+      return lineupPanelHasPlayerSelected && onFieldCount < maxOnField
+        ? () => setAddToFieldForLineup(true)
+        : undefined;
+    }
+
+    if (isActivePlay) {
+      // Use the substitution panel's projected count (raw on-field adjusted
+      // for its queued adds/removals) so queued adds can't exceed the limit.
+      // Falls back to the raw count until the panel reports one.
+      const effectiveCount = projectedOnFieldCount ?? onFieldCount;
+      return panelBenchSelection !== null && effectiveCount < maxOnField
+        ? () => setAddToFieldForSub(true)
+        : undefined;
+    }
+
+    return undefined;
+  };
+
   // Effective features per team (used for both tab visibility and GameLineupTab)
   const homeEffectiveFeatures = getEffectiveStatsFeatures('home');
   const awayEffectiveFeatures = getEffectiveStatsFeatures('away');
@@ -1825,14 +1878,10 @@ export const GamePage = () => {
                   }
                   hideBench={isLineupSetupPhase || isActivePlay}
                   statsFeatures={homeEffectiveFeatures}
-                  onAddToFieldClick={
-                    isLineupSetupPhase &&
-                    !homeEffectiveFeatures.trackPositions &&
-                    lineupPanelHasPlayerSelected &&
-                    homeOnField.length < game.format.playersPerTeam
-                      ? () => setAddToFieldForLineup(true)
-                      : undefined
-                  }
+                  onAddToFieldClick={getAddToFieldHandler(
+                    homeOnField.length,
+                    homeEffectiveFeatures.trackPositions,
+                  )}
                 />
               )}
               {activeTeam === 'away' && awayTeam && (
@@ -1869,14 +1918,10 @@ export const GamePage = () => {
                   }
                   hideBench={isLineupSetupPhase || isActivePlay}
                   statsFeatures={awayEffectiveFeatures}
-                  onAddToFieldClick={
-                    isLineupSetupPhase &&
-                    !awayEffectiveFeatures.trackPositions &&
-                    lineupPanelHasPlayerSelected &&
-                    awayOnField.length < game.format.playersPerTeam
-                      ? () => setAddToFieldForLineup(true)
-                      : undefined
-                  }
+                  onAddToFieldClick={getAddToFieldHandler(
+                    awayOnField.length,
+                    awayEffectiveFeatures.trackPositions,
+                  )}
                 />
               )}
             </div>
@@ -2720,6 +2765,7 @@ export const GamePage = () => {
       {/* Inline Substitution Panel - show during active play only */}
       {isActivePlay && homeTeam && awayTeam && (
         <SubstitutionPanel
+          key={activeTeam}
           gameTeamId={activeTeam === 'home' ? homeTeam.id : awayTeam.id}
           gameId={gameId!}
           teamName={
@@ -2734,7 +2780,6 @@ export const GamePage = () => {
           bench={activeTeam === 'home' ? homeBench : awayBench}
           period={currentPeriod}
           periodSecond={currentPeriodSeconds}
-          playersPerTeam={game.format.playersPerTeam}
           executeImmediately={false}
           gameEvents={
             (activeTeam === 'home' ? homeTeam.events : awayTeam.events)?.map(
@@ -2765,6 +2810,9 @@ export const GamePage = () => {
           onPanelStateChange={setSubPanelState}
           onQueuedPlayerIdsChange={setQueuedPlayerIds}
           onSelectedFieldPlayerChange={setSelectedFieldPlayerId}
+          externalAddToField={addToFieldForSub}
+          onExternalAddToFieldHandled={() => setAddToFieldForSub(null)}
+          onProjectedOnFieldCountChange={setProjectedOnFieldCount}
         />
       )}
 

@@ -44,7 +44,6 @@ export const SubstitutionPanel = ({
   bench,
   period,
   periodSecond,
-  playersPerTeam,
   executeImmediately = false,
   gameEvents,
   onSubstitutionComplete,
@@ -55,6 +54,9 @@ export const SubstitutionPanel = ({
   onExternalFieldPlayerToReplaceHandled,
   externalEmptyPosition,
   onExternalEmptyPositionHandled,
+  externalAddToField,
+  onExternalAddToFieldHandled,
+  onProjectedOnFieldCountChange,
   onPanelStateChange: onPanelStateChangeExternal,
   onQueuedPlayerIdsChange,
   onSelectedFieldPlayerChange,
@@ -328,15 +330,22 @@ export const SubstitutionPanel = ({
     [onField, outIds, swapPlayerIds],
   );
 
-  // Projected on-field count if every queued change were applied - used to
-  // gate the "Add to Field" button. Substitutions and swaps are net-zero
-  // (one comes in as one goes out), so only queued additions (+1 each) and
-  // removals (-1 each) shift the count away from the raw onField list.
+  // Projected on-field count if every queued change were applied. The parent
+  // gates the Lineup tab's "Add to Field" card on this. Substitutions and
+  // swaps are net-zero (one comes in as one goes out), so only queued
+  // additions (+1 each) and removals (-1 each) shift the count away from the
+  // raw onField list.
   const projectedOnFieldCount = useMemo(() => {
     const queuedAdditions = queue.filter((q) => q.type === 'addition').length;
     const queuedRemovals = queue.filter((q) => q.type === 'removal').length;
     return onField.length + queuedAdditions - queuedRemovals;
   }, [onField.length, queue]);
+
+  // Report the projected count upward so the parent can hide the "Add to
+  // Field" card once queued adds would exceed the format's on-field limit.
+  useEffect(() => {
+    onProjectedOnFieldCountChange?.(projectedOnFieldCount);
+  }, [projectedOnFieldCount, onProjectedOnFieldCountChange]);
 
   const availableBench = useMemo(
     () =>
@@ -607,6 +616,25 @@ export const SubstitutionPanel = ({
     ],
   );
 
+  // Handle external "Add to Field" trigger - the card lives in the Lineup
+  // tab's On Field section (next to the on-field players), not in this
+  // panel, so the tap arrives here as a prop change.
+  useEffect(() => {
+    if (!externalAddToField) return;
+
+    if (selection.direction === 'bench-first' && selection.benchPlayer) {
+      handleRequestAddition(selection.benchPlayer);
+    }
+    // Notify the parent even if ignored, so its flag doesn't stay stuck on
+    onExternalAddToFieldHandled?.();
+  }, [
+    externalAddToField,
+    selection.direction,
+    selection.benchPlayer,
+    handleRequestAddition,
+    onExternalAddToFieldHandled,
+  ]);
+
   // Handle external empty position click (fill empty position during bench-first flow)
   useEffect(() => {
     if (
@@ -853,9 +881,6 @@ export const SubstitutionPanel = ({
       onRemoveFromQueue={handleRemoveFromQueue}
       onConfirmAll={handleConfirmAll}
       onRequestRemoval={handleRequestRemoval}
-      onRequestAddition={handleRequestAddition}
-      currentOnFieldCount={projectedOnFieldCount}
-      maxOnField={playersPerTeam ?? null}
       isExecuting={isExecuting}
       executionProgress={executionProgress}
       error={error}
