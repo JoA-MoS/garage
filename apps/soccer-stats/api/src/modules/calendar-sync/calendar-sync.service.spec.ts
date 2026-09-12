@@ -246,6 +246,26 @@ describe('CalendarSyncService', () => {
     expect(service.fetchFeed).toHaveBeenCalledTimes(2);
   });
 
+  it('infers SportsEngine from sportngin URLs even when clients send the legacy default provider', async () => {
+    teamRepo.findOne.mockReset();
+    teamRepo.findOne.mockResolvedValue(managedTeam);
+
+    await service.createSource({
+      teamId: managedTeam.id,
+      provider: CalendarProvider.PLAYMETRICS,
+      feedUrl:
+        'webcal://ical.sportngin.com/v3/calendar/ical?team_ids=11f19d16-09d7-1662-bd23-b217320f2008',
+    });
+
+    expect(calendarSourceRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: CalendarProvider.SPORTSENGINE,
+        feedUrl:
+          'https://ical.sportngin.com/v3/calendar/ical?team_ids=11f19d16-09d7-1662-bd23-b217320f2008',
+      }),
+    );
+  });
+
   it('accepts SportsEngine webcal URLs and normalizes them for server-side fetches', async () => {
     teamRepo.findOne.mockReset();
     teamRepo.findOne.mockResolvedValue(managedTeam);
