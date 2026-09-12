@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond } from '@garage/soccer-stats/utils';
@@ -478,6 +478,20 @@ function PlayerSelectionTabs({
   const isSwapping = !!(
     selection.direction === 'field-first' && selection.fieldPlayer
   );
+
+  // Bench-first selection's next step (swap with an on-field player, or use
+  // the "Add to Field" card) lives entirely under the On Field tab, so jump
+  // there automatically - otherwise a team with 0 players on field has no
+  // visible way to discover the "Add to Field" card without an extra,
+  // unprompted tab tap. Clearing the selection resets back to Bench so the
+  // next flow starts fresh.
+  useEffect(() => {
+    if (selection.direction === 'bench-first') {
+      setActiveTab('onField');
+    } else if (selection.direction === null) {
+      setActiveTab('bench');
+    }
+  }, [selection.direction]);
 
   if (isExecuting) return null;
 

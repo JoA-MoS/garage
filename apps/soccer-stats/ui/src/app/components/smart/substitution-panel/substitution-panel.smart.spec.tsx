@@ -212,7 +212,10 @@ describe('SubstitutionPanel Smart Component', () => {
         );
       });
 
-      // Click same player again to deselect - use getAllByText since name appears in selection header too
+      // Selecting a bench player auto-switches the panel to the On Field
+      // tab (so the "Add to Field" card is immediately reachable) - switch
+      // back to Bench to find the same chip and tap it again to deselect.
+      fireEvent.click(screen.getByText(/^Bench/));
       const jimmyElements = screen.getAllByText('Jimmy Brown');
       fireEvent.click(jimmyElements[jimmyElements.length - 1]); // Click the one in the list
 
