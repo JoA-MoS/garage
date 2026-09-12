@@ -60,7 +60,8 @@ export class CalendarSyncService {
     feedUrl: string;
     enabled?: boolean;
   }): Promise<CalendarSource> {
-    const feedUrl = this.normalizeFeedUrl(input.feedUrl, input.provider);
+    const provider = this.inferProvider(input.feedUrl, input.provider);
+    const feedUrl = this.normalizeFeedUrl(input.feedUrl, provider);
     const team = await this.teamRepository.findOne({
       where: { id: input.teamId },
     });
@@ -70,7 +71,7 @@ export class CalendarSyncService {
 
     const source = this.calendarSourceRepository.create({
       teamId: input.teamId,
-      provider: input.provider,
+      provider,
       feedUrl,
       enabled: input.enabled ?? true,
       lastSyncStatus: CalendarSyncStatus.NEVER_SYNCED,
@@ -381,6 +382,22 @@ export class CalendarSyncService {
 
   private toGameStatus(status: ImportedCalendarGame['status']): GameStatus {
     return status === 'CANCELLED' ? GameStatus.CANCELLED : GameStatus.SCHEDULED;
+  }
+
+  private inferProvider(
+    feedUrl: string,
+    fallback: CalendarProvider,
+  ): CalendarProvider {
+    try {
+      const parsed = new URL(feedUrl);
+      if (parsed.hostname === 'ical.sportngin.com') {
+        return CalendarProvider.SPORTSENGINE;
+      }
+    } catch {
+      return fallback;
+    }
+
+    return fallback;
   }
 
   private normalizeFeedUrl(
