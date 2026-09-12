@@ -229,6 +229,12 @@ export const GamePage = () => {
     number | null
   >(null);
 
+  // Reset the projected count when the active team changes so stale gating
+  // from the previous team is not carried over to the newly selected team
+  useEffect(() => {
+    setProjectedOnFieldCount(null);
+  }, [activeTeam]);
+
   // Cascade delete state
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
@@ -2759,6 +2765,7 @@ export const GamePage = () => {
       {/* Inline Substitution Panel - show during active play only */}
       {isActivePlay && homeTeam && awayTeam && (
         <SubstitutionPanel
+          key={activeTeam}
           gameTeamId={activeTeam === 'home' ? homeTeam.id : awayTeam.id}
           gameId={gameId!}
           teamName={
