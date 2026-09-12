@@ -212,10 +212,7 @@ describe('SubstitutionPanel Smart Component', () => {
         );
       });
 
-      // Selecting a bench player auto-switches the panel to the On Field
-      // tab (so the "Add to Field" card is immediately reachable) - switch
-      // back to Bench to find the same chip and tap it again to deselect.
-      fireEvent.click(screen.getByText(/^Bench/));
+      // Click same player again to deselect - use getAllByText since name appears in selection header too
       const jimmyElements = screen.getAllByText('Jimmy Brown');
       fireEvent.click(jimmyElements[jimmyElements.length - 1]); // Click the one in the list
 
@@ -366,12 +363,14 @@ describe('SubstitutionPanel Smart Component', () => {
   });
 
   describe('addition flow (bring bench player onto field, no removal)', () => {
-    // The addition action is a placeholder card inside the "On Field" tab
-    // grid (matching the lineup-panel's "Add to Field" card placement), so
-    // these tests switch to that tab after selecting a bench player.
-    it('shows the "Add to Field" placeholder after selecting a bench player, and queues it on click', async () => {
-      const props = createDefaultProps({ playersPerTeam: 3 });
-      render(<SubstitutionPanel {...props} />);
+    // The "Add to Field" card lives in the Lineup tab's On Field section,
+    // not in this panel - the tap arrives here as the externalAddToField
+    // prop, and the add is queued alongside any other pending changes.
+    it('queues an addition when externalAddToField fires with a bench player selected', async () => {
+      const onExternalAddToFieldHandled = vi.fn();
+      const props = createDefaultProps({ onExternalAddToFieldHandled });
+
+      const { rerender } = render(<SubstitutionPanel {...props} />);
 
       fireEvent.click(screen.getByText('Substitutions'));
       await waitFor(() => {
@@ -381,34 +380,54 @@ describe('SubstitutionPanel Smart Component', () => {
       // Select bench player (bench-first)
       fireEvent.click(screen.getByText('Jimmy Brown'));
 
-      fireEvent.click(screen.getByText(/On Field/));
-      await waitFor(() => {
-        expect(screen.getByText('Add to Field')).toBeTruthy();
-      });
-
-      fireEvent.click(screen.getByText('Add to Field'));
+      // Simulate the Lineup tab's "Add to Field" card being tapped
+      rerender(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            onExternalAddToFieldHandled,
+            externalAddToField: true,
+          })}
+        />,
+      );
 
       await waitFor(() => {
         expect(screen.getByText(/Queued \(1\)/)).toBeTruthy();
         expect(screen.getByText('Confirm All (1)')).toBeTruthy();
+        expect(onExternalAddToFieldHandled).toHaveBeenCalled();
       });
     });
 
-    it('calls bringPlayerOntoField mutation with FIELD sentinel position on confirm', async () => {
-      const props = createDefaultProps({ playersPerTeam: 3 });
+    it('ignores externalAddToField when no bench player is selected', async () => {
+      const onExternalAddToFieldHandled = vi.fn();
+      const props = createDefaultProps({
+        onExternalAddToFieldHandled,
+        externalAddToField: true,
+      });
+
       render(<SubstitutionPanel {...props} />);
+
+      await waitFor(() => {
+        // Handled callback still fires so the parent flag doesn't stick on
+        expect(onExternalAddToFieldHandled).toHaveBeenCalled();
+      });
+      expect(screen.queryByText(/Queued/)).toBeFalsy();
+    });
+
+    it('calls bringPlayerOntoField mutation with FIELD sentinel position on confirm', async () => {
+      const props = createDefaultProps();
+      const { rerender } = render(<SubstitutionPanel {...props} />);
 
       fireEvent.click(screen.getByText('Substitutions'));
       await waitFor(() => {
         expect(screen.getByText('Jimmy Brown')).toBeTruthy();
       });
-
       fireEvent.click(screen.getByText('Jimmy Brown'));
-      fireEvent.click(screen.getByText(/On Field/));
-      await waitFor(() => {
-        expect(screen.getByText('Add to Field')).toBeTruthy();
-      });
-      fireEvent.click(screen.getByText('Add to Field'));
+
+      rerender(
+        <SubstitutionPanel
+          {...createDefaultProps({ externalAddToField: true })}
+        />,
+      );
 
       await waitFor(() => {
         expect(screen.getByText('Confirm All (1)')).toBeTruthy();
@@ -435,64 +454,35 @@ describe('SubstitutionPanel Smart Component', () => {
       });
     });
 
-    it('disables the placeholder once the field is at the format capacity', async () => {
-      // Default onField has 2 players; cap matches it
-      const props = createDefaultProps({ playersPerTeam: 2 });
-      render(<SubstitutionPanel {...props} />);
+    it('reports the projected on-field count so the parent can gate the card', async () => {
+      const onProjectedOnFieldCountChange = vi.fn();
+      const props = createDefaultProps({ onProjectedOnFieldCountChange });
+
+      const { rerender } = render(<SubstitutionPanel {...props} />);
+
+      // 2 on field to start, no queued changes
+      await waitFor(() => {
+        expect(onProjectedOnFieldCountChange).toHaveBeenCalledWith(2);
+      });
 
       fireEvent.click(screen.getByText('Substitutions'));
       await waitFor(() => {
         expect(screen.getByText('Jimmy Brown')).toBeTruthy();
       });
-
       fireEvent.click(screen.getByText('Jimmy Brown'));
-      fireEvent.click(screen.getByText(/On Field/));
 
+      rerender(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            onProjectedOnFieldCountChange,
+            externalAddToField: true,
+          })}
+        />,
+      );
+
+      // One queued addition pushes the projection to 3
       await waitFor(() => {
-        const button = screen
-          .getByText('Field Full (2/2)')
-          .closest('button') as HTMLButtonElement;
-        expect(button.disabled).toBe(true);
-      });
-    });
-
-    it('accounts for already-queued additions, not just the current on-field list', async () => {
-      // Default onField has 2 players; cap it one above so there's exactly
-      // room for one queued addition before the next one should be blocked.
-      const props = createDefaultProps({ playersPerTeam: 3 });
-      render(<SubstitutionPanel {...props} />);
-
-      fireEvent.click(screen.getByText('Substitutions'));
-      await waitFor(() => {
-        expect(screen.getByText('Jimmy Brown')).toBeTruthy();
-      });
-
-      // Queue one addition (Jimmy Brown) - this fills the last open slot
-      fireEvent.click(screen.getByText('Jimmy Brown'));
-      fireEvent.click(screen.getByText(/On Field/));
-      await waitFor(() => {
-        expect(screen.getByText('Add to Field')).toBeTruthy();
-      });
-      fireEvent.click(screen.getByText('Add to Field'));
-
-      await waitFor(() => {
-        expect(screen.getByText(/Queued \(1\)/)).toBeTruthy();
-      });
-
-      // Switch back to the Bench tab to select the remaining bench player
-      fireEvent.click(screen.getByText(/Bench/));
-      fireEvent.click(screen.getByText('Taylor White'));
-
-      // Selecting the remaining bench player should now show the field as
-      // full (2 on field + 1 queued addition = 3, the cap) - even though
-      // the raw onField list still only has 2 players.
-      fireEvent.click(screen.getByText(/On Field/));
-
-      await waitFor(() => {
-        const button = screen
-          .getByText('Field Full (3/3)')
-          .closest('button') as HTMLButtonElement;
-        expect(button.disabled).toBe(true);
+        expect(onProjectedOnFieldCountChange).toHaveBeenLastCalledWith(3);
       });
     });
   });

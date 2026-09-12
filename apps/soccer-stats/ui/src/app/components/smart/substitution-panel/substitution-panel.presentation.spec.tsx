@@ -42,9 +42,6 @@ const defaultProps: SubstitutionPanelPresentationProps = {
   onRemoveFromQueue: vi.fn(),
   onConfirmAll: vi.fn(),
   onRequestRemoval: vi.fn(),
-  onRequestAddition: vi.fn(),
-  currentOnFieldCount: 2,
-  maxOnField: null,
   isExecuting: false,
   executionProgress: 0,
   error: null,
@@ -143,9 +140,9 @@ describe('SubstitutionPanelPresentation', () => {
   });
 
   describe('addition flow (bring bench player onto field, no removal)', () => {
-    // The addition action lives as a placeholder card inside the "On Field"
-    // tab grid (same shape/placement as the lineup-panel's "Add to Field"
-    // card), not a standalone footer button - so tests switch to that tab.
+    // The "Add to Field" card lives in the Lineup tab's On Field section
+    // (alongside the on-field players), not in this panel. The panel only
+    // receives the resulting tap via its externalAddToField prop.
     const benchFirstProps = {
       ...defaultProps,
       panelState: 'bench-view' as PanelState,
@@ -156,75 +153,38 @@ describe('SubstitutionPanelPresentation', () => {
       },
     };
 
-    it('shows an enabled "Add to Field" placeholder card in the On Field tab when below capacity', () => {
-      render(
-        <SubstitutionPanelPresentation {...benchFirstProps} maxOnField={3} />,
-      );
-      fireEvent.click(screen.getByText(/On Field/));
-      const button = screen.getByText('Add to Field').closest('button');
-      expect(button).toBeTruthy();
-      expect((button as HTMLButtonElement).disabled).toBe(false);
-    });
-
-    it('automatically switches to the On Field tab as soon as a bench player is selected', () => {
-      // Regression: selecting a bench player used to leave the panel on the
-      // Bench tab, hiding the "Add to Field" card behind an undiscoverable
-      // manual tab switch - a user with 0 players on field had no visible
-      // way to bring anyone on. The tab should jump to "On Field"
-      // automatically, without the user tapping it first.
-      render(
-        <SubstitutionPanelPresentation {...benchFirstProps} maxOnField={3} />,
-      );
-      expect(screen.getByText('Add to Field')).toBeTruthy();
-    });
-
-    it('renders the placeholder alongside the real on-field player chips, not in place of them', () => {
-      render(
-        <SubstitutionPanelPresentation {...benchFirstProps} maxOnField={3} />,
-      );
-      fireEvent.click(screen.getByText(/On Field/));
-      expect(screen.getByText('Sarah Smith')).toBeTruthy();
-      expect(screen.getByText('Alex Jones')).toBeTruthy();
-      expect(screen.getByText('Add to Field')).toBeTruthy();
-    });
-
-    it('calls onRequestAddition with the selected bench player when clicked', () => {
-      const onRequestAddition = vi.fn();
-      render(
-        <SubstitutionPanelPresentation
-          {...benchFirstProps}
-          maxOnField={3}
-          onRequestAddition={onRequestAddition}
-        />,
-      );
-      fireEvent.click(screen.getByText(/On Field/));
-      fireEvent.click(screen.getByText('Add to Field'));
-      expect(onRequestAddition).toHaveBeenCalledWith(
-        expect.objectContaining({ playerName: 'Jimmy Brown' }),
-      );
-    });
-
-    it('disables the placeholder and shows the field-full count at capacity', () => {
-      // defaultProps has 2 onFieldPlayers; cap it at 2
-      render(
-        <SubstitutionPanelPresentation {...benchFirstProps} maxOnField={2} />,
-      );
-      fireEvent.click(screen.getByText(/On Field/));
-      const button = screen.getByText('Field Full (2/2)').closest('button');
-      expect((button as HTMLButtonElement).disabled).toBe(true);
-    });
-
-    it('does not show the addition placeholder when no bench player is selected', () => {
-      render(
-        <SubstitutionPanelPresentation
-          {...defaultProps}
-          panelState="bench-view"
-          maxOnField={3}
-        />,
-      );
+    it('does not render an "Add to Field" card inside the panel', () => {
+      render(<SubstitutionPanelPresentation {...benchFirstProps} />);
       fireEvent.click(screen.getByText(/On Field/));
       expect(screen.queryByText('Add to Field')).toBeFalsy();
       expect(screen.queryByText(/Field Full/)).toBeFalsy();
+    });
+
+    it('stays on the Bench tab when a bench player is selected', () => {
+      // The panel must not hijack the active tab - the add action lives in
+      // the Lineup tab, so there is nothing to jump to here.
+      render(<SubstitutionPanelPresentation {...benchFirstProps} />);
+      // Taylor White only appears in the bench list (Jimmy Brown also shows
+      // in the "Bringing in" header), so seeing her means Bench is active
+      expect(screen.getByText('Taylor White')).toBeTruthy();
+    });
+
+    it('still shows queued additions in the queue list', () => {
+      render(
+        <SubstitutionPanelPresentation
+          {...benchFirstProps}
+          panelState="expanded"
+          queue={[
+            {
+              id: 'q1',
+              type: 'addition' as const,
+              playerIn: mockPlayer('3', 'Jimmy Brown'),
+            },
+          ]}
+        />,
+      );
+      expect(screen.getAllByText('Jimmy Brown').length).toBeGreaterThan(0);
+      expect(screen.getByText('on')).toBeTruthy();
     });
   });
 
