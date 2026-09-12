@@ -28,6 +28,23 @@ STATUS:CONFIRMED
 END:VEVENT
 END:VCALENDAR`;
 
+const sportsEngineSampleIcs = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//sportsengine.com//ical-feed-v2//EN
+NAME:Legacy FC
+X-WR-CALNAME:Legacy FC
+BEGIN:VEVENT
+UID:287b2291-c0fd-4081-9f94-7911b666ab92@sportsengine.com
+SEQUENCE:1788557788
+DTSTAMP:20260904T213628Z
+DTSTART;TZID=America/Los_Angeles:20260912T090000
+DTEND;TZID=America/Los_Angeles:20260912T100000
+SUMMARY:Victory FC at Legacy FC
+LOCATION:16022 116th Ave SE\\, Renton\\, WA 98058\\, USA
+DESCRIPTION:https://sportsengine.app.link/?type%3Dgame
+END:VEVENT
+END:VCALENDAR`;
+
 type RepoMock<T> = {
   findOne: jest.Mock;
   find: jest.Mock;
@@ -181,6 +198,38 @@ describe('CalendarSyncService', () => {
     );
   });
 
+  it('creates a scheduled game from a SportsEngine feed', async () => {
+    const sportsEngineSource = {
+      ...source,
+      id: 'source-sportsengine',
+      provider: CalendarProvider.SPORTSENGINE,
+      feedUrl:
+        'https://ical.sportngin.com/v3/calendar/ical?team_ids=11f19d16-09d7-1662-bd23-b217320f2008',
+      team: { ...managedTeam, name: 'Legacy FC' },
+    } as CalendarSource;
+    calendarSourceRepo.findOne.mockResolvedValue(sportsEngineSource);
+    jest.mocked(service.fetchFeed).mockResolvedValue(sportsEngineSampleIcs);
+
+    const result = await service.syncSource(sportsEngineSource.id);
+
+    expect(result).toMatchObject({ created: 1, updated: 0, skipped: 0 });
+    expect(teamRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Victory FC',
+        externalReference: 'sportsengine:Victory FC',
+      }),
+    );
+    expect(gameRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Victory FC at Legacy FC',
+        scheduledStart: new Date('2026-09-12T16:00:00.000Z'),
+        venue: '16022 116th Ave SE, Renton, WA 98058, USA',
+        status: GameStatus.SCHEDULED,
+        durationMinutes: 60,
+      }),
+    );
+  });
+
   it('syncs all enabled calendar sources for scheduled automation', async () => {
     const secondSource = { ...source, id: 'source-2' } as CalendarSource;
     calendarSourceRepo.find.mockResolvedValue([source, secondSource]);
@@ -195,6 +244,26 @@ describe('CalendarSyncService', () => {
     });
     expect(results).toHaveLength(2);
     expect(service.fetchFeed).toHaveBeenCalledTimes(2);
+  });
+
+  it('accepts SportsEngine webcal URLs and normalizes them for server-side fetches', async () => {
+    teamRepo.findOne.mockReset();
+    teamRepo.findOne.mockResolvedValue(managedTeam);
+
+    await service.createSource({
+      teamId: managedTeam.id,
+      provider: CalendarProvider.SPORTSENGINE,
+      feedUrl:
+        'webcal://ical.sportngin.com/v3/calendar/ical?team_ids=11f19d16-09d7-1662-bd23-b217320f2008',
+    });
+
+    expect(calendarSourceRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: CalendarProvider.SPORTSENGINE,
+        feedUrl:
+          'https://ical.sportngin.com/v3/calendar/ical?team_ids=11f19d16-09d7-1662-bd23-b217320f2008',
+      }),
+    );
   });
 
   it('rejects non-PlayMetrics calendar URLs before saving a source', async () => {

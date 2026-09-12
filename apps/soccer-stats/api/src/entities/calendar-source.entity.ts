@@ -7,6 +7,7 @@ import { ExternalGameMapping } from './external-game-mapping.entity';
 
 export enum CalendarProvider {
   PLAYMETRICS = 'playmetrics',
+  SPORTSENGINE = 'sportsengine',
 }
 
 export enum CalendarSyncStatus {

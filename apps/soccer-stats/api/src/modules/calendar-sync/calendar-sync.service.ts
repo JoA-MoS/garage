@@ -60,7 +60,7 @@ export class CalendarSyncService {
     feedUrl: string;
     enabled?: boolean;
   }): Promise<CalendarSource> {
-    this.validateFeedUrl(input.feedUrl);
+    const feedUrl = this.normalizeFeedUrl(input.feedUrl, input.provider);
     const team = await this.teamRepository.findOne({
       where: { id: input.teamId },
     });
@@ -71,7 +71,7 @@ export class CalendarSyncService {
     const source = this.calendarSourceRepository.create({
       teamId: input.teamId,
       provider: input.provider,
-      feedUrl: input.feedUrl,
+      feedUrl,
       enabled: input.enabled ?? true,
       lastSyncStatus: CalendarSyncStatus.NEVER_SYNCED,
     });
@@ -137,7 +137,7 @@ export class CalendarSyncService {
     };
 
     try {
-      const ics = await this.fetchFeed(source.feedUrl);
+      const ics = await this.fetchFeed(source.feedUrl, source.provider);
       const parsed = this.parseSourceFeed(source, ics);
       source.calendarName = parsed.calendarName;
 
@@ -174,9 +174,12 @@ export class CalendarSyncService {
     }
   }
 
-  async fetchFeed(feedUrl: string): Promise<string> {
-    this.validateFeedUrl(feedUrl);
-    const response = await axios.get<string>(feedUrl, {
+  async fetchFeed(
+    feedUrl: string,
+    provider = CalendarProvider.PLAYMETRICS,
+  ): Promise<string> {
+    const normalizedFeedUrl = this.normalizeFeedUrl(feedUrl, provider);
+    const response = await axios.get<string>(normalizedFeedUrl, {
       responseType: 'text',
       timeout: 15_000,
       maxRedirects: 0,
@@ -189,6 +192,8 @@ export class CalendarSyncService {
     switch (source.provider) {
       case CalendarProvider.PLAYMETRICS:
         return this.playMetricsIcsParser.parse(ics);
+      case CalendarProvider.SPORTSENGINE:
+        return this.playMetricsIcsParser.parseSportsEngine(ics);
       default:
         throw new BadRequestException(
           `Unsupported calendar provider ${source.provider}`,
@@ -378,7 +383,10 @@ export class CalendarSyncService {
     return status === 'CANCELLED' ? GameStatus.CANCELLED : GameStatus.SCHEDULED;
   }
 
-  private validateFeedUrl(feedUrl: string): void {
+  private normalizeFeedUrl(
+    feedUrl: string,
+    provider: CalendarProvider,
+  ): string {
     let parsed: URL;
     try {
       parsed = new URL(feedUrl);
@@ -386,16 +394,47 @@ export class CalendarSyncService {
       throw new BadRequestException('Calendar feed URL must be a valid URL');
     }
 
-    if (parsed.protocol !== 'https:') {
-      throw new BadRequestException(
-        'PlayMetrics calendar feed URL must use HTTPS',
+    if (
+      provider === CalendarProvider.SPORTSENGINE &&
+      parsed.protocol === 'webcal:'
+    ) {
+      parsed = new URL(
+        `https://${parsed.host}${parsed.pathname}${parsed.search}`,
       );
     }
 
-    if (parsed.hostname !== 'calendar.playmetrics.com') {
+    if (parsed.protocol !== 'https:') {
       throw new BadRequestException(
-        'PlayMetrics calendar feed URL must use calendar.playmetrics.com',
+        `${this.providerDisplayName(provider)} calendar feed URL must use HTTPS`,
       );
     }
+
+    const allowedHostname =
+      provider === CalendarProvider.SPORTSENGINE
+        ? 'ical.sportngin.com'
+        : 'calendar.playmetrics.com';
+
+    if (parsed.hostname !== allowedHostname) {
+      throw new BadRequestException(
+        `${this.providerDisplayName(provider)} calendar feed URL must use ${allowedHostname}`,
+      );
+    }
+
+    if (
+      provider === CalendarProvider.SPORTSENGINE &&
+      !parsed.searchParams.get('team_ids')
+    ) {
+      throw new BadRequestException(
+        'SportsEngine calendar feed URL must include team_ids',
+      );
+    }
+
+    return parsed.toString();
+  }
+
+  private providerDisplayName(provider: CalendarProvider): string {
+    return provider === CalendarProvider.SPORTSENGINE
+      ? 'SportsEngine'
+      : 'PlayMetrics';
   }
 }

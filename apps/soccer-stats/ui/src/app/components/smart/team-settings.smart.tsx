@@ -28,6 +28,7 @@ import {
   SyncTeamCalendarSourceResponse,
   TEAM_CALENDAR_SOURCES,
   TeamCalendarSourcesResponse,
+  inferCalendarProvider,
 } from '../../services/calendar-sync-graphql.service';
 import { TeamSettingsPresentation } from '../presentation/team-settings.presentation';
 import { UICreateTeamInput, UIPosition } from '../types/ui.types';
@@ -244,12 +245,14 @@ export const TeamSettingsSmart = () => {
       setCalendarErrorMessage(undefined);
       setCalendarSuccessMessage(undefined);
 
+      const provider = inferCalendarProvider(feedUrl);
+
       try {
         await createCalendarSource({
           variables: {
             input: {
               teamId,
-              provider: 'PLAYMETRICS',
+              provider,
               feedUrl,
               enabled: true,
             },

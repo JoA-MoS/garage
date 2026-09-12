@@ -155,7 +155,9 @@ export const TeamSettingsPresentation = ({
       .replace(/^./, (char) => char.toUpperCase());
 
   const formatProvider = (provider: string) => {
-    if (provider.toLowerCase() === 'playmetrics') return 'PlayMetrics';
+    const normalizedProvider = provider.toLowerCase();
+    if (normalizedProvider === 'playmetrics') return 'PlayMetrics';
+    if (normalizedProvider === 'sportsengine') return 'SportsEngine';
     return provider.replace(/_/g, ' ');
   };
 
@@ -389,9 +391,10 @@ export const TeamSettingsPresentation = ({
                 Calendar Import
               </h3>
               <p className="mt-1 max-w-2xl text-sm text-slate-600">
-                Connect a PlayMetrics ICS calendar feed to import scheduled
-                games for this team. Imports are idempotent, so syncing the same
-                feed again updates existing games instead of duplicating them.
+                Connect a PlayMetrics or SportsEngine ICS calendar feed to
+                import scheduled games for this team. Imports are idempotent, so
+                syncing the same feed again updates existing games instead of
+                duplicating them.
               </p>
             </div>
             <span className="inline-flex w-fit rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700">
@@ -404,7 +407,7 @@ export const TeamSettingsPresentation = ({
               htmlFor="calendar-feed-url"
               className="text-sm font-semibold text-slate-800"
             >
-              PlayMetrics calendar URL
+              Calendar feed URL
             </label>
             <div className="mt-2 flex flex-col gap-3 lg:flex-row">
               <input
@@ -418,7 +421,7 @@ export const TeamSettingsPresentation = ({
                     handleCreateCalendarSource();
                   }
                 }}
-                placeholder="https://calendar.playmetrics.com/calendars/.../games-calendar.ics"
+                placeholder="webcal://ical.sportngin.com/v3/calendar/ical?team_ids=…"
                 className="min-h-[44px] flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 disabled={creatingCalendarSource}
               />
@@ -432,8 +435,9 @@ export const TeamSettingsPresentation = ({
               </button>
             </div>
             <p className="mt-2 text-xs text-slate-500">
-              Paste the team games `.ics` URL. The backend validates the URL and
-              fetches the feed server-side.
+              Paste a PlayMetrics `.ics` URL or SportsEngine `webcal://` team
+              calendar URL. The backend validates the URL and fetches the feed
+              server-side.
             </p>
           </div>
 
@@ -465,8 +469,8 @@ export const TeamSettingsPresentation = ({
                   No calendar feeds connected yet
                 </p>
                 <p className="mt-1 text-sm text-slate-600">
-                  Add the first PlayMetrics ICS feed above, then run Sync Now to
-                  import this team's schedule.
+                  Add a PlayMetrics or SportsEngine feed above, then run Sync
+                  Now to import this team's schedule.
                 </p>
               </div>
             ) : (

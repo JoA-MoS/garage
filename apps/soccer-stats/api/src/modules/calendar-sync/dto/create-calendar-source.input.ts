@@ -14,7 +14,7 @@ export class CreateCalendarSourceInput {
   provider!: CalendarProvider;
 
   @Field()
-  @IsUrl({ require_protocol: true })
+  @IsUrl({ require_protocol: true, protocols: ['https', 'webcal'] })
   feedUrl!: string;
 
   @Field({ nullable: true })

@@ -40,18 +40,34 @@ interface IcsProperty {
 @Injectable()
 export class PlayMetricsIcsParserService {
   parse(ics: string): ParsedCalendarFeed {
+    return this.parseFeed(ics, 'playmetrics');
+  }
+
+  parseSportsEngine(ics: string): ParsedCalendarFeed {
+    return this.parseFeed(ics, 'sportsengine');
+  }
+
+  private parseFeed(
+    ics: string,
+    provider: 'playmetrics' | 'sportsengine',
+  ): ParsedCalendarFeed {
     const unfolded = this.unfoldLines(ics);
     const calendarProps = this.parseProperties(this.calendarLines(unfolded));
     const timezone =
       this.getValue(calendarProps, 'X-WR-TIMEZONE') ??
       this.getValue(calendarProps, 'TZID');
+    const calendarName =
+      this.getValue(calendarProps, 'X-WR-CALNAME') ??
+      this.getValue(calendarProps, 'NAME');
 
     return {
-      calendarName: this.getValue(calendarProps, 'X-WR-CALNAME'),
+      calendarName,
       refreshTtl: this.getValue(calendarProps, 'X-PUBLISHED-TTL'),
       timezone,
       games: this.eventBlocks(unfolded)
-        .map((eventLines) => this.parseEvent(eventLines, timezone))
+        .map((eventLines) =>
+          this.parseEvent(eventLines, timezone, provider, calendarName),
+        )
         .filter((event): event is ImportedCalendarGame => event !== null),
     };
   }
@@ -59,12 +75,14 @@ export class PlayMetricsIcsParserService {
   private parseEvent(
     eventLines: string[],
     defaultTimezone?: string,
+    provider: 'playmetrics' | 'sportsengine' = 'playmetrics',
+    calendarName?: string,
   ): ImportedCalendarGame | null {
     const props = this.parseProperties(eventLines);
     const uid = this.getValue(props, 'UID');
     const summary = this.getValue(props, 'SUMMARY');
 
-    if (!uid || !summary || !this.isGameEvent(uid, summary)) {
+    if (!uid || !summary || !this.isGameEvent(uid, summary, provider)) {
       return null;
     }
 
@@ -74,9 +92,12 @@ export class PlayMetricsIcsParserService {
     }
 
     const description = this.getValue(props, 'DESCRIPTION');
-    const teamNames = description
-      ? this.extractTeamNames(description, summary)
-      : {};
+    const teamNames =
+      provider === 'sportsengine'
+        ? this.extractSportsEngineTeamNames(summary, calendarName)
+        : description
+          ? this.extractTeamNames(description, summary)
+          : {};
     const status = (this.getValue(props, 'STATUS') ??
       'CONFIRMED') as ImportedCalendarGameStatus;
 
@@ -210,8 +231,16 @@ export class PlayMetricsIcsParserService {
       .trim();
   }
 
-  private isGameEvent(uid: string, summary: string): boolean {
-    return uid.startsWith('Game_') || /\b-\s*Game\b/i.test(summary);
+  private isGameEvent(
+    uid: string,
+    summary: string,
+    provider: 'playmetrics' | 'sportsengine',
+  ): boolean {
+    return (
+      uid.startsWith('Game_') ||
+      /\b-\s*Game\b/i.test(summary) ||
+      (provider === 'sportsengine' && /\s+at\s+/i.test(summary))
+    );
   }
 
   private parseDateProperty(
@@ -310,6 +339,32 @@ export class PlayMetricsIcsParserService {
     const managedTeamName =
       this.extractManagedTeamName(summary, awayTeamName, homeTeamName) ??
       awayTeamName;
+    const opponentName =
+      managedTeamName === awayTeamName ? homeTeamName : awayTeamName;
+
+    return {
+      managedTeamName,
+      opponentName,
+      homeTeamName,
+      awayTeamName,
+    };
+  }
+
+  private extractSportsEngineTeamNames(
+    summary: string,
+    calendarName?: string,
+  ): Partial<ImportedCalendarGame> {
+    const matchup = summary.match(/^(.+?)\s+at\s+(.+)$/i);
+    if (!matchup) {
+      return {};
+    }
+
+    const awayTeamName = matchup[1].trim();
+    const homeTeamName = matchup[2].trim();
+    const managedTeamName =
+      calendarName === awayTeamName || calendarName === homeTeamName
+        ? calendarName
+        : homeTeamName;
     const opponentName =
       managedTeamName === awayTeamName ? homeTeamName : awayTeamName;
 
