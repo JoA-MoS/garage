@@ -30,6 +30,7 @@ export const GamesListComposition = () => {
         games={data?.games || []}
         loading={loading}
         error={errorMessage}
+        onGameDeleted={() => refetch()}
       />
 
       {/* Debug info in development */}

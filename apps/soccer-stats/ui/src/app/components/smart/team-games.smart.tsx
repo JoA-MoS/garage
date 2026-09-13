@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router';
 import {
   CREATE_GAME,
   CreateGameInput,
+  REMOVE_GAME,
 } from '../../services/games-graphql.service';
 import { TeamGamesPresentation } from '../presentation/team-games.presentation';
 
@@ -46,6 +47,8 @@ interface TeamGamesSmartProps {
   onOpenModal: () => void;
   /** Callback after game is created - triggers refetch */
   onGameCreated: () => void;
+  /** Callback after game is deleted - triggers refetch */
+  onGameDeleted: () => void;
 }
 
 // =============================================================================
@@ -75,6 +78,7 @@ export const TeamGamesSmart = ({
   modalError,
   onOpenModal,
   onGameCreated,
+  onGameDeleted,
 }: TeamGamesSmartProps) => {
   const navigate = useNavigate();
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -86,6 +90,10 @@ export const TeamGamesSmart = ({
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const [deleteConfirmGameId, setDeleteConfirmGameId] = useState<string | null>(
+    null,
+  );
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Create game mutation
   const [createGame, { loading: createLoading }] = useMutation(CREATE_GAME, {
@@ -111,6 +119,21 @@ export const TeamGamesSmart = ({
       console.error('Error creating game:', error);
       setMutationError(
         error.message || 'Failed to create game. Please try again.',
+      );
+    },
+  });
+
+  // Delete game mutation
+  const [removeGame, { loading: deleteLoading }] = useMutation(REMOVE_GAME, {
+    onCompleted: () => {
+      setDeleteConfirmGameId(null);
+      setDeleteError(null);
+      onGameDeleted();
+    },
+    onError: (error) => {
+      console.error('Error deleting game:', error);
+      setDeleteError(
+        error.message || 'Failed to delete game. Please try again.',
       );
     },
   });
@@ -181,6 +204,21 @@ export const TeamGamesSmart = ({
     [navigate],
   );
 
+  const handleRequestDeleteGame = useCallback((gameId: string) => {
+    setDeleteError(null);
+    setDeleteConfirmGameId(gameId);
+  }, []);
+
+  const handleCancelDeleteGame = useCallback(() => {
+    setDeleteConfirmGameId(null);
+    setDeleteError(null);
+  }, []);
+
+  const handleConfirmDeleteGame = useCallback(() => {
+    if (!deleteConfirmGameId) return;
+    removeGame({ variables: { id: deleteConfirmGameId } });
+  }, [deleteConfirmGameId, removeGame]);
+
   // ==========================================================================
   // Data Transformation - Use hooks from colocated smart components
   // ==========================================================================
@@ -213,6 +251,12 @@ export const TeamGamesSmart = ({
       onFormChange={handleFormChange}
       onSubmitGame={handleSubmitGame}
       onViewGame={handleViewGame}
+      deleteConfirmGameId={deleteConfirmGameId}
+      deleteLoading={deleteLoading}
+      deleteError={deleteError}
+      onRequestDeleteGame={handleRequestDeleteGame}
+      onCancelDeleteGame={handleCancelDeleteGame}
+      onConfirmDeleteGame={handleConfirmDeleteGame}
     />
   );
 };

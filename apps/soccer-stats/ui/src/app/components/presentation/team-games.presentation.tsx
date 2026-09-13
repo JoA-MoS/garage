@@ -60,11 +60,18 @@ interface TeamGamesPresentationProps {
   createLoading: boolean;
   /** Error message to display in the form (validation, mutation, or data loading errors) */
   error?: string | null;
+  /** ID of the game pending delete confirmation, or null if none */
+  deleteConfirmGameId: string | null;
+  deleteLoading: boolean;
+  deleteError?: string | null;
   onCreateGame: () => void;
   onCancelCreate: () => void;
   onFormChange: (field: string, value: string | number | boolean) => void;
   onSubmitGame: () => void;
   onViewGame: (gameId: string) => void;
+  onRequestDeleteGame: (gameId: string) => void;
+  onCancelDeleteGame: () => void;
+  onConfirmDeleteGame: () => void;
 }
 
 function formatGameDate(value?: string | null) {
@@ -87,11 +94,17 @@ export const TeamGamesPresentation = ({
   loading,
   createLoading,
   error,
+  deleteConfirmGameId,
+  deleteLoading,
+  deleteError,
   onCreateGame,
   onCancelCreate,
   onFormChange,
   onSubmitGame,
   onViewGame,
+  onRequestDeleteGame,
+  onCancelDeleteGame,
+  onConfirmDeleteGame,
 }: TeamGamesPresentationProps) => {
   if (loading) {
     return (
@@ -142,6 +155,10 @@ export const TeamGamesPresentation = ({
   const completedGames = games.filter(
     (game) => game.status === 'FINISHED',
   ).length;
+
+  const deleteConfirmGame = games.find(
+    (game) => game.id === deleteConfirmGameId,
+  );
 
   return (
     <div className="space-y-6">
@@ -343,13 +360,34 @@ export const TeamGamesPresentation = ({
             const statusInfo = getGameStatus(game.status);
 
             return (
-              <button
+              // Not a <button> because it hosts the nested delete button below;
+              // nested interactive elements are invalid HTML.
+              <div
                 key={game.id}
-                type="button"
-                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                role="button"
+                tabIndex={0}
+                className="group relative rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 onClick={() => onViewGame(game.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onViewGame(game.id);
+                  }
+                }}
               >
-                <div className="mb-4 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  aria-label={`Delete game vs ${opponent?.name || 'Unknown opponent'}`}
+                  className="absolute right-3 top-3 rounded-full p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRequestDeleteGame(game.id);
+                  }}
+                >
+                  <span aria-hidden="true">🗑️</span>
+                </button>
+
+                <div className="mb-4 flex items-center justify-between gap-3 pr-8">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusInfo.color}`}
                   >
@@ -393,9 +431,50 @@ export const TeamGamesPresentation = ({
                 <div className="mt-4 border-t border-slate-100 pt-4 text-sm font-semibold text-blue-700 group-hover:text-blue-900">
                   {game.status === 'NOT_STARTED' ? 'Start Game' : 'View Game'} →
                 </div>
-              </button>
+              </div>
             );
           })}
+        </div>
+      )}
+
+      {deleteConfirmGame && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="px-6 py-5">
+              <h3 className="text-xl font-black text-slate-950">
+                Delete this game?
+              </h3>
+              <p className="mt-2 text-sm text-slate-500">
+                {isHomeTeam(deleteConfirmGame) ? 'vs' : 'at'}{' '}
+                {getOpponentTeam(deleteConfirmGame)?.name || 'Unknown opponent'}{' '}
+                &mdash; {formatGameDate(deleteConfirmGame.scheduledStart)}. This
+                can&apos;t be undone.
+              </p>
+            </div>
+
+            {deleteError && (
+              <div className="mx-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="mt-2 flex flex-col-reverse gap-3 border-t border-slate-200 px-6 py-5 sm:flex-row sm:justify-end">
+              <button
+                onClick={onCancelDeleteGame}
+                disabled={deleteLoading}
+                className="min-h-[44px] rounded-xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onConfirmDeleteGame}
+                disabled={deleteLoading}
+                className="min-h-[44px] rounded-xl bg-red-600 px-4 py-2 font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete game'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
