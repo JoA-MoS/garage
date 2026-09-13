@@ -63,4 +63,15 @@ describe('useTeamConfigurationManager formations', () => {
       result.current.positions.filter((p) => p.abbreviation === 'CB'),
     ).toHaveLength(2);
   });
+
+  it('does not resolve a formation code that belongs to a different game format', () => {
+    const { result } = renderHook(() => useTeamConfigurationManager());
+
+    // '4-4-2' is a valid code, but only under 11v11 - not 9v9.
+    act(() => result.current.selectGameFormat('9v9'));
+    act(() => result.current.selectFormation('4-4-2'));
+
+    expect(result.current.selectedFormation).toBe('');
+    expect(result.current.positions).toHaveLength(0);
+  });
 });

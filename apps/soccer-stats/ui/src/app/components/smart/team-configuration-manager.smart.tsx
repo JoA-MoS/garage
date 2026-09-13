@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 
 import {
   ALL_FORMATIONS,
@@ -127,6 +127,14 @@ export const useTeamConfigurationManager = () => {
   const [selectedFormation, setSelectedFormation] = useState<string>('');
   const [positions, setPositions] = useState<UIPosition[]>([]);
 
+  // Formation codes are only unique within a game format (e.g. "2-2" exists
+  // for both 5v5 and 4v4 in the shared catalog), so resolution must be
+  // scoped to the active game format. Tracked via ref, rather than a
+  // useCallback dependency, so selectFormation's identity stays stable for
+  // consumers that use it as an effect dependency (e.g. team-settings.smart).
+  const selectedGameFormatRef = useRef(selectedGameFormat);
+  selectedGameFormatRef.current = selectedGameFormat;
+
   const availableFormations = useMemo(() => {
     if (!selectedGameFormat) return [];
     return FORMATIONS.filter((f) => f.gameFormat === selectedGameFormat);
@@ -139,7 +147,10 @@ export const useTeamConfigurationManager = () => {
   }, []);
 
   const selectFormation = useCallback((formationId: string) => {
-    const formation = FORMATIONS.find((f) => f.id === formationId);
+    const formation = FORMATIONS.find(
+      (f) =>
+        f.id === formationId && f.gameFormat === selectedGameFormatRef.current,
+    );
     if (formation) {
       setSelectedFormation(formationId);
       setPositions([...formation.positions]); // Copy positions so they can be modified
