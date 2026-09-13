@@ -1,4 +1,11 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
+
+import {
+  ALL_FORMATIONS,
+  POSITIONS,
+  type Formation,
+  type FormationPosition,
+} from '@garage/soccer-stats/utils';
 
 import { UIGameFormat, UIFormation, UIPosition } from '../types/ui.types';
 
@@ -58,240 +65,75 @@ const GAME_FORMATS: UIGameFormat[] = [
   },
 ];
 
-// Sample formations for different game formats
-const FORMATIONS: UIFormation[] = [
-  // 11v11 formations
-  {
-    id: '4-4-2-11v11',
-    name: '4-4-2',
-    gameFormat: '11v11',
-    playersPerSide: 11,
-    isActive: true,
-    positions: [
-      { id: 'gk', name: 'Goalkeeper', abbreviation: 'GK', x: 10, y: 50 },
-      { id: 'rb', name: 'Right Back', abbreviation: 'RB', x: 25, y: 20 },
-      { id: 'cb1', name: 'Center Back', abbreviation: 'CB', x: 25, y: 40 },
-      { id: 'cb2', name: 'Center Back', abbreviation: 'CB', x: 25, y: 60 },
-      { id: 'lb', name: 'Left Back', abbreviation: 'LB', x: 25, y: 80 },
-      { id: 'rm', name: 'Right Midfielder', abbreviation: 'RM', x: 50, y: 20 },
+/**
+ * Converts one formation's position list from the shared catalog's vertical
+ * field (x: sideline 0-100, y: own-goal-to-opponent-goal 0-100) into this
+ * editor's horizontal field, by swapping axes and mirroring left/right
+ * (x = old y, y = 100 - old x). Duplicate position codes (e.g. two CBs) get
+ * a numeric suffix so each position has a stable, unique id.
+ */
+function toUIPositions(positions: FormationPosition[]): UIPosition[] {
+  const totalByCode = new Map<string, number>();
+  for (const { position } of positions) {
+    totalByCode.set(position, (totalByCode.get(position) ?? 0) + 1);
+  }
+
+  const seenByCode = new Map<string, number>();
+  return positions.map(({ position, x, y }) => {
+    const info = POSITIONS[position];
+    const occurrence = (seenByCode.get(position) ?? 0) + 1;
+    seenByCode.set(position, occurrence);
+    const suffix = (totalByCode.get(position) ?? 1) > 1 ? occurrence : '';
+
+    return {
+      id: `${position.toLowerCase()}${suffix}`,
+      name: info.name,
+      abbreviation: info.code,
+      x: y,
+      y: 100 - x,
+    };
+  });
+}
+
+// Formations for the team configuration editor, derived from the shared
+// @garage/soccer-stats/utils catalog so both flows stay in sync. `id` is the
+// bare formation code (e.g. "4-4-2") to match how `defaultFormation` is
+// stored and compared elsewhere (team-configuration.entity, games.service).
+function toUIFormations(formations: Formation[]): UIFormation[] {
+  return formations.flatMap((formation) => {
+    const gameFormat = GAME_FORMATS.find(
+      (gf) => gf.playersPerTeam === formation.playersPerTeam,
+    );
+    // Sizes with no corresponding UI game format (3v3, 4v4) aren't offered here.
+    if (!gameFormat) return [];
+
+    return [
       {
-        id: 'cm1',
-        name: 'Central Midfielder',
-        abbreviation: 'CM',
-        x: 50,
-        y: 40,
+        id: formation.code,
+        name: formation.name,
+        gameFormat: gameFormat.id,
+        playersPerSide: formation.playersPerTeam,
+        isActive: true,
+        positions: toUIPositions(formation.positions),
       },
-      {
-        id: 'cm2',
-        name: 'Central Midfielder',
-        abbreviation: 'CM',
-        x: 50,
-        y: 60,
-      },
-      { id: 'lm', name: 'Left Midfielder', abbreviation: 'LM', x: 50, y: 80 },
-      { id: 'st1', name: 'Striker', abbreviation: 'ST', x: 75, y: 35 },
-      { id: 'st2', name: 'Striker', abbreviation: 'ST', x: 75, y: 65 },
-    ],
-  },
-  {
-    id: '4-3-3-11v11',
-    name: '4-3-3',
-    gameFormat: '11v11',
-    playersPerSide: 11,
-    isActive: true,
-    positions: [
-      { id: 'gk', name: 'Goalkeeper', abbreviation: 'GK', x: 10, y: 50 },
-      { id: 'rb', name: 'Right Back', abbreviation: 'RB', x: 25, y: 20 },
-      { id: 'cb1', name: 'Center Back', abbreviation: 'CB', x: 25, y: 40 },
-      { id: 'cb2', name: 'Center Back', abbreviation: 'CB', x: 25, y: 60 },
-      { id: 'lb', name: 'Left Back', abbreviation: 'LB', x: 25, y: 80 },
-      {
-        id: 'cdm',
-        name: 'Defensive Midfielder',
-        abbreviation: 'CDM',
-        x: 45,
-        y: 50,
-      },
-      {
-        id: 'cm1',
-        name: 'Central Midfielder',
-        abbreviation: 'CM',
-        x: 55,
-        y: 35,
-      },
-      {
-        id: 'cm2',
-        name: 'Central Midfielder',
-        abbreviation: 'CM',
-        x: 55,
-        y: 65,
-      },
-      { id: 'rw', name: 'Right Winger', abbreviation: 'RW', x: 75, y: 20 },
-      { id: 'st', name: 'Striker', abbreviation: 'ST', x: 75, y: 50 },
-      { id: 'lw', name: 'Left Winger', abbreviation: 'LW', x: 75, y: 80 },
-    ],
-  },
-  {
-    id: '3-5-2-11v11',
-    name: '3-5-2',
-    gameFormat: '11v11',
-    playersPerSide: 11,
-    isActive: true,
-    positions: [
-      { id: 'gk', name: 'Goalkeeper', abbreviation: 'GK', x: 10, y: 50 },
-      { id: 'cb1', name: 'Center Back', abbreviation: 'CB', x: 25, y: 30 },
-      { id: 'cb2', name: 'Center Back', abbreviation: 'CB', x: 25, y: 50 },
-      { id: 'cb3', name: 'Center Back', abbreviation: 'CB', x: 25, y: 70 },
-      { id: 'rwb', name: 'Right Wing Back', abbreviation: 'RWB', x: 45, y: 15 },
-      {
-        id: 'cm1',
-        name: 'Central Midfielder',
-        abbreviation: 'CM',
-        x: 50,
-        y: 35,
-      },
-      {
-        id: 'cm2',
-        name: 'Central Midfielder',
-        abbreviation: 'CM',
-        x: 50,
-        y: 50,
-      },
-      {
-        id: 'cm3',
-        name: 'Central Midfielder',
-        abbreviation: 'CM',
-        x: 50,
-        y: 65,
-      },
-      { id: 'lwb', name: 'Left Wing Back', abbreviation: 'LWB', x: 45, y: 85 },
-      { id: 'st1', name: 'Striker', abbreviation: 'ST', x: 70, y: 40 },
-      { id: 'st2', name: 'Striker', abbreviation: 'ST', x: 70, y: 60 },
-    ],
-  },
-  // 9v9 formations
-  {
-    id: '3-3-2-9v9',
-    name: '3-3-2',
-    gameFormat: '9v9',
-    playersPerSide: 9,
-    isActive: true,
-    positions: [
-      { id: 'gk', name: 'Goalkeeper', abbreviation: 'GK', x: 10, y: 50 },
-      { id: 'rb', name: 'Right Back', abbreviation: 'RB', x: 30, y: 25 },
-      { id: 'cb', name: 'Center Back', abbreviation: 'CB', x: 30, y: 50 },
-      { id: 'lb', name: 'Left Back', abbreviation: 'LB', x: 30, y: 75 },
-      { id: 'rm', name: 'Right Midfielder', abbreviation: 'RM', x: 55, y: 30 },
-      {
-        id: 'cm',
-        name: 'Central Midfielder',
-        abbreviation: 'CM',
-        x: 55,
-        y: 50,
-      },
-      { id: 'lm', name: 'Left Midfielder', abbreviation: 'LM', x: 55, y: 70 },
-      { id: 'st1', name: 'Striker', abbreviation: 'ST', x: 75, y: 40 },
-      { id: 'st2', name: 'Striker', abbreviation: 'ST', x: 75, y: 60 },
-    ],
-  },
-  {
-    id: '2-3-3-9v9',
-    name: '2-3-3',
-    gameFormat: '9v9',
-    playersPerSide: 9,
-    isActive: true,
-    positions: [
-      { id: 'gk', name: 'Goalkeeper', abbreviation: 'GK', x: 10, y: 50 },
-      { id: 'cb1', name: 'Center Back', abbreviation: 'CB', x: 30, y: 40 },
-      { id: 'cb2', name: 'Center Back', abbreviation: 'CB', x: 30, y: 60 },
-      { id: 'rm', name: 'Right Midfielder', abbreviation: 'RM', x: 50, y: 25 },
-      {
-        id: 'cm',
-        name: 'Central Midfielder',
-        abbreviation: 'CM',
-        x: 50,
-        y: 50,
-      },
-      { id: 'lm', name: 'Left Midfielder', abbreviation: 'LM', x: 50, y: 75 },
-      { id: 'rw', name: 'Right Winger', abbreviation: 'RW', x: 70, y: 30 },
-      { id: 'st', name: 'Striker', abbreviation: 'ST', x: 70, y: 50 },
-      { id: 'lw', name: 'Left Winger', abbreviation: 'LW', x: 70, y: 70 },
-    ],
-  },
-  {
-    id: '3-4-1-9v9',
-    name: '3-4-1',
-    gameFormat: '9v9',
-    playersPerSide: 9,
-    isActive: true,
-    positions: [
-      { id: 'gk', name: 'Goalkeeper', abbreviation: 'GK', x: 10, y: 50 },
-      { id: 'lb', name: 'Left Back', abbreviation: 'LB', x: 30, y: 25 },
-      { id: 'cb', name: 'Center Back', abbreviation: 'CB', x: 30, y: 50 },
-      { id: 'rb', name: 'Right Back', abbreviation: 'RB', x: 30, y: 75 },
-      { id: 'lm', name: 'Left Midfielder', abbreviation: 'LM', x: 55, y: 20 },
-      {
-        id: 'cm1',
-        name: 'Central Midfielder',
-        abbreviation: 'CM',
-        x: 55,
-        y: 40,
-      },
-      {
-        id: 'cm2',
-        name: 'Central Midfielder',
-        abbreviation: 'CM',
-        x: 55,
-        y: 60,
-      },
-      { id: 'rm', name: 'Right Midfielder', abbreviation: 'RM', x: 55, y: 80 },
-      { id: 'st', name: 'Striker', abbreviation: 'ST', x: 75, y: 50 },
-    ],
-  },
-  // 7v7 formations
-  {
-    id: '2-3-1-7v7',
-    name: '2-3-1',
-    gameFormat: '7v7',
-    playersPerSide: 7,
-    isActive: true,
-    positions: [
-      { id: 'gk', name: 'Goalkeeper', abbreviation: 'GK', x: 10, y: 50 },
-      { id: 'cb1', name: 'Center Back', abbreviation: 'CB', x: 30, y: 35 },
-      { id: 'cb2', name: 'Center Back', abbreviation: 'CB', x: 30, y: 65 },
-      { id: 'rm', name: 'Right Midfielder', abbreviation: 'RM', x: 55, y: 25 },
-      {
-        id: 'cm',
-        name: 'Central Midfielder',
-        abbreviation: 'CM',
-        x: 55,
-        y: 50,
-      },
-      { id: 'lm', name: 'Left Midfielder', abbreviation: 'LM', x: 55, y: 75 },
-      { id: 'st', name: 'Striker', abbreviation: 'ST', x: 75, y: 50 },
-    ],
-  },
-  // 5v5 formations
-  {
-    id: '1-2-1-5v5',
-    name: '1-2-1',
-    gameFormat: '5v5',
-    playersPerSide: 5,
-    isActive: true,
-    positions: [
-      { id: 'gk', name: 'Goalkeeper', abbreviation: 'GK', x: 10, y: 50 },
-      { id: 'def', name: 'Defender', abbreviation: 'DEF', x: 35, y: 50 },
-      { id: 'rm', name: 'Right Mid', abbreviation: 'RM', x: 55, y: 30 },
-      { id: 'lm', name: 'Left Mid', abbreviation: 'LM', x: 55, y: 70 },
-      { id: 'st', name: 'Striker', abbreviation: 'ST', x: 75, y: 50 },
-    ],
-  },
-];
+    ];
+  });
+}
+
+const FORMATIONS: UIFormation[] = toUIFormations(ALL_FORMATIONS);
 
 export const useTeamConfigurationManager = () => {
   const [selectedGameFormat, setSelectedGameFormat] = useState<string>('');
   const [selectedFormation, setSelectedFormation] = useState<string>('');
   const [positions, setPositions] = useState<UIPosition[]>([]);
+
+  // Formation codes are only unique within a game format (e.g. "2-2" exists
+  // for both 5v5 and 4v4 in the shared catalog), so resolution must be
+  // scoped to the active game format. Tracked via ref, rather than a
+  // useCallback dependency, so selectFormation's identity stays stable for
+  // consumers that use it as an effect dependency (e.g. team-settings.smart).
+  const selectedGameFormatRef = useRef(selectedGameFormat);
+  selectedGameFormatRef.current = selectedGameFormat;
 
   const availableFormations = useMemo(() => {
     if (!selectedGameFormat) return [];
@@ -305,7 +147,10 @@ export const useTeamConfigurationManager = () => {
   }, []);
 
   const selectFormation = useCallback((formationId: string) => {
-    const formation = FORMATIONS.find((f) => f.id === formationId);
+    const formation = FORMATIONS.find(
+      (f) =>
+        f.id === formationId && f.gameFormat === selectedGameFormatRef.current,
+    );
     if (formation) {
       setSelectedFormation(formationId);
       setPositions([...formation.positions]); // Copy positions so they can be modified
@@ -316,11 +161,11 @@ export const useTeamConfigurationManager = () => {
     (positionId: string, updates: Partial<UIPosition>) => {
       setPositions((prev) =>
         prev.map((pos) =>
-          pos.id === positionId ? { ...pos, ...updates } : pos
-        )
+          pos.id === positionId ? { ...pos, ...updates } : pos,
+        ),
       );
     },
-    []
+    [],
   );
 
   const addPosition = useCallback((position: UIPosition) => {
