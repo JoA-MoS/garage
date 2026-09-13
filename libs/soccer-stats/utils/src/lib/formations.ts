@@ -170,6 +170,24 @@ export const FORMATIONS_11V11: Formation[] = [
       { position: 'ST', x: 65, y: 75 },
     ],
   },
+  {
+    name: '4-2-3-1',
+    code: '4-2-3-1',
+    playersPerTeam: 11,
+    positions: [
+      { position: 'GK', x: 50, y: 5 },
+      { position: 'LB', x: 15, y: 20 },
+      { position: 'CB', x: 35, y: 15 },
+      { position: 'CB', x: 65, y: 15 },
+      { position: 'RB', x: 85, y: 20 },
+      { position: 'CDM', x: 35, y: 35 },
+      { position: 'CDM', x: 65, y: 35 },
+      { position: 'LM', x: 20, y: 55 },
+      { position: 'CAM', x: 50, y: 60 },
+      { position: 'RM', x: 80, y: 55 },
+      { position: 'ST', x: 50, y: 80 },
+    ],
+  },
 ];
 
 // 9v9 formations (U12)
@@ -222,6 +240,22 @@ export const FORMATIONS_9V9: Formation[] = [
       { position: 'ST', x: 65, y: 75 },
     ],
   },
+  {
+    name: '4-3-1',
+    code: '4-3-1',
+    playersPerTeam: 9,
+    positions: [
+      { position: 'GK', x: 50, y: 5 },
+      { position: 'LB', x: 15, y: 25 },
+      { position: 'CB', x: 38, y: 24 }, // stopper - steps up to pressure
+      { position: 'CB', x: 62, y: 14 }, // sweeper - covers behind
+      { position: 'RB', x: 85, y: 25 },
+      { position: 'LM', x: 15, y: 50 },
+      { position: 'CM', x: 50, y: 45 },
+      { position: 'RM', x: 85, y: 50 },
+      { position: 'ST', x: 50, y: 75 },
+    ],
+  },
 ];
 
 // 7v7 formations (U10)
@@ -252,6 +286,62 @@ export const FORMATIONS_7V7: Formation[] = [
       { position: 'CM', x: 50, y: 45 },
       { position: 'RM', x: 80, y: 50 },
       { position: 'ST', x: 50, y: 75 },
+    ],
+  },
+  {
+    name: '1-4-1',
+    code: '1-4-1',
+    playersPerTeam: 7,
+    positions: [
+      { position: 'GK', x: 50, y: 5 },
+      { position: 'CB', x: 50, y: 20 },
+      { position: 'LM', x: 15, y: 45 },
+      { position: 'CM', x: 38, y: 42 },
+      { position: 'CM', x: 62, y: 42 },
+      { position: 'RM', x: 85, y: 45 },
+      { position: 'ST', x: 50, y: 75 },
+    ],
+  },
+  {
+    name: '3-3',
+    code: '3-3',
+    playersPerTeam: 7,
+    positions: [
+      { position: 'GK', x: 50, y: 5 },
+      { position: 'LB', x: 20, y: 25 },
+      { position: 'CB', x: 50, y: 20 },
+      { position: 'RB', x: 80, y: 25 },
+      { position: 'LW', x: 20, y: 70 },
+      { position: 'ST', x: 50, y: 75 },
+      { position: 'RW', x: 80, y: 70 },
+    ],
+  },
+  {
+    name: '2-2-2',
+    code: '2-2-2',
+    playersPerTeam: 7,
+    positions: [
+      { position: 'GK', x: 50, y: 5 },
+      { position: 'LB', x: 30, y: 25 },
+      { position: 'RB', x: 70, y: 25 },
+      { position: 'LM', x: 30, y: 50 },
+      { position: 'RM', x: 70, y: 50 },
+      { position: 'ST', x: 30, y: 75 },
+      { position: 'ST', x: 70, y: 75 },
+    ],
+  },
+  {
+    name: '1-3-2',
+    code: '1-3-2',
+    playersPerTeam: 7,
+    positions: [
+      { position: 'GK', x: 50, y: 5 },
+      { position: 'CB', x: 50, y: 20 },
+      { position: 'LM', x: 20, y: 45 },
+      { position: 'CM', x: 50, y: 42 },
+      { position: 'RM', x: 80, y: 45 },
+      { position: 'ST', x: 30, y: 75 },
+      { position: 'ST', x: 70, y: 75 },
     ],
   },
 ];
