@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 export type GameStatus =
   | 'SCHEDULED'
   | 'IN_PROGRESS'
@@ -28,6 +30,13 @@ export interface GamesListProps {
   loading?: boolean;
   error?: string;
   onGameClick: (gameId: string) => void;
+  /** ID of the game pending delete confirmation, or null if none */
+  deleteConfirmGameId?: string | null;
+  deleteLoading?: boolean;
+  deleteError?: string | null;
+  onRequestDeleteGame?: (gameId: string) => void;
+  onCancelDeleteGame?: () => void;
+  onConfirmDeleteGame?: () => void;
 }
 
 export const GamesList = ({
@@ -35,7 +44,16 @@ export const GamesList = ({
   loading = false,
   error,
   onGameClick,
+  deleteConfirmGameId = null,
+  deleteLoading = false,
+  deleteError,
+  onRequestDeleteGame,
+  onCancelDeleteGame,
+  onConfirmDeleteGame,
 }: GamesListProps) => {
+  const deleteDialogTitleId = useId();
+  const deleteDialogDescriptionId = useId();
+
   // Helper function to format date for mobile-friendly display
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -60,6 +78,18 @@ export const GamesList = ({
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
+
+  const deleteConfirmGame = games.find(
+    (game) => game.id === deleteConfirmGameId,
+  );
+  const deleteHandlers =
+    onRequestDeleteGame && onCancelDeleteGame && onConfirmDeleteGame
+      ? {
+          onRequestDeleteGame,
+          onCancelDeleteGame,
+          onConfirmDeleteGame,
+        }
+      : null;
 
   if (loading) {
     return (
@@ -142,10 +172,24 @@ export const GamesList = ({
             <div
               key={game.id}
               onClick={() => onGameClick(game.id)}
-              className="min-h-[120px] cursor-pointer space-y-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 active:scale-95 active:bg-gray-50 sm:min-h-[140px] sm:space-y-4 sm:p-6 lg:hover:border-blue-300 lg:hover:shadow-md"
+              className="relative min-h-[120px] cursor-pointer space-y-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 active:scale-95 active:bg-gray-50 sm:min-h-[140px] sm:space-y-4 sm:p-6 lg:hover:border-blue-300 lg:hover:shadow-md"
             >
+              {deleteHandlers && (
+                <button
+                  type="button"
+                  aria-label={`Delete ${game.name}`}
+                  className="absolute right-3 top-3 rounded-full p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteHandlers.onRequestDeleteGame(game.id);
+                  }}
+                >
+                  <span aria-hidden="true">🗑️</span>
+                </button>
+              )}
+
               {/* Header with status badge */}
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between pr-8">
                 <h3 className="text-lg font-semibold leading-tight text-gray-900 sm:text-xl">
                   {game.name}
                 </h3>
@@ -235,6 +279,57 @@ export const GamesList = ({
           );
         })}
       </div>
+
+      {deleteHandlers && deleteConfirmGame && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={deleteDialogTitleId}
+          aria-describedby={deleteDialogDescriptionId}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+        >
+          <div className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-2xl">
+            <div className="px-6 py-5">
+              <h3
+                id={deleteDialogTitleId}
+                className="text-lg font-semibold text-gray-900"
+              >
+                Delete this game?
+              </h3>
+              <p
+                id={deleteDialogDescriptionId}
+                className="mt-2 text-sm text-gray-600"
+              >
+                {deleteConfirmGame.name} won&apos;t be recoverable. This
+                can&apos;t be undone.
+              </p>
+            </div>
+
+            {deleteError && (
+              <div className="mx-6 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="mt-2 flex flex-col-reverse gap-3 border-t border-gray-200 px-6 py-5 sm:flex-row sm:justify-end">
+              <button
+                onClick={deleteHandlers.onCancelDeleteGame}
+                disabled={deleteLoading}
+                className="min-h-[44px] rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteHandlers.onConfirmDeleteGame}
+                disabled={deleteLoading}
+                className="min-h-[44px] rounded-lg bg-red-600 px-4 py-2 font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete game'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

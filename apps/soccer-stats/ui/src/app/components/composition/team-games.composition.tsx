@@ -143,6 +143,7 @@ export const TeamGamesComposition = ({ teamId }: TeamGamesCompositionProps) => {
       modalError={modalError?.message}
       onOpenModal={handleOpenModal}
       onGameCreated={refetchGames}
+      onGameDeleted={refetchGames}
     />
   );
 };

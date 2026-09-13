@@ -1,9 +1,14 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { useMutation } from '@apollo/client/react';
 
 import { GamesList } from '@garage/soccer-stats/ui-components';
 
-import { findGameTeam, getTeamDisplayName } from '../../utils/game-team-display';
+import {
+  findGameTeam,
+  getTeamDisplayName,
+} from '../../utils/game-team-display';
+import { REMOVE_GAME } from '../../services/games-graphql.service';
 
 /**
  * Layer 2: Smart Component (Fragment Wrapper) - Temporary without generated GraphQL
@@ -18,14 +23,35 @@ interface GamesListSmartProps {
   games: any[]; // TODO: Replace with proper FragmentType once GraphQL codegen is set up
   loading?: boolean;
   error?: string;
+  /** Callback after a game is deleted - triggers refetch */
+  onGameDeleted: () => void;
 }
 
 export const GamesListSmart = ({
   games: gameData,
   loading,
   error,
+  onGameDeleted,
 }: GamesListSmartProps) => {
   const navigate = useNavigate();
+  const [deleteConfirmGameId, setDeleteConfirmGameId] = useState<string | null>(
+    null,
+  );
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [removeGame, { loading: deleteLoading }] = useMutation(REMOVE_GAME, {
+    onCompleted: () => {
+      setDeleteConfirmGameId(null);
+      setDeleteError(null);
+      onGameDeleted();
+    },
+    onError: (mutationError) => {
+      console.error('Error deleting game:', mutationError);
+      setDeleteError(
+        mutationError.message || 'Failed to delete game. Please try again.',
+      );
+    },
+  });
 
   // Transform data to presentation props - temporary implementation
   const games = gameData.map((game: any) => {
@@ -71,12 +97,33 @@ export const GamesListSmart = ({
     [navigate],
   );
 
+  const handleRequestDeleteGame = useCallback((gameId: string) => {
+    setDeleteError(null);
+    setDeleteConfirmGameId(gameId);
+  }, []);
+
+  const handleCancelDeleteGame = useCallback(() => {
+    setDeleteConfirmGameId(null);
+    setDeleteError(null);
+  }, []);
+
+  const handleConfirmDeleteGame = useCallback(() => {
+    if (!deleteConfirmGameId) return;
+    removeGame({ variables: { id: deleteConfirmGameId } });
+  }, [deleteConfirmGameId, removeGame]);
+
   return (
     <GamesList
       games={games}
       loading={loading}
       error={error}
       onGameClick={handleGameClick}
+      deleteConfirmGameId={deleteConfirmGameId}
+      deleteLoading={deleteLoading}
+      deleteError={deleteError}
+      onRequestDeleteGame={handleRequestDeleteGame}
+      onCancelDeleteGame={handleCancelDeleteGame}
+      onConfirmDeleteGame={handleConfirmDeleteGame}
     />
   );
 };
