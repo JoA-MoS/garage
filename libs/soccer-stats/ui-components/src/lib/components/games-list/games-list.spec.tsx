@@ -46,9 +46,22 @@ describe('GamesList delete game', () => {
   it('shows a confirmation modal for the targeted game', () => {
     render(<GamesList {...baseProps} deleteConfirmGameId="game-1" />);
 
-    const heading = screen.getByText('Delete this game?');
-    const modal = heading.closest('div') as HTMLElement;
+    const modal = screen.getByRole('dialog', { name: 'Delete this game?' });
+    expect(modal.getAttribute('aria-modal')).toBe('true');
     expect(within(modal).getByText(/League Match Week 15/)).toBeTruthy();
+  });
+
+  it('does not render delete controls without the full delete handlers', () => {
+    render(
+      <GamesList
+        {...baseProps}
+        deleteConfirmGameId="game-1"
+        onCancelDeleteGame={undefined}
+      />,
+    );
+
+    expect(screen.queryByLabelText('Delete League Match Week 15')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('cancels the confirmation without deleting', () => {

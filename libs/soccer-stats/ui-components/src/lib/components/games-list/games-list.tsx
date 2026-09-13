@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 export type GameStatus =
   | 'SCHEDULED'
   | 'IN_PROGRESS'
@@ -49,6 +51,9 @@ export const GamesList = ({
   onCancelDeleteGame,
   onConfirmDeleteGame,
 }: GamesListProps) => {
+  const deleteDialogTitleId = useId();
+  const deleteDialogDescriptionId = useId();
+
   // Helper function to format date for mobile-friendly display
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -77,6 +82,14 @@ export const GamesList = ({
   const deleteConfirmGame = games.find(
     (game) => game.id === deleteConfirmGameId,
   );
+  const deleteHandlers =
+    onRequestDeleteGame && onCancelDeleteGame && onConfirmDeleteGame
+      ? {
+          onRequestDeleteGame,
+          onCancelDeleteGame,
+          onConfirmDeleteGame,
+        }
+      : null;
 
   if (loading) {
     return (
@@ -161,14 +174,14 @@ export const GamesList = ({
               onClick={() => onGameClick(game.id)}
               className="relative min-h-[120px] cursor-pointer space-y-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 active:scale-95 active:bg-gray-50 sm:min-h-[140px] sm:space-y-4 sm:p-6 lg:hover:border-blue-300 lg:hover:shadow-md"
             >
-              {onRequestDeleteGame && (
+              {deleteHandlers && (
                 <button
                   type="button"
                   aria-label={`Delete ${game.name}`}
                   className="absolute right-3 top-3 rounded-full p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onRequestDeleteGame(game.id);
+                    deleteHandlers.onRequestDeleteGame(game.id);
                   }}
                 >
                   <span aria-hidden="true">🗑️</span>
@@ -267,14 +280,26 @@ export const GamesList = ({
         })}
       </div>
 
-      {deleteConfirmGame && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      {deleteHandlers && deleteConfirmGame && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={deleteDialogTitleId}
+          aria-describedby={deleteDialogDescriptionId}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+        >
           <div className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-2xl">
             <div className="px-6 py-5">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3
+                id={deleteDialogTitleId}
+                className="text-lg font-semibold text-gray-900"
+              >
                 Delete this game?
               </h3>
-              <p className="mt-2 text-sm text-gray-600">
+              <p
+                id={deleteDialogDescriptionId}
+                className="mt-2 text-sm text-gray-600"
+              >
                 {deleteConfirmGame.name} won&apos;t be recoverable. This
                 can&apos;t be undone.
               </p>
@@ -288,14 +313,14 @@ export const GamesList = ({
 
             <div className="mt-2 flex flex-col-reverse gap-3 border-t border-gray-200 px-6 py-5 sm:flex-row sm:justify-end">
               <button
-                onClick={onCancelDeleteGame}
+                onClick={deleteHandlers.onCancelDeleteGame}
                 disabled={deleteLoading}
                 className="min-h-[44px] rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
-                onClick={onConfirmDeleteGame}
+                onClick={deleteHandlers.onConfirmDeleteGame}
                 disabled={deleteLoading}
                 className="min-h-[44px] rounded-lg bg-red-600 px-4 py-2 font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >

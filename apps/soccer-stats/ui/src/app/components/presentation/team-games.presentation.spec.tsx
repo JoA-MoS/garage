@@ -85,11 +85,10 @@ describe('TeamGamesPresentation delete game', () => {
       <TeamGamesPresentation {...baseProps} deleteConfirmGameId="game-1" />,
     );
 
-    const heading = screen.getByText('Delete this game?');
-    const modal = heading.closest('div');
-    expect(modal).toBeTruthy();
+    const modal = screen.getByRole('dialog', { name: 'Delete this game?' });
+    expect(modal.getAttribute('aria-modal')).toBe('true');
     expect(
-      within(modal as HTMLElement).getByText(/vs Riverside FC/),
+      within(modal).getByText(/vs Riverside FC/),
     ).toBeTruthy();
   });
 

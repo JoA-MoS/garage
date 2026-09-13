@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 // =============================================================================
 // TYPES - Pure presentation types (no GraphQL dependencies)
 // =============================================================================
@@ -106,6 +108,9 @@ export const TeamGamesPresentation = ({
   onCancelDeleteGame,
   onConfirmDeleteGame,
 }: TeamGamesPresentationProps) => {
+  const deleteDialogTitleId = useId();
+  const deleteDialogDescriptionId = useId();
+
   if (loading) {
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -438,13 +443,25 @@ export const TeamGamesPresentation = ({
       )}
 
       {deleteConfirmGame && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={deleteDialogTitleId}
+          aria-describedby={deleteDialogDescriptionId}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+        >
           <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="px-6 py-5">
-              <h3 className="text-xl font-black text-slate-950">
+              <h3
+                id={deleteDialogTitleId}
+                className="text-xl font-black text-slate-950"
+              >
                 Delete this game?
               </h3>
-              <p className="mt-2 text-sm text-slate-500">
+              <p
+                id={deleteDialogDescriptionId}
+                className="mt-2 text-sm text-slate-500"
+              >
                 {isHomeTeam(deleteConfirmGame) ? 'vs' : 'at'}{' '}
                 {getOpponentTeam(deleteConfirmGame)?.name || 'Unknown opponent'}{' '}
                 &mdash; {formatGameDate(deleteConfirmGame.scheduledStart)}. This
