@@ -629,5 +629,29 @@ describe('GamesService', () => {
       );
       expect(mockExecute).toHaveBeenCalled();
     });
+
+    it('throws when the game status changes concurrently (affected = 0)', async () => {
+      mockGameRepository.findOne.mockResolvedValue({
+        id: 'game-1',
+        status: GameStatus.SCHEDULED,
+        gameFormatId: 'format-1',
+      } as Game);
+      mockGameFormatRepository.findOne.mockResolvedValue({
+        id: 'format-2',
+        name: '7v7',
+      } as GameFormat);
+
+      const mockQb = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected: 0 }),
+      };
+      mockGameRepository.createQueryBuilder.mockReturnValue(mockQb as any);
+
+      await expect(
+        service.update('game-1', { gameFormatId: 'format-2' }),
+      ).rejects.toThrow('Game format can only be changed while the game is scheduled');
+    });
   });
 });
