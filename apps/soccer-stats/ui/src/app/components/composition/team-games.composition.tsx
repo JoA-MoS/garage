@@ -144,6 +144,7 @@ export const TeamGamesComposition = ({ teamId }: TeamGamesCompositionProps) => {
       onOpenModal={handleOpenModal}
       onGameCreated={refetchGames}
       onGameDeleted={refetchGames}
+      onGameUpdated={refetchGames}
     />
   );
 };

@@ -6,6 +6,7 @@ import {
   CREATE_GAME,
   CreateGameInput,
   REMOVE_GAME,
+  UPDATE_GAME,
 } from '../../services/games-graphql.service';
 import { TeamGamesPresentation } from '../presentation/team-games.presentation';
 
@@ -49,6 +50,8 @@ interface TeamGamesSmartProps {
   onGameCreated: () => void;
   /** Callback after game is deleted - triggers refetch */
   onGameDeleted: () => void;
+  /** Callback after game format is updated - triggers refetch */
+  onGameUpdated: () => void;
 }
 
 // =============================================================================
@@ -79,6 +82,7 @@ export const TeamGamesSmart = ({
   onOpenModal,
   onGameCreated,
   onGameDeleted,
+  onGameUpdated,
 }: TeamGamesSmartProps) => {
   const navigate = useNavigate();
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -94,6 +98,9 @@ export const TeamGamesSmart = ({
     null,
   );
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [editGameId, setEditGameId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ gameFormatId: '', duration: 90 });
+  const [editError, setEditError] = useState<string | null>(null);
 
   // Create game mutation
   const [createGame, { loading: createLoading }] = useMutation(CREATE_GAME, {
@@ -123,6 +130,19 @@ export const TeamGamesSmart = ({
     },
   });
 
+  // Update game format mutation
+  const [updateGame, { loading: editLoading }] = useMutation(UPDATE_GAME, {
+    onCompleted: () => {
+      setEditError(null);
+      setEditGameId(null);
+      onGameUpdated();
+    },
+    onError: (error) => {
+      console.error('Error updating game:', error);
+      setEditError(error.message || 'Failed to update game. Please try again.');
+    },
+  });
+
   // Delete game mutation
   const [removeGame, { loading: deleteLoading }] = useMutation(REMOVE_GAME, {
     onCompleted: () => {
@@ -137,6 +157,15 @@ export const TeamGamesSmart = ({
       );
     },
   });
+
+  // ==========================================================================
+  // Data Transformation - Use hooks from colocated smart components
+  // ==========================================================================
+
+  // Each hook uses useFragment internally to unmask and transform the data
+  const games = useGameCardsData(gameTeams);
+  const availableOpponents = useOpponentsData(opponents, teamId);
+  const availableFormats = useGameFormatsData(gameFormats);
 
   // ==========================================================================
   // Event Handlers
@@ -219,14 +248,50 @@ export const TeamGamesSmart = ({
     removeGame({ variables: { id: deleteConfirmGameId } });
   }, [deleteConfirmGameId, removeGame]);
 
-  // ==========================================================================
-  // Data Transformation - Use hooks from colocated smart components
-  // ==========================================================================
+  const handleRequestEditGame = useCallback(
+    (gameId: string) => {
+      const game = games.find((g) => g.id === gameId);
+      if (!game) return;
+      // Trigger lazy-load of modal data (game format options)
+      onOpenModal();
+      setEditError(null);
+      setEditForm({
+        gameFormatId: game.format.id,
+        duration: game.format.durationMinutes,
+      });
+      setEditGameId(gameId);
+    },
+    [games, onOpenModal],
+  );
 
-  // Each hook uses useFragment internally to unmask and transform the data
-  const games = useGameCardsData(gameTeams);
-  const availableOpponents = useOpponentsData(opponents, teamId);
-  const availableFormats = useGameFormatsData(gameFormats);
+  const handleCancelEditGame = useCallback(() => {
+    setEditGameId(null);
+    setEditError(null);
+  }, []);
+
+  const handleEditFormChange = useCallback(
+    (field: 'gameFormatId' | 'duration', value: string | number) => {
+      setEditForm((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
+    },
+    [],
+  );
+
+  const handleSubmitEditGame = useCallback(() => {
+    if (!editGameId) return;
+    setEditError(null);
+    updateGame({
+      variables: {
+        id: editGameId,
+        updateGameInput: {
+          gameFormatId: editForm.gameFormatId,
+          duration: editForm.duration,
+        },
+      },
+    });
+  }, [editGameId, editForm, updateGame]);
 
   // Combine all errors for display
   const error = modalError || formError || mutationError;
@@ -257,6 +322,14 @@ export const TeamGamesSmart = ({
       onRequestDeleteGame={handleRequestDeleteGame}
       onCancelDeleteGame={handleCancelDeleteGame}
       onConfirmDeleteGame={handleConfirmDeleteGame}
+      editGameId={editGameId}
+      editForm={editForm}
+      editLoading={editLoading}
+      editError={editError}
+      onRequestEditGame={handleRequestEditGame}
+      onCancelEditGame={handleCancelEditGame}
+      onEditFormChange={handleEditFormChange}
+      onSubmitEditGame={handleSubmitEditGame}
     />
   );
 };
