@@ -11,6 +11,11 @@ interface GameFormData {
   isHome: boolean;
 }
 
+interface EditGameFormData {
+  gameFormatId: string;
+  duration: number;
+}
+
 interface GameTeamInfo {
   id: string;
   teamType: string;
@@ -66,6 +71,11 @@ interface TeamGamesPresentationProps {
   deleteConfirmGameId: string | null;
   deleteLoading: boolean;
   deleteError?: string | null;
+  /** ID of the game whose format is being edited, or null if the edit modal is closed */
+  editGameId: string | null;
+  editForm: EditGameFormData;
+  editLoading: boolean;
+  editError?: string | null;
   onCreateGame: () => void;
   onCancelCreate: () => void;
   onFormChange: (field: string, value: string | number | boolean) => void;
@@ -74,7 +84,17 @@ interface TeamGamesPresentationProps {
   onRequestDeleteGame: (gameId: string) => void;
   onCancelDeleteGame: () => void;
   onConfirmDeleteGame: () => void;
+  onRequestEditGame: (gameId: string) => void;
+  onCancelEditGame: () => void;
+  onEditFormChange: (
+    field: keyof EditGameFormData,
+    value: string | number,
+  ) => void;
+  onSubmitEditGame: () => void;
 }
+
+/** Games can only have their format edited before they've started. */
+const EDITABLE_GAME_STATUS = 'SCHEDULED';
 
 function formatGameDate(value?: string | null) {
   if (!value) return 'Date not scheduled';
@@ -99,6 +119,10 @@ export const TeamGamesPresentation = ({
   deleteConfirmGameId,
   deleteLoading,
   deleteError,
+  editGameId,
+  editForm,
+  editLoading,
+  editError,
   onCreateGame,
   onCancelCreate,
   onFormChange,
@@ -107,9 +131,16 @@ export const TeamGamesPresentation = ({
   onRequestDeleteGame,
   onCancelDeleteGame,
   onConfirmDeleteGame,
+  onRequestEditGame,
+  onCancelEditGame,
+  onEditFormChange,
+  onSubmitEditGame,
 }: TeamGamesPresentationProps) => {
   const deleteDialogTitleId = useId();
   const deleteDialogDescriptionId = useId();
+  const editDialogTitleId = useId();
+  const editFormatSelectId = useId();
+  const editDurationInputId = useId();
 
   if (loading) {
     return (
@@ -164,6 +195,8 @@ export const TeamGamesPresentation = ({
   const deleteConfirmGame = games.find(
     (game) => game.id === deleteConfirmGameId,
   );
+
+  const editingGame = games.find((game) => game.id === editGameId);
 
   return (
     <div className="space-y-6">
@@ -380,19 +413,34 @@ export const TeamGamesPresentation = ({
                   }
                 }}
               >
-                <button
-                  type="button"
-                  aria-label={`Delete game vs ${opponent?.name || 'Unknown opponent'}`}
-                  className="absolute right-3 top-3 rounded-full p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRequestDeleteGame(game.id);
-                  }}
-                >
-                  <span aria-hidden="true">🗑️</span>
-                </button>
+                <div className="absolute right-3 top-3 flex items-center gap-1">
+                  {game.status === EDITABLE_GAME_STATUS && (
+                    <button
+                      type="button"
+                      aria-label={`Edit game format vs ${opponent?.name || 'Unknown opponent'}`}
+                      className="rounded-full p-1.5 text-slate-400 transition hover:bg-blue-50 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRequestEditGame(game.id);
+                      }}
+                    >
+                      <span aria-hidden="true">✏️</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={`Delete game vs ${opponent?.name || 'Unknown opponent'}`}
+                    className="rounded-full p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRequestDeleteGame(game.id);
+                    }}
+                  >
+                    <span aria-hidden="true">🗑️</span>
+                  </button>
+                </div>
 
-                <div className="mb-4 flex items-center justify-between gap-3 pr-8">
+                <div className="mb-4 flex items-center justify-between gap-3 pr-16">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusInfo.color}`}
                   >
@@ -489,6 +537,98 @@ export const TeamGamesPresentation = ({
                 className="min-h-[44px] rounded-xl bg-red-600 px-4 py-2 font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {deleteLoading ? 'Deleting...' : 'Delete game'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingGame && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={editDialogTitleId}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+        >
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="border-b border-slate-200 px-6 py-5">
+              <h3
+                id={editDialogTitleId}
+                className="text-xl font-black text-slate-950"
+              >
+                Edit Game Format
+              </h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Only available before the game starts.
+              </p>
+            </div>
+
+            <div className="grid gap-4 px-6 py-5 sm:grid-cols-[1fr_140px]">
+              <div>
+                <label
+                  htmlFor={editFormatSelectId}
+                  className="mb-2 block text-sm font-semibold text-slate-700"
+                >
+                  Game Format
+                </label>
+                <select
+                  id={editFormatSelectId}
+                  value={editForm.gameFormatId}
+                  onChange={(e) =>
+                    onEditFormChange('gameFormatId', e.target.value)
+                  }
+                  className="min-h-[44px] w-full rounded-xl border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select format</option>
+                  {formatOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor={editDurationInputId}
+                  className="mb-2 block text-sm font-semibold text-slate-700"
+                >
+                  Duration
+                </label>
+                <input
+                  id={editDurationInputId}
+                  type="number"
+                  value={editForm.duration}
+                  onChange={(e) =>
+                    onEditFormChange('duration', parseInt(e.target.value) || 0)
+                  }
+                  min="1"
+                  max="120"
+                  className="min-h-[44px] w-full rounded-xl border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {editError && (
+              <div className="mx-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {editError}
+              </div>
+            )}
+
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-200 px-6 py-5 sm:flex-row sm:justify-end">
+              <button
+                onClick={onCancelEditGame}
+                disabled={editLoading}
+                className="min-h-[44px] rounded-xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onSubmitEditGame}
+                disabled={!editForm.gameFormatId || editLoading}
+                className="min-h-[44px] rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {editLoading ? 'Saving...' : 'Save'}
               </button>
             </div>
           </div>

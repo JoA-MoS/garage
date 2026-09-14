@@ -558,4 +558,60 @@ describe('GamesService', () => {
       });
     });
   });
+
+  describe('update - gameFormatId', () => {
+    beforeEach(() => {
+      mockGameRepository.update.mockResolvedValue({ affected: 1 } as any);
+    });
+
+    it('rejects a gameFormatId change when the game is not SCHEDULED', async () => {
+      mockGameRepository.findOne.mockResolvedValue({
+        id: 'game-1',
+        status: GameStatus.FIRST_HALF,
+        gameFormatId: 'format-1',
+      } as Game);
+
+      await expect(
+        service.update('game-1', { gameFormatId: 'format-2' }),
+      ).rejects.toThrow(
+        'Game format can only be changed while the game is scheduled',
+      );
+
+      expect(mockGameRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a gameFormatId change when the new format does not exist', async () => {
+      mockGameRepository.findOne.mockResolvedValue({
+        id: 'game-1',
+        status: GameStatus.SCHEDULED,
+        gameFormatId: 'format-1',
+      } as Game);
+      mockGameFormatRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.update('game-1', { gameFormatId: 'format-2' }),
+      ).rejects.toThrow('Game format with ID format-2 not found');
+
+      expect(mockGameRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('updates the game format when the game is SCHEDULED and the new format exists', async () => {
+      mockGameRepository.findOne.mockResolvedValue({
+        id: 'game-1',
+        status: GameStatus.SCHEDULED,
+        gameFormatId: 'format-1',
+      } as Game);
+      mockGameFormatRepository.findOne.mockResolvedValue({
+        id: 'format-2',
+        name: '7v7',
+      } as GameFormat);
+
+      await service.update('game-1', { gameFormatId: 'format-2' });
+
+      expect(mockGameRepository.update).toHaveBeenCalledWith(
+        'game-1',
+        expect.objectContaining({ gameFormatId: 'format-2' }),
+      );
+    });
+  });
 });

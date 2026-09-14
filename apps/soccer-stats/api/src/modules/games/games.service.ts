@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  BadRequestException,
   Inject,
   forwardRef,
 } from '@nestjs/common';
@@ -213,12 +214,35 @@ export class GamesService {
       return this.findOne(id);
     }
 
+    // Changing the game format is only safe before the game has started -
+    // roster size and period config assumptions are baked in once events exist.
+    if (updateGameInput.gameFormatId !== undefined) {
+      const existingGame = await this.gameRepository.findOne({
+        where: { id },
+      });
+      if (!existingGame) {
+        throw new NotFoundException(`Game with ID ${id} not found`);
+      }
+      if (existingGame.status !== GameStatus.SCHEDULED) {
+        throw new BadRequestException(
+          'Game format can only be changed while the game is scheduled',
+        );
+      }
+      const newFormat = await this.gameFormatRepository.findOne({
+        where: { id: updateGameInput.gameFormatId },
+      });
+      if (!newFormat) {
+        throw new NotFoundException(
+          `Game format with ID ${updateGameInput.gameFormatId} not found`,
+        );
+      }
+    }
+
     // Extract fields that should not be passed directly to entity update
     // Timing fields are now derived from events, not stored as columns
     const {
       homeTeamId: _homeTeamId,
       awayTeamId: _awayTeamId,
-      gameFormatId: _gameFormatId,
       duration,
       resetGame: _resetGame,
       clearEvents: _clearEvents,

@@ -52,6 +52,13 @@ const baseProps = {
   deleteConfirmGameId: null,
   deleteLoading: false,
   deleteError: null,
+  editGameId: null,
+  editForm: {
+    gameFormatId: '',
+    duration: 90,
+  },
+  editLoading: false,
+  editError: null,
   onCreateGame: vi.fn(),
   onCancelCreate: vi.fn(),
   onFormChange: vi.fn(),
@@ -60,6 +67,10 @@ const baseProps = {
   onRequestDeleteGame: vi.fn(),
   onCancelDeleteGame: vi.fn(),
   onConfirmDeleteGame: vi.fn(),
+  onRequestEditGame: vi.fn(),
+  onCancelEditGame: vi.fn(),
+  onEditFormChange: vi.fn(),
+  onSubmitEditGame: vi.fn(),
 };
 
 describe('TeamGamesPresentation delete game', () => {
@@ -87,9 +98,7 @@ describe('TeamGamesPresentation delete game', () => {
 
     const modal = screen.getByRole('dialog', { name: 'Delete this game?' });
     expect(modal.getAttribute('aria-modal')).toBe('true');
-    expect(
-      within(modal).getByText(/vs Riverside FC/),
-    ).toBeTruthy();
+    expect(within(modal).getByText(/vs Riverside FC/)).toBeTruthy();
   });
 
   it('cancels the confirmation without deleting', () => {
@@ -140,5 +149,120 @@ describe('TeamGamesPresentation delete game', () => {
     ).toBeTruthy();
     const deleteButton = screen.getByText('Deleting...').closest('button');
     expect(deleteButton?.disabled).toBe(true);
+  });
+});
+
+const scheduledGame = { ...game, status: 'SCHEDULED' };
+const inProgressGame = { ...game, status: 'IN_PROGRESS' };
+
+const gameFormats = [
+  { id: 'format-1', name: '11v11', playersPerTeam: 11, durationMinutes: 90 },
+  { id: 'format-2', name: '7v7', playersPerTeam: 7, durationMinutes: 60 },
+];
+
+describe('TeamGamesPresentation edit game format', () => {
+  it('shows an edit control for a scheduled game and requests edit without navigating', () => {
+    const onRequestEditGame = vi.fn();
+    const onViewGame = vi.fn();
+    render(
+      <TeamGamesPresentation
+        {...baseProps}
+        games={[scheduledGame]}
+        onRequestEditGame={onRequestEditGame}
+        onViewGame={onViewGame}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText('Edit game format vs Riverside FC'));
+
+    expect(onRequestEditGame).toHaveBeenCalledWith('game-1');
+    expect(onViewGame).not.toHaveBeenCalled();
+  });
+
+  it('does not show an edit control for a game that has already started', () => {
+    render(<TeamGamesPresentation {...baseProps} games={[inProgressGame]} />);
+
+    expect(
+      screen.queryByLabelText('Edit game format vs Riverside FC'),
+    ).toBeNull();
+  });
+
+  it('shows the edit modal prefilled with the targeted game format and duration', () => {
+    render(
+      <TeamGamesPresentation
+        {...baseProps}
+        games={[scheduledGame]}
+        gameFormats={gameFormats}
+        editGameId="game-1"
+        editForm={{ gameFormatId: 'format-1', duration: 90 }}
+      />,
+    );
+
+    const modal = screen.getByRole('dialog', { name: 'Edit Game Format' });
+    const formatSelect = within(modal).getByLabelText(
+      'Game Format',
+    ) as HTMLSelectElement;
+    expect(formatSelect.value).toBe('format-1');
+    const durationInput = within(modal).getByLabelText(
+      'Duration',
+    ) as HTMLInputElement;
+    expect(durationInput.value).toBe('90');
+  });
+
+  it('submits the edit', () => {
+    const onSubmitEditGame = vi.fn();
+    render(
+      <TeamGamesPresentation
+        {...baseProps}
+        games={[scheduledGame]}
+        gameFormats={gameFormats}
+        editGameId="game-1"
+        editForm={{ gameFormatId: 'format-2', duration: 60 }}
+        onSubmitEditGame={onSubmitEditGame}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(onSubmitEditGame).toHaveBeenCalled();
+  });
+
+  it('cancels the edit without submitting', () => {
+    const onCancelEditGame = vi.fn();
+    const onSubmitEditGame = vi.fn();
+    render(
+      <TeamGamesPresentation
+        {...baseProps}
+        games={[scheduledGame]}
+        gameFormats={gameFormats}
+        editGameId="game-1"
+        onCancelEditGame={onCancelEditGame}
+        onSubmitEditGame={onSubmitEditGame}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Cancel'));
+
+    expect(onCancelEditGame).toHaveBeenCalled();
+    expect(onSubmitEditGame).not.toHaveBeenCalled();
+  });
+
+  it('disables save while updating and shows an error', () => {
+    render(
+      <TeamGamesPresentation
+        {...baseProps}
+        games={[scheduledGame]}
+        gameFormats={gameFormats}
+        editGameId="game-1"
+        editLoading={true}
+        editError="Failed to update game. Please try again."
+      />,
+    );
+
+    expect(
+      screen.getByText('Failed to update game. Please try again.'),
+    ).toBeTruthy();
+    const saveButton = screen.getByText('Saving...').closest('button');
+    expect(saveButton?.disabled).toBe(true);
   });
 });
