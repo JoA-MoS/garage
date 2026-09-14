@@ -281,6 +281,7 @@ export const TeamGamesSmart = ({
 
   const handleSubmitEditGame = useCallback(() => {
     if (!editGameId) return;
+    setEditError(null);
     updateGame({
       variables: {
         id: editGameId,

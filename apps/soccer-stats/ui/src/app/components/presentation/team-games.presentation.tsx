@@ -600,7 +600,7 @@ export const TeamGamesPresentation = ({
                   type="number"
                   value={editForm.duration}
                   onChange={(e) =>
-                    onEditFormChange('duration', parseInt(e.target.value) || 0)
+                    onEditFormChange('duration', parseInt(e.target.value) || 1)
                   }
                   min="1"
                   max="120"
@@ -625,7 +625,7 @@ export const TeamGamesPresentation = ({
               </button>
               <button
                 onClick={onSubmitEditGame}
-                disabled={!editForm.gameFormatId || editLoading}
+                disabled={!editForm.gameFormatId || editForm.duration < 1 || editLoading}
                 className="min-h-[44px] rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {editLoading ? 'Saving...' : 'Save'}

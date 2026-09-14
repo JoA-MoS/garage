@@ -261,9 +261,29 @@ export class GamesService {
       ...(duration !== undefined && { durationMinutes: duration as number }),
     };
 
-    // Only update with valid Game entity fields (excludes timing fields)
+    // Only update with valid Game entity fields (excludes timing fields).
+    // When a gameFormatId change is requested, include a status guard in the
+    // WHERE clause to prevent a race condition where the status changes between
+    // the earlier check and this update.
     if (Object.keys(entityFields).length > 0) {
-      await this.gameRepository.update(id, entityFields);
+      if (updateGameInput.gameFormatId !== undefined) {
+        const result = await this.gameRepository
+          .createQueryBuilder()
+          .update(Game)
+          .set(entityFields)
+          .where('id = :id AND status = :status', {
+            id,
+            status: GameStatus.SCHEDULED,
+          })
+          .execute();
+        if (result.affected === 0) {
+          throw new BadRequestException(
+            'Game format can only be changed while the game is scheduled',
+          );
+        }
+      } else {
+        await this.gameRepository.update(id, entityFields);
+      }
     }
 
     // Create timing events based on status changes
