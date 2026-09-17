@@ -1,4 +1,4 @@
-import { useState, useCallback, memo, useEffect } from 'react';
+import { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import { useMutation } from '@apollo/client/react';
 
 import { CreatePlayerModal } from '@garage/soccer-stats/ui-components';
@@ -18,11 +18,13 @@ import {
 import { FieldLineup } from '../presentation/field-lineup.presentation';
 import { LineupBench } from '../presentation/lineup-bench.presentation';
 import { PlayerListLineup } from '../presentation/player-list-lineup.presentation';
+import { OnFieldCardGrid } from '../presentation/on-field-card-grid.presentation';
 import {
   CREATE_USER,
   ADD_PLAYER_TO_TEAM,
 } from '../../services/users-graphql.service';
 import { GET_TEAM_BY_ID } from '../../services/teams-graphql.service';
+import { usePlayTime } from '../../hooks/use-play-time';
 
 interface GameLineupTabProps {
   gameTeamId: string;
@@ -96,6 +98,28 @@ interface GameLineupTabProps {
    * currently selected player onto the field.
    */
   onAddToFieldClick?: () => void;
+
+  /** Game events, used to compute live play time for the on-field card grid. */
+  gameEvents?: Array<{
+    id: string;
+    playerId?: string | null;
+    externalPlayerName?: string | null;
+    eventType: { category: string; name?: string };
+    period: string;
+    periodSecond: number;
+    childEvents?: Array<{
+      playerId?: string | null;
+      externalPlayerName?: string | null;
+      eventType: { name: string };
+    }>;
+  }>;
+
+  /**
+   * A second on-field player clicked in the card grid while a field player
+   * is already selected there (selectedFieldPlayerId is set). Completes a
+   * position swap.
+   */
+  onFieldPlayerClickForSwap?: (player: GqlRosterPlayer) => void;
 }
 
 type ModalMode =
@@ -191,6 +215,8 @@ export const GameLineupTab = memo(function GameLineupTab({
   hideBench = false,
   statsFeatures,
   onAddToFieldClick,
+  gameEvents = [],
+  onFieldPlayerClickForSwap,
 }: GameLineupTabProps) {
   const trackPositions = statsFeatures?.trackPositions ?? true;
   const formations = getFormationsForTeamSize(playersPerTeam);
@@ -400,6 +426,31 @@ export const GameLineupTab = memo(function GameLineupTab({
     gameStatus === GameStatus.Halftime ||
     gameStatus === GameStatus.InProgress;
 
+  // Which phase of the game determines the default Lineup-tab view.
+  type GamePhase = 'pregame' | 'live' | 'halftime' | 'fulltime';
+  const phase: GamePhase =
+    gameStatus === GameStatus.Halftime
+      ? 'halftime'
+      : gameStatus === GameStatus.Completed ||
+          gameStatus === GameStatus.Cancelled
+        ? 'fulltime'
+        : gameStatus === GameStatus.FirstHalf ||
+            gameStatus === GameStatus.SecondHalf ||
+            gameStatus === GameStatus.InProgress
+          ? 'live'
+          : 'pregame';
+
+  const defaultViewMode: 'field' | 'card' = phase === 'live' ? 'card' : 'field';
+  const [viewModeOverride, setViewModeOverride] = useState<
+    'field' | 'card' | null
+  >(null);
+  const viewMode = viewModeOverride ?? defaultViewMode;
+
+  // Reset any manual override whenever the game moves to a new phase.
+  useEffect(() => {
+    setViewModeOverride(null);
+  }, [phase]);
+
   // Handle position click on field
   const handlePositionClick = useCallback(
     (position: FormationPosition, assignedPlayer?: GqlRosterPlayer) => {
@@ -474,6 +525,31 @@ export const GameLineupTab = memo(function GameLineupTab({
       onFieldPlayerClickForSub,
       onFieldPlayerClickForLineup,
       bench.length,
+    ],
+  );
+
+  // Card grid's on-field click handler: same routing as
+  // handleOnFieldPlayerClick, but checks for an in-progress field-first
+  // swap selection first (the card grid is the only place a second
+  // on-field tap can complete a swap, since it's the only trackPositions
+  // on-field view with per-player click targets that stays mounted during
+  // live play).
+  const handleOnFieldCardClick = useCallback(
+    (player: GqlRosterPlayer) => {
+      if (
+        selectedFieldPlayerId &&
+        selectedFieldPlayerId !== player.gameEventId &&
+        onFieldPlayerClickForSwap
+      ) {
+        onFieldPlayerClickForSwap(player);
+        return;
+      }
+      handleOnFieldPlayerClick(player);
+    },
+    [
+      selectedFieldPlayerId,
+      onFieldPlayerClickForSwap,
+      handleOnFieldPlayerClick,
     ],
   );
 
@@ -685,6 +761,15 @@ export const GameLineupTab = memo(function GameLineupTab({
     [createUser, addPlayerToTeam, teamId, addPlayerToGameRoster, refetchRoster],
   );
 
+  const onFieldPlayerIds = useMemo(
+    () => onField.map((p) => p.playerId || p.externalPlayerName || ''),
+    [onField],
+  );
+  const playTimeByPlayer = usePlayTime(onFieldPlayerIds, gameEvents, {
+    period: currentPeriod,
+    periodSecond: currentPeriodSeconds,
+  });
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -708,6 +793,24 @@ export const GameLineupTab = memo(function GameLineupTab({
         <h3 className="text-lg font-semibold">{teamName} Lineup</h3>
         {trackPositions && (
           <div className="flex items-center gap-2">
+            <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
+              <button
+                type="button"
+                onClick={() => setViewModeOverride('field')}
+                aria-pressed={viewMode === 'field'}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === 'field' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
+              >
+                Field view
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewModeOverride('card')}
+                aria-pressed={viewMode === 'card'}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === 'card' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
+              >
+                Card view
+              </button>
+            </div>
             <label htmlFor="formation-select" className="text-sm text-gray-600">
               Formation:
             </label>
@@ -734,19 +837,31 @@ export const GameLineupTab = memo(function GameLineupTab({
       </div>
 
       {trackPositions ? (
-        /* Full field visualization with position slots */
-        <div id="field-lineup" className="mx-auto max-w-sm">
-          <FieldLineup
-            formation={selectedFormation}
-            lineup={onField}
-            onPositionClick={handlePositionClick}
-            teamColor={teamColor}
-            disabled={mutating}
-            highlightClickableAssigned={hasBenchSelectionActive}
+        viewMode === 'field' ? (
+          /* Full field visualization with position slots */
+          <div id="field-lineup" className="mx-auto max-w-sm">
+            <FieldLineup
+              formation={selectedFormation}
+              lineup={onField}
+              onPositionClick={handlePositionClick}
+              teamColor={teamColor}
+              disabled={mutating}
+              highlightClickableAssigned={hasBenchSelectionActive}
+              queuedPlayerIds={queuedPlayerIds}
+              selectedFieldPlayerId={selectedFieldPlayerId}
+            />
+          </div>
+        ) : (
+          /* Live-play card view — player-for-player, no position slots */
+          <OnFieldCardGrid
+            onFieldPlayers={onField}
+            playTimeByPlayer={playTimeByPlayer}
             queuedPlayerIds={queuedPlayerIds}
             selectedFieldPlayerId={selectedFieldPlayerId}
+            disabled={mutating}
+            onFieldPlayerClick={handleOnFieldCardClick}
           />
-        </div>
+        )
       ) : (
         /* Simplified on-field list when position tracking is off */
         <PlayerListLineup
