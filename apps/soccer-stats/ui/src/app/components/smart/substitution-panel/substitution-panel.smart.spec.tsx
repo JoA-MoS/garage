@@ -305,12 +305,56 @@ describe('SubstitutionPanel Smart Component', () => {
 
     it('ignores the external swap target if it is already queued', async () => {
       const onExternalFieldPlayerForSwapHandled = vi.fn();
+      const onExternalFieldPlayerToReplaceHandled = vi.fn();
+      const onExternalSelectionHandled = vi.fn();
+      const onBenchSelectionChange = vi.fn();
 
       const { rerender } = render(
         <SubstitutionPanel
           {...createDefaultProps({
+            onBenchSelectionChange,
+            onExternalFieldPlayerToReplaceHandled,
+          })}
+        />,
+      );
+
+      // Open panel and select a bench player (bench-first)
+      fireEvent.click(screen.getByText('Substitutions'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Jimmy Brown')).toBeTruthy();
+      });
+
+      fireEvent.click(screen.getByText('Jimmy Brown'));
+
+      await waitFor(() => {
+        expect(onBenchSelectionChange).toHaveBeenCalled();
+      });
+
+      // Complete the substitution with Alex Jones (player 2) going out and
+      // Jimmy Brown coming in. This genuinely queues Alex Jones — he's now
+      // in `outIds` — establishing the "already queued" precondition.
+      rerender(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            onBenchSelectionChange,
+            onExternalFieldPlayerToReplaceHandled,
+            externalFieldPlayerToReplace: mockPlayer('2', 'Alex Jones'),
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Queued \(1\)/)).toBeTruthy();
+        expect(onExternalFieldPlayerToReplaceHandled).toHaveBeenCalled();
+      });
+
+      // Start a fresh field-first selection with Sarah Smith (player 1)
+      rerender(
+        <SubstitutionPanel
+          {...createDefaultProps({
             externalFieldPlayerSelection: mockPlayer('1', 'Sarah Smith'),
-            onExternalSelectionHandled: vi.fn(),
+            onExternalSelectionHandled,
             onExternalFieldPlayerForSwapHandled,
           })}
         />,
@@ -318,15 +362,16 @@ describe('SubstitutionPanel Smart Component', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/Replacing:/)).toBeTruthy();
+        expect(onExternalSelectionHandled).toHaveBeenCalled();
       });
 
-      // Queue player 2 into an unrelated substitution first, then try to
-      // use them as a swap target — should be ignored
+      // Now try to use the already-queued Alex Jones as the swap target —
+      // should be ignored, so the queue count must NOT increase to 2
       rerender(
         <SubstitutionPanel
           {...createDefaultProps({
             externalFieldPlayerSelection: null,
-            onExternalSelectionHandled: vi.fn(),
+            onExternalSelectionHandled,
             onExternalFieldPlayerForSwapHandled,
             externalFieldPlayerForSwap: mockPlayer('2', 'Alex Jones'),
           })}
@@ -335,6 +380,10 @@ describe('SubstitutionPanel Smart Component', () => {
 
       await waitFor(() => {
         expect(onExternalFieldPlayerForSwapHandled).toHaveBeenCalled();
+        // Queue should still only have 1 item - the swap must have been
+        // ignored, not queued a second time
+        expect(screen.getByText(/Queued \(1\)/)).toBeTruthy();
+        expect(screen.queryByText(/Queued \(2\)/)).toBeFalsy();
       });
     });
   });
