@@ -390,17 +390,15 @@ describe('SubstitutionPanelPresentation', () => {
         panelState: 'bench-view' as PanelState,
         selection: { direction: null, fieldPlayer: null, benchPlayer: null },
       };
-      const { container } = render(
-        <SubstitutionPanelPresentation {...props} />,
-      );
+      render(<SubstitutionPanelPresentation {...props} />);
 
       // Bench tab is active by default - no live-pulse dots should render
-      expect(container.querySelectorAll('.animate-pulse').length).toBe(0);
+      expect(screen.queryAllByRole('status', { name: 'Live' })).toHaveLength(0);
 
       fireEvent.click(screen.getByText(/On Field/));
 
       // Both on-field players (Sarah Smith, Alex Jones) are isOnField: true
-      expect(container.querySelectorAll('.animate-pulse').length).toBe(2);
+      expect(screen.getAllByRole('status', { name: 'Live' })).toHaveLength(2);
     });
 
     it('switches to swap position tab when clicked', () => {
