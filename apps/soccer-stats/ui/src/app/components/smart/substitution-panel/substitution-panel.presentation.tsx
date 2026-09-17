@@ -1,9 +1,6 @@
-import { useState } from 'react';
-
 import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond } from '@garage/soccer-stats/utils';
 
-import { FIELD_SENTINEL_POSITION } from '../lineup-panel/types';
 import { PlayerCard } from '../../presentation/player-card.presentation';
 
 import { SubstitutionPanelPresentationProps, QueuedItem } from './types';
@@ -41,11 +38,9 @@ export const SubstitutionPanelPresentation = ({
   onPanelStateChange,
   teamName,
   teamColor,
-  onFieldPlayers,
   benchPlayers,
   playTimeByPlayer,
   selection,
-  onFieldPlayerClick,
   onBenchPlayerClick,
   onClearSelection,
   queue,
@@ -213,16 +208,38 @@ export const SubstitutionPanelPresentation = ({
             </div>
           )}
 
-          {/* Player selection with tabs when field-first (can sub or swap) */}
-          <PlayerSelectionTabs
-            selection={selection}
-            benchPlayers={benchPlayers}
-            onFieldPlayers={onFieldPlayers}
-            playTimeByPlayer={playTimeByPlayer}
-            onBenchPlayerClick={onBenchPlayerClick}
-            onFieldPlayerClick={onFieldPlayerClick}
-            isExecuting={isExecuting}
-          />
+          {/* Bench players — the panel is bench-only now; on-field selection
+              happens in the Lineup tab's card grid instead. */}
+          {!isExecuting && (
+            <div className="px-4 py-3">
+              <div className="mb-3 text-xs font-medium uppercase text-gray-500">
+                Bench ({benchPlayers.length})
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {benchPlayers.map((player) => {
+                  const id = getPlayerId(player);
+                  const playTime = playTimeByPlayer.get(id);
+                  const isSelected = !!(
+                    selection.direction === 'bench-first' &&
+                    selection.benchPlayer &&
+                    getPlayerId(selection.benchPlayer) === getPlayerId(player)
+                  );
+
+                  return (
+                    <PlayerCard
+                      key={id}
+                      player={player}
+                      variant="bench"
+                      timeSeconds={playTime?.totalSeconds ?? 0}
+                      isLive={false}
+                      isSelected={isSelected}
+                      onClick={() => onBenchPlayerClick(player)}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Execution progress */}
           {isExecuting && (
@@ -435,132 +452,6 @@ function QueuedItemRow({
           />
         </svg>
       </button>
-    </div>
-  );
-}
-
-/**
- * Tabbed player selection component
- */
-function PlayerSelectionTabs({
-  selection,
-  benchPlayers,
-  onFieldPlayers,
-  playTimeByPlayer,
-  onBenchPlayerClick,
-  onFieldPlayerClick,
-  isExecuting,
-}: {
-  selection: {
-    direction: 'field-first' | 'bench-first' | null;
-    fieldPlayer: GqlRosterPlayer | null;
-    benchPlayer: GqlRosterPlayer | null;
-  };
-  benchPlayers: GqlRosterPlayer[];
-  onFieldPlayers: GqlRosterPlayer[];
-  playTimeByPlayer: Map<string, { totalSeconds: number; isOnField: boolean }>;
-  onBenchPlayerClick: (player: GqlRosterPlayer) => void;
-  onFieldPlayerClick: (player: GqlRosterPlayer) => void;
-  isExecuting: boolean;
-}) {
-  const [activeTab, setActiveTab] = useState<'bench' | 'onField'>('bench');
-  const isSwapping = !!(
-    selection.direction === 'field-first' && selection.fieldPlayer
-  );
-
-  if (isExecuting) return null;
-
-  // While swapping, exclude the already-selected field player from the list
-  const visibleOnFieldPlayers = isSwapping
-    ? onFieldPlayers.filter(
-        (p) => p.gameEventId !== selection.fieldPlayer?.gameEventId,
-      )
-    : onFieldPlayers;
-
-  return (
-    <div className="px-4 py-3">
-      {/* Tab header - both tabs are always available so play time can be
-          compared across the full roster, not just the bench, before
-          deciding who to sub. */}
-      <div className="mb-3 flex gap-1 rounded-lg bg-gray-100 p-1">
-        <button
-          type="button"
-          onClick={() => setActiveTab('bench')}
-          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-            activeTab === 'bench'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Bench ({benchPlayers.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('onField')}
-          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-            activeTab === 'onField'
-              ? 'bg-white text-purple-700 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          {isSwapping ? 'Swap Position' : 'On Field'} (
-          {visibleOnFieldPlayers.length})
-        </button>
-      </div>
-
-      {/* Bench players */}
-      {activeTab === 'bench' && (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {benchPlayers.map((player) => {
-            const id = getPlayerId(player);
-            const playTime = playTimeByPlayer.get(id);
-            const isSelected = !!(
-              selection.direction === 'bench-first' &&
-              selection.benchPlayer &&
-              getPlayerId(selection.benchPlayer) === getPlayerId(player)
-            );
-
-            return (
-              <PlayerCard
-                key={id}
-                player={player}
-                variant="bench"
-                timeSeconds={playTime?.totalSeconds ?? 0}
-                isLive={false}
-                isSelected={isSelected}
-                onClick={() => onBenchPlayerClick(player)}
-              />
-            );
-          })}
-        </div>
-      )}
-
-      {/* On-field players */}
-      {activeTab === 'onField' && (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {visibleOnFieldPlayers.map((player) => {
-            const id = getPlayerId(player);
-            const playTime = playTimeByPlayer.get(id);
-            // The "FIELD" position is a sentinel used internally when
-            // position tracking is off - never show it as a real position.
-            const hasRealPosition =
-              player.position && player.position !== FIELD_SENTINEL_POSITION;
-
-            return (
-              <PlayerCard
-                key={id}
-                player={player}
-                variant="onField"
-                timeSeconds={playTime?.totalSeconds ?? 0}
-                isLive={playTime?.isOnField ?? false}
-                isSelected={false}
-                positionLabel={hasRealPosition ? player.position : null}
-                onClick={() => onFieldPlayerClick(player)}
-              />
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }

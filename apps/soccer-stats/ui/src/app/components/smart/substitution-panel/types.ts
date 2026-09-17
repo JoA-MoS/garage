@@ -77,13 +77,11 @@ export interface SubstitutionPanelPresentationProps {
   teamColor: string;
 
   // Player data
-  onFieldPlayers: GqlRosterPlayer[];
   benchPlayers: GqlRosterPlayer[];
   playTimeByPlayer: Map<string, { totalSeconds: number; isOnField: boolean }>;
 
   // Selection state
   selection: PlayerSelection;
-  onFieldPlayerClick: (player: GqlRosterPlayer) => void;
   onBenchPlayerClick: (player: GqlRosterPlayer) => void;
   onClearSelection: () => void;
 
