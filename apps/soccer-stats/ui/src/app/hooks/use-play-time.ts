@@ -3,6 +3,8 @@ import { useMemo } from 'react';
 export interface PlayTimeResult {
   playerId: string;
   minutes: number;
+  /** Exact play time in seconds, for live MM:SS display (minutes is floored). */
+  totalSeconds: number;
   isOnField: boolean;
 }
 
@@ -169,10 +171,13 @@ export function calculatePlayTime(
     totalSeconds += Math.max(0, endTime - stint.onTime);
   }
 
+  const safeTotalSeconds = Math.max(0, totalSeconds);
+
   return {
     playerId,
     // Ensure minutes is never negative
-    minutes: Math.max(0, Math.floor(totalSeconds / 60)),
+    minutes: Math.floor(safeTotalSeconds / 60),
+    totalSeconds: safeTotalSeconds,
     isOnField: isCurrentlyOnField,
   };
 }

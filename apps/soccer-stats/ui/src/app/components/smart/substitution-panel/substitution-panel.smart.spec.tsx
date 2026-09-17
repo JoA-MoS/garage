@@ -679,9 +679,11 @@ describe('SubstitutionPanel Smart Component', () => {
         expect(screen.getByText('Jimmy Brown')).toBeTruthy();
       });
 
-      // Check that play time is displayed - there should be multiple "0 min" elements
-      // (one for each bench player who hasn't played yet)
-      const playTimeElements = screen.getAllByText(/\d+\s*min/);
+      // Check that play time is displayed as MM:SS - there should be multiple
+      // "00:00" elements (one for each bench player who hasn't played yet).
+      // Minutes are padded to at least 2 digits but can grow beyond that for
+      // long/accumulated play times, so don't cap the digit count.
+      const playTimeElements = screen.getAllByText(/^\d+:\d{2}$/);
       expect(playTimeElements.length).toBeGreaterThan(0);
     });
   });

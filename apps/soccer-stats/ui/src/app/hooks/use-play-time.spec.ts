@@ -85,6 +85,7 @@ describe('calculatePlayTime', () => {
     expect(result).toEqual({
       playerId: 'player-1',
       minutes: 0,
+      totalSeconds: 0,
       isOnField: false,
     });
   });
@@ -98,6 +99,22 @@ describe('calculatePlayTime', () => {
     expect(result).toEqual({
       playerId: 'player-1',
       minutes: 5,
+      totalSeconds: 300,
+      isOnField: true,
+    });
+  });
+
+  it('exposes seconds precision beyond the floored minute (live tick)', () => {
+    const events = [periodStart('evt-1', '1', 0, ['player-1'])];
+    const result = calculatePlayTime('player-1', events, {
+      period: '1',
+      periodSecond: 305,
+    });
+    // 5 min 5 sec on field - minutes floors down, totalSeconds keeps the remainder
+    expect(result).toEqual({
+      playerId: 'player-1',
+      minutes: 5,
+      totalSeconds: 305,
       isOnField: true,
     });
   });
@@ -114,6 +131,7 @@ describe('calculatePlayTime', () => {
     expect(result).toEqual({
       playerId: 'player-1',
       minutes: 10,
+      totalSeconds: 600,
       isOnField: false,
     });
   });
@@ -134,6 +152,7 @@ describe('calculatePlayTime', () => {
     expect(result).toEqual({
       playerId: 'player-1',
       minutes: 10,
+      totalSeconds: 600,
       isOnField: true,
     });
   });
@@ -151,6 +170,7 @@ describe('calculatePlayTime', () => {
     expect(result).toEqual({
       playerId: 'player-1',
       minutes: 30,
+      totalSeconds: 1800,
       isOnField: true,
     });
   });
@@ -168,6 +188,7 @@ describe('calculatePlayTime', () => {
     expect(result).toEqual({
       playerId: 'player-1',
       minutes: 10,
+      totalSeconds: 600,
       isOnField: false,
     });
   });
@@ -187,6 +208,7 @@ describe('calculatePlayTime', () => {
     expect(result).toEqual({
       playerId: 'player-1',
       minutes: 25,
+      totalSeconds: 1500,
       isOnField: false,
     });
   });
@@ -209,6 +231,7 @@ describe('calculatePlayTime', () => {
     expect(result).toEqual({
       playerId: 'player-1',
       minutes: 10,
+      totalSeconds: 600,
       isOnField: true,
     });
   });
@@ -235,6 +258,7 @@ describe('calculatePlayTime', () => {
     expect(result).toEqual({
       playerId: 'player-1',
       minutes: 16,
+      totalSeconds: 960,
       isOnField: true,
     });
   });
@@ -263,6 +287,7 @@ describe('calculatePlayTime', () => {
     expect(result).toEqual({
       playerId: 'player-1',
       minutes: 10,
+      totalSeconds: 600,
       isOnField: true,
     });
   });
@@ -282,6 +307,7 @@ describe('calculatePlayTime', () => {
     expect(result).toEqual({
       playerId: 'player-2',
       minutes: 5,
+      totalSeconds: 300,
       isOnField: true,
     });
   });

@@ -79,7 +79,7 @@ export interface SubstitutionPanelPresentationProps {
   // Player data
   onFieldPlayers: GqlRosterPlayer[];
   benchPlayers: GqlRosterPlayer[];
-  playTimeByPlayer: Map<string, { minutes: number; isOnField: boolean }>;
+  playTimeByPlayer: Map<string, { totalSeconds: number; isOnField: boolean }>;
 
   // Selection state
   selection: PlayerSelection;

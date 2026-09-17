@@ -303,7 +303,10 @@ export const SubstitutionPanel = ({
       ...onField.map(getPlayerId),
       ...bench.map(getPlayerId),
     ];
-    const results = new Map<string, { minutes: number; isOnField: boolean }>();
+    const results = new Map<
+      string,
+      { totalSeconds: number; isOnField: boolean }
+    >();
 
     for (const playerId of allPlayerIds) {
       const result = calculatePlayTime(playerId, gameEvents, {
@@ -311,7 +314,7 @@ export const SubstitutionPanel = ({
         periodSecond,
       });
       results.set(playerId, {
-        minutes: result.minutes,
+        totalSeconds: result.totalSeconds,
         isOnField: result.isOnField,
       });
     }
