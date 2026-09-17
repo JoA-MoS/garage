@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond } from '@garage/soccer-stats/utils';
 
-import { formatTime } from '../../../utils';
 import { FIELD_SENTINEL_POSITION } from '../lineup-panel/types';
 import { PlayerCard } from '../../presentation/player-card.presentation';
 
