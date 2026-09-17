@@ -85,4 +85,35 @@ describe('PlayerCard', () => {
 
     expect(screen.getByLabelText('Queued')).toBeTruthy();
   });
+
+  it('disables the underlying button when disabled is true', () => {
+    render(
+      <PlayerCard
+        player={mockPlayer('1', 'Sarah Smith')}
+        variant="onField"
+        timeSeconds={60}
+        isLive={false}
+        isSelected={false}
+        disabled={true}
+        onClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button').hasAttribute('disabled')).toBe(true);
+  });
+
+  it('does not disable the underlying button by default', () => {
+    render(
+      <PlayerCard
+        player={mockPlayer('1', 'Sarah Smith')}
+        variant="onField"
+        timeSeconds={60}
+        isLive={false}
+        isSelected={false}
+        onClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button').hasAttribute('disabled')).toBe(false);
+  });
 });

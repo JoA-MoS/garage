@@ -106,4 +106,17 @@ describe('OnFieldCardGrid', () => {
 
     expect(onFieldPlayerClick).not.toHaveBeenCalled();
   });
+
+  it('sets the native disabled attribute on the card button when disabled', () => {
+    render(
+      <OnFieldCardGrid
+        onFieldPlayers={[mockPlayer('1', 'Sarah Smith')]}
+        playTimeByPlayer={new Map()}
+        disabled={true}
+      />,
+    );
+
+    const card = screen.getByText('Sarah Smith').closest('button');
+    expect(card?.hasAttribute('disabled')).toBe(true);
+  });
 });

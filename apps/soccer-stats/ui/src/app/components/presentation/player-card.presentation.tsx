@@ -20,6 +20,8 @@ export interface PlayerCardProps {
   /** Queued for a substitution, swap, or removal — shown dimmed with a badge instead of disappearing. */
   isQueued?: boolean;
   positionLabel?: string | null;
+  /** Disables the underlying button (e.g. while a mutation is in flight). */
+  disabled?: boolean;
   onClick: () => void;
 }
 
@@ -37,6 +39,7 @@ export function PlayerCard({
   isSelected,
   isQueued = false,
   positionLabel,
+  disabled = false,
   onClick,
 }: PlayerCardProps) {
   const isOnField = variant === 'onField';
@@ -64,7 +67,8 @@ export function PlayerCard({
     <button
       type="button"
       onClick={onClick}
-      className={`relative flex flex-col items-start rounded-lg border p-2 transition-colors ${cardClasses}`}
+      disabled={disabled}
+      className={`relative flex flex-col items-start rounded-lg border p-2 transition-colors disabled:cursor-default disabled:opacity-60 ${cardClasses}`}
     >
       {isQueued && (
         <span

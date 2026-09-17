@@ -51,6 +51,7 @@ export function OnFieldCardGrid({
             isSelected={player.gameEventId === selectedFieldPlayerId}
             isQueued={queuedPlayerIds.has(player.gameEventId)}
             positionLabel={hasRealPosition ? player.position : null}
+            disabled={disabled}
             onClick={() => !disabled && onFieldPlayerClick?.(player)}
           />
         );
