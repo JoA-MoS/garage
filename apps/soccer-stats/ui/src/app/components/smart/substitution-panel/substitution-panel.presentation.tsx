@@ -227,7 +227,7 @@ export const SubstitutionPanelPresentation = ({
 
                   return (
                     <PlayerCard
-                      key={id}
+                      key={player.gameEventId}
                       player={player}
                       variant="bench"
                       timeSeconds={playTime?.totalSeconds ?? 0}

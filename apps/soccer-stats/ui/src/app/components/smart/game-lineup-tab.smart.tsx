@@ -785,7 +785,10 @@ export const GameLineupTab = memo(function GameLineupTab({
   );
 
   const onFieldPlayerIds = useMemo(
-    () => onField.map((p) => p.playerId || p.externalPlayerName || ''),
+    () =>
+      onField
+        .map((p) => p.playerId || p.externalPlayerName || '')
+        .filter((id) => id !== ''),
     [onField],
   );
   const playTimeByPlayer = usePlayTime(onFieldPlayerIds, gameEvents, {
