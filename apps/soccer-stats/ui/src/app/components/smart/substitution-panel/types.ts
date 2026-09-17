@@ -165,6 +165,19 @@ export interface SubstitutionPanelSmartProps {
   onExternalFieldPlayerToReplaceHandled?: () => void;
 
   /**
+   * A second on-field player clicked externally (in the Lineup tab's card
+   * grid) while this panel already has a field-first selection active.
+   * Completes a position swap between the two players.
+   */
+  externalFieldPlayerForSwap?: GqlRosterPlayer | null;
+
+  /**
+   * Called when the external swap target has been handled (queued or
+   * ignored).
+   */
+  onExternalFieldPlayerForSwapHandled?: () => void;
+
+  /**
    * Empty position clicked on the field while bench-first selection is active.
    * Triggers immediate bringPlayerOntoField (no queue).
    */

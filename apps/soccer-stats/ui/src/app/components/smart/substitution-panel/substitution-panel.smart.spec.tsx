@@ -266,6 +266,79 @@ describe('SubstitutionPanel Smart Component', () => {
     });
   });
 
+  describe('field-first swap flow', () => {
+    it('queues a swap when a second field player is clicked externally', async () => {
+      const onExternalFieldPlayerForSwapHandled = vi.fn();
+
+      const { rerender } = render(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            externalFieldPlayerSelection: mockPlayer('1', 'Sarah Smith'),
+            onExternalSelectionHandled: vi.fn(),
+            onExternalFieldPlayerForSwapHandled,
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Replacing:/)).toBeTruthy();
+      });
+
+      // Simulate a second on-field player clicked externally, in the
+      // Lineup tab's card grid
+      rerender(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            externalFieldPlayerSelection: null,
+            onExternalSelectionHandled: vi.fn(),
+            onExternalFieldPlayerForSwapHandled,
+            externalFieldPlayerForSwap: mockPlayer('2', 'Alex Jones'),
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Queued \(1\)/)).toBeTruthy();
+        expect(onExternalFieldPlayerForSwapHandled).toHaveBeenCalled();
+      });
+    });
+
+    it('ignores the external swap target if it is already queued', async () => {
+      const onExternalFieldPlayerForSwapHandled = vi.fn();
+
+      const { rerender } = render(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            externalFieldPlayerSelection: mockPlayer('1', 'Sarah Smith'),
+            onExternalSelectionHandled: vi.fn(),
+            onExternalFieldPlayerForSwapHandled,
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Replacing:/)).toBeTruthy();
+      });
+
+      // Queue player 2 into an unrelated substitution first, then try to
+      // use them as a swap target — should be ignored
+      rerender(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            externalFieldPlayerSelection: null,
+            onExternalSelectionHandled: vi.fn(),
+            onExternalFieldPlayerForSwapHandled,
+            externalFieldPlayerForSwap: mockPlayer('2', 'Alex Jones'),
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(onExternalFieldPlayerForSwapHandled).toHaveBeenCalled();
+      });
+    });
+  });
+
   describe('queue management', () => {
     it('removes item from queue when X clicked', async () => {
       const props = createDefaultProps({

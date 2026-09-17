@@ -52,6 +52,8 @@ export const SubstitutionPanel = ({
   onBenchSelectionChange,
   externalFieldPlayerToReplace,
   onExternalFieldPlayerToReplaceHandled,
+  externalFieldPlayerForSwap,
+  onExternalFieldPlayerForSwapHandled,
   externalEmptyPosition,
   onExternalEmptyPositionHandled,
   externalAddToField,
@@ -297,6 +299,55 @@ export const SubstitutionPanel = ({
     executeSubstitutionNow,
   ]);
 
+  // Handle a second on-field player clicked externally to complete a
+  // field-first position swap (the card grid's equivalent of clicking a
+  // second player in the old nested "On Field" tab)
+  useEffect(() => {
+    if (!externalFieldPlayerForSwap) return;
+
+    if (selection.direction === 'field-first' && selection.fieldPlayer) {
+      // Ignore if the target is already queued for substitution or swap
+      const isQueued =
+        outIds.has(externalFieldPlayerForSwap.gameEventId) ||
+        swapPlayerIds.has(getPlayerId(externalFieldPlayerForSwap));
+
+      if (!isQueued) {
+        const fieldPlayer = selection.fieldPlayer;
+        setSelection({ direction: null, fieldPlayer: null, benchPlayer: null });
+
+        if (executeImmediately) {
+          executeSwapNow(fieldPlayer, externalFieldPlayerForSwap);
+        } else {
+          const swapItem: QueuedItem = {
+            id: `swap-${Date.now()}-${Math.random()}`,
+            type: 'swap',
+            player1: {
+              source: 'onField',
+              player: fieldPlayer,
+              gameEventId: fieldPlayer.gameEventId,
+            },
+            player2: {
+              source: 'onField',
+              player: externalFieldPlayerForSwap,
+              gameEventId: externalFieldPlayerForSwap.gameEventId,
+            },
+          };
+          setQueue((prev) => [...prev, swapItem]);
+        }
+      }
+    }
+
+    onExternalFieldPlayerForSwapHandled?.();
+  }, [
+    externalFieldPlayerForSwap,
+    selection,
+    outIds,
+    swapPlayerIds,
+    executeImmediately,
+    executeSwapNow,
+    onExternalFieldPlayerForSwapHandled,
+  ]);
+
   // Calculate play time for all players
   const playTimeByPlayer = useMemo(() => {
     const allPlayerIds = [
@@ -325,14 +376,6 @@ export const SubstitutionPanel = ({
   // Filter available players
   const onFieldPlayerIds = new Set(onField.map(getPlayerId));
 
-  const availableOnField = useMemo(
-    () =>
-      onField.filter(
-        (p) => !outIds.has(p.gameEventId) && !swapPlayerIds.has(getPlayerId(p)),
-      ),
-    [onField, outIds, swapPlayerIds],
-  );
-
   // Projected on-field count if every queued change were applied. The parent
   // gates the Lineup tab's "Add to Field" card on this. Substitutions and
   // swaps are net-zero (one comes in as one goes out), so only queued
@@ -357,106 +400,6 @@ export const SubstitutionPanel = ({
         return !inIds.has(id) && !onFieldPlayerIds.has(id);
       }),
     [bench, inIds, onFieldPlayerIds],
-  );
-
-  // Handle field player click
-  const handleFieldPlayerClick = useCallback(
-    (player: GqlRosterPlayer) => {
-      // Clear any stale error when user starts a new interaction
-      setError(null);
-
-      // Prevent selecting a player already queued for substitution or swap
-      if (
-        outIds.has(player.gameEventId) ||
-        swapPlayerIds.has(getPlayerId(player))
-      ) {
-        return;
-      }
-
-      // If no selection, start field-first selection
-      if (!selection.direction) {
-        setSelection({
-          direction: 'field-first',
-          fieldPlayer: player,
-          benchPlayer: null,
-        });
-        setPanelState('bench-view');
-        return;
-      }
-
-      // If field-first and clicking another field player = position swap
-      if (selection.direction === 'field-first' && selection.fieldPlayer) {
-        // Don't swap with self
-        if (player.gameEventId === selection.fieldPlayer.gameEventId) {
-          // Deselect
-          setSelection({
-            direction: null,
-            fieldPlayer: null,
-            benchPlayer: null,
-          });
-          return;
-        }
-
-        const fieldPlayer = selection.fieldPlayer;
-        setSelection({
-          direction: null,
-          fieldPlayer: null,
-          benchPlayer: null,
-        });
-
-        if (executeImmediately) {
-          executeSwapNow(fieldPlayer, player);
-        } else {
-          // Queue position swap
-          const swapItem: QueuedItem = {
-            id: `swap-${Date.now()}-${Math.random()}`,
-            type: 'swap',
-            player1: {
-              source: 'onField',
-              player: fieldPlayer,
-              gameEventId: fieldPlayer.gameEventId,
-            },
-            player2: {
-              source: 'onField',
-              player,
-              gameEventId: player.gameEventId,
-            },
-          };
-          setQueue((prev) => [...prev, swapItem]);
-        }
-        return;
-      }
-
-      // If bench-first, complete the substitution
-      if (selection.direction === 'bench-first' && selection.benchPlayer) {
-        const benchPlayer = selection.benchPlayer;
-        setSelection({
-          direction: null,
-          fieldPlayer: null,
-          benchPlayer: null,
-        });
-
-        if (executeImmediately) {
-          executeSubstitutionNow(player, benchPlayer);
-        } else {
-          const subItem: QueuedItem = {
-            id: `sub-${Date.now()}-${Math.random()}`,
-            type: 'substitution',
-            playerOut: player,
-            playerIn: benchPlayer,
-          };
-          setQueue((prev) => [...prev, subItem]);
-        }
-      }
-    },
-    [
-      selection,
-      outIds,
-      swapPlayerIds,
-      executeImmediately,
-      executeSubstitutionNow,
-      executeSwapNow,
-    ],
   );
 
   // Handle bench player click
