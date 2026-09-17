@@ -530,10 +530,7 @@ function PlayerSelectionTabs({
   };
   benchPlayers: GqlRosterPlayer[];
   onFieldPlayers: GqlRosterPlayer[];
-  playTimeByPlayer: Map<
-    string,
-    { minutes: number; totalSeconds: number; isOnField: boolean }
-  >;
+  playTimeByPlayer: Map<string, { totalSeconds: number; isOnField: boolean }>;
   onBenchPlayerClick: (player: GqlRosterPlayer) => void;
   onFieldPlayerClick: (player: GqlRosterPlayer) => void;
   isExecuting: boolean;

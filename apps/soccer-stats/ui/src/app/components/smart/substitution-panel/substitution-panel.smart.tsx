@@ -305,7 +305,7 @@ export const SubstitutionPanel = ({
     ];
     const results = new Map<
       string,
-      { minutes: number; totalSeconds: number; isOnField: boolean }
+      { totalSeconds: number; isOnField: boolean }
     >();
 
     for (const playerId of allPlayerIds) {
@@ -314,7 +314,6 @@ export const SubstitutionPanel = ({
         periodSecond,
       });
       results.set(playerId, {
-        minutes: result.minutes,
         totalSeconds: result.totalSeconds,
         isOnField: result.isOnField,
       });

@@ -59,11 +59,11 @@ export const Static = {
     onFieldPlayers,
     benchPlayers,
     playTimeByPlayer: new Map([
-      ['1', { minutes: 15, totalSeconds: 915, isOnField: true }],
-      ['2', { minutes: 10, totalSeconds: 630, isOnField: true }],
-      ['3', { minutes: 22, totalSeconds: 1345, isOnField: true }],
-      ['4', { minutes: 5, totalSeconds: 300, isOnField: false }],
-      ['5', { minutes: 0, totalSeconds: 0, isOnField: false }],
+      ['1', { totalSeconds: 915, isOnField: true }],
+      ['2', { totalSeconds: 630, isOnField: true }],
+      ['3', { totalSeconds: 1345, isOnField: true }],
+      ['4', { totalSeconds: 300, isOnField: false }],
+      ['5', { totalSeconds: 0, isOnField: false }],
     ]),
     selection: { direction: null, fieldPlayer: null, benchPlayer: null },
     onFieldPlayerClick: noop,
@@ -104,17 +104,10 @@ function LiveTickingStory() {
   const playTimeByPlayer = new Map([
     ...Object.entries(onFieldStart).map(([id, startSecond]) => {
       const totalSeconds = periodSecond - startSecond;
-      return [
-        id,
-        {
-          minutes: Math.floor(totalSeconds / 60),
-          totalSeconds,
-          isOnField: true,
-        },
-      ] as const;
+      return [id, { totalSeconds, isOnField: true }] as const;
     }),
-    ['3', { minutes: 5, totalSeconds: 300, isOnField: false }] as const,
-    ['4', { minutes: 0, totalSeconds: 0, isOnField: false }] as const,
+    ['3', { totalSeconds: 300, isOnField: false }] as const,
+    ['4', { totalSeconds: 0, isOnField: false }] as const,
   ]);
 
   return (
