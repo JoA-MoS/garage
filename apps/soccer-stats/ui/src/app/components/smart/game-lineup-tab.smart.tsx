@@ -528,12 +528,22 @@ export const GameLineupTab = memo(function GameLineupTab({
     ],
   );
 
-  // Card grid's on-field click handler: same routing as
+  // Card grid's on-field click handler: routes similarly to
   // handleOnFieldPlayerClick, but checks for an in-progress field-first
   // swap selection first (the card grid is the only place a second
   // on-field tap can complete a swap, since it's the only trackPositions
   // on-field view with per-player click targets that stays mounted during
   // live play).
+  //
+  // This intentionally does NOT delegate to handleOnFieldPlayerClick: that
+  // function's final branch requires `bench.length > 0` (correct for its
+  // original caller, PlayerListLineup's trackPositions:false view, where an
+  // empty bench means there's no one to substitute in). The card grid has
+  // no such requirement — a field-first swap only needs two on-field
+  // players, so gating the first tap on bench size makes swaps unreachable
+  // for a squad with an empty bench. The logic is duplicated here (minus
+  // the bench gate) rather than relaxing handleOnFieldPlayerClick's gate,
+  // to avoid changing PlayerListLineup's behavior.
   const handleOnFieldCardClick = useCallback(
     (player: GqlRosterPlayer) => {
       if (
@@ -544,12 +554,25 @@ export const GameLineupTab = memo(function GameLineupTab({
         onFieldPlayerClickForSwap(player);
         return;
       }
-      handleOnFieldPlayerClick(player);
+      if (hasBenchSelectionActive && onFieldPlayerClickForSub) {
+        onFieldPlayerClickForSub(player);
+        return;
+      }
+      if (onFieldPlayerClickForLineup) {
+        onFieldPlayerClickForLineup(player);
+        return;
+      }
+      if (isActivePlay && onFieldPlayerClickForSub) {
+        onFieldPlayerClickForSub(player);
+      }
     },
     [
       selectedFieldPlayerId,
       onFieldPlayerClickForSwap,
-      handleOnFieldPlayerClick,
+      hasBenchSelectionActive,
+      onFieldPlayerClickForSub,
+      onFieldPlayerClickForLineup,
+      isActivePlay,
     ],
   );
 

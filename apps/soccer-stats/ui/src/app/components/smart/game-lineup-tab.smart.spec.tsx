@@ -1,7 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
-import { GameStatus } from '@garage/soccer-stats/graphql-codegen';
+import {
+  GameStatus,
+  RosterPlayer as GqlRosterPlayer,
+} from '@garage/soccer-stats/graphql-codegen';
 
 import { GameLineupTab } from './game-lineup-tab.smart';
 
@@ -11,25 +14,61 @@ vi.mock('@apollo/client/react', () => ({
   useMutation: () => [vi.fn(), { loading: false }],
 }));
 
+// Hoisted so the vi.mock factory below (which is itself hoisted above these
+// imports/consts by Vitest) can close over it. Individual tests override
+// the return value via useLineupMock.mockReturnValue(...) to exercise
+// different onField/bench combinations.
+const { useLineupMock } = vi.hoisted(() => ({ useLineupMock: vi.fn() }));
+
 vi.mock('../../hooks/use-lineup', () => ({
-  useLineup: () => ({
-    onField: [],
-    bench: [],
-    availableRoster: [],
-    teamRoster: [],
-    loading: false,
-    mutating: false,
-    error: null,
-    addPlayerToGameRoster: vi.fn(),
-    removeFromLineup: vi.fn(),
-    updatePosition: vi.fn(),
-    substitutePlayer: vi.fn(),
-    recordPositionChange: vi.fn(),
-    bringPlayerOntoField: vi.fn(),
-    refetchRoster: vi.fn(),
-    formation: null,
-  }),
+  useLineup: useLineupMock,
+  // LineupBench (rendered by GameLineupTab) imports this directly from the
+  // hooks module, so it needs to survive the mock too.
+  getPlayerDisplayName: (player: GqlRosterPlayer) =>
+    player.externalPlayerName || player.playerName || 'Unknown Player',
 }));
+
+const mockPlayer = (id: string, name: string): GqlRosterPlayer =>
+  ({
+    gameEventId: `event-${id}`,
+    playerId: id,
+    playerName: name,
+    firstName: name.split(' ')[0],
+    lastName: name.split(' ')[1] || '',
+    externalPlayerName: null,
+    externalPlayerNumber: null,
+    position: 'MID',
+  }) as GqlRosterPlayer;
+
+const playerA = mockPlayer('a', 'Player Alpha');
+const playerB = mockPlayer('b', 'Player Bravo');
+const benchPlayer = mockPlayer('bench-1', 'Bench One');
+
+const buildLineup = (overrides?: {
+  onField?: GqlRosterPlayer[];
+  bench?: GqlRosterPlayer[];
+}) => ({
+  onField: overrides?.onField ?? [playerA, playerB],
+  bench: overrides?.bench ?? [benchPlayer],
+  availableRoster: [],
+  teamRoster: [],
+  loading: false,
+  mutating: false,
+  error: null,
+  addPlayerToGameRoster: vi.fn(),
+  removeFromLineup: vi.fn(),
+  updatePosition: vi.fn(),
+  substitutePlayer: vi.fn(),
+  recordPositionChange: vi.fn(),
+  bringPlayerOntoField: vi.fn(),
+  refetchRoster: vi.fn(),
+  formation: null,
+});
+
+beforeEach(() => {
+  useLineupMock.mockReset();
+  useLineupMock.mockReturnValue(buildLineup());
+});
 
 const baseProps = {
   gameTeamId: 'gt-1',
@@ -104,5 +143,74 @@ describe('GameLineupTab view mode', () => {
     expect(ariaPressed(screen.getByRole('button', { name: 'Card view' }))).toBe(
       'true',
     );
+  });
+});
+
+describe('GameLineupTab on-field card click routing', () => {
+  it('starts a field-first selection when tapped with an empty bench (Finding 1 regression)', () => {
+    useLineupMock.mockReturnValue(buildLineup({ bench: [] }));
+    const onFieldPlayerClickForSub = vi.fn();
+    const onFieldPlayerClickForSwap = vi.fn();
+
+    render(
+      <GameLineupTab
+        {...baseProps}
+        gameStatus={GameStatus.FirstHalf}
+        onFieldPlayerClickForSub={onFieldPlayerClickForSub}
+        onFieldPlayerClickForSwap={onFieldPlayerClickForSwap}
+      />,
+    );
+
+    // Sanity check: card view is active by default during live play, and
+    // this test's whole point is that the bench is empty.
+    expect(ariaPressed(screen.getByRole('button', { name: 'Card view' }))).toBe(
+      'true',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Player Alpha/ }));
+
+    expect(onFieldPlayerClickForSub).toHaveBeenCalledWith(playerA);
+    expect(onFieldPlayerClickForSwap).not.toHaveBeenCalled();
+  });
+
+  it('completes a swap when a different on-field card is tapped while a field-first selection is active', () => {
+    const onFieldPlayerClickForSub = vi.fn();
+    const onFieldPlayerClickForSwap = vi.fn();
+
+    render(
+      <GameLineupTab
+        {...baseProps}
+        gameStatus={GameStatus.FirstHalf}
+        selectedFieldPlayerId={playerA.gameEventId}
+        onFieldPlayerClickForSub={onFieldPlayerClickForSub}
+        onFieldPlayerClickForSwap={onFieldPlayerClickForSwap}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Player Bravo/ }));
+
+    expect(onFieldPlayerClickForSwap).toHaveBeenCalledWith(playerB);
+    expect(onFieldPlayerClickForSub).not.toHaveBeenCalled();
+  });
+
+  it('does not complete a swap when the already-selected card is tapped again', () => {
+    const onFieldPlayerClickForSub = vi.fn();
+    const onFieldPlayerClickForSwap = vi.fn();
+
+    render(
+      <GameLineupTab
+        {...baseProps}
+        gameStatus={GameStatus.FirstHalf}
+        selectedFieldPlayerId={playerA.gameEventId}
+        onFieldPlayerClickForSub={onFieldPlayerClickForSub}
+        onFieldPlayerClickForSwap={onFieldPlayerClickForSwap}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Player Alpha/ }));
+
+    expect(onFieldPlayerClickForSwap).not.toHaveBeenCalled();
+    // It falls through to the sub-click routing instead of being a no-op.
+    expect(onFieldPlayerClickForSub).toHaveBeenCalledWith(playerA);
   });
 });
