@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond } from '@garage/soccer-stats/utils';
 
+import { formatTime } from '../../../utils';
 import { FIELD_SENTINEL_POSITION } from '../lineup-panel/types';
 
 import { SubstitutionPanelPresentationProps, QueuedItem } from './types';
@@ -439,6 +440,78 @@ function QueuedItemRow({
 }
 
 /**
+ * Player card shared by the Bench and On Field tabs. On-field players get a
+ * live MM:SS ticker with a pulsing dot, mirroring the "live" time treatment
+ * in PlayerStatsTablePresentation; bench players show static banked time.
+ */
+function PlayerCard({
+  player,
+  variant,
+  timeSeconds,
+  isLive,
+  isSelected,
+  positionLabel,
+  onClick,
+}: {
+  player: GqlRosterPlayer;
+  variant: 'bench' | 'onField';
+  timeSeconds: number;
+  isLive: boolean;
+  isSelected: boolean;
+  positionLabel?: string | null;
+  onClick: () => void;
+}) {
+  const isOnField = variant === 'onField';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex flex-col items-start rounded-lg border p-2 transition-colors ${
+        isOnField
+          ? 'border-purple-200 bg-purple-50 hover:border-purple-300'
+          : isSelected
+            ? 'border-green-500 bg-green-50'
+            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        {player.externalPlayerNumber && (
+          <span
+            className={`text-xs font-bold ${isOnField ? 'text-purple-600' : 'text-gray-600'}`}
+          >
+            #{player.externalPlayerNumber}
+          </span>
+        )}
+        <span
+          className={`text-sm font-medium ${
+            isOnField
+              ? 'text-purple-900'
+              : isSelected
+                ? 'text-green-700'
+                : 'text-gray-900'
+          }`}
+        >
+          {getPlayerDisplayName(player)}
+        </span>
+      </div>
+      <span
+        className={`inline-flex items-center gap-1.5 text-xs ${isOnField ? 'text-purple-600' : 'text-gray-500'}`}
+      >
+        {formatTime(timeSeconds)}
+        {isLive && (
+          <span
+            className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500"
+            title="On field"
+          />
+        )}
+        {positionLabel ? ` · ${positionLabel}` : ''}
+      </span>
+    </button>
+  );
+}
+
+/**
  * Tabbed player selection component
  */
 function PlayerSelectionTabs({
@@ -457,7 +530,10 @@ function PlayerSelectionTabs({
   };
   benchPlayers: GqlRosterPlayer[];
   onFieldPlayers: GqlRosterPlayer[];
-  playTimeByPlayer: Map<string, { minutes: number; isOnField: boolean }>;
+  playTimeByPlayer: Map<
+    string,
+    { minutes: number; totalSeconds: number; isOnField: boolean }
+  >;
   onBenchPlayerClick: (player: GqlRosterPlayer) => void;
   onFieldPlayerClick: (player: GqlRosterPlayer) => void;
   isExecuting: boolean;
@@ -513,38 +589,22 @@ function PlayerSelectionTabs({
           {benchPlayers.map((player) => {
             const id = getPlayerId(player);
             const playTime = playTimeByPlayer.get(id);
-            const isSelected =
+            const isSelected = !!(
               selection.direction === 'bench-first' &&
               selection.benchPlayer &&
-              getPlayerId(selection.benchPlayer) === getPlayerId(player);
+              getPlayerId(selection.benchPlayer) === getPlayerId(player)
+            );
 
             return (
-              <button
+              <PlayerCard
                 key={id}
-                type="button"
+                player={player}
+                variant="bench"
+                timeSeconds={playTime?.totalSeconds ?? 0}
+                isLive={false}
+                isSelected={isSelected}
                 onClick={() => onBenchPlayerClick(player)}
-                className={`flex flex-col items-start rounded-lg border p-2 transition-colors ${
-                  isSelected
-                    ? 'border-green-500 bg-green-50'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  {player.externalPlayerNumber && (
-                    <span className="text-xs font-bold text-gray-600">
-                      #{player.externalPlayerNumber}
-                    </span>
-                  )}
-                  <span
-                    className={`text-sm font-medium ${isSelected ? 'text-green-700' : 'text-gray-900'}`}
-                  >
-                    {getPlayerDisplayName(player)}
-                  </span>
-                </div>
-                <span className="text-xs text-gray-500">
-                  {playTime?.minutes ?? 0} min
-                </span>
-              </button>
+              />
             );
           })}
         </div>
@@ -562,27 +622,16 @@ function PlayerSelectionTabs({
               player.position && player.position !== FIELD_SENTINEL_POSITION;
 
             return (
-              <button
+              <PlayerCard
                 key={id}
-                type="button"
+                player={player}
+                variant="onField"
+                timeSeconds={playTime?.totalSeconds ?? 0}
+                isLive={playTime?.isOnField ?? false}
+                isSelected={false}
+                positionLabel={hasRealPosition ? player.position : null}
                 onClick={() => onFieldPlayerClick(player)}
-                className="flex flex-col items-start rounded-lg border border-purple-200 bg-purple-50 p-2 transition-colors hover:border-purple-300"
-              >
-                <div className="flex items-center gap-2">
-                  {player.externalPlayerNumber && (
-                    <span className="text-xs font-bold text-purple-600">
-                      #{player.externalPlayerNumber}
-                    </span>
-                  )}
-                  <span className="text-sm font-medium text-purple-900">
-                    {getPlayerDisplayName(player)}
-                  </span>
-                </div>
-                <span className="text-xs text-purple-600">
-                  {playTime?.minutes ?? 0} min
-                  {hasRealPosition ? ` · ${player.position}` : ''}
-                </span>
-              </button>
+              />
             );
           })}
         </div>

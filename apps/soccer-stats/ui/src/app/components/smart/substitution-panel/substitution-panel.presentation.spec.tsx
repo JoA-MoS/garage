@@ -29,10 +29,10 @@ const defaultProps: SubstitutionPanelPresentationProps = {
     mockPlayer('4', 'Taylor White', '9'),
   ],
   playTimeByPlayer: new Map([
-    ['1', { minutes: 15, isOnField: true }],
-    ['2', { minutes: 10, isOnField: true }],
-    ['3', { minutes: 5, isOnField: false }],
-    ['4', { minutes: 0, isOnField: false }],
+    ['1', { minutes: 15, totalSeconds: 900, isOnField: true }],
+    ['2', { minutes: 10, totalSeconds: 600, isOnField: true }],
+    ['3', { minutes: 5, totalSeconds: 300, isOnField: false }],
+    ['4', { minutes: 0, totalSeconds: 0, isOnField: false }],
   ]),
   selection: { direction: null, fieldPlayer: null, benchPlayer: null },
   onFieldPlayerClick: vi.fn(),
@@ -93,8 +93,8 @@ describe('SubstitutionPanelPresentation', () => {
     it('shows play time for bench players', () => {
       const props = { ...defaultProps, panelState: 'bench-view' as PanelState };
       render(<SubstitutionPanelPresentation {...props} />);
-      expect(screen.getByText('5 min')).toBeTruthy();
-      expect(screen.getByText('0 min')).toBeTruthy();
+      expect(screen.getByText('05:00')).toBeTruthy();
+      expect(screen.getByText('00:00')).toBeTruthy();
     });
 
     it('shows selection header when field player selected', () => {
@@ -377,9 +377,30 @@ describe('SubstitutionPanelPresentation', () => {
 
       fireEvent.click(screen.getByText(/On Field/));
 
-      // Sarah Smith (15 min) and Alex Jones (10 min) per defaultProps.playTimeByPlayer
-      expect(screen.getByText(/15 min/)).toBeTruthy();
-      expect(screen.getByText(/10 min/)).toBeTruthy();
+      // Sarah Smith (15:00) and Alex Jones (10:00) per defaultProps.playTimeByPlayer.
+      // "15:00" also matches the panel's period clock (periodSecond: 900), so
+      // assert there are at least two matches rather than a single unique one.
+      expect(screen.getAllByText(/15:00/).length).toBeGreaterThanOrEqual(2);
+      expect(screen.getByText(/10:00/)).toBeTruthy();
+    });
+
+    it('shows a live pulse indicator for on-field players but not bench players', () => {
+      const props = {
+        ...defaultProps,
+        panelState: 'bench-view' as PanelState,
+        selection: { direction: null, fieldPlayer: null, benchPlayer: null },
+      };
+      const { container } = render(
+        <SubstitutionPanelPresentation {...props} />,
+      );
+
+      // Bench tab is active by default - no live-pulse dots should render
+      expect(container.querySelectorAll('.animate-pulse').length).toBe(0);
+
+      fireEvent.click(screen.getByText(/On Field/));
+
+      // Both on-field players (Sarah Smith, Alex Jones) are isOnField: true
+      expect(container.querySelectorAll('.animate-pulse').length).toBe(2);
     });
 
     it('switches to swap position tab when clicked', () => {
