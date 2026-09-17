@@ -180,6 +180,10 @@ export const GamePage = () => {
   const [fieldPlayerToReplaceForPanel, setFieldPlayerToReplaceForPanel] =
     useState<GqlRosterPlayer | null>(null);
 
+  // Field player clicked (from the on-field card grid) to initiate a field-first swap
+  const [fieldPlayerForSwap, setFieldPlayerForSwap] =
+    useState<GqlRosterPlayer | null>(null);
+
   // Queued player IDs from substitution panel - used to show indicators on field
   const [queuedPlayerIds, setQueuedPlayerIds] = useState<Set<string>>(
     new Set(),
@@ -1882,6 +1886,22 @@ export const GamePage = () => {
                     homeOnField.length,
                     homeEffectiveFeatures.trackPositions,
                   )}
+                  gameEvents={
+                    homeTeam.events?.map((e) => ({
+                      id: e.id,
+                      playerId: e.playerId,
+                      externalPlayerName: e.externalPlayerName,
+                      eventType: e.eventType,
+                      period: e.period ?? '1',
+                      periodSecond: e.periodSecond,
+                      childEvents: e.childEvents?.map((ce) => ({
+                        playerId: ce.playerId,
+                        externalPlayerName: ce.externalPlayerName,
+                        eventType: ce.eventType,
+                      })),
+                    })) ?? []
+                  }
+                  onFieldPlayerClickForSwap={setFieldPlayerForSwap}
                 />
               )}
               {activeTeam === 'away' && awayTeam && (
@@ -1922,6 +1942,22 @@ export const GamePage = () => {
                     awayOnField.length,
                     awayEffectiveFeatures.trackPositions,
                   )}
+                  gameEvents={
+                    awayTeam.events?.map((e) => ({
+                      id: e.id,
+                      playerId: e.playerId,
+                      externalPlayerName: e.externalPlayerName,
+                      eventType: e.eventType,
+                      period: e.period ?? '1',
+                      periodSecond: e.periodSecond,
+                      childEvents: e.childEvents?.map((ce) => ({
+                        playerId: ce.playerId,
+                        externalPlayerName: ce.externalPlayerName,
+                        eventType: ce.eventType,
+                      })),
+                    })) ?? []
+                  }
+                  onFieldPlayerClickForSwap={setFieldPlayerForSwap}
                 />
               )}
             </div>
@@ -2804,6 +2840,10 @@ export const GamePage = () => {
           externalFieldPlayerToReplace={fieldPlayerToReplaceForPanel}
           onExternalFieldPlayerToReplaceHandled={() =>
             setFieldPlayerToReplaceForPanel(null)
+          }
+          externalFieldPlayerForSwap={fieldPlayerForSwap}
+          onExternalFieldPlayerForSwapHandled={() =>
+            setFieldPlayerForSwap(null)
           }
           externalEmptyPosition={emptyPositionForSub}
           onExternalEmptyPositionHandled={() => setEmptyPositionForSub(null)}
