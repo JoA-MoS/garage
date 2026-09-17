@@ -303,6 +303,55 @@ describe('SubstitutionPanel Smart Component', () => {
       });
     });
 
+    it('reports both on-field swap participants via onQueuedPlayerIdsChange (Finding 4)', async () => {
+      const onExternalFieldPlayerForSwapHandled = vi.fn();
+      const onQueuedPlayerIdsChange = vi.fn();
+
+      const { rerender } = render(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            externalFieldPlayerSelection: mockPlayer('1', 'Sarah Smith'),
+            onExternalSelectionHandled: vi.fn(),
+            onExternalFieldPlayerForSwapHandled,
+            onQueuedPlayerIdsChange,
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Replacing:/)).toBeTruthy();
+      });
+
+      // Simulate a second on-field player clicked externally, in the
+      // Lineup tab's card grid, completing the swap.
+      rerender(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            externalFieldPlayerSelection: null,
+            onExternalSelectionHandled: vi.fn(),
+            onExternalFieldPlayerForSwapHandled,
+            onQueuedPlayerIdsChange,
+            externalFieldPlayerForSwap: mockPlayer('2', 'Alex Jones'),
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Queued \(1\)/)).toBeTruthy();
+      });
+
+      // Both swap participants' gameEventIds — not just substitution/
+      // removal targets — must be reported so OnFieldCardGrid's isQueued
+      // badge (keyed by gameEventId) lights up for both of them.
+      const lastCall =
+        onQueuedPlayerIdsChange.mock.calls[
+          onQueuedPlayerIdsChange.mock.calls.length - 1
+        ];
+      const reportedIds: Set<string> = lastCall[0];
+      expect(reportedIds.has('event-1')).toBe(true);
+      expect(reportedIds.has('event-2')).toBe(true);
+    });
+
     it('ignores the external swap target if it is already queued', async () => {
       const onExternalFieldPlayerForSwapHandled = vi.fn();
       const onExternalFieldPlayerToReplaceHandled = vi.fn();

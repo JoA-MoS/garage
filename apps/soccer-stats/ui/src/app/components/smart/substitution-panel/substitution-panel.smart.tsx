@@ -184,32 +184,50 @@ export const SubstitutionPanel = ({
   );
 
   // Get queued player IDs - computed early so useEffects can validate against them
-  const { outIds, inIds, swapPlayerIds } = useMemo(() => {
-    const outIds = new Set<string>();
-    const inIds = new Set<string>();
-    const swapPlayerIds = new Set<string>();
+  const { outIds, inIds, swapPlayerIds, swapOnFieldGameEventIds } =
+    useMemo(() => {
+      const outIds = new Set<string>();
+      const inIds = new Set<string>();
+      const swapPlayerIds = new Set<string>();
+      // gameEventIds of swap participants who are currently on the field —
+      // the subset of swapPlayerIds (keyed by playerId/externalPlayerName)
+      // that the on-field card grid can actually badge as queued (keyed by
+      // gameEventId). A 'queuedSub' participant isn't on the field yet, so
+      // there's no on-field card for it to mark.
+      const swapOnFieldGameEventIds = new Set<string>();
 
-    queue.forEach((item) => {
-      if (item.type === 'substitution') {
-        outIds.add(item.playerOut.gameEventId);
-        inIds.add(getPlayerId(item.playerIn));
-      } else if (item.type === 'removal') {
-        outIds.add(item.playerOut.gameEventId);
-      } else if (item.type === 'addition') {
-        inIds.add(getPlayerId(item.playerIn));
-      } else {
-        swapPlayerIds.add(getPlayerId(item.player1.player));
-        swapPlayerIds.add(getPlayerId(item.player2.player));
-      }
-    });
+      queue.forEach((item) => {
+        if (item.type === 'substitution') {
+          outIds.add(item.playerOut.gameEventId);
+          inIds.add(getPlayerId(item.playerIn));
+        } else if (item.type === 'removal') {
+          outIds.add(item.playerOut.gameEventId);
+        } else if (item.type === 'addition') {
+          inIds.add(getPlayerId(item.playerIn));
+        } else {
+          swapPlayerIds.add(getPlayerId(item.player1.player));
+          swapPlayerIds.add(getPlayerId(item.player2.player));
+          if (item.player1.source === 'onField') {
+            swapOnFieldGameEventIds.add(item.player1.gameEventId);
+          }
+          if (item.player2.source === 'onField') {
+            swapOnFieldGameEventIds.add(item.player2.gameEventId);
+          }
+        }
+      });
 
-    return { outIds, inIds, swapPlayerIds };
-  }, [queue]);
+      return { outIds, inIds, swapPlayerIds, swapOnFieldGameEventIds };
+    }, [queue]);
 
-  // Notify parent when queued player IDs change
+  // Notify parent when queued player IDs change. OnFieldCardGrid's isQueued
+  // badge is keyed by gameEventId, so this must include on-field swap
+  // participants too — outIds alone only covers substitution/removal
+  // targets, which previously left a player queued as part of a swap
+  // looking untouched (and silently un-tappable) in the card grid.
   useEffect(() => {
-    onQueuedPlayerIdsChange?.(outIds);
-  }, [outIds, onQueuedPlayerIdsChange]);
+    const queuedGameEventIds = new Set([...outIds, ...swapOnFieldGameEventIds]);
+    onQueuedPlayerIdsChange?.(queuedGameEventIds);
+  }, [outIds, swapOnFieldGameEventIds, onQueuedPlayerIdsChange]);
 
   // Notify parent when selected field player changes (for visual indicator on field)
   useEffect(() => {
