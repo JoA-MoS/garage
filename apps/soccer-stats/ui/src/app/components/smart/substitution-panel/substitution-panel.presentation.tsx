@@ -5,6 +5,7 @@ import { fromPeriodSecond } from '@garage/soccer-stats/utils';
 
 import { formatTime } from '../../../utils';
 import { FIELD_SENTINEL_POSITION } from '../lineup-panel/types';
+import { PlayerCard } from '../../presentation/player-card.presentation';
 
 import { SubstitutionPanelPresentationProps, QueuedItem } from './types';
 
@@ -436,80 +437,6 @@ function QueuedItemRow({
         </svg>
       </button>
     </div>
-  );
-}
-
-/**
- * Player card shared by the Bench and On Field tabs. On-field players get a
- * live MM:SS ticker with a pulsing dot, mirroring the "live" time treatment
- * in PlayerStatsTablePresentation; bench players show static banked time.
- */
-function PlayerCard({
-  player,
-  variant,
-  timeSeconds,
-  isLive,
-  isSelected,
-  positionLabel,
-  onClick,
-}: {
-  player: GqlRosterPlayer;
-  variant: 'bench' | 'onField';
-  timeSeconds: number;
-  isLive: boolean;
-  isSelected: boolean;
-  positionLabel?: string | null;
-  onClick: () => void;
-}) {
-  const isOnField = variant === 'onField';
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex flex-col items-start rounded-lg border p-2 transition-colors ${
-        isOnField
-          ? 'border-purple-200 bg-purple-50 hover:border-purple-300'
-          : isSelected
-            ? 'border-green-500 bg-green-50'
-            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-      }`}
-    >
-      <div className="flex items-center gap-2">
-        {player.externalPlayerNumber && (
-          <span
-            className={`text-xs font-bold ${isOnField ? 'text-purple-600' : 'text-gray-600'}`}
-          >
-            #{player.externalPlayerNumber}
-          </span>
-        )}
-        <span
-          className={`text-sm font-medium ${
-            isOnField
-              ? 'text-purple-900'
-              : isSelected
-                ? 'text-green-700'
-                : 'text-gray-900'
-          }`}
-        >
-          {getPlayerDisplayName(player)}
-        </span>
-      </div>
-      <span
-        className={`inline-flex items-center gap-1.5 text-xs ${isOnField ? 'text-purple-600' : 'text-gray-500'}`}
-      >
-        {formatTime(timeSeconds)}
-        {isLive && (
-          <span
-            role="status"
-            aria-label="Live"
-            className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500"
-            title="On field"
-          />
-        )}
-        {positionLabel ? ` · ${positionLabel}` : ''}
-      </span>
-    </button>
   );
 }
 
