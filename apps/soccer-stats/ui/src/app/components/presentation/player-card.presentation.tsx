@@ -25,7 +25,7 @@ export interface PlayerCardProps {
    * omitted. Used by callers that resolve numbers for managed roster
    * players too (e.g. via a team roster lookup), not just external players.
    */
-  jerseyNumber?: string | null;
+  jerseyNumber?: string;
   /** Disables the underlying button (e.g. while a mutation is in flight). */
   disabled?: boolean;
   onClick: () => void;
