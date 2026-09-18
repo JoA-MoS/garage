@@ -116,4 +116,36 @@ describe('PlayerCard', () => {
 
     expect(screen.getByRole('button').hasAttribute('disabled')).toBe(false);
   });
+
+  it('uses the jerseyNumber override instead of player.externalPlayerNumber when provided', () => {
+    render(
+      <PlayerCard
+        player={mockPlayer('1', 'Sarah Smith', '7')}
+        variant="bench"
+        timeSeconds={0}
+        isLive={false}
+        isSelected={false}
+        jerseyNumber="23"
+        onClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('#23')).toBeTruthy();
+    expect(screen.queryByText('#7')).toBeNull();
+  });
+
+  it('falls back to player.externalPlayerNumber when no jerseyNumber override is given', () => {
+    render(
+      <PlayerCard
+        player={mockPlayer('1', 'Sarah Smith', '7')}
+        variant="bench"
+        timeSeconds={0}
+        isLive={false}
+        isSelected={false}
+        onClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('#7')).toBeTruthy();
+  });
 });

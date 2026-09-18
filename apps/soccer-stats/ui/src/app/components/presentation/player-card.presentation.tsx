@@ -20,6 +20,12 @@ export interface PlayerCardProps {
   /** Queued for a substitution, swap, or removal — shown dimmed with a badge instead of disappearing. */
   isQueued?: boolean;
   positionLabel?: string | null;
+  /**
+   * Jersey number override — falls back to player.externalPlayerNumber when
+   * omitted. Used by callers that resolve numbers for managed roster
+   * players too (e.g. via a team roster lookup), not just external players.
+   */
+  jerseyNumber?: string | null;
   /** Disables the underlying button (e.g. while a mutation is in flight). */
   disabled?: boolean;
   onClick: () => void;
@@ -39,10 +45,12 @@ export function PlayerCard({
   isSelected,
   isQueued = false,
   positionLabel,
+  jerseyNumber,
   disabled = false,
   onClick,
 }: PlayerCardProps) {
   const isOnField = variant === 'onField';
+  const displayNumber = jerseyNumber ?? player.externalPlayerNumber;
 
   const cardClasses = isQueued
     ? 'border-orange-300 bg-orange-50 opacity-70'
@@ -79,11 +87,11 @@ export function PlayerCard({
         </span>
       )}
       <div className="flex items-center gap-2">
-        {player.externalPlayerNumber && (
+        {displayNumber && (
           <span
             className={`text-xs font-bold ${isOnField ? 'text-purple-600' : 'text-gray-600'}`}
           >
-            #{player.externalPlayerNumber}
+            #{displayNumber}
           </span>
         )}
         <span className={`text-sm font-medium ${nameClasses}`}>

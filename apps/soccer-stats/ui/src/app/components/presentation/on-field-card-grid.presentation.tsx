@@ -16,6 +16,18 @@ export interface OnFieldCardGridProps {
   selectedFieldPlayerId?: string | null;
   disabled?: boolean;
   onFieldPlayerClick?: (player: GqlRosterPlayer) => void;
+  /**
+   * Optional jersey-number resolver (e.g. looks up managed-roster numbers
+   * via team roster, not just external players). Falls back to
+   * PlayerCard's own default (player.externalPlayerNumber) when omitted.
+   */
+  getJerseyNumber?: (player: GqlRosterPlayer) => string;
+  /**
+   * Renders a dashed "Add to Field" tile after the roster cards when
+   * provided — used when position tracking is off and the team is short a
+   * player (bringing someone on with no one going out).
+   */
+  onAddToFieldClick?: () => void;
 }
 
 /**
@@ -30,7 +42,17 @@ export function OnFieldCardGrid({
   selectedFieldPlayerId = null,
   disabled = false,
   onFieldPlayerClick,
+  getJerseyNumber,
+  onAddToFieldClick,
 }: OnFieldCardGridProps) {
+  if (onFieldPlayers.length === 0 && !onAddToFieldClick) {
+    return (
+      <p className="py-3 text-center text-sm text-gray-400">
+        No players on field
+      </p>
+    );
+  }
+
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {onFieldPlayers.map((player) => {
@@ -51,11 +73,27 @@ export function OnFieldCardGrid({
             isSelected={player.gameEventId === selectedFieldPlayerId}
             isQueued={queuedPlayerIds.has(player.gameEventId)}
             positionLabel={hasRealPosition ? player.position : null}
+            jerseyNumber={getJerseyNumber?.(player)}
             disabled={disabled}
             onClick={() => !disabled && onFieldPlayerClick?.(player)}
           />
         );
       })}
+      {onAddToFieldClick && (
+        <button
+          type="button"
+          onClick={onAddToFieldClick}
+          disabled={disabled}
+          className="flex w-full items-center gap-2 rounded-lg border-2 border-dashed border-blue-400 bg-blue-50 px-3 py-2 text-left text-sm transition-colors hover:bg-blue-100 disabled:opacity-50"
+        >
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-500 text-base font-bold text-white">
+            +
+          </span>
+          <span className="truncate font-medium text-blue-600">
+            Add to Field
+          </span>
+        </button>
+      )}
     </div>
   );
 }

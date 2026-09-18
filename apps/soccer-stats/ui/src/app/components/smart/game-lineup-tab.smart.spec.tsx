@@ -214,3 +214,70 @@ describe('GameLineupTab on-field card click routing', () => {
     expect(onFieldPlayerClickForSub).toHaveBeenCalledWith(playerA);
   });
 });
+
+describe('GameLineupTab with trackPositions: false', () => {
+  const noPositionsProps = {
+    ...baseProps,
+    statsFeatures: { trackPositions: false, trackSubstitutions: true },
+  };
+
+  it('renders the on-field roster as cards with no Field/Card toggle or Formation selector', () => {
+    render(
+      <GameLineupTab {...noPositionsProps} gameStatus={GameStatus.FirstHalf} />,
+    );
+
+    expect(screen.getByText('Player Alpha')).toBeTruthy();
+    expect(screen.getByText('Player Bravo')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Field view' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Card view' })).toBeNull();
+    expect(screen.queryByLabelText('Formation:')).toBeNull();
+  });
+
+  it('resolves jersey numbers from the team roster for managed players', () => {
+    useLineupMock.mockReturnValue({
+      ...buildLineup(),
+      teamRoster: [{ oduserId: 'a', jerseyNumber: '9' }],
+    });
+
+    render(
+      <GameLineupTab {...noPositionsProps} gameStatus={GameStatus.FirstHalf} />,
+    );
+
+    expect(screen.getByText('#9')).toBeTruthy();
+  });
+
+  it('renders an Add to Field tile and calls the handler when provided', () => {
+    const onAddToFieldClick = vi.fn();
+
+    render(
+      <GameLineupTab
+        {...noPositionsProps}
+        gameStatus={GameStatus.FirstHalf}
+        onAddToFieldClick={onAddToFieldClick}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Add to Field'));
+
+    expect(onAddToFieldClick).toHaveBeenCalled();
+  });
+
+  it('routes on-field card clicks through the existing bench-gated substitution flow, not the swap flow', () => {
+    const onFieldPlayerClickForSub = vi.fn();
+    const onFieldPlayerClickForSwap = vi.fn();
+
+    render(
+      <GameLineupTab
+        {...noPositionsProps}
+        gameStatus={GameStatus.FirstHalf}
+        onFieldPlayerClickForSub={onFieldPlayerClickForSub}
+        onFieldPlayerClickForSwap={onFieldPlayerClickForSwap}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Player Alpha'));
+
+    expect(onFieldPlayerClickForSub).toHaveBeenCalledWith(playerA);
+    expect(onFieldPlayerClickForSwap).not.toHaveBeenCalled();
+  });
+});
