@@ -638,7 +638,11 @@ export const SubstitutionPanel = ({
 
       onExternalEmptyPositionHandled?.();
     } else if (externalEmptyPosition) {
-      // No bench selection active - just clear
+      // No bench selection active yet - this is the first tap on the empty
+      // slot. Open the panel so the coach can pick a bench player, then tap
+      // the same slot again to complete the fill (handled by the branch
+      // above once selection.direction is 'bench-first').
+      setPanelState('bench-view');
       onExternalEmptyPositionHandled?.();
     }
   }, [
@@ -650,6 +654,7 @@ export const SubstitutionPanel = ({
     period,
     periodSecond,
     bringPlayerOntoFieldMutation,
+    setPanelState,
   ]);
 
   // Clear selection

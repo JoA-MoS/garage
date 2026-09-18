@@ -479,8 +479,14 @@ export const GameLineupTab = memo(function GameLineupTab({
           position,
         });
       } else {
-        // Priority 1: If sub panel has bench selection active, route to sub panel
-        if (hasBenchSelectionActive && onEmptyPositionClickForSub) {
+        // Priority 1: During live play, always route empty-position clicks to
+        // the substitution panel — whether or not a bench player is already
+        // selected. With a bench player selected, this completes "bring
+        // player onto field" immediately (existing behavior). With no bench
+        // player selected yet, the panel's own handling opens it instead of
+        // falling through to the pregame "assign player to position" modal,
+        // which doesn't make sense mid-game.
+        if (onEmptyPositionClickForSub) {
           onEmptyPositionClickForSub(position.position);
           return;
         }
