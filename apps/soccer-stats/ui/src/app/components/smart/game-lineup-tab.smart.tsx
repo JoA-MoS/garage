@@ -17,7 +17,6 @@ import {
 } from '../../constants/positions';
 import { FieldLineup } from '../presentation/field-lineup.presentation';
 import { LineupBench } from '../presentation/lineup-bench.presentation';
-import { PlayerListLineup } from '../presentation/player-list-lineup.presentation';
 import { OnFieldCardGrid } from '../presentation/on-field-card-grid.presentation';
 import {
   CREATE_USER,
@@ -537,13 +536,14 @@ export const GameLineupTab = memo(function GameLineupTab({
   //
   // This intentionally does NOT delegate to handleOnFieldPlayerClick: that
   // function's final branch requires `bench.length > 0` (correct for its
-  // original caller, PlayerListLineup's trackPositions:false view, where an
-  // empty bench means there's no one to substitute in). The card grid has
-  // no such requirement — a field-first swap only needs two on-field
-  // players, so gating the first tap on bench size makes swaps unreachable
-  // for a squad with an empty bench. The logic is duplicated here (minus
-  // the bench gate) rather than relaxing handleOnFieldPlayerClick's gate,
-  // to avoid changing PlayerListLineup's behavior.
+  // other caller below, the trackPositions:false OnFieldCardGrid, where an
+  // empty bench means there's no one to substitute in). The live-play card
+  // grid has no such requirement — a field-first swap only needs two
+  // on-field players, so gating the first tap on bench size makes swaps
+  // unreachable for a squad with an empty bench. The logic is duplicated
+  // here (minus the bench gate) rather than relaxing
+  // handleOnFieldPlayerClick's gate, to avoid changing trackPositions:false
+  // behavior.
   const handleOnFieldCardClick = useCallback(
     (player: GqlRosterPlayer) => {
       if (
@@ -889,19 +889,18 @@ export const GameLineupTab = memo(function GameLineupTab({
           />
         )
       ) : (
-        /* Simplified on-field list when position tracking is off */
-        <PlayerListLineup
-          onField={onField}
-          bench={[]}
-          playersPerTeam={playersPerTeam}
-          teamColor={teamColor}
-          disabled={mutating}
+        /* Simplified on-field grid when position tracking is off — same
+           card grid as the live-play Card view above, minus position
+           labels/swap routing (meaningless without tracked positions). */
+        <OnFieldCardGrid
+          onFieldPlayers={onField}
+          playTimeByPlayer={playTimeByPlayer}
           queuedPlayerIds={queuedPlayerIds}
           selectedFieldPlayerId={selectedFieldPlayerId}
-          hasBenchSelectionActive={hasBenchSelectionActive}
+          disabled={mutating}
           onFieldPlayerClick={handleOnFieldPlayerClick}
-          onAddToFieldClick={onAddToFieldClick}
           getJerseyNumber={getJerseyNumber}
+          onAddToFieldClick={onAddToFieldClick}
         />
       )}
 

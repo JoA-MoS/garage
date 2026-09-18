@@ -119,4 +119,52 @@ describe('OnFieldCardGrid', () => {
     const card = screen.getByText('Sarah Smith').closest('button');
     expect(card?.hasAttribute('disabled')).toBe(true);
   });
+
+  it('resolves jersey numbers via getJerseyNumber when provided', () => {
+    render(
+      <OnFieldCardGrid
+        onFieldPlayers={[mockPlayer('1', 'Sarah Smith')]}
+        playTimeByPlayer={new Map()}
+        getJerseyNumber={() => '9'}
+      />,
+    );
+
+    expect(screen.getByText('#9')).toBeTruthy();
+  });
+
+  it('renders an Add to Field tile and calls the handler when clicked', () => {
+    const onAddToFieldClick = vi.fn();
+    render(
+      <OnFieldCardGrid
+        onFieldPlayers={[mockPlayer('1', 'Sarah Smith')]}
+        playTimeByPlayer={new Map()}
+        onAddToFieldClick={onAddToFieldClick}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Add to Field'));
+
+    expect(onAddToFieldClick).toHaveBeenCalled();
+  });
+
+  it('shows an empty-state message when there are no on-field players and no Add to Field handler', () => {
+    render(
+      <OnFieldCardGrid onFieldPlayers={[]} playTimeByPlayer={new Map()} />,
+    );
+
+    expect(screen.getByText('No players on field')).toBeTruthy();
+  });
+
+  it('shows the Add to Field tile instead of the empty-state message when there are no players but a handler is provided', () => {
+    render(
+      <OnFieldCardGrid
+        onFieldPlayers={[]}
+        playTimeByPlayer={new Map()}
+        onAddToFieldClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('No players on field')).toBeNull();
+    expect(screen.getByText('Add to Field')).toBeTruthy();
+  });
 });
