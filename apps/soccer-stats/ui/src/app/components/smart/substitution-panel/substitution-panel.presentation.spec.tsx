@@ -20,10 +20,6 @@ const defaultProps: SubstitutionPanelPresentationProps = {
   onPanelStateChange: vi.fn(),
   teamName: 'Home Team',
   teamColor: '#3B82F6',
-  onFieldPlayers: [
-    mockPlayer('1', 'Sarah Smith', '7'),
-    mockPlayer('2', 'Alex Jones', '10'),
-  ],
   benchPlayers: [
     mockPlayer('3', 'Jimmy Brown', '12'),
     mockPlayer('4', 'Taylor White', '9'),
@@ -35,7 +31,6 @@ const defaultProps: SubstitutionPanelPresentationProps = {
     ['4', { totalSeconds: 0, isOnField: false }],
   ]),
   selection: { direction: null, fieldPlayer: null, benchPlayer: null },
-  onFieldPlayerClick: vi.fn(),
   onBenchPlayerClick: vi.fn(),
   onClearSelection: vi.fn(),
   queue: [],
@@ -155,7 +150,6 @@ describe('SubstitutionPanelPresentation', () => {
 
     it('does not render an "Add to Field" card inside the panel', () => {
       render(<SubstitutionPanelPresentation {...benchFirstProps} />);
-      fireEvent.click(screen.getByText(/On Field/));
       expect(screen.queryByText('Add to Field')).toBeFalsy();
       expect(screen.queryByText(/Field Full/)).toBeFalsy();
     });
@@ -336,114 +330,17 @@ describe('SubstitutionPanelPresentation', () => {
     });
   });
 
-  describe('tab switching', () => {
-    it('shows tabs when field player is selected (field-first)', () => {
-      const props = {
-        ...defaultProps,
-        panelState: 'bench-view' as PanelState,
-        selection: {
-          direction: 'field-first' as const,
-          fieldPlayer: mockPlayer('1', 'Sarah Smith', '7'),
-          benchPlayer: null,
-        },
-      };
-      render(<SubstitutionPanelPresentation {...props} />);
-      // Should show both tabs
-      expect(screen.getByText(/Bench \(\d+\)/)).toBeTruthy();
-      expect(screen.getByText(/Swap Position \(\d+\)/)).toBeTruthy();
-    });
-
-    it('shows an "On Field" tab (not "Swap Position") when no selection is active', () => {
-      const props = {
-        ...defaultProps,
-        panelState: 'bench-view' as PanelState,
-        selection: { direction: null, fieldPlayer: null, benchPlayer: null },
-      };
-      render(<SubstitutionPanelPresentation {...props} />);
-      // Both tabs are always available so play time can be compared across
-      // the full roster before deciding who to sub - see PlayerSelectionTabs.
-      expect(screen.getByText(/Bench \(\d+\)/)).toBeTruthy();
-      expect(screen.getByText(/On Field \(\d+\)/)).toBeTruthy();
-      expect(screen.queryByText(/Swap Position/)).toBeFalsy();
-    });
-
-    it('shows play time for on-field players, not just the bench', () => {
-      const props = {
-        ...defaultProps,
-        panelState: 'bench-view' as PanelState,
-        selection: { direction: null, fieldPlayer: null, benchPlayer: null },
-      };
-      render(<SubstitutionPanelPresentation {...props} />);
-
-      fireEvent.click(screen.getByText(/On Field/));
-
-      // Sarah Smith (15:00) and Alex Jones (10:00) per defaultProps.playTimeByPlayer.
-      // "15:00" also matches the panel's period clock (periodSecond: 900), so
-      // assert there are at least two matches rather than a single unique one.
-      expect(screen.getAllByText(/15:00/).length).toBeGreaterThanOrEqual(2);
-      expect(screen.getByText(/10:00/)).toBeTruthy();
-    });
-
-    it('shows a live pulse indicator for on-field players but not bench players', () => {
-      const props = {
-        ...defaultProps,
-        panelState: 'bench-view' as PanelState,
-        selection: { direction: null, fieldPlayer: null, benchPlayer: null },
-      };
-      render(<SubstitutionPanelPresentation {...props} />);
-
-      // Bench tab is active by default - no live-pulse dots should render
-      expect(screen.queryAllByRole('status', { name: 'Live' })).toHaveLength(0);
-
-      fireEvent.click(screen.getByText(/On Field/));
-
-      // Both on-field players (Sarah Smith, Alex Jones) are isOnField: true
-      expect(screen.getAllByRole('status', { name: 'Live' })).toHaveLength(2);
-    });
-
-    it('switches to swap position tab when clicked', () => {
-      const onFieldPlayerClick = vi.fn();
-      const props = {
-        ...defaultProps,
-        panelState: 'bench-view' as PanelState,
-        selection: {
-          direction: 'field-first' as const,
-          fieldPlayer: mockPlayer('1', 'Sarah Smith', '7'),
-          benchPlayer: null,
-        },
-        onFieldPlayerClick,
-      };
-      render(<SubstitutionPanelPresentation {...props} />);
-
-      // Click swap position tab
-      fireEvent.click(screen.getByText(/Swap Position/));
-
-      // Should show on-field players (Alex Jones, but not Sarah Smith who is selected)
-      expect(screen.getByText('Alex Jones')).toBeTruthy();
-    });
-
-    it('calls onFieldPlayerClick when swap player clicked', () => {
-      const onFieldPlayerClick = vi.fn();
-      const props = {
-        ...defaultProps,
-        panelState: 'bench-view' as PanelState,
-        selection: {
-          direction: 'field-first' as const,
-          fieldPlayer: mockPlayer('1', 'Sarah Smith', '7'),
-          benchPlayer: null,
-        },
-        onFieldPlayerClick,
-      };
-      render(<SubstitutionPanelPresentation {...props} />);
-
-      // Click swap position tab
-      fireEvent.click(screen.getByText(/Swap Position/));
-
-      // Click on Alex Jones to swap
-      fireEvent.click(screen.getByText('Alex Jones'));
-      expect(onFieldPlayerClick).toHaveBeenCalledWith(
-        expect.objectContaining({ playerName: 'Alex Jones' }),
+  describe('tab switcher removed', () => {
+    it('does not render a tab switcher — bench players are always shown', () => {
+      render(
+        <SubstitutionPanelPresentation
+          {...defaultProps}
+          panelState="bench-view"
+        />,
       );
+
+      expect(screen.queryByText(/On Field/)).toBeNull();
+      expect(screen.queryByText(/Swap Position/)).toBeNull();
     });
   });
 });

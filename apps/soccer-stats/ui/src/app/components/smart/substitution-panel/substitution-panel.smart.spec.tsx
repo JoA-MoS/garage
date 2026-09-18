@@ -266,6 +266,177 @@ describe('SubstitutionPanel Smart Component', () => {
     });
   });
 
+  describe('field-first swap flow', () => {
+    it('queues a swap when a second field player is clicked externally', async () => {
+      const onExternalFieldPlayerForSwapHandled = vi.fn();
+
+      const { rerender } = render(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            externalFieldPlayerSelection: mockPlayer('1', 'Sarah Smith'),
+            onExternalSelectionHandled: vi.fn(),
+            onExternalFieldPlayerForSwapHandled,
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Replacing:/)).toBeTruthy();
+      });
+
+      // Simulate a second on-field player clicked externally, in the
+      // Lineup tab's card grid
+      rerender(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            externalFieldPlayerSelection: null,
+            onExternalSelectionHandled: vi.fn(),
+            onExternalFieldPlayerForSwapHandled,
+            externalFieldPlayerForSwap: mockPlayer('2', 'Alex Jones'),
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Queued \(1\)/)).toBeTruthy();
+        expect(onExternalFieldPlayerForSwapHandled).toHaveBeenCalled();
+      });
+    });
+
+    it('reports both on-field swap participants via onQueuedPlayerIdsChange (Finding 4)', async () => {
+      const onExternalFieldPlayerForSwapHandled = vi.fn();
+      const onQueuedPlayerIdsChange = vi.fn();
+
+      const { rerender } = render(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            externalFieldPlayerSelection: mockPlayer('1', 'Sarah Smith'),
+            onExternalSelectionHandled: vi.fn(),
+            onExternalFieldPlayerForSwapHandled,
+            onQueuedPlayerIdsChange,
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Replacing:/)).toBeTruthy();
+      });
+
+      // Simulate a second on-field player clicked externally, in the
+      // Lineup tab's card grid, completing the swap.
+      rerender(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            externalFieldPlayerSelection: null,
+            onExternalSelectionHandled: vi.fn(),
+            onExternalFieldPlayerForSwapHandled,
+            onQueuedPlayerIdsChange,
+            externalFieldPlayerForSwap: mockPlayer('2', 'Alex Jones'),
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Queued \(1\)/)).toBeTruthy();
+      });
+
+      // Both swap participants' gameEventIds — not just substitution/
+      // removal targets — must be reported so OnFieldCardGrid's isQueued
+      // badge (keyed by gameEventId) lights up for both of them.
+      const lastCall =
+        onQueuedPlayerIdsChange.mock.calls[
+          onQueuedPlayerIdsChange.mock.calls.length - 1
+        ];
+      const reportedIds: Set<string> = lastCall[0];
+      expect(reportedIds.has('event-1')).toBe(true);
+      expect(reportedIds.has('event-2')).toBe(true);
+    });
+
+    it('ignores the external swap target if it is already queued', async () => {
+      const onExternalFieldPlayerForSwapHandled = vi.fn();
+      const onExternalFieldPlayerToReplaceHandled = vi.fn();
+      const onExternalSelectionHandled = vi.fn();
+      const onBenchSelectionChange = vi.fn();
+
+      const { rerender } = render(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            onBenchSelectionChange,
+            onExternalFieldPlayerToReplaceHandled,
+          })}
+        />,
+      );
+
+      // Open panel and select a bench player (bench-first)
+      fireEvent.click(screen.getByText('Substitutions'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Jimmy Brown')).toBeTruthy();
+      });
+
+      fireEvent.click(screen.getByText('Jimmy Brown'));
+
+      await waitFor(() => {
+        expect(onBenchSelectionChange).toHaveBeenCalled();
+      });
+
+      // Complete the substitution with Alex Jones (player 2) going out and
+      // Jimmy Brown coming in. This genuinely queues Alex Jones — he's now
+      // in `outIds` — establishing the "already queued" precondition.
+      rerender(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            onBenchSelectionChange,
+            onExternalFieldPlayerToReplaceHandled,
+            externalFieldPlayerToReplace: mockPlayer('2', 'Alex Jones'),
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Queued \(1\)/)).toBeTruthy();
+        expect(onExternalFieldPlayerToReplaceHandled).toHaveBeenCalled();
+      });
+
+      // Start a fresh field-first selection with Sarah Smith (player 1)
+      rerender(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            externalFieldPlayerSelection: mockPlayer('1', 'Sarah Smith'),
+            onExternalSelectionHandled,
+            onExternalFieldPlayerForSwapHandled,
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Replacing:/)).toBeTruthy();
+        expect(onExternalSelectionHandled).toHaveBeenCalled();
+      });
+
+      // Now try to use the already-queued Alex Jones as the swap target —
+      // should be ignored, so the queue count must NOT increase to 2
+      rerender(
+        <SubstitutionPanel
+          {...createDefaultProps({
+            externalFieldPlayerSelection: null,
+            onExternalSelectionHandled,
+            onExternalFieldPlayerForSwapHandled,
+            externalFieldPlayerForSwap: mockPlayer('2', 'Alex Jones'),
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(onExternalFieldPlayerForSwapHandled).toHaveBeenCalled();
+        // Queue should still only have 1 item - the swap must have been
+        // ignored, not queued a second time
+        expect(screen.getByText(/Queued \(1\)/)).toBeTruthy();
+        expect(screen.queryByText(/Queued \(2\)/)).toBeFalsy();
+      });
+    });
+  });
+
   describe('queue management', () => {
     it('removes item from queue when X clicked', async () => {
       const props = createDefaultProps({

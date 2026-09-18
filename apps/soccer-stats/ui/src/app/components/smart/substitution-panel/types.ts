@@ -77,13 +77,11 @@ export interface SubstitutionPanelPresentationProps {
   teamColor: string;
 
   // Player data
-  onFieldPlayers: GqlRosterPlayer[];
   benchPlayers: GqlRosterPlayer[];
   playTimeByPlayer: Map<string, { totalSeconds: number; isOnField: boolean }>;
 
   // Selection state
   selection: PlayerSelection;
-  onFieldPlayerClick: (player: GqlRosterPlayer) => void;
   onBenchPlayerClick: (player: GqlRosterPlayer) => void;
   onClearSelection: () => void;
 
@@ -165,6 +163,19 @@ export interface SubstitutionPanelSmartProps {
    * Called when the external field player to replace has been handled
    */
   onExternalFieldPlayerToReplaceHandled?: () => void;
+
+  /**
+   * A second on-field player clicked externally (in the Lineup tab's card
+   * grid) while this panel already has a field-first selection active.
+   * Completes a position swap between the two players.
+   */
+  externalFieldPlayerForSwap?: GqlRosterPlayer | null;
+
+  /**
+   * Called when the external swap target has been handled (queued or
+   * ignored).
+   */
+  onExternalFieldPlayerForSwapHandled?: () => void;
 
   /**
    * Empty position clicked on the field while bench-first selection is active.
