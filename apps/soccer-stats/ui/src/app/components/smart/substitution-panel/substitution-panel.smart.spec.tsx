@@ -679,12 +679,9 @@ describe('SubstitutionPanel Smart Component', () => {
 
     it('immediately brings the selected bench player onto the position when a bench selection is already active', async () => {
       const onExternalEmptyPositionHandled = vi.fn();
+      const props = createDefaultProps({ onExternalEmptyPositionHandled });
 
-      const { rerender } = render(
-        <SubstitutionPanel
-          {...createDefaultProps({ onExternalEmptyPositionHandled })}
-        />,
-      );
+      const { rerender } = render(<SubstitutionPanel {...props} />);
 
       fireEvent.click(screen.getByText('Substitutions'));
       await waitFor(() => {
@@ -693,14 +690,7 @@ describe('SubstitutionPanel Smart Component', () => {
       fireEvent.click(screen.getByText('Jimmy Brown'));
 
       // Second tap: the same empty position, now with a bench player selected
-      rerender(
-        <SubstitutionPanel
-          {...createDefaultProps({
-            onExternalEmptyPositionHandled,
-            externalEmptyPosition: 'LB',
-          })}
-        />,
-      );
+      rerender(<SubstitutionPanel {...props} externalEmptyPosition="LB" />);
 
       await waitFor(() => {
         expect(mockBatchLineupChanges).toHaveBeenCalledWith({
@@ -725,6 +715,38 @@ describe('SubstitutionPanel Smart Component', () => {
         });
         expect(onExternalEmptyPositionHandled).toHaveBeenCalled();
       });
+    });
+
+    it('ignores an empty-position tap without disturbing an in-progress field-first selection', async () => {
+      const onExternalEmptyPositionHandled = vi.fn();
+      const onExternalSelectionHandled = vi.fn();
+      const props = createDefaultProps({
+        externalFieldPlayerSelection: mockPlayer('1', 'Sarah Smith'),
+        onExternalSelectionHandled,
+        onExternalEmptyPositionHandled,
+      });
+
+      const { rerender } = render(<SubstitutionPanel {...props} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Replacing:/)).toBeTruthy();
+      });
+
+      // An unrelated empty-position tap arrives mid field-first flow.
+      rerender(
+        <SubstitutionPanel
+          {...props}
+          externalFieldPlayerSelection={null}
+          externalEmptyPosition="LB"
+        />,
+      );
+
+      await waitFor(() => {
+        expect(onExternalEmptyPositionHandled).toHaveBeenCalled();
+      });
+      expect(mockBatchLineupChanges).not.toHaveBeenCalled();
+      // The field-first selection is untouched - still showing "Replacing:".
+      expect(screen.getByText(/Replacing:/)).toBeTruthy();
     });
   });
 
