@@ -43,7 +43,7 @@ export function OnFieldCardGrid({
 
         return (
           <PlayerCard
-            key={id}
+            key={player.gameEventId}
             player={player}
             variant="onField"
             timeSeconds={playTime?.totalSeconds ?? 0}
