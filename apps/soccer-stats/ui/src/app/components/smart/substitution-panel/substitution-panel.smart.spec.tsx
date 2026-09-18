@@ -658,6 +658,98 @@ describe('SubstitutionPanel Smart Component', () => {
     });
   });
 
+  describe('external empty position click', () => {
+    it('opens the panel without executing a mutation when no bench player is selected yet', async () => {
+      const onExternalEmptyPositionHandled = vi.fn();
+      const props = createDefaultProps({
+        externalEmptyPosition: 'LB',
+        onExternalEmptyPositionHandled,
+      });
+
+      render(<SubstitutionPanel {...props} />);
+
+      // Panel opens to bench-view — bench players become visible — instead
+      // of silently doing nothing.
+      await waitFor(() => {
+        expect(screen.getByText('Jimmy Brown')).toBeTruthy();
+        expect(onExternalEmptyPositionHandled).toHaveBeenCalled();
+      });
+      expect(mockBatchLineupChanges).not.toHaveBeenCalled();
+    });
+
+    it('immediately brings the selected bench player onto the position when a bench selection is already active', async () => {
+      const onExternalEmptyPositionHandled = vi.fn();
+      const props = createDefaultProps({ onExternalEmptyPositionHandled });
+
+      const { rerender } = render(<SubstitutionPanel {...props} />);
+
+      fireEvent.click(screen.getByText('Substitutions'));
+      await waitFor(() => {
+        expect(screen.getByText('Jimmy Brown')).toBeTruthy();
+      });
+      fireEvent.click(screen.getByText('Jimmy Brown'));
+
+      // Second tap: the same empty position, now with a bench player selected
+      rerender(<SubstitutionPanel {...props} externalEmptyPosition="LB" />);
+
+      await waitFor(() => {
+        expect(mockBatchLineupChanges).toHaveBeenCalledWith({
+          variables: {
+            input: {
+              gameTeamId: 'game-team-1',
+              playerId: '3',
+              externalPlayerName: undefined,
+              externalPlayerNumber: undefined,
+              position: 'LB',
+              period: '1',
+              periodSecond: 900,
+            },
+          },
+          refetchQueries: [
+            {
+              query: expect.anything(),
+              variables: { gameTeamId: 'game-team-1' },
+            },
+          ],
+          awaitRefetchQueries: true,
+        });
+        expect(onExternalEmptyPositionHandled).toHaveBeenCalled();
+      });
+    });
+
+    it('ignores an empty-position tap without disturbing an in-progress field-first selection', async () => {
+      const onExternalEmptyPositionHandled = vi.fn();
+      const onExternalSelectionHandled = vi.fn();
+      const props = createDefaultProps({
+        externalFieldPlayerSelection: mockPlayer('1', 'Sarah Smith'),
+        onExternalSelectionHandled,
+        onExternalEmptyPositionHandled,
+      });
+
+      const { rerender } = render(<SubstitutionPanel {...props} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Replacing:/)).toBeTruthy();
+      });
+
+      // An unrelated empty-position tap arrives mid field-first flow.
+      rerender(
+        <SubstitutionPanel
+          {...props}
+          externalFieldPlayerSelection={null}
+          externalEmptyPosition="LB"
+        />,
+      );
+
+      await waitFor(() => {
+        expect(onExternalEmptyPositionHandled).toHaveBeenCalled();
+      });
+      expect(mockBatchLineupChanges).not.toHaveBeenCalled();
+      // The field-first selection is untouched - still showing "Replacing:".
+      expect(screen.getByText(/Replacing:/)).toBeTruthy();
+    });
+  });
+
   describe('handleConfirmAll', () => {
     it('executes mutation with correct inputs', async () => {
       const onSubstitutionComplete = vi.fn();

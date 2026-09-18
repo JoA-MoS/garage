@@ -215,6 +215,50 @@ describe('GameLineupTab on-field card click routing', () => {
   });
 });
 
+describe('GameLineupTab empty position click routing (Field view)', () => {
+  it('routes an empty-position click to the substitution panel during live play, even with no bench selection active', () => {
+    const onEmptyPositionClickForSub = vi.fn();
+
+    render(
+      <GameLineupTab
+        {...baseProps}
+        gameStatus={GameStatus.FirstHalf}
+        onEmptyPositionClickForSub={onEmptyPositionClickForSub}
+      />,
+    );
+
+    // Switch to Field view — empty-position slots only exist in the SVG
+    // field layout, not the live-play card grid.
+    fireEvent.click(screen.getByRole('button', { name: 'Field view' }));
+
+    // buildLineup()'s default roster has 2 on-field players against a
+    // 7-a-side formation, so at least one position slot is unassigned
+    // ("+" marker).
+    const emptySlot = screen.getAllByText('+')[0].closest('button');
+    expect(emptySlot).toBeTruthy();
+    fireEvent.click(emptySlot as HTMLElement);
+
+    expect(onEmptyPositionClickForSub).toHaveBeenCalled();
+  });
+
+  it('does not fall through to the pregame assign-position modal during live play', () => {
+    render(
+      <GameLineupTab
+        {...baseProps}
+        gameStatus={GameStatus.FirstHalf}
+        onEmptyPositionClickForSub={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Field view' }));
+    const emptySlot = screen.getAllByText('+')[0].closest('button');
+    expect(emptySlot).toBeTruthy();
+    fireEvent.click(emptySlot as HTMLElement);
+
+    expect(screen.queryByText(/Assign Player to/)).toBeNull();
+  });
+});
+
 describe('GameLineupTab with trackPositions: false', () => {
   const noPositionsProps = {
     ...baseProps,

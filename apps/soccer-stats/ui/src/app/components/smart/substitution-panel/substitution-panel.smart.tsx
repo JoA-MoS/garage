@@ -637,8 +637,17 @@ export const SubstitutionPanel = ({
       });
 
       onExternalEmptyPositionHandled?.();
+    } else if (externalEmptyPosition && selection.direction === null) {
+      // No selection active at all - this is the first tap on the empty
+      // slot. Open the panel so the coach can pick a bench player, then tap
+      // the same slot again to complete the fill (handled by the branch
+      // above once selection.direction is 'bench-first').
+      setPanelState('bench-view');
+      onExternalEmptyPositionHandled?.();
     } else if (externalEmptyPosition) {
-      // No bench selection active - just clear
+      // A field-first (or other non-bench) selection is already active -
+      // an empty-position tap isn't meaningful mid-flow. Clear without
+      // disturbing the panel's current state.
       onExternalEmptyPositionHandled?.();
     }
   }, [
@@ -650,6 +659,7 @@ export const SubstitutionPanel = ({
     period,
     periodSecond,
     bringPlayerOntoFieldMutation,
+    setPanelState,
   ]);
 
   // Clear selection
