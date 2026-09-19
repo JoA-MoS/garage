@@ -56,6 +56,7 @@ import { LineupPanel } from '../components/smart/lineup-panel';
 import { GameStats } from '../components/smart/game-stats.smart';
 import { GameSummaryPresentation } from '../components/presentation/game-summary.presentation';
 import { useSyncedGameTime } from '../hooks/use-synced-game-time';
+import { useResyncOnWake } from '../hooks/use-resync-on-wake';
 import {
   areGameEventNotificationsEnabled,
   enableGameEventNotifications,
@@ -276,6 +277,10 @@ export const GamePage = () => {
   const prevGameStatusRef = useRef<GameStatus | null>(null);
 
   const apolloClient = useApolloClient();
+
+  // Reconcile the cache with the server when the tab/device wakes from
+  // sleep - subscriptions can silently miss events while asleep.
+  useResyncOnWake();
 
   const { data, loading, error, subscribeToMore } = useQuery(GET_GAME_BY_ID, {
     variables: { id: gameId! },

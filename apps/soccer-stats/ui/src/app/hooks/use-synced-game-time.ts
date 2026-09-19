@@ -31,40 +31,47 @@ export function useSyncedGameTime(
   // Track the last known period so it persists across pauses/halftime
   const lastPeriodRef = useRef<string | undefined>(undefined);
 
-  // Track which serverTimestamp we're currently counting from
-  const lastServerTimestamp = useRef<number | null>(null);
+  // Wall-clock "now", re-read from Date.now() on every tick/wake rather
+  // than accumulated. This is what keeps the clock self-correcting: if a
+  // tick is skipped (e.g. setInterval throttled while the device sleeps),
+  // the very next tick still computes the true elapsed time instead of
+  // having lost the missed seconds forever.
+  const [now, setNow] = useState(() => Date.now());
 
-  // Track additional seconds elapsed since we started counting from this sync
-  const [tickCount, setTickCount] = useState(0);
-
-  // Reset tick count when serverTimestamp changes
-  if (syncData?.serverTimestamp !== lastServerTimestamp.current) {
-    lastServerTimestamp.current = syncData?.serverTimestamp ?? null;
-    // Reset immediately (not via effect) to avoid stale render
-    if (tickCount !== 0) {
-      setTickCount(0);
+  // Re-sync `now` immediately (not via effect) whenever a new
+  // serverTimestamp arrives, so a fresh subscription push is reflected
+  // right away instead of waiting up to a second for the next tick.
+  const lastServerTimestampRef = useRef<number | null>(null);
+  if (syncData?.serverTimestamp !== lastServerTimestampRef.current) {
+    lastServerTimestampRef.current = syncData?.serverTimestamp ?? null;
+    const fresh = Date.now();
+    if (fresh !== now) {
+      setNow(fresh);
     }
   }
 
-  // Calculate initial elapsed time from serverTimestamp
-  const initialElapsed = useMemo(() => {
-    if (!syncData?.serverTimestamp) return 0;
-    return Math.floor((Date.now() - syncData.serverTimestamp) / 1000);
-  }, [syncData?.serverTimestamp]);
-
-  // Tick the clock every second (only when game is active)
+  // Tick the clock every second (only when game is active), and
+  // immediately re-sync `now` whenever the tab/device wakes up so the
+  // display doesn't wait up to a second for the next interval to fire.
   useEffect(() => {
     // Don't tick if no sync data, no current period, or game is paused/halftime
     if (!syncData?.currentPeriod || syncData?.pausedAt) return;
 
-    const interval = setInterval(() => {
-      setTickCount((prev) => prev + 1);
-    }, 1000);
+    const tick = () => setNow(Date.now());
 
-    return () => clearInterval(interval);
+    const interval = setInterval(tick, 1000);
+    document.addEventListener('visibilitychange', tick);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', tick);
+    };
   }, [syncData?.currentPeriod, syncData?.serverTimestamp, syncData?.pausedAt]);
 
-  // Compute current time
+  // Compute current time directly from wall-clock elapsed time since
+  // serverTimestamp, rather than incrementing a counter. This makes the
+  // value correct regardless of how many interval ticks were actually
+  // delivered.
   const result = useMemo(() => {
     if (!syncData) {
       return { period: '1', periodSecond: 0 };
@@ -78,11 +85,15 @@ export function useSyncedGameTime(
       };
     }
 
+    const elapsed = syncData.pausedAt
+      ? 0
+      : Math.floor((now - syncData.serverTimestamp) / 1000);
+
     return {
       period: syncData.currentPeriod,
-      periodSecond: syncData.currentPeriodSecond + initialElapsed + tickCount,
+      periodSecond: syncData.currentPeriodSecond + Math.max(0, elapsed),
     };
-  }, [syncData, initialElapsed, tickCount]);
+  }, [syncData, now]);
 
   // Update last known period whenever we have a valid one
   if (result.period) {
