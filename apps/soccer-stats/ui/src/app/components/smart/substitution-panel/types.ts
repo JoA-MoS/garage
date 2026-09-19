@@ -65,7 +65,8 @@ export type QueuedItem =
       /**
        * Target formation position, when the team tracks positions (e.g.
        * filling a specific empty slot). Omitted when position tracking is
-       * off — bringPlayerOntoField falls back to FIELD_SENTINEL_POSITION.
+       * off — the UI resolves it to FIELD_SENTINEL_POSITION before calling
+       * bringPlayerOntoField, whose `position` input is always required.
        */
       position?: string;
     };
