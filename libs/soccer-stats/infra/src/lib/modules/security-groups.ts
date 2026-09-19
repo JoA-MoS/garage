@@ -7,28 +7,82 @@ export interface SecurityGroupsConfig {
   vpcId: pulumi.Output<string>;
   /** VPC CIDR — used to allow NAT forwarding from private subnets through the bastion */
   vpcCidr: string;
+  /** Container port the API listens on — ALB and Fargate task SGs need this for ingress rules */
+  containerPort: number;
   awsProvider: aws.Provider;
 }
 
 export interface SecurityGroupsOutputs {
-  appRunnerConnectorSecurityGroup: aws.ec2.SecurityGroup;
+  albSecurityGroup: aws.ec2.SecurityGroup;
+  fargateSecurityGroup: aws.ec2.SecurityGroup;
   bastionSecurityGroup: aws.ec2.SecurityGroup;
   rdsSecurityGroup: aws.ec2.SecurityGroup;
 }
 
-/** Creates security groups for App Runner VPC Connector, bastion, and Aurora. */
+/** Creates security groups for the ALB, Fargate service, bastion, and Aurora. */
 export function createSecurityGroups(
   config: SecurityGroupsConfig,
 ): SecurityGroupsOutputs {
-  const { namePrefix, stack, vpcId, vpcCidr, awsProvider } = config;
+  const { namePrefix, stack, vpcId, vpcCidr, containerPort, awsProvider } =
+    config;
 
-  // App Runner VPC Connector SG — outbound to Aurora and HTTPS (Clerk API via NAT)
-  const appRunnerConnectorSecurityGroup = new aws.ec2.SecurityGroup(
-    `${namePrefix}-apprunner-connector-sg`,
+  // AWS-managed prefix list of CloudFront's origin-facing IP ranges — used
+  // to restrict the ALB to CloudFront traffic only, so the API can't be
+  // reached by going around CloudFront directly.
+  const cloudfrontOriginFacingPrefixList = aws.ec2.getManagedPrefixListOutput(
+    { name: 'com.amazonaws.global.cloudfront.origin-facing' },
+    { provider: awsProvider },
+  );
+
+  // ALB SG — HTTP ingress from CloudFront only (CloudFront terminates TLS
+  // at the edge and talks plain HTTP to this ALB), open egress to reach the
+  // Fargate tasks it forwards to.
+  const albSecurityGroup = new aws.ec2.SecurityGroup(
+    `${namePrefix}-alb-sg`,
     {
       vpcId,
       description:
-        'Security group for App Runner VPC Connector - egress to Aurora and HTTPS',
+        'Security group for the API ALB - HTTP ingress from CloudFront only, egress to Fargate tasks',
+      ingress: [
+        {
+          protocol: 'tcp',
+          fromPort: 80,
+          toPort: 80,
+          prefixListIds: [cloudfrontOriginFacingPrefixList.id],
+          description: 'Allow HTTP inbound from CloudFront only',
+        },
+      ],
+      egress: [
+        {
+          protocol: '-1',
+          fromPort: 0,
+          toPort: 0,
+          cidrBlocks: ['0.0.0.0/0'],
+          description: 'Allow outbound to Fargate tasks',
+        },
+      ],
+      tags: { Name: `${namePrefix}-alb-sg`, Environment: stack },
+    },
+    { provider: awsProvider },
+  );
+
+  // Fargate task SG — ingress from the ALB only, egress to Aurora and HTTPS
+  // (Clerk API via NAT), same role the App Runner VPC Connector SG used to play.
+  const fargateSecurityGroup = new aws.ec2.SecurityGroup(
+    `${namePrefix}-fargate-sg`,
+    {
+      vpcId,
+      description:
+        'Security group for the API Fargate service - ingress from ALB, egress to Aurora and HTTPS',
+      ingress: [
+        {
+          protocol: 'tcp',
+          fromPort: containerPort,
+          toPort: containerPort,
+          securityGroups: [albSecurityGroup.id],
+          description: 'Allow traffic from the ALB',
+        },
+      ],
       egress: [
         {
           protocol: 'tcp',
@@ -47,7 +101,7 @@ export function createSecurityGroups(
         },
       ],
       tags: {
-        Name: `${namePrefix}-apprunner-connector-sg`,
+        Name: `${namePrefix}-fargate-sg`,
         Environment: stack,
       },
     },
@@ -86,20 +140,20 @@ export function createSecurityGroups(
     { provider: awsProvider },
   );
 
-  // RDS SG — inbound from App Runner connector and bastion only
+  // RDS SG — inbound from the Fargate service and bastion only
   const rdsSecurityGroup = new aws.ec2.SecurityGroup(
     `${namePrefix}-rds-sg`,
     {
       vpcId,
       description:
-        'Security group for Aurora - ingress from App Runner connector and bastion',
+        'Security group for Aurora - ingress from the Fargate service and bastion',
       ingress: [
         {
           protocol: 'tcp',
           fromPort: 5432,
           toPort: 5432,
-          securityGroups: [appRunnerConnectorSecurityGroup.id],
-          description: 'Allow PostgreSQL from App Runner VPC Connector',
+          securityGroups: [fargateSecurityGroup.id],
+          description: 'Allow PostgreSQL from the Fargate service',
         },
         {
           protocol: 'tcp',
@@ -124,7 +178,8 @@ export function createSecurityGroups(
   );
 
   return {
-    appRunnerConnectorSecurityGroup,
+    albSecurityGroup,
+    fargateSecurityGroup,
     bastionSecurityGroup,
     rdsSecurityGroup,
   };

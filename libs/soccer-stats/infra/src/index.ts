@@ -6,14 +6,16 @@ export * from './lib/shared-infrastructure';
 // =============================================================================
 // This stack creates the foundational AWS resources used by both the API and UI:
 // - VPC with public/private subnets
-// - App Runner VPC Connector (bridges App Runner into the VPC)
+// - Security groups for the ALB and Fargate service
 // - Aurora Serverless v2 PostgreSQL (min 0 ACU — scales to zero)
 // - SSM bastion (t4g.nano) for local DB tunnels
 // - ECR repository for Docker images
-// - IAM roles for App Runner image pull and runtime
+// - IAM roles for ECS task execution and the running task
 //
 // Dependent stacks (api-infra, ui-infra) import these outputs via StackReference.
 // =============================================================================
+
+import * as pulumi from '@pulumi/pulumi';
 
 import { createSharedInfrastructure } from './lib/shared-infrastructure';
 
@@ -23,11 +25,10 @@ const outputs = createSharedInfrastructure();
 export const vpcId = outputs.vpcId;
 export const publicSubnetIds = outputs.publicSubnetIds;
 export const privateSubnetIds = outputs.privateSubnetIds;
-export const appRunnerConnectorSecurityGroupId =
-  outputs.appRunnerConnectorSecurityGroupId;
-export const vpcConnectorArn = outputs.vpcConnectorArn;
-export const appRunnerAccessRoleArn = outputs.appRunnerAccessRoleArn;
-export const appRunnerInstanceRoleArn = outputs.appRunnerInstanceRoleArn;
+export const albSecurityGroupId = outputs.albSecurityGroupId;
+export const fargateSecurityGroupId = outputs.fargateSecurityGroupId;
+export const ecsTaskExecutionRoleArn = outputs.ecsTaskExecutionRoleArn;
+export const ecsTaskRoleArn = outputs.ecsTaskRoleArn;
 export const ecrRepositoryUrl = outputs.ecrRepositoryUrl;
 export const ecrRepositoryArn = outputs.ecrRepositoryArn;
 // Database
@@ -42,6 +43,8 @@ export const databaseUrlSecretArn = outputs.databaseUrlSecretArn;
 export const bastionInstanceId = outputs.bastionInstanceId;
 // CI/CD
 export const cdRoleArn = outputs.cdRoleArn;
+// CloudFront -> ALB request authenticity
+export const originVerifySecret = pulumi.secret(outputs.originVerifySecret);
 // Convenience
 export const environment = outputs.environment;
 export const region = outputs.region;

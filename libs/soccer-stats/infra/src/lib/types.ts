@@ -11,15 +11,13 @@ export interface SharedInfraOutputs {
   privateSubnetIds: pulumi.Output<string[]>;
 
   // Security Groups
-  appRunnerConnectorSecurityGroupId: pulumi.Output<string>;
+  albSecurityGroupId: pulumi.Output<string>;
+  fargateSecurityGroupId: pulumi.Output<string>;
   rdsSecurityGroupId: pulumi.Output<string>;
 
-  // App Runner networking
-  vpcConnectorArn: pulumi.Output<string>;
-
   // IAM
-  appRunnerAccessRoleArn: pulumi.Output<string>;
-  appRunnerInstanceRoleArn: pulumi.Output<string>;
+  ecsTaskExecutionRoleArn: pulumi.Output<string>;
+  ecsTaskRoleArn: pulumi.Output<string>;
 
   // ECR
   ecrRepositoryUrl: pulumi.Output<string>;
@@ -38,6 +36,9 @@ export interface SharedInfraOutputs {
 
   // CI/CD
   cdRoleArn: pulumi.Output<string>;
+
+  // CloudFront -> ALB request authenticity — see shared-infrastructure.ts
+  originVerifySecret: pulumi.Output<string>;
 
   // Convenience
   environment: string;
