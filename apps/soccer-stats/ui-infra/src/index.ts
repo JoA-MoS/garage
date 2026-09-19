@@ -28,7 +28,9 @@ export const apiEndpoint = customDomain
   ? pulumi.interpolate`https://${customDomain}/api`
   : pulumi.interpolate`https://${distribution.domainName}/api`;
 
-// Direct ALB URL (for debugging/internal use only) — HTTP only, no ACM cert on the ALB
+// ALB hostname (for reference only) — HTTP only, no ACM cert on the ALB, and
+// not reachable directly: its security group only allows inbound traffic
+// from CloudFront's IP ranges. Use websiteUrl/apiEndpoint for actual requests.
 export const apiUrl = pulumi.interpolate`http://${apiServiceUrl}`;
 
 export const environment = stack;

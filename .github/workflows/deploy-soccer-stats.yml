@@ -74,32 +74,27 @@ jobs:
 
       - name: Verify deployment health
         run: |
-          pushd apps/soccer-stats/api-infra >/dev/null
-          API_ALB_URL=$(pulumi stack output serviceUrl --stack JoA-MoS/dev)
-          popd >/dev/null
-
-          # ALB only listens on HTTP (80) — CloudFront terminates TLS at the edge
-          API_DIRECT_URL="http://${API_ALB_URL}"
+          # The ALB's security group only allows inbound traffic from
+          # CloudFront's IP ranges (not the internet at large, and not this
+          # runner), so verification goes exclusively through the public
+          # CloudFront URL. That's still a faithful freshness check: /api/*
+          # is CachingDisabled, so every request always reaches the live
+          # ECS task regardless of which edge POP or CloudFront cache state
+          # is involved.
           EXPECTED_GIT_SHA="${GITHUB_SHA::7}"
 
           for i in $(seq 1 20); do
             HEALTH_STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SOCCER_STATS_SITE_URL/api/health" || true)
-            VERSION_RESPONSE=$(curl -sS --max-time 30 "$API_DIRECT_URL/api/version" || true)
-            VERSION_GIT_SHA=$(echo "$VERSION_RESPONSE" | node -e "let body=''; process.stdin.on('data', c => body += c); process.stdin.on('end', () => { try { const parsed = JSON.parse(body); process.stdout.write(parsed.gitSha || ''); } catch { process.stdout.write(''); } });")
             PUBLIC_VERSION_RESPONSE=$(curl -sS --max-time 30 "$SOCCER_STATS_SITE_URL/api/version" || true)
             PUBLIC_VERSION_GIT_SHA=$(echo "$PUBLIC_VERSION_RESPONSE" | node -e "let body=''; process.stdin.on('data', c => body += c); process.stdin.on('end', () => { try { const parsed = JSON.parse(body); process.stdout.write(parsed.gitSha || ''); } catch { process.stdout.write(''); } });")
 
-            if [ "$HEALTH_STATUS" = "200" ] && [ "$VERSION_GIT_SHA" = "$EXPECTED_GIT_SHA" ] && [ "$PUBLIC_VERSION_GIT_SHA" = "$EXPECTED_GIT_SHA" ]; then
+            if [ "$HEALTH_STATUS" = "200" ] && [ "$PUBLIC_VERSION_GIT_SHA" = "$EXPECTED_GIT_SHA" ]; then
               echo "Health and API version checks passed"
-              echo "Verified direct API version gitSha=$VERSION_GIT_SHA at $API_DIRECT_URL/api/version"
               echo "Verified public API version gitSha=$PUBLIC_VERSION_GIT_SHA at $SOCCER_STATS_SITE_URL/api/version"
               exit 0
             fi
 
-            echo "Attempt $i: /api/health returned $HEALTH_STATUS; direct /api/version gitSha was ${VERSION_GIT_SHA:-missing}; public /api/version gitSha was ${PUBLIC_VERSION_GIT_SHA:-missing}; expected $EXPECTED_GIT_SHA — retrying in 15s (Aurora/ECS/CloudFront may still be updating)"
-            echo "Direct /api/version response:"
-            echo "$VERSION_RESPONSE" | head -c 1000
-            echo ""
+            echo "Attempt $i: /api/health returned $HEALTH_STATUS; public /api/version gitSha was ${PUBLIC_VERSION_GIT_SHA:-missing}; expected $EXPECTED_GIT_SHA — retrying in 15s (Aurora/ECS/CloudFront may still be updating)"
             echo "Public /api/version response:"
             echo "$PUBLIC_VERSION_RESPONSE" | head -c 1000
             echo ""

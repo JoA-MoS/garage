@@ -26,22 +26,30 @@ export function createSecurityGroups(
   const { namePrefix, stack, vpcId, vpcCidr, containerPort, awsProvider } =
     config;
 
-  // ALB SG — public-facing HTTP ingress (CloudFront terminates TLS at the
-  // edge and talks plain HTTP to this ALB), open egress to reach the
+  // AWS-managed prefix list of CloudFront's origin-facing IP ranges — used
+  // to restrict the ALB to CloudFront traffic only, so the API can't be
+  // reached by going around CloudFront directly.
+  const cloudfrontOriginFacingPrefixList = aws.ec2.getManagedPrefixListOutput(
+    { name: 'com.amazonaws.global.cloudfront.origin-facing' },
+    { provider: awsProvider },
+  );
+
+  // ALB SG — HTTP ingress from CloudFront only (CloudFront terminates TLS
+  // at the edge and talks plain HTTP to this ALB), open egress to reach the
   // Fargate tasks it forwards to.
   const albSecurityGroup = new aws.ec2.SecurityGroup(
     `${namePrefix}-alb-sg`,
     {
       vpcId,
       description:
-        'Security group for the API ALB - HTTP ingress from CloudFront, egress to Fargate tasks',
+        'Security group for the API ALB - HTTP ingress from CloudFront only, egress to Fargate tasks',
       ingress: [
         {
           protocol: 'tcp',
           fromPort: 80,
           toPort: 80,
-          cidrBlocks: ['0.0.0.0/0'],
-          description: 'Allow HTTP inbound from CloudFront',
+          prefixListIds: [cloudfrontOriginFacingPrefixList.id],
+          description: 'Allow HTTP inbound from CloudFront only',
         },
       ],
       egress: [

@@ -33,9 +33,12 @@ import { apiVersion, buildTime, gitSha, image } from './docker';
 // =============================================================================
 // Load Balancer
 // =============================================================================
-// Internet-facing but HTTP-only — CloudFront terminates TLS at the edge and
-// talks plain HTTP to this ALB over the AWS backbone. Avoids needing an ACM
-// certificate + custom domain on the ALB itself.
+// Internet-facing (required so CloudFront's custom origin can reach it) but
+// locked down to CloudFront's IP ranges only via the ALB security group
+// (see security-groups.ts) — direct requests that bypass CloudFront are
+// rejected at the network layer. HTTP-only: CloudFront terminates TLS at
+// the edge and talks plain HTTP to this ALB over the AWS backbone, which
+// avoids needing an ACM certificate + custom domain on the ALB itself.
 export const alb = new aws.lb.LoadBalancer(`${namePrefix}-alb`, {
   name: `${namePrefix}-alb`.slice(0, 32),
   loadBalancerType: 'application',
