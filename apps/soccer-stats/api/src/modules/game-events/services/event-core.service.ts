@@ -21,6 +21,7 @@ import {
   GameEventAction,
   GameEventSubscriptionPayload,
 } from '../dto/game-event-subscription.output';
+import { createSlimGameEventForSubscription } from '../utils/subscription-payload.util';
 
 // Detection result for duplicate/conflict checking
 export interface DuplicateConflictResult {
@@ -134,14 +135,23 @@ export class EventCoreService implements OnModuleInit {
     const payload: GameEventSubscriptionPayload = {
       action,
       gameId,
-      event,
+      event: event ? createSlimGameEventForSubscription(event) : undefined,
       deletedEventId,
       conflict,
     };
 
-    await this.pubSub.publish(`gameEvent:${gameId}`, {
-      gameEventChanged: payload,
-    });
+    try {
+      await this.pubSub.publish(`gameEvent:${gameId}`, {
+        gameEventChanged: payload,
+      });
+    } catch (error) {
+      this.logger.warn('Real-time game event notification failed', {
+        action,
+        deletedEventId,
+        error: error instanceof Error ? error.message : String(error),
+        gameId,
+      });
+    }
   }
 
   /**

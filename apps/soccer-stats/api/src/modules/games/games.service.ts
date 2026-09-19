@@ -22,6 +22,7 @@ import {
   GameEventAction,
   GameEventSubscriptionPayload,
 } from '../game-events/dto/game-event-subscription.output';
+import { createSlimGameEventForSubscription } from '../game-events/utils/subscription-payload.util';
 
 import { CreateGameInput } from './dto/create-game.input';
 import { UpdateGameInput } from './dto/update-game.input';
@@ -1021,11 +1022,20 @@ export class GamesService {
     const payload: GameEventSubscriptionPayload = {
       action,
       gameId,
-      event,
+      event: createSlimGameEventForSubscription(event),
     };
 
-    await this.pubSub.publish(`gameEvent:${gameId}`, {
-      gameEventChanged: payload,
-    });
+    try {
+      await this.pubSub.publish(`gameEvent:${gameId}`, {
+        gameEventChanged: payload,
+      });
+    } catch (error) {
+      this.logger.warn('Real-time game event notification failed', {
+        action,
+        error: error instanceof Error ? error.message : String(error),
+        eventId: event.id,
+        gameId,
+      });
+    }
   }
 }
