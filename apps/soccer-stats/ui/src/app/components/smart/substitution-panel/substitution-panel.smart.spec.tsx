@@ -677,7 +677,7 @@ describe('SubstitutionPanel Smart Component', () => {
       expect(mockBatchLineupChanges).not.toHaveBeenCalled();
     });
 
-    it('immediately brings the selected bench player onto the position when a bench selection is already active', async () => {
+    it('queues an addition carrying the target position when a bench selection is already active', async () => {
       const onExternalEmptyPositionHandled = vi.fn();
       const props = createDefaultProps({ onExternalEmptyPositionHandled });
 
@@ -692,6 +692,35 @@ describe('SubstitutionPanel Smart Component', () => {
       // Second tap: the same empty position, now with a bench player selected
       rerender(<SubstitutionPanel {...props} externalEmptyPosition="LB" />);
 
+      // Queued, not executed immediately - consistent with every other
+      // substitution action during live play (subs, swaps, "Add to Field").
+      await waitFor(() => {
+        expect(screen.getByText(/Queued \(1\)/)).toBeTruthy();
+        expect(screen.getByText(/LB/)).toBeTruthy();
+        expect(onExternalEmptyPositionHandled).toHaveBeenCalled();
+      });
+      expect(mockBatchLineupChanges).not.toHaveBeenCalled();
+    });
+
+    it('confirms a queued position-fill with the real target position, not the FIELD sentinel', async () => {
+      const props = createDefaultProps();
+      const { rerender } = render(<SubstitutionPanel {...props} />);
+
+      fireEvent.click(screen.getByText('Substitutions'));
+      await waitFor(() => {
+        expect(screen.getByText('Jimmy Brown')).toBeTruthy();
+      });
+      fireEvent.click(screen.getByText('Jimmy Brown'));
+
+      rerender(<SubstitutionPanel {...props} externalEmptyPosition="LB" />);
+      await waitFor(() => {
+        expect(screen.getByText('Confirm All (1)')).toBeTruthy();
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByText('Confirm All (1)'));
+      });
+
       await waitFor(() => {
         expect(mockBatchLineupChanges).toHaveBeenCalledWith({
           variables: {
@@ -705,15 +734,7 @@ describe('SubstitutionPanel Smart Component', () => {
               periodSecond: 900,
             },
           },
-          refetchQueries: [
-            {
-              query: expect.anything(),
-              variables: { gameTeamId: 'game-team-1' },
-            },
-          ],
-          awaitRefetchQueries: true,
         });
-        expect(onExternalEmptyPositionHandled).toHaveBeenCalled();
       });
     });
 

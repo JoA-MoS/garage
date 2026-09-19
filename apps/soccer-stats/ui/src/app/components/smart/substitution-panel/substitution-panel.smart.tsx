@@ -531,10 +531,15 @@ export const SubstitutionPanel = ({
   );
 
   // Handle addition request (bench player comes onto the field, no one
-  // subbed out - e.g. filling a gap when the team is short a player)
+  // subbed out - e.g. filling a gap when the team is short a player, or
+  // filling a specific empty formation slot when tracking positions).
+  // `position` is omitted for the no-position-tracking "Add to Field" flow
+  // (falls back to FIELD_SENTINEL_POSITION); it's the target formation slot
+  // for the tracked-position "fill empty position" flow.
   const handleRequestAddition = useCallback(
-    (player: GqlRosterPlayer) => {
+    (player: GqlRosterPlayer, position?: string) => {
       setSelection({ direction: null, fieldPlayer: null, benchPlayer: null });
+      const targetPosition = position ?? FIELD_SENTINEL_POSITION;
 
       if (executeImmediately) {
         // Execute immediately (halftime mode - unlikely but handle for consistency)
@@ -545,7 +550,7 @@ export const SubstitutionPanel = ({
               playerId: player.playerId || undefined,
               externalPlayerName: player.externalPlayerName || undefined,
               externalPlayerNumber: player.externalPlayerNumber || undefined,
-              position: FIELD_SENTINEL_POSITION,
+              position: targetPosition,
               period,
               periodSecond,
             },
@@ -567,6 +572,7 @@ export const SubstitutionPanel = ({
           id: `addition-${Date.now()}-${Math.random()}`,
           type: 'addition',
           playerIn: player,
+          position,
         };
         setQueue((prev) => [...prev, additionItem]);
       }
@@ -606,36 +612,12 @@ export const SubstitutionPanel = ({
       selection.direction === 'bench-first' &&
       selection.benchPlayer
     ) {
-      const benchPlayer = selection.benchPlayer;
-      const position = externalEmptyPosition;
-
-      // Clear selection immediately
-      setSelection({ direction: null, fieldPlayer: null, benchPlayer: null });
-
-      // Execute immediately - filling an empty position is urgent/tactical
-      bringPlayerOntoFieldMutation({
-        variables: {
-          input: {
-            gameTeamId,
-            playerId: benchPlayer.playerId || undefined,
-            externalPlayerName: benchPlayer.externalPlayerName || undefined,
-            externalPlayerNumber: benchPlayer.externalPlayerNumber || undefined,
-            position,
-            period,
-            periodSecond,
-          },
-        },
-        refetchQueries: [{ query: GET_GAME_ROSTER, variables: { gameTeamId } }],
-        awaitRefetchQueries: true,
-      }).catch((err) => {
-        console.error('Failed to bring player onto field:', err);
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Failed to bring player onto field',
-        );
-      });
-
+      // Reuse the same addition path the no-position-tracking "Add to
+      // Field" flow uses, so filling an empty formation slot is queued
+      // alongside other pending changes (and shown in the queue) just
+      // like every other substitution action during live play, instead
+      // of jumping the queue with an immediate mutation.
+      handleRequestAddition(selection.benchPlayer, externalEmptyPosition);
       onExternalEmptyPositionHandled?.();
     } else if (externalEmptyPosition && selection.direction === null) {
       // No selection active at all - this is the first tap on the empty
@@ -655,10 +637,7 @@ export const SubstitutionPanel = ({
     selection.direction,
     selection.benchPlayer,
     onExternalEmptyPositionHandled,
-    gameTeamId,
-    period,
-    periodSecond,
-    bringPlayerOntoFieldMutation,
+    handleRequestAddition,
     setPanelState,
   ]);
 
@@ -768,7 +747,7 @@ export const SubstitutionPanel = ({
                 addition.playerIn.externalPlayerName || undefined,
               externalPlayerNumber:
                 addition.playerIn.externalPlayerNumber || undefined,
-              position: FIELD_SENTINEL_POSITION,
+              position: addition.position ?? FIELD_SENTINEL_POSITION,
               period,
               periodSecond,
             },

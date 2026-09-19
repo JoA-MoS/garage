@@ -180,6 +180,24 @@ describe('SubstitutionPanelPresentation', () => {
       expect(screen.getAllByText('Jimmy Brown').length).toBeGreaterThan(0);
       expect(screen.getByText('on')).toBeTruthy();
     });
+
+    it('shows the target position on a queued addition when one is set', () => {
+      render(
+        <SubstitutionPanelPresentation
+          {...benchFirstProps}
+          panelState="expanded"
+          queue={[
+            {
+              id: 'q1',
+              type: 'addition' as const,
+              playerIn: mockPlayer('3', 'Jimmy Brown'),
+              position: 'LB',
+            },
+          ]}
+        />,
+      );
+      expect(screen.getByText(/on.*LB/)).toBeTruthy();
+    });
   });
 
   describe('queue display', () => {
