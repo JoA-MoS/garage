@@ -63,7 +63,7 @@ jobs:
       # Push to main: deploy only affected stacks. Nx dependsOn encodes the
       # ordering (infra -> api-infra -> ui-infra) and pulls in builds and the
       # Docker image push. API deploys use immutable git-SHA image tags so
-      # App Runner is pointed at the exact image built by this run.
+      # the ECS task definition is pointed at the exact image built by this run.
       - name: Deploy affected stacks
         if: github.event_name == 'push'
         run: pnpm nx affected --target=up --parallel=1
@@ -75,10 +75,11 @@ jobs:
       - name: Verify deployment health
         run: |
           pushd apps/soccer-stats/api-infra >/dev/null
-          APP_RUNNER_SERVICE_URL=$(pulumi stack output serviceUrl --stack JoA-MoS/dev)
+          API_ALB_URL=$(pulumi stack output serviceUrl --stack JoA-MoS/dev)
           popd >/dev/null
 
-          API_DIRECT_URL="https://${APP_RUNNER_SERVICE_URL}"
+          # ALB only listens on HTTP (80) — CloudFront terminates TLS at the edge
+          API_DIRECT_URL="http://${API_ALB_URL}"
           EXPECTED_GIT_SHA="${GITHUB_SHA::7}"
 
           for i in $(seq 1 20); do
@@ -95,7 +96,7 @@ jobs:
               exit 0
             fi
 
-            echo "Attempt $i: /api/health returned $HEALTH_STATUS; direct /api/version gitSha was ${VERSION_GIT_SHA:-missing}; public /api/version gitSha was ${PUBLIC_VERSION_GIT_SHA:-missing}; expected $EXPECTED_GIT_SHA — retrying in 15s (Aurora/App Runner/CloudFront may still be updating)"
+            echo "Attempt $i: /api/health returned $HEALTH_STATUS; direct /api/version gitSha was ${VERSION_GIT_SHA:-missing}; public /api/version gitSha was ${PUBLIC_VERSION_GIT_SHA:-missing}; expected $EXPECTED_GIT_SHA — retrying in 15s (Aurora/ECS/CloudFront may still be updating)"
             echo "Direct /api/version response:"
             echo "$VERSION_RESPONSE" | head -c 1000
             echo ""

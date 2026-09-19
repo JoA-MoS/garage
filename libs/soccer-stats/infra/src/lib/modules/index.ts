@@ -6,11 +6,6 @@ export {
   type SecurityGroupsOutputs,
 } from './security-groups';
 export {
-  createVpcConnector,
-  type VpcConnectorConfig,
-  type VpcConnectorOutputs,
-} from './vpc-connector';
-export {
   createBastion,
   type BastionConfig,
   type BastionOutputs,

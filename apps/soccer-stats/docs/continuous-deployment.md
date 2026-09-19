@@ -2,7 +2,11 @@
 
 How soccer-stats deploys to AWS from GitHub Actions, and everything that was
 set up on each provider to make it work. Added 2026-07-11 alongside the
-App Runner + Aurora migration (PR #268).
+App Runner + Aurora migration (PR #268). The API compute moved from App
+Runner to ECS Fargate + ALB in 2026-09 — App Runner's front-door rejected
+WebSocket upgrade requests outright (`403` from its Envoy layer, confirmed by
+testing directly against it), which silently broke GraphQL subscriptions
+(live score/lineup updates) in production while working fine locally.
 
 ## How a deploy happens
 
@@ -16,7 +20,8 @@ push to main
 ┌─────────────────────┐   ┌──────────────────────┐   ┌─────────────────────┐
 │ soccer-stats-infra  │──▶│ soccer-stats-api-    │──▶│ soccer-stats-ui-    │
 │ (VPC, Aurora, ECR,  │   │ infra (Docker build  │   │ infra (UI build, S3 │
-│ bastion/NAT, IAM)   │   │ + push, App Runner)  │   │ sync, CloudFront)   │
+│ bastion/NAT, IAM)   │   │ + push, ECS Fargate  │   │ sync, CloudFront)   │
+│                     │   │ + ALB)               │   │                     │
 └─────────────────────┘   └──────────────────────┘   └─────────────────────┘
      │
      ▼
@@ -30,11 +35,11 @@ builds, the UI build, and the Docker image push automatically.
 
 ### The three deployment tiers
 
-| Change                                                 | What actually deploys it                                                                                                                                                                                                                                                                             |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| API code only                                          | CI builds and pushes a new `:dev` image to ECR. **App Runner auto-deploys it by itself** (`autoDeploymentsEnabled: true` watches the tag) — the `pulumi up` is a near-no-op. Health check gates traffic; migrations run at bootstrap under a `pg_advisory_lock` before the instance reports healthy. |
-| UI code only                                           | `soccer-stats-ui-infra:up` rebuilds the UI, syncs `dist` to S3, and CloudFront picks it up (index.html is never cached).                                                                                                                                                                             |
-| Infra code (`libs/soccer-stats/infra`, `*-infra` apps) | Full `pulumi up` for the affected stacks, in dependency order.                                                                                                                                                                                                                                       |
+| Change                                                 | What actually deploys it                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API code only                                          | CI builds and pushes a new immutable `:<git-sha>` image to ECR, then `pulumi up` registers a new ECS task definition revision referencing it and updates the service — ECS handles the rolling deploy (old task stays up until the new one passes its health check). Health check gates traffic; migrations run at bootstrap under a `pg_advisory_lock` before the task reports healthy. |
+| UI code only                                           | `soccer-stats-ui-infra:up` rebuilds the UI, syncs `dist` to S3, and CloudFront picks it up (index.html is never cached).                                                                                                                                                                                                                                                                 |
+| Infra code (`libs/soccer-stats/infra`, `*-infra` apps) | Full `pulumi up` for the affected stacks, in dependency order.                                                                                                                                                                                                                                                                                                                           |
 
 ### Safety rails
 
@@ -110,22 +115,22 @@ for OIDC token issuance.
 
 ## Troubleshooting
 
-| Symptom                                            | Likely cause / fix                                                                                                                                                                                                                                                           |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AssumeRoleWithWebIdentity` denied                 | Workflow ran from a ref other than `main`, or the role was recreated and `AWS_CD_ROLE_ARN` is stale                                                                                                                                                                          |
-| App Runner stuck in `CREATE_FAILED`                | The service can't be updated in that state. Check the app logs in CloudWatch (`/aws/apprunner/soccer-stats-api-dev/*/application`), then delete the service (`aws apprunner delete-service`), `pulumi state delete` its URN in `apps/soccer-stats/api-infra`, fix, re-deploy |
-| Health check step fails but the deploy succeeded   | Aurora may have taken longer than 5 min to resume, or the app is crash-looping — check App Runner application logs                                                                                                                                                           |
-| `/api/*` via CloudFront returns the SPA index.html | App Runner returned 404/403 and the SPA error-page rule rewrote it. Usually the `Host` header (must use the `AllViewerExceptHostHeader` origin request policy) or a broken service                                                                                           |
-| CI Docker build is slow                            | Expected on cold runners; `cacheFrom` pulls layer cache from the `:dev` ECR tag                                                                                                                                                                                              |
+| Symptom                                            | Likely cause / fix                                                                                                                                                                                             |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AssumeRoleWithWebIdentity` denied                 | Workflow ran from a ref other than `main`, or the role was recreated and `AWS_CD_ROLE_ARN` is stale                                                                                                            |
+| ECS service stuck, tasks keep cycling              | Check app logs in CloudWatch (`/ecs/soccer-stats-api-dev`), then check `aws ecs describe-services` for the stopped-task reason (often a failed `/api/health` check or a crash on boot)                         |
+| Health check step fails but the deploy succeeded   | Aurora may have taken longer than 5 min to resume, or the app is crash-looping — check ECS task logs in CloudWatch                                                                                             |
+| `/api/*` via CloudFront returns the SPA index.html | The ALB/target returned 404/403 and the SPA error-page rule rewrote it. Usually the `Host` header (must use the `AllViewerExceptHostHeader` origin request policy) or an unhealthy target group                |
+| WebSocket subscriptions not updating live          | Confirm the ALB's target group is healthy and the CloudFront origin is HTTP-only (port 80) — ALBs support WS natively, but App Runner (the prior compute) silently rejected the upgrade handshake with a `403` |
+| CI Docker build is slow                            | Expected on cold runners; `cacheFrom` pulls layer cache from the `:dev` ECR tag                                                                                                                                |
 
 ## Adding a prod environment (future)
 
 1. `pulumi stack init prod` in each of the three projects; add
-   `Pulumi.prod.yaml` configs (Aurora `dbMinCapacity` probably ≥ 0.5, App
-   Runner `minSize` per traffic).
+   `Pulumi.prod.yaml` configs (Aurora `dbMinCapacity` probably ≥ 0.5).
 2. Extend the CD role's trust policy `allowedRefs` (or add a second role) and
    use a GitHub **Environment** with required reviewers for the prod job.
-3. Note: App Runner is closed to new AWS _accounts_ (see the sunset notice in
-   `docs/superpowers/specs/2026-04-18-app-runner-aurora-migration-design.md`) —
-   a prod stack in **this** account is fine; a new account would force the
-   successor decision (ECS Express Mode vs Lambda + Web Adapter).
+3. History: this app briefly ran on App Runner (see the migration docs in
+   `docs/superpowers/specs/2026-04-18-app-runner-aurora-migration-design.md`)
+   before moving to ECS Fargate + ALB — App Runner's ingress rejected
+   WebSocket upgrades outright, which is required for GraphQL subscriptions.

@@ -5,7 +5,6 @@ import { SharedInfraConfig, SharedInfraOutputs } from './types';
 import {
   createVpc,
   createSecurityGroups,
-  createVpcConnector,
   createBastion,
   createEcrRepository,
   createIamRoles,
@@ -26,6 +25,7 @@ export function createSharedInfrastructure(
   const vpcCidr = config.vpcCidr || '10.0.0.0/16';
   const azCount = config.azCount || 2;
   const enableNatGateway = config.enableNatGateway ?? false;
+  const containerPort = config.containerPort || 3333;
   const dbName = config.databaseName || 'soccer_stats';
   const dbUsername = config.databaseUsername || 'postgres';
   const dbMinCapacity = config.databaseMinCapacity ?? 0;
@@ -50,14 +50,7 @@ export function createSharedInfrastructure(
     stack,
     vpcId: vpc.vpcId,
     vpcCidr,
-    awsProvider,
-  });
-
-  const vpcConnector = createVpcConnector({
-    namePrefix,
-    stack,
-    privateSubnetIds: vpc.privateSubnetIds,
-    securityGroupId: securityGroups.appRunnerConnectorSecurityGroup.id,
+    containerPort,
     awsProvider,
   });
 
@@ -102,17 +95,19 @@ export function createSharedInfrastructure(
     awsProvider,
   });
 
-  // Grant instance role access to both database secrets
+  // Grant the ECS execution role access to both database secrets — it's the
+  // execution role (not the task role) that resolves `secrets` referenced
+  // in the container definition.
   grantSecretAccess(
     namePrefix,
-    iam.appRunnerInstanceRole,
+    iam.ecsTaskExecutionRole,
     database.databaseSecretArn,
     awsProvider,
     'db',
   );
   grantSecretAccess(
     namePrefix,
-    iam.appRunnerInstanceRole,
+    iam.ecsTaskExecutionRole,
     database.databaseUrlSecretArn,
     awsProvider,
     'db-url',
@@ -122,12 +117,11 @@ export function createSharedInfrastructure(
     vpcId: vpc.vpcId,
     publicSubnetIds: vpc.publicSubnetIds,
     privateSubnetIds: vpc.privateSubnetIds,
-    appRunnerConnectorSecurityGroupId:
-      securityGroups.appRunnerConnectorSecurityGroup.id,
+    albSecurityGroupId: securityGroups.albSecurityGroup.id,
+    fargateSecurityGroupId: securityGroups.fargateSecurityGroup.id,
     rdsSecurityGroupId: securityGroups.rdsSecurityGroup.id,
-    vpcConnectorArn: vpcConnector.vpcConnectorArn,
-    appRunnerAccessRoleArn: iam.appRunnerAccessRoleArn,
-    appRunnerInstanceRoleArn: iam.appRunnerInstanceRoleArn,
+    ecsTaskExecutionRoleArn: iam.ecsTaskExecutionRoleArn,
+    ecsTaskRoleArn: iam.ecsTaskRoleArn,
     ecrRepositoryUrl: ecr.repositoryUrl,
     ecrRepositoryArn: ecr.repositoryArn,
     databaseEndpoint: database.dbEndpoint,

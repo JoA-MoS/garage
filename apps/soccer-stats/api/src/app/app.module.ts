@@ -2,7 +2,7 @@ import { join } from 'path';
 
 import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
-import { GraphQLModule } from '@nestjs/graphql';
+import { GraphQLModule, SubscriptionConfig } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -81,7 +81,15 @@ interface AuthenticatedRequest extends Request {
         ],
         introspection: getGraphqlIntrospection(),
         subscriptions: {
-          'graphql-ws': true,
+          // Periodic ping keeps idle subscriptions (e.g. no goals scored for
+          // several minutes) from sitting silent long enough for the ALB or
+          // CloudFront to treat the connection as dead and drop it.
+          // NestJS's GraphQLWsSubscriptionsConfig type omits `keepAlive`
+          // even though it spreads straight through to graphql-ws's
+          // useServer(), which does support it — cast around the gap.
+          'graphql-ws': {
+            keepAlive: 12_000,
+          } as SubscriptionConfig['graphql-ws'],
         },
         context: ({
           req,

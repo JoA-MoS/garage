@@ -1,7 +1,7 @@
 import * as pulumi from '@pulumi/pulumi';
 
 import { stack, customDomain } from './config';
-import { appRunnerServiceUrl } from './shared-infra';
+import { apiServiceUrl } from './shared-infra';
 import { bucket } from './s3';
 import { distribution } from './cloudfront';
 
@@ -28,7 +28,7 @@ export const apiEndpoint = customDomain
   ? pulumi.interpolate`https://${customDomain}/api`
   : pulumi.interpolate`https://${distribution.domainName}/api`;
 
-// Direct App Runner URL (for debugging/internal use only)
-export const apiUrl = pulumi.interpolate`https://${appRunnerServiceUrl}`;
+// Direct ALB URL (for debugging/internal use only) — HTTP only, no ACM cert on the ALB
+export const apiUrl = pulumi.interpolate`http://${apiServiceUrl}`;
 
 export const environment = stack;

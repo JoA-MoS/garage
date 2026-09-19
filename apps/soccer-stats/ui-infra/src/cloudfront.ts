@@ -2,7 +2,7 @@ import * as pulumi from '@pulumi/pulumi';
 import * as aws from '@pulumi/aws';
 
 import { namePrefix, stack, customDomain, certificateArn } from './config';
-import { appRunnerServiceUrl } from './shared-infra';
+import { apiServiceUrl } from './shared-infra';
 import { bucket } from './s3';
 
 // =============================================================================
@@ -37,15 +37,23 @@ export const distribution = new aws.cloudfront.Distribution(
         originAccessControlId: oac.id,
       },
       {
-        domainName: appRunnerServiceUrl,
-        originId: 'appRunnerOrigin',
+        domainName: apiServiceUrl,
+        originId: 'apiOrigin',
         customOriginConfig: {
           httpPort: 80,
           httpsPort: 443,
-          originProtocolPolicy: 'https-only', // App Runner is HTTPS-only
+          // The ALB only listens on HTTP (80) — CloudFront terminates TLS at
+          // the edge, so this leg stays plain HTTP over the AWS backbone.
+          // Avoids needing a separate ACM cert + custom domain on the ALB.
+          originProtocolPolicy: 'http-only',
+          // Unused when originProtocolPolicy is http-only, but the provider
+          // schema requires a value regardless.
           originSslProtocols: ['TLSv1.2'],
           originReadTimeout: 60,
-          originKeepaliveTimeout: 5,
+          // Longer than the ALB's 60s default idle timeout headroom so
+          // CloudFront doesn't recycle the connection to the origin before
+          // the ALB would (matters for long-lived WebSocket subscriptions).
+          originKeepaliveTimeout: 30,
         },
       },
     ],
@@ -54,7 +62,7 @@ export const distribution = new aws.cloudfront.Distribution(
       // API routing - forwards to App Runner origin
       {
         pathPattern: '/api/*',
-        targetOriginId: 'appRunnerOrigin',
+        targetOriginId: 'apiOrigin',
         viewerProtocolPolicy: 'redirect-to-https',
         allowedMethods: [
           'GET',
