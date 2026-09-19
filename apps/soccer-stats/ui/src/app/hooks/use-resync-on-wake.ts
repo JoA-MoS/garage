@@ -18,7 +18,9 @@ export function useResyncOnWake(): void {
   useEffect(() => {
     const resync = () => {
       if (document.visibilityState !== 'visible') return;
-      client.refetchQueries({ include: 'active' });
+      client.refetchQueries({ include: 'active' }).catch((error: unknown) => {
+        console.error('[Resync on Wake] Failed to refetch queries:', error);
+      });
     };
 
     document.addEventListener('visibilitychange', resync);

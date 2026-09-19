@@ -3,7 +3,7 @@ import { renderHook } from '@testing-library/react';
 
 import { useResyncOnWake } from './use-resync-on-wake';
 
-const mockRefetchQueries = vi.fn();
+const mockRefetchQueries = vi.fn().mockResolvedValue([]);
 
 vi.mock('@apollo/client/react', () => ({
   useApolloClient: () => ({
@@ -55,6 +55,28 @@ describe('useResyncOnWake', () => {
     window.dispatchEvent(new Event('online'));
 
     expect(mockRefetchQueries).toHaveBeenCalledWith({ include: 'active' });
+  });
+
+  it('does not throw an unhandled rejection when refetchQueries fails', async () => {
+    mockRefetchQueries.mockRejectedValueOnce(new Error('network down'));
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+
+    renderHook(() => useResyncOnWake());
+
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    // Flush the rejected promise's microtask queue
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[Resync on Wake] Failed to refetch queries:',
+      expect.any(Error),
+    );
+
+    consoleErrorSpy.mockRestore();
   });
 
   it('removes all listeners on unmount', () => {

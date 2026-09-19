@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 
 interface ServerTimeSync {
   currentPeriod: string | null | undefined;
@@ -38,17 +38,13 @@ export function useSyncedGameTime(
   // having lost the missed seconds forever.
   const [now, setNow] = useState(() => Date.now());
 
-  // Re-sync `now` immediately (not via effect) whenever a new
-  // serverTimestamp arrives, so a fresh subscription push is reflected
-  // right away instead of waiting up to a second for the next tick.
-  const lastServerTimestampRef = useRef<number | null>(null);
-  if (syncData?.serverTimestamp !== lastServerTimestampRef.current) {
-    lastServerTimestampRef.current = syncData?.serverTimestamp ?? null;
-    const fresh = Date.now();
-    if (fresh !== now) {
-      setNow(fresh);
-    }
-  }
+  // Re-sync `now` whenever a new serverTimestamp arrives, so a fresh
+  // subscription push is reflected right away instead of waiting up to a
+  // second for the next tick. A layout effect (not a render-phase update)
+  // runs synchronously before paint, so there's no visible stale frame.
+  useLayoutEffect(() => {
+    setNow(Date.now());
+  }, [syncData?.serverTimestamp]);
 
   // Tick the clock every second (only when game is active), and
   // immediately re-sync `now` whenever the tab/device wakes up so the
