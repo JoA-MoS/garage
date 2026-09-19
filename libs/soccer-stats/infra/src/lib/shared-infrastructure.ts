@@ -1,5 +1,6 @@
 import * as pulumi from '@pulumi/pulumi';
 import * as aws from '@pulumi/aws';
+import * as random from '@pulumi/random';
 
 import { SharedInfraConfig, SharedInfraOutputs } from './types';
 import {
@@ -69,6 +70,17 @@ export function createSharedInfrastructure(
 
   const ecr = createEcrRepository({ namePrefix, stack, awsProvider });
 
+  // Shared secret CloudFront attaches as a custom origin header. The ALB
+  // listener only forwards requests carrying it (see ecs-fargate.ts) — an
+  // IP-range restriction alone (see security-groups.ts) isn't enough,
+  // since any AWS customer's CloudFront distribution can send traffic from
+  // those same origin-facing IP ranges. This header proves the request came
+  // through *this* distribution specifically.
+  const originVerifySecret = new random.RandomPassword(
+    `${namePrefix}-origin-verify-secret`,
+    { length: 32, special: false },
+  );
+
   const iam = createIamRoles({ namePrefix, stack, awsProvider });
 
   const database = createDatabase({
@@ -132,6 +144,7 @@ export function createSharedInfrastructure(
     databaseUrlSecretArn: database.databaseUrlSecretArn,
     bastionInstanceId: bastion.instanceId,
     cdRoleArn: githubOidc.cdRoleArn,
+    originVerifySecret: pulumi.secret(originVerifySecret.result),
     environment: stack,
     region: pulumi.output(aws.config.region || 'us-west-2'),
   };

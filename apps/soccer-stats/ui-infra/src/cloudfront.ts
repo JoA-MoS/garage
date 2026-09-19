@@ -2,7 +2,7 @@ import * as pulumi from '@pulumi/pulumi';
 import * as aws from '@pulumi/aws';
 
 import { namePrefix, stack, customDomain, certificateArn } from './config';
-import { apiServiceUrl } from './shared-infra';
+import { apiServiceUrl, originVerifySecret } from './shared-infra';
 import { bucket } from './s3';
 
 // =============================================================================
@@ -39,6 +39,10 @@ export const distribution = new aws.cloudfront.Distribution(
       {
         domainName: apiServiceUrl,
         originId: 'apiOrigin',
+        // Proves to the ALB listener rule that a request actually came
+        // through this distribution — must match the header name checked in
+        // apps/soccer-stats/api-infra/src/ecs-fargate.ts's ListenerRule.
+        customHeaders: [{ name: 'X-Origin-Verify', value: originVerifySecret }],
         customOriginConfig: {
           httpPort: 80,
           httpsPort: 443,

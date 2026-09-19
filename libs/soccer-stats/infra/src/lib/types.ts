@@ -37,6 +37,9 @@ export interface SharedInfraOutputs {
   // CI/CD
   cdRoleArn: pulumi.Output<string>;
 
+  // CloudFront -> ALB request authenticity — see shared-infrastructure.ts
+  originVerifySecret: pulumi.Output<string>;
+
   // Convenience
   environment: string;
   region: pulumi.Output<string>;

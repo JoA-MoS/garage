@@ -15,6 +15,8 @@ export * from './lib/shared-infrastructure';
 // Dependent stacks (api-infra, ui-infra) import these outputs via StackReference.
 // =============================================================================
 
+import * as pulumi from '@pulumi/pulumi';
+
 import { createSharedInfrastructure } from './lib/shared-infrastructure';
 
 const outputs = createSharedInfrastructure();
@@ -41,6 +43,8 @@ export const databaseUrlSecretArn = outputs.databaseUrlSecretArn;
 export const bastionInstanceId = outputs.bastionInstanceId;
 // CI/CD
 export const cdRoleArn = outputs.cdRoleArn;
+// CloudFront -> ALB request authenticity
+export const originVerifySecret = pulumi.secret(outputs.originVerifySecret);
 // Convenience
 export const environment = outputs.environment;
 export const region = outputs.region;

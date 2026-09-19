@@ -26,6 +26,7 @@ import {
   ecsTaskExecutionRoleArn,
   ecsTaskRoleArn,
   databaseUrlSecretArn,
+  originVerifySecret,
 } from './shared-infra';
 import { clerkSecretKeySecretArn } from './secrets';
 import { apiVersion, buildTime, gitSha, image } from './docker';
@@ -74,14 +75,49 @@ export const targetGroup = new aws.lb.TargetGroup(`${namePrefix}-tg`, {
   tags: { Name: `${namePrefix}-tg`, Environment: stack },
 });
 
+// Custom header name CloudFront attaches to origin requests (value is the
+// `originVerifySecret` shared-infra output) — must match
+// apps/soccer-stats/ui-infra/src/cloudfront.ts's customHeaders entry.
+// The security group already restricts inbound traffic to CloudFront's IP
+// ranges (see security-groups.ts), but that alone isn't sufficient: those
+// ranges are shared across every CloudFront distribution on AWS, so anyone
+// else's distribution could be pointed at this ALB as a custom origin and
+// bypass the intended access path. Requiring this header (which only our
+// CloudFront distribution knows) closes that gap.
+const ORIGIN_VERIFY_HEADER_NAME = 'X-Origin-Verify';
+
 export const httpListener = new aws.lb.Listener(`${namePrefix}-listener`, {
   loadBalancerArn: alb.arn,
   port: 80,
   protocol: 'HTTP',
+  // Deny by default — only the rule below (matching the verify header) forwards.
   defaultActions: [
+    {
+      type: 'fixed-response',
+      fixedResponse: {
+        contentType: 'text/plain',
+        messageBody: 'Forbidden',
+        statusCode: '403',
+      },
+    },
+  ],
+});
+
+new aws.lb.ListenerRule(`${namePrefix}-listener-rule`, {
+  listenerArn: httpListener.arn,
+  priority: 1,
+  actions: [
     {
       type: 'forward',
       targetGroupArn: targetGroup.arn,
+    },
+  ],
+  conditions: [
+    {
+      httpHeader: {
+        httpHeaderName: ORIGIN_VERIFY_HEADER_NAME,
+        values: [originVerifySecret],
+      },
     },
   ],
 });

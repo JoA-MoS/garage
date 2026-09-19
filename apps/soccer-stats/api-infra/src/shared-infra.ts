@@ -18,6 +18,8 @@ export const ecsTaskExecutionRoleArn = sharedInfra.requireOutput(
   'ecsTaskExecutionRoleArn',
 );
 export const ecsTaskRoleArn = sharedInfra.requireOutput('ecsTaskRoleArn');
+export const originVerifySecret =
+  sharedInfra.requireOutput('originVerifySecret');
 export const databaseUrlSecretArn = sharedInfra.requireOutput(
   'databaseUrlSecretArn',
 );
