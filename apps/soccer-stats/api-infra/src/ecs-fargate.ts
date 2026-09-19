@@ -237,7 +237,7 @@ export const service = new aws.ecs.Service(
     name: `${namePrefix}-service`,
     cluster: cluster.arn,
     taskDefinition: taskDefinition.arn,
-    desiredCount: 1,
+    desiredCount: 2,
     launchType: 'FARGATE',
     networkConfiguration: {
       subnets: privateSubnetIds,
@@ -260,12 +260,11 @@ export const service = new aws.ecs.Service(
   { dependsOn: [httpListener] },
 );
 
-// Deliberately no auto-scaling beyond the single fixed task above: the
-// GraphQL PubSub is in-memory and single-process (see
-// apps/soccer-stats/api/docs/SUBSCRIPTIONS.md). Running 2+ tasks would
-// silently reintroduce cross-instance real-time gaps (a client subscribed
-// via one task would never see an event published via another). Migrate to
-// a Redis-backed PubSub (documented in that file) before scaling out.
+// Running 2 tasks is now safe: GraphQL PubSub fans out across processes via
+// Postgres LISTEN/NOTIFY (see apps/soccer-stats/api/src/modules/pubsub/postgres-pubsub.ts
+// and apps/soccer-stats/api/docs/SUBSCRIPTIONS.md), so a client subscribed via
+// one task still sees events published via another. No auto-scaling is
+// configured yet beyond this fixed count - add it separately if load requires it.
 
 // Hostname only (no protocol) — used as the CloudFront API origin, matching
 // the shape the old App Runner `serviceUrl` output had.

@@ -154,6 +154,9 @@ importers:
       pg:
         specifier: ^8.16.3
         version: 8.16.3
+      pg-listen:
+        specifier: ^1.7.0
+        version: 1.7.0(pg@8.16.3)
       qs:
         specifier: ^6.14.0
         version: 6.14.0
@@ -8508,6 +8511,13 @@ packages:
       }
     engines: { node: '>=14.16' }
 
+  '@sindresorhus/is@6.3.1':
+    resolution:
+      {
+        integrity: sha512-FX4MfcifwJyFOI2lPoX7PQxCqx8BG1HCho7WdiXwpEQx1Ycij0JxkfYtGK7yqNScrZGSlt6RE6sw8QYoH7eKnQ==,
+      }
+    engines: { node: '>=16' }
+
   '@sindresorhus/merge-streams@2.3.0':
     resolution:
       {
@@ -16810,6 +16820,13 @@ packages:
       }
     engines: { node: '>= 14.17' }
 
+  form-data-encoder@4.1.0:
+    resolution:
+      {
+        integrity: sha512-G6NsmEW15s0Uw9XnCg+33H3ViYRyiM0hMrMhhqQOR8NFc5GhYrI+6I3u7OTw7b91J2g8rtvMBZJDbcGb2YUniw==,
+      }
+    engines: { node: '>= 18' }
+
   form-data@4.0.4:
     resolution:
       {
@@ -17230,7 +17247,7 @@ packages:
       {
         integrity: sha512-OvD9ENzPLbegENnYP5UUfJIirTg4+XwMWGaQfQTY0JenxNvvIKP3U3/tAQSPIu/lHxXYSZmpXlUHeqAIdKzBLQ==,
       }
-    deprecated: Glob versions prior to v9 are no longer supported
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   glob@7.2.3:
     resolution:
@@ -17330,13 +17347,6 @@ packages:
       }
     engines: { node: '>= 0.4' }
 
-  got@11.8.3:
-    resolution:
-      {
-        integrity: sha512-7gtQ5KiPh1RtGS9/Jbv1ofDpBFuq42gyfEib+ejaRBJuj/3tQFeR5+gw57e4ipaU8c/rCjvX6fkQz2lyDlGAOg==,
-      }
-    engines: { node: '>=10.19.0' }
-
   got@11.8.6:
     resolution:
       {
@@ -17350,6 +17360,13 @@ packages:
         integrity: sha512-XfBk1CxOOScDcMr9O1yKkNaQyy865NbYs+F7dr4H0LZMVgCj2Le59k6PqbNHoL5ToeaEQUYh6c6yMfVcc6SJxA==,
       }
     engines: { node: '>=16' }
+
+  got@14.2.1:
+    resolution:
+      {
+        integrity: sha512-KOaPMremmsvx6l9BLC04LYE6ZFW4x7e4HkTe3LwBmtuYYQwpeS4XKqzhubTIkaQ1Nr+eXxeori0zuwupXMovBQ==,
+      }
+    engines: { node: '>=20' }
 
   graceful-fs@4.2.10:
     resolution:
@@ -22623,6 +22640,13 @@ packages:
       }
     engines: { node: '>=12.20' }
 
+  p-cancelable@4.0.1:
+    resolution:
+      {
+        integrity: sha512-wBowNApzd45EIKdO1LaU+LrMBwAcjfPaYtVzV3lmfM3gf8Z4CHZsiIqlM8TZZ8okYvh5A1cP6gTfCRQtwUpaUg==,
+      }
+    engines: { node: '>=14.16' }
+
   p-each-series@2.2.0:
     resolution:
       {
@@ -23233,12 +23257,27 @@ packages:
         integrity: sha512-nkc6NpDcvPVpZXxrreI/FOtX3XemeLl8E0qFr6F2Lrm/I8WOnaWNhIPK2Z7OHpw7gh5XJThi6j6ppgNoaT1w4w==,
       }
 
+  pg-format@1.0.4:
+    resolution:
+      {
+        integrity: sha512-YyKEF78pEA6wwTAqOUaHIN/rWpfzzIuMh9KdAhc3rSLQ/7zkRFcCgYBAEGatDstLyZw4g0s9SNICmaTGnBVeyw==,
+      }
+    engines: { node: '>=4.0' }
+
   pg-int8@1.0.1:
     resolution:
       {
         integrity: sha512-WCtabS6t3c8SkpDBUlb1kjOs7l66xsGdKpIPZsg4wR+B3+u9UAum2odSsF9tnvxg80h4ZxLWMy4pRjOsFIqQpw==,
       }
     engines: { node: '>=4.0.0' }
+
+  pg-listen@1.7.0:
+    resolution:
+      {
+        integrity: sha512-MKDwKLm4ryhy7iq1yw1K1MvUzBdTkaT16HZToddX9QaT8XSdt3Kins5mYH6DLECGFzFWG09VdXvWOIYogjXrsg==,
+      }
+    peerDependencies:
+      pg: 7.x || 8.x
 
   pg-pool@3.10.1:
     resolution:
@@ -25735,10 +25774,10 @@ packages:
     engines: { node: '>=16 || ^14.17' }
     hasBin: true
 
-  semantic-release-plus@20.0.0-alpha.18:
+  semantic-release-plus@20.0.0-alpha.19:
     resolution:
       {
-        integrity: sha512-KHfHIJ46nQmH6PLTA2icH8VnPDmfF9CxmfTfzhbtEK8xTTyzA3tve5Q+0a7nyRgUTUBmuiRGfS4/McegGb1Xtw==,
+        integrity: sha512-fHswF0lsA0ulQxDDWKkfyX9LHgrZsqsjINkyAx71Z9pzKPKuYPoAvntkqGXcDLC/eFA8hS5xnYfhnGdZRIME8Q==,
       }
     engines: { node: '>=16 || ^14.17' }
     hasBin: true
@@ -28125,6 +28164,12 @@ packages:
     resolution:
       {
         integrity: sha512-KNNZtayBCtmnNmbo5mG47p1XsCyrx6iVqomjcZnec/1Y5GGARaxPs6r49RnSPeUP3YjNYiU9sQHAtY4BBvnZwg==,
+      }
+
+  typed-emitter@0.1.0:
+    resolution:
+      {
+        integrity: sha512-Tfay0l6gJMP5rkil8CzGbLthukn+9BN/VXWcABVFPjOoelJ+koW8BuPZYk+h/L+lEeIp1fSzVRiWRPIjKVjPdg==,
       }
 
   typedarray-to-buffer@3.1.5:
@@ -37777,7 +37822,7 @@ snapshots:
       p-reduce: 2.1.0
       read-pkg-up: 7.0.1
       resolve-from: 5.0.0
-      semantic-release-plus: 20.0.0-alpha.18(encoding@0.1.13)(grunt@1.6.1)(semantic-release@24.2.7(typescript@5.9.3))(typescript@5.9.3)
+      semantic-release-plus: 20.0.0-alpha.19(encoding@0.1.13)(grunt@1.6.1)(semantic-release@24.2.7(typescript@5.9.3))(typescript@5.9.3)
       semver: 7.3.5
       semver-diff: 3.1.1
       signale: 1.4.0
@@ -38104,6 +38149,8 @@ snapshots:
   '@sindresorhus/is@4.6.0': {}
 
   '@sindresorhus/is@5.6.0': {}
+
+  '@sindresorhus/is@6.3.1': {}
 
   '@sindresorhus/merge-streams@2.3.0': {}
 
@@ -44360,6 +44407,8 @@ snapshots:
 
   form-data-encoder@2.1.4: {}
 
+  form-data-encoder@4.1.0: {}
+
   form-data@4.0.4:
     dependencies:
       asynckit: 0.4.0
@@ -44708,20 +44757,6 @@ snapshots:
 
   gopd@1.2.0: {}
 
-  got@11.8.3:
-    dependencies:
-      '@sindresorhus/is': 4.6.0
-      '@szmarczak/http-timer': 4.0.6
-      '@types/cacheable-request': 6.0.3
-      '@types/responselike': 1.0.3
-      cacheable-lookup: 5.0.4
-      cacheable-request: 7.0.4
-      decompress-response: 6.0.0
-      http2-wrapper: 1.0.3
-      lowercase-keys: 2.0.0
-      p-cancelable: 2.1.1
-      responselike: 2.0.1
-
   got@11.8.6:
     dependencies:
       '@sindresorhus/is': 4.6.0
@@ -44748,6 +44783,20 @@ snapshots:
       http2-wrapper: 2.2.1
       lowercase-keys: 3.0.0
       p-cancelable: 3.0.0
+      responselike: 3.0.0
+
+  got@14.2.1:
+    dependencies:
+      '@sindresorhus/is': 6.3.1
+      '@szmarczak/http-timer': 5.0.1
+      cacheable-lookup: 7.0.0
+      cacheable-request: 10.2.14
+      decompress-response: 6.0.0
+      form-data-encoder: 4.1.0
+      get-stream: 8.0.1
+      http2-wrapper: 2.2.1
+      lowercase-keys: 3.0.0
+      p-cancelable: 4.0.1
       responselike: 3.0.0
 
   graceful-fs@4.2.10: {}
@@ -48640,6 +48689,8 @@ snapshots:
 
   p-cancelable@3.0.0: {}
 
+  p-cancelable@4.0.1: {}
+
   p-each-series@2.2.0: {}
 
   p-each-series@3.0.0: {}
@@ -48975,7 +49026,18 @@ snapshots:
 
   pg-connection-string@2.9.1: {}
 
+  pg-format@1.0.4: {}
+
   pg-int8@1.0.1: {}
+
+  pg-listen@1.7.0(pg@8.16.3):
+    dependencies:
+      debug: 4.4.3(supports-color@9.4.0)
+      pg: 8.16.3
+      pg-format: 1.0.4
+      typed-emitter: 0.1.0
+    transitivePeerDependencies:
+      - supports-color
 
   pg-pool@3.10.1(pg@8.16.3):
     dependencies:
@@ -50517,7 +50579,7 @@ snapshots:
       - semantic-release
       - supports-color
 
-  semantic-release-plus@20.0.0-alpha.18(encoding@0.1.13)(grunt@1.6.1)(semantic-release@24.2.7(typescript@5.9.3))(typescript@5.9.3):
+  semantic-release-plus@20.0.0-alpha.19(encoding@0.1.13)(grunt@1.6.1)(semantic-release@24.2.7(typescript@5.9.3))(typescript@5.9.3):
     dependencies:
       '@semantic-release-plus/core': 2.0.0-alpha.6
       '@semantic-release/commit-analyzer': 9.0.2(semantic-release@24.2.7(typescript@5.9.3))
@@ -50537,7 +50599,7 @@ snapshots:
       find-versions: 4.0.0
       get-stream: 6.0.1
       git-log-parser: 1.2.1
-      got: 11.8.3
+      got: 14.2.1
       hook-std: 2.0.0
       hosted-git-info: 6.1.3
       lodash: 4.17.21
@@ -50548,7 +50610,6 @@ snapshots:
       p-each-series: 2.2.0
       p-reduce: 2.1.0
       p-retry: 4.6.1
-      process: 0.11.10
       read-pkg-up: 7.0.1
       resolve-from: 5.0.0
       semver: 7.3.8
@@ -52467,6 +52528,8 @@ snapshots:
       reflect.getprototypeof: 1.0.10
 
   typed-assert@1.0.9: {}
+
+  typed-emitter@0.1.0: {}
 
   typedarray-to-buffer@3.1.5:
     dependencies:

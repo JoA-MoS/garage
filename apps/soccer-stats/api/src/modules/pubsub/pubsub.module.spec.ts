@@ -1,7 +1,41 @@
+import { EventEmitter } from 'events';
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { PubSub } from 'graphql-subscriptions';
+import type { Subscriber } from 'pg-listen';
 
-import { PubSubModule } from './pubsub.module';
+import { PostgresPubSub, type PubSubRelayMessage } from './postgres-pubsub';
+import { PG_LISTEN_SUBSCRIBER, PubSubModule } from './pubsub.module';
+
+/**
+ * Fakes the Postgres LISTEN/NOTIFY transport so these tests exercise the
+ * module's wiring and PostgresPubSub's real fan-out logic without needing a
+ * live database - CI has no Postgres service for unit tests (see
+ * .github/workflows/main.yml).
+ */
+function createFakeSubscriber() {
+  const notifications = new EventEmitter();
+  const listenedChannels = new Set<string>();
+
+  return {
+    notifications,
+    events: new EventEmitter(),
+    connect: jest.fn().mockResolvedValue(undefined),
+    listenTo: jest.fn().mockImplementation((channel: string) => {
+      listenedChannels.add(channel);
+      return Promise.resolve();
+    }),
+    notify: jest
+      .fn()
+      .mockImplementation((channel: string, payload: PubSubRelayMessage) => {
+        if (listenedChannels.has(channel)) {
+          notifications.emit(channel, payload);
+        }
+        return Promise.resolve();
+      }),
+    close: jest.fn().mockResolvedValue(undefined),
+  } as unknown as Subscriber<Record<string, PubSubRelayMessage>>;
+}
 
 describe('PubSubModule', () => {
   let module: TestingModule;
@@ -9,16 +43,20 @@ describe('PubSubModule', () => {
   beforeAll(async () => {
     module = await Test.createTestingModule({
       imports: [PubSubModule],
-    }).compile();
+    })
+      .overrideProvider(PG_LISTEN_SUBSCRIBER)
+      .useValue(createFakeSubscriber())
+      .compile();
   });
 
   afterAll(async () => {
     await module.close();
   });
 
-  it('should provide a PubSub instance', () => {
+  it('should provide a PostgresPubSub instance', () => {
     const pubSub = module.get<PubSub>('PUB_SUB');
     expect(pubSub).toBeDefined();
+    expect(pubSub).toBeInstanceOf(PostgresPubSub);
     expect(pubSub).toBeInstanceOf(PubSub);
   });
 
@@ -67,11 +105,17 @@ describe('PubSub Singleton Verification', () => {
     // Simulate two different "modules" requesting PubSub
     const module1 = await Test.createTestingModule({
       imports: [PubSubModule],
-    }).compile();
+    })
+      .overrideProvider(PG_LISTEN_SUBSCRIBER)
+      .useValue(createFakeSubscriber())
+      .compile();
 
     const module2 = await Test.createTestingModule({
       imports: [PubSubModule],
-    }).compile();
+    })
+      .overrideProvider(PG_LISTEN_SUBSCRIBER)
+      .useValue(createFakeSubscriber())
+      .compile();
 
     const pubSub1 = module1.get<PubSub>('PUB_SUB');
     const pubSub2 = module2.get<PubSub>('PUB_SUB');
