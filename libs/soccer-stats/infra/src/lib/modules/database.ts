@@ -220,7 +220,7 @@ function createAuroraCluster(config: AuroraConfig): {
       clusterIdentifier: `${namePrefix}-aurora`,
       engine: 'aurora-postgresql',
       engineMode: 'provisioned',
-      engineVersion: '16.6',
+      engineVersion: '16.11',
       databaseName: dbName,
       masterUsername: dbUsername,
       masterPassword: dbPassword.result,
@@ -300,7 +300,7 @@ function createStandardRds(config: StandardRdsConfig): {
     {
       identifier: `${namePrefix}-postgres`,
       engine: 'postgres',
-      engineVersion: '16.6',
+      engineVersion: '16.11',
       instanceClass: dbInstanceClass,
       allocatedStorage: 20,
       maxAllocatedStorage: 100, // Enable storage autoscaling
