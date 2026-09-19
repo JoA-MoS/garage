@@ -38,7 +38,11 @@ export class PostgresPubSub extends PubSub implements OnModuleDestroy {
       this.connectPromise = this.subscriber
         .connect()
         .then(() => this.subscriber.listenTo(PUBSUB_NOTIFY_CHANNEL))
-        .then(() => undefined);
+        .then(() => undefined)
+        .catch((error) => {
+          this.connectPromise = undefined;
+          throw error;
+        });
     }
     await this.connectPromise;
   }

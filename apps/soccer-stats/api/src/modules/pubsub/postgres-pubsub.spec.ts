@@ -73,6 +73,28 @@ describe('PostgresPubSub', () => {
     expect(subscriber.listenTo).toHaveBeenCalledTimes(1);
   });
 
+  it('retries after an initial connection failure', async () => {
+    const subscriber = createFakeSubscriber();
+    subscriber.connect = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('temporary connection failure'))
+      .mockResolvedValue(undefined);
+    const pubSub = new PostgresPubSub(subscriber);
+
+    await expect(pubSub.publish('game-event', { seq: 1 })).rejects.toThrow(
+      'temporary connection failure',
+    );
+
+    await expect(pubSub.publish('game-event', { seq: 2 })).resolves.toBeUndefined();
+
+    expect(subscriber.connect).toHaveBeenCalledTimes(2);
+    expect(subscriber.listenTo).toHaveBeenCalledTimes(1);
+    expect(subscriber.notify).toHaveBeenCalledWith(PUBSUB_NOTIFY_CHANNEL, {
+      triggerName: 'game-event',
+      payload: { seq: 2 },
+    });
+  });
+
   it('delivers a published event back to a local subscriber via the round trip', async () => {
     const pubSub = new PostgresPubSub(createFakeSubscriber());
     const iterator = pubSub
