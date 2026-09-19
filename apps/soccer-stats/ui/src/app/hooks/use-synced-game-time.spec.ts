@@ -89,6 +89,36 @@ describe('useSyncedGameTime', () => {
     expect(result.current.periodSecond).toBe(100);
   });
 
+  it('self-corrects after a throttled interval (e.g. device sleep) instead of drifting behind', () => {
+    // Simulates a mobile browser suspending the tick interval while the
+    // device sleeps: only ONE interval tick fires even though 60 real
+    // seconds have elapsed, because setInterval was throttled/paused.
+    const syncData = {
+      currentPeriod: '1',
+      currentPeriodSecond: 100,
+      serverTimestamp: Date.now(),
+    };
+
+    const { result } = renderHook(() => useSyncedGameTime(syncData));
+
+    expect(result.current.periodSecond).toBe(100);
+
+    // Advance real/wall-clock time by 59s, then let ONE 1s interval tick
+    // fire (simulating throttling: only one tick delivered after a 60s
+    // device sleep). vi.advanceTimersByTime fires every due interval
+    // callback, so we jump Date.now() directly for the bulk of the gap
+    // and advance timers by just the final 1s to trigger the tick.
+    vi.setSystemTime(Date.now() + 59000);
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    // A tickCount-accumulator implementation would only report 101
+    // (100 + 1 tick) here, drifting ~59s behind. The wall-clock-derived
+    // value should reflect the full 60s that actually passed.
+    expect(result.current.periodSecond).toBe(160);
+  });
+
   it('resets elapsed time when sync data changes', () => {
     const initialSync = {
       currentPeriod: '1',
