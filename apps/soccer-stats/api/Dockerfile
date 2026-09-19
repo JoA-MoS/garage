@@ -23,7 +23,7 @@ ENV BUILD_TIME=${BUILD_TIME}
 # container limits on its own. Verify in prod via /api/health heapSizeLimitMB.
 ENV NODE_OPTIONS=--max-old-space-size=400
 
-# Enable corepack for pnpm, pinned to the workspace's packageManager
+# Enable corepack for pnpm, pinned to the workspace's configured pnpm
 # version for reproducible builds instead of floating on pnpm@latest.
 RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 
