@@ -62,6 +62,13 @@ export type QueuedItem =
       id: string;
       type: 'addition';
       playerIn: GqlRosterPlayer;
+      /**
+       * Target formation position, when the team tracks positions (e.g.
+       * filling a specific empty slot). Omitted when position tracking is
+       * off — the UI resolves it to FIELD_SENTINEL_POSITION before calling
+       * bringPlayerOntoField, whose `position` input is always required.
+       */
+      position?: string;
     };
 
 /**

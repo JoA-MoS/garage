@@ -349,7 +349,9 @@ function QueuedItemRow({
           <span className="text-green-600">
             {getPlayerDisplayName(item.playerIn)}
           </span>
-          <span className="text-gray-400">on</span>
+          <span className="text-gray-400">
+            on{item.position ? ` → ${item.position}` : ''}
+          </span>
         </div>
         <button
           type="button"
