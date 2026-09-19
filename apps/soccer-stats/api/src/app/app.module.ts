@@ -7,6 +7,12 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Request } from 'express';
+// @nestjs/apollo's ApolloDriver loads this integration dynamically at
+// runtime, so webpack's static analysis (and Nx's generatePackageJson,
+// which relies on it) never sees it as used and omits it from the
+// production package.json. A direct import forces it to be detected and
+// included as a runtime dependency in the built container image.
+import '@as-integrations/express5';
 
 import { GamesModule } from '../modules/games/games.module';
 import { TeamsModule } from '../modules/teams/teams.module';

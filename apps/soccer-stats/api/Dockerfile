@@ -23,8 +23,9 @@ ENV BUILD_TIME=${BUILD_TIME}
 # container limits on its own. Verify in prod via /api/health heapSizeLimitMB.
 ENV NODE_OPTIONS=--max-old-space-size=400
 
-# Enable corepack for pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Enable corepack for pnpm, pinned to the workspace's packageManager
+# version for reproducible builds instead of floating on pnpm@latest.
+RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 
 # Create app directory
 WORKDIR /app
@@ -38,8 +39,15 @@ ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/rds-global-bundle.pem
 # Copy entire build output directory
 COPY dist/apps/soccer-stats/api ./
 
-# Install production dependencies only
-RUN pnpm install --prod --frozen-lockfile --ignore-scripts && \
+# Install production dependencies only.
+# No --frozen-lockfile: Nx's generatePackageJson prunes a per-app
+# pnpm-lock.yaml from the workspace lockfile, and that pruning can omit
+# snapshot entries for transitive peer-qualified packages (e.g.
+# @apollo/cache-control-types) even though every version is still pinned
+# in the generated package.json. pnpm resolves the gap itself when not
+# frozen; the real lockfile contract is still enforced by the workspace
+# install in CI.
+RUN pnpm install --prod --ignore-scripts && \
     pnpm store prune
 
 # Create non-root user for security
