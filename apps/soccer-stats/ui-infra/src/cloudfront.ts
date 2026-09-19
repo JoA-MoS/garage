@@ -63,7 +63,7 @@ export const distribution = new aws.cloudfront.Distribution(
     ],
     // Ordered cache behaviors (evaluated before default)
     orderedCacheBehaviors: [
-      // API routing - forwards to App Runner origin
+      // API routing - forwards to ALB origin
       {
         pathPattern: '/api/*',
         targetOriginId: 'apiOrigin',

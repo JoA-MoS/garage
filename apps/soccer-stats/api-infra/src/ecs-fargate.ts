@@ -270,4 +270,4 @@ export const service = new aws.ecs.Service(
 // Hostname only (no protocol) — used as the CloudFront API origin, matching
 // the shape the old App Runner `serviceUrl` output had.
 export const serviceUrl = alb.dnsName;
-export const serviceArn = service.id;
+export const serviceArn = service.arn;
