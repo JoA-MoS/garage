@@ -110,6 +110,7 @@ export type BringPlayerOntoFieldInput = {
 /** External calendar provider used as a team schedule source */
 export enum CalendarProvider {
   Playmetrics = 'PLAYMETRICS',
+  Sportsengine = 'SPORTSENGINE',
 }
 
 export type CalendarSource = {
@@ -441,6 +442,12 @@ export type GameTeam = {
   teamType: Scalars['String']['output'];
   updatedAt: Scalars['DateTime']['output'];
 };
+
+/** Where the jersey number is placed relative to a player name */
+export enum JerseyNumberPosition {
+  After = 'AFTER',
+  Before = 'BEFORE',
+}
 
 /** Controls visibility of last name to other users */
 export enum LastNameVisibility {
@@ -898,6 +905,17 @@ export type PlayerGameStatsRow = {
   unassistedGoals: Scalars['Int']['output'];
   yellowCards: Scalars['Int']['output'];
 };
+
+/** Controls how a team's players are displayed (e.g. "First Last" vs "Last, First") */
+export enum PlayerNameDisplayFormat {
+  FirstinitialLast = 'FIRSTINITIAL_LAST',
+  FirstinitialLastinitial = 'FIRSTINITIAL_LASTINITIAL',
+  FirstLast = 'FIRST_LAST',
+  FirstLastinitial = 'FIRST_LASTINITIAL',
+  FirstName = 'FIRST_NAME',
+  LastCommaFirst = 'LAST_COMMA_FIRST',
+  LastName = 'LAST_NAME',
+}
 
 export type PlayerPositionStats = {
   __typename?: 'PlayerPositionStats';
@@ -1397,6 +1415,11 @@ export type TeamConfiguration = {
   defaultGameFormatId?: Maybe<Scalars['ID']['output']>;
   defaultPlayerCount: Scalars['Int']['output'];
   id: Scalars['ID']['output'];
+  jerseyNumberPosition: JerseyNumberPosition;
+  /** How this team's players are displayed (e.g. game rosters, stats) */
+  playerNameDisplayFormat: PlayerNameDisplayFormat;
+  /** Whether to show jersey numbers alongside player names */
+  showJerseyNumber: Scalars['Boolean']['output'];
   /** Default stats features for this team's games */
   statsFeatures: StatsFeatures;
   team: Team;
@@ -1545,6 +1568,9 @@ export type UpdateTeamConfigurationInput = {
   defaultGameDuration?: InputMaybe<Scalars['Float']['input']>;
   defaultGameFormatId?: InputMaybe<Scalars['ID']['input']>;
   defaultPlayerCount?: InputMaybe<Scalars['Float']['input']>;
+  jerseyNumberPosition?: InputMaybe<JerseyNumberPosition>;
+  playerNameDisplayFormat?: InputMaybe<PlayerNameDisplayFormat>;
+  showJerseyNumber?: InputMaybe<Scalars['Boolean']['input']>;
   /** Default stats features for this team's games */
   statsFeatures?: InputMaybe<StatsFeaturesInput>;
 };
@@ -2061,6 +2087,12 @@ export type GetGameByIdQuery = {
         homePrimaryColor?: string | null;
         homeSecondaryColor?: string | null;
         isManaged: boolean;
+        teamConfiguration?: {
+          __typename?: 'TeamConfiguration';
+          playerNameDisplayFormat: PlayerNameDisplayFormat;
+          showJerseyNumber: boolean;
+          jerseyNumberPosition: JerseyNumberPosition;
+        } | null;
       };
       events?: Array<{
         __typename?: 'GameEvent';
@@ -3340,6 +3372,9 @@ export type GetTeamByIdQuery = {
       defaultFormation: string;
       defaultGameDuration: number;
       defaultPlayerCount: number;
+      playerNameDisplayFormat: PlayerNameDisplayFormat;
+      showJerseyNumber: boolean;
+      jerseyNumberPosition: JerseyNumberPosition;
       statsFeatures: {
         __typename?: 'StatsFeatures';
         trackGoals: boolean;
@@ -3437,6 +3472,9 @@ export type UpdateTeamConfigurationMutation = {
     defaultFormation: string;
     defaultGameDuration: number;
     defaultPlayerCount: number;
+    playerNameDisplayFormat: PlayerNameDisplayFormat;
+    showJerseyNumber: boolean;
+    jerseyNumberPosition: JerseyNumberPosition;
     statsFeatures: {
       __typename?: 'StatsFeatures';
       trackGoals: boolean;
@@ -5643,6 +5681,39 @@ export const GetGameByIdDocument = {
                             {
                               kind: 'Field',
                               name: { kind: 'Name', value: 'isManaged' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: {
+                                kind: 'Name',
+                                value: 'teamConfiguration',
+                              },
+                              selectionSet: {
+                                kind: 'SelectionSet',
+                                selections: [
+                                  {
+                                    kind: 'Field',
+                                    name: {
+                                      kind: 'Name',
+                                      value: 'playerNameDisplayFormat',
+                                    },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: {
+                                      kind: 'Name',
+                                      value: 'showJerseyNumber',
+                                    },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: {
+                                      kind: 'Name',
+                                      value: 'jerseyNumberPosition',
+                                    },
+                                  },
+                                ],
+                              },
                             },
                           ],
                         },
@@ -10744,6 +10815,21 @@ export const GetTeamByIdDocument = {
                       },
                       {
                         kind: 'Field',
+                        name: {
+                          kind: 'Name',
+                          value: 'playerNameDisplayFormat',
+                        },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'showJerseyNumber' },
+                      },
+                      {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'jerseyNumberPosition' },
+                      },
+                      {
+                        kind: 'Field',
                         name: { kind: 'Name', value: 'defaultGameFormat' },
                         selectionSet: {
                           kind: 'SelectionSet',
@@ -11092,6 +11178,18 @@ export const UpdateTeamConfigurationDocument = {
                       },
                     ],
                   },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'playerNameDisplayFormat' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'showJerseyNumber' },
+                },
+                {
+                  kind: 'Field',
+                  name: { kind: 'Name', value: 'jerseyNumberPosition' },
                 },
                 {
                   kind: 'Field',

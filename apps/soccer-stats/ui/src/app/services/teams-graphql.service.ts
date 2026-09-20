@@ -89,6 +89,9 @@ export const GET_TEAM_BY_ID = graphql(/* GraphQL */ `
           trackSubstitutions
           trackPositions
         }
+        playerNameDisplayFormat
+        showJerseyNumber
+        jerseyNumberPosition
         defaultGameFormat {
           id
           name
@@ -171,6 +174,9 @@ export const UPDATE_TEAM_CONFIGURATION = graphql(/* GraphQL */ `
         trackSubstitutions
         trackPositions
       }
+      playerNameDisplayFormat
+      showJerseyNumber
+      jerseyNumberPosition
       defaultGameFormat {
         id
         name
@@ -374,6 +380,17 @@ export interface TeamPlayer {
   };
 }
 
+export type PlayerNameDisplayFormat =
+  | 'FIRST_NAME'
+  | 'LAST_NAME'
+  | 'FIRST_LAST'
+  | 'LAST_COMMA_FIRST'
+  | 'FIRST_LASTINITIAL'
+  | 'FIRSTINITIAL_LASTINITIAL'
+  | 'FIRSTINITIAL_LAST';
+
+export type JerseyNumberPosition = 'BEFORE' | 'AFTER';
+
 export interface TeamConfiguration {
   id: string;
   teamId?: string;
@@ -381,6 +398,9 @@ export interface TeamConfiguration {
   defaultGameDuration: number;
   defaultPlayerCount: number;
   statsFeatures: StatsFeatures;
+  playerNameDisplayFormat: PlayerNameDisplayFormat;
+  showJerseyNumber: boolean;
+  jerseyNumberPosition: JerseyNumberPosition;
   // TODO: Add defaultLineup when implementing lineup defaults feature
   defaultGameFormat: {
     id: string;
@@ -396,6 +416,9 @@ export interface UpdateTeamConfigurationInput {
   defaultGameDuration?: number;
   defaultPlayerCount?: number;
   statsFeatures?: StatsFeatures;
+  playerNameDisplayFormat?: PlayerNameDisplayFormat;
+  showJerseyNumber?: boolean;
+  jerseyNumberPosition?: JerseyNumberPosition;
   // TODO: Add defaultLineup when implementing lineup defaults feature
 }
 

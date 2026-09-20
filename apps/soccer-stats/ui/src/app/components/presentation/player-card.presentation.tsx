@@ -1,12 +1,29 @@
 import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 
+import { usePlayerNameDisplay } from '../../context/player-name-display.context';
 import { formatTime } from '../../utils';
+import {
+  formatPlayerName,
+  type PlayerNameDisplayFormat,
+} from '../../utils/format-player-name';
 
-function getPlayerDisplayName(player: GqlRosterPlayer): string {
-  if (player.playerName) return player.playerName;
+/**
+ * Prefers firstName/lastName (formatted per the team's configured display
+ * format) so a team's format choice actually takes effect; playerName is a
+ * server-computed "First Last" fallback for rows that don't carry name
+ * parts, and externalPlayerName covers players with no linked account.
+ */
+function getPlayerDisplayName(
+  player: GqlRosterPlayer,
+  format: PlayerNameDisplayFormat,
+): string {
   if (player.firstName || player.lastName) {
-    return `${player.firstName || ''} ${player.lastName || ''}`.trim();
+    return formatPlayerName(
+      { firstName: player.firstName, lastName: player.lastName },
+      format,
+    );
   }
+  if (player.playerName) return player.playerName;
   if (player.externalPlayerName) return player.externalPlayerName;
   return 'Unknown';
 }
@@ -49,8 +66,11 @@ export function PlayerCard({
   disabled = false,
   onClick,
 }: PlayerCardProps) {
+  const { format, showJerseyNumber, jerseyNumberPosition } =
+    usePlayerNameDisplay();
   const isOnField = variant === 'onField';
   const displayNumber = jerseyNumber ?? player.externalPlayerNumber;
+  const showNumberBadge = showJerseyNumber && !!displayNumber;
 
   const cardClasses = isQueued
     ? 'border-orange-300 bg-orange-50 opacity-70'
@@ -87,16 +107,33 @@ export function PlayerCard({
         </span>
       )}
       <div className="flex items-center gap-2">
-        {displayNumber && (
-          <span
-            className={`text-xs font-bold ${isOnField ? 'text-purple-600' : 'text-gray-600'}`}
-          >
-            #{displayNumber}
-          </span>
+        {jerseyNumberPosition === 'AFTER' ? (
+          <>
+            <span className={`text-sm font-medium ${nameClasses}`}>
+              {getPlayerDisplayName(player, format)}
+            </span>
+            {showNumberBadge && (
+              <span
+                className={`text-xs font-bold ${isOnField ? 'text-purple-600' : 'text-gray-600'}`}
+              >
+                #{displayNumber}
+              </span>
+            )}
+          </>
+        ) : (
+          <>
+            {showNumberBadge && (
+              <span
+                className={`text-xs font-bold ${isOnField ? 'text-purple-600' : 'text-gray-600'}`}
+              >
+                #{displayNumber}
+              </span>
+            )}
+            <span className={`text-sm font-medium ${nameClasses}`}>
+              {getPlayerDisplayName(player, format)}
+            </span>
+          </>
         )}
-        <span className={`text-sm font-medium ${nameClasses}`}>
-          {getPlayerDisplayName(player)}
-        </span>
       </div>
       <span
         className={`inline-flex items-center gap-1.5 text-xs ${isOnField ? 'text-purple-600' : 'text-gray-500'}`}

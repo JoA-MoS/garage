@@ -55,6 +55,10 @@ import {
 import { LineupPanel } from '../components/smart/lineup-panel';
 import { GameStats } from '../components/smart/game-stats.smart';
 import { GameSummaryPresentation } from '../components/presentation/game-summary.presentation';
+import {
+  PlayerNameDisplayProvider,
+  type PlayerNameDisplayConfig,
+} from '../context/player-name-display.context';
 import { useSyncedGameTime } from '../hooks/use-synced-game-time';
 import { useResyncOnWake } from '../hooks/use-resync-on-wake';
 import {
@@ -1605,6 +1609,21 @@ export const GamePage = () => {
   const homeTeam = homeTeamData;
   const awayTeam = awayTeamData;
 
+  // The active tab's team controls player-name display prefs (format,
+  // jersey number visibility/position) for the lineup/substitution UI below.
+  const activeTeamConfiguration = (activeTeam === 'home' ? homeTeam : awayTeam)
+    ?.team.teamConfiguration;
+  const activeTeamNameDisplayConfig: PlayerNameDisplayConfig | undefined =
+    activeTeamConfiguration
+      ? {
+          format:
+            activeTeamConfiguration.playerNameDisplayFormat as PlayerNameDisplayConfig['format'],
+          showJerseyNumber: activeTeamConfiguration.showJerseyNumber,
+          jerseyNumberPosition:
+            activeTeamConfiguration.jerseyNumberPosition as PlayerNameDisplayConfig['jerseyNumberPosition'],
+        }
+      : undefined;
+
   // Check if game is in active play (goals can be recorded)
   const isActivePlay =
     game.status === GameStatus.FirstHalf ||
@@ -1699,332 +1718,134 @@ export const GamePage = () => {
             : '';
 
   return (
-    <div
-      className="mx-auto max-w-6xl space-y-6"
-      style={{ paddingBottom: isActivePlay ? panelScrollPadding : undefined }}
-    >
-      {/* Action Error Banner */}
-      {actionError && (
-        <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-          <span>
-            <span className="font-medium">Error:</span> {actionError}
-          </span>
-          <button
-            onClick={() => setActionError(null)}
-            className="ml-4 text-red-500 hover:text-red-700"
-            aria-label="Dismiss error"
-          >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+    <PlayerNameDisplayProvider config={activeTeamNameDisplayConfig}>
+      <div
+        className="mx-auto max-w-6xl space-y-6"
+        style={{ paddingBottom: isActivePlay ? panelScrollPadding : undefined }}
+      >
+        {/* Action Error Banner */}
+        {actionError && (
+          <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+            <span>
+              <span className="font-medium">Error:</span> {actionError}
+            </span>
+            <button
+              onClick={() => setActionError(null)}
+              className="ml-4 text-red-500 hover:text-red-700"
+              aria-label="Dismiss error"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
-      )}
-
-      {/* Game Header */}
-      <GameHeader
-        gameName={game.name || 'Game Details'}
-        status={game.status}
-        gameFormatName={game.format.name}
-        durationMinutes={game.format.durationMinutes}
-        statsFeatures={
-          game.statsFeatures || (UI_DEFAULT_STATS_FEATURES as StatsFeatures)
-        }
-        isPaused={!!game.pausedAt}
-        isConnected={isConnected}
-        gameEventNotificationsEnabled={gameEventNotificationsEnabled}
-        notificationPermission={notificationPermission}
-        showGameMenu={showGameMenu}
-        showResetConfirm={showResetConfirm}
-        clearEventsOnReset={clearEventsOnReset}
-        updatingGame={updatingGame}
-        onToggleMenu={() => setShowGameMenu(!showGameMenu)}
-        onCloseMenu={() => setShowGameMenu(false)}
-        onTogglePause={handleTogglePause}
-        onToggleGameEventNotifications={handleToggleGameEventNotifications}
-        onStatsTrackingChange={handleStatsTrackingChange}
-        onShowResetConfirm={setShowResetConfirm}
-        onClearEventsChange={setClearEventsOnReset}
-        onResetGame={handleResetGame}
-        // Reopen game (for completed games)
-        showReopenConfirm={showReopenConfirm}
-        reopeningGame={reopeningGame}
-        onShowReopenConfirm={setShowReopenConfirm}
-        onReopenGame={handleReopenGame}
-        // Per-team stats tracking
-        homeTeamName={homeTeam?.team.name}
-        awayTeamName={awayTeam?.team.name}
-        homeTeamStatsFeatures={homeTeamData?.statsFeatures}
-        awayTeamStatsFeatures={awayTeamData?.statsFeatures}
-        onTeamStatsTrackingChange={handleTeamStatsTrackingChange}
-        updatingTeamStats={updatingGameTeam}
-      />
-
-      <StickyScoreBar
-        status={game.status}
-        elapsedSeconds={elapsedSeconds}
-        isPaused={!!game.pausedAt}
-        durationMinutes={game.format.durationMinutes}
-        halfIndicator={halfIndicator}
-        firstHalfEnd={game.firstHalfEnd}
-        actualStart={game.actualStart}
-        actualEnd={game.actualEnd}
-        secondHalfStart={game.secondHalfStart}
-        homeTeamName={homeTeam?.team.name || 'Home Team'}
-        awayTeamName={awayTeam?.team.name || 'Away Team'}
-        homeScore={homeScore}
-        awayScore={awayScore}
-        highlightedScore={highlightedScore}
-        venue={game.venue}
-        scheduledStart={game.scheduledStart}
-        isActivePlay={isActivePlay}
-        recordingGoal={recordingGoal}
-        updatingGame={updatingGame}
-        showEndGameConfirm={showEndGameConfirm}
-        onStartFirstHalf={handleStartFirstHalf}
-        onEndFirstHalf={handleEndFirstHalf}
-        onStartSecondHalf={handleStartSecondHalf}
-        onEndGame={handleEndGame}
-        onShowEndGameConfirm={setShowEndGameConfirm}
-        onGoalClick={handleGoalClick}
-      />
-
-      {/* Main Tabs */}
-      <div className="rounded-lg bg-white shadow">
-        {/* Tab Navigation */}
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex">
-            {visibleTabs.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`border-b-2 px-6 py-3 text-sm font-medium transition-colors ${
-                  activeTab === tab
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                }`}
-                type="button"
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </nav>
-        </div>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
 
-        {/* Tab Content */}
-        <div className="p-4 sm:p-6">
-          {/* Lineup Tab */}
-          {activeTab === 'lineup' && showLineupTab && (
-            <div className="space-y-4">
-              {/* Team Selector */}
-              <div className="flex justify-center gap-2">
+        {/* Game Header */}
+        <GameHeader
+          gameName={game.name || 'Game Details'}
+          status={game.status}
+          gameFormatName={game.format.name}
+          durationMinutes={game.format.durationMinutes}
+          statsFeatures={
+            game.statsFeatures || (UI_DEFAULT_STATS_FEATURES as StatsFeatures)
+          }
+          isPaused={!!game.pausedAt}
+          isConnected={isConnected}
+          gameEventNotificationsEnabled={gameEventNotificationsEnabled}
+          notificationPermission={notificationPermission}
+          showGameMenu={showGameMenu}
+          showResetConfirm={showResetConfirm}
+          clearEventsOnReset={clearEventsOnReset}
+          updatingGame={updatingGame}
+          onToggleMenu={() => setShowGameMenu(!showGameMenu)}
+          onCloseMenu={() => setShowGameMenu(false)}
+          onTogglePause={handleTogglePause}
+          onToggleGameEventNotifications={handleToggleGameEventNotifications}
+          onStatsTrackingChange={handleStatsTrackingChange}
+          onShowResetConfirm={setShowResetConfirm}
+          onClearEventsChange={setClearEventsOnReset}
+          onResetGame={handleResetGame}
+          // Reopen game (for completed games)
+          showReopenConfirm={showReopenConfirm}
+          reopeningGame={reopeningGame}
+          onShowReopenConfirm={setShowReopenConfirm}
+          onReopenGame={handleReopenGame}
+          // Per-team stats tracking
+          homeTeamName={homeTeam?.team.name}
+          awayTeamName={awayTeam?.team.name}
+          homeTeamStatsFeatures={homeTeamData?.statsFeatures}
+          awayTeamStatsFeatures={awayTeamData?.statsFeatures}
+          onTeamStatsTrackingChange={handleTeamStatsTrackingChange}
+          updatingTeamStats={updatingGameTeam}
+        />
+
+        <StickyScoreBar
+          status={game.status}
+          elapsedSeconds={elapsedSeconds}
+          isPaused={!!game.pausedAt}
+          durationMinutes={game.format.durationMinutes}
+          halfIndicator={halfIndicator}
+          firstHalfEnd={game.firstHalfEnd}
+          actualStart={game.actualStart}
+          actualEnd={game.actualEnd}
+          secondHalfStart={game.secondHalfStart}
+          homeTeamName={homeTeam?.team.name || 'Home Team'}
+          awayTeamName={awayTeam?.team.name || 'Away Team'}
+          homeScore={homeScore}
+          awayScore={awayScore}
+          highlightedScore={highlightedScore}
+          venue={game.venue}
+          scheduledStart={game.scheduledStart}
+          isActivePlay={isActivePlay}
+          recordingGoal={recordingGoal}
+          updatingGame={updatingGame}
+          showEndGameConfirm={showEndGameConfirm}
+          onStartFirstHalf={handleStartFirstHalf}
+          onEndFirstHalf={handleEndFirstHalf}
+          onStartSecondHalf={handleStartSecondHalf}
+          onEndGame={handleEndGame}
+          onShowEndGameConfirm={setShowEndGameConfirm}
+          onGoalClick={handleGoalClick}
+        />
+
+        {/* Main Tabs */}
+        <div className="rounded-lg bg-white shadow">
+          {/* Tab Navigation */}
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex">
+              {visibleTabs.map((tab) => (
                 <button
-                  onClick={() => setActiveTeam('home')}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                    activeTeam === 'home'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`border-b-2 px-6 py-3 text-sm font-medium transition-colors ${
+                    activeTab === tab
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                   }`}
                   type="button"
                 >
-                  {homeTeam?.team.name || 'Home'}
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>
-                <button
-                  onClick={() => setActiveTeam('away')}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                    activeTeam === 'away'
-                      ? 'bg-red-100 text-red-700'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                  type="button"
-                >
-                  {awayTeam?.team.name || 'Away'}
-                </button>
-              </div>
+              ))}
+            </nav>
+          </div>
 
-              {/* Lineup Content */}
-              {activeTeam === 'home' && homeTeam && (
-                <GameLineupTab
-                  gameTeamId={homeTeam.id}
-                  gameId={gameId}
-                  teamId={homeTeam.team.id}
-                  teamName={homeTeam.team.name}
-                  teamColor={homeTeam.team.homePrimaryColor || '#3B82F6'}
-                  isManaged={homeTeam.team.isManaged}
-                  playersPerTeam={game.format.playersPerTeam}
-                  gameStatus={game.status}
-                  currentPeriod={currentPeriod}
-                  currentPeriodSeconds={currentPeriodSeconds}
-                  onFormationChange={(formation, periodSecs) =>
-                    handleFormationChange(homeTeam.id, formation, periodSecs)
-                  }
-                  onFieldPlayerClickForSub={handleFieldPlayerClickForSub}
-                  hasBenchSelectionActive={panelBenchSelection !== null}
-                  onEmptyPositionClickForSub={
-                    isActivePlay ? setEmptyPositionForSub : undefined
-                  }
-                  queuedPlayerIds={queuedPlayerIds}
-                  selectedFieldPlayerId={selectedFieldPlayerId}
-                  onEmptyPositionClick={
-                    isLineupSetupPhase
-                      ? setSelectedPositionForLineup
-                      : undefined
-                  }
-                  onFieldPlayerClickForLineup={
-                    isLineupSetupPhase
-                      ? setSelectedFieldPlayerForLineup
-                      : undefined
-                  }
-                  hideBench={isLineupSetupPhase || isActivePlay}
-                  statsFeatures={homeEffectiveFeatures}
-                  onAddToFieldClick={getAddToFieldHandler(
-                    homeOnField.length,
-                    homeEffectiveFeatures.trackPositions,
-                  )}
-                  gameEvents={
-                    homeTeam.events?.map((e) => ({
-                      id: e.id,
-                      playerId: e.playerId,
-                      externalPlayerName: e.externalPlayerName,
-                      eventType: e.eventType,
-                      period: e.period ?? '1',
-                      periodSecond: e.periodSecond,
-                      childEvents: e.childEvents?.map((ce) => ({
-                        playerId: ce.playerId,
-                        externalPlayerName: ce.externalPlayerName,
-                        eventType: ce.eventType,
-                      })),
-                    })) ?? []
-                  }
-                  onFieldPlayerClickForSwap={setFieldPlayerForSwap}
-                />
-              )}
-              {activeTeam === 'away' && awayTeam && (
-                <GameLineupTab
-                  gameTeamId={awayTeam.id}
-                  gameId={gameId}
-                  teamId={awayTeam.team.id}
-                  teamName={awayTeam.team.name}
-                  teamColor={awayTeam.team.homePrimaryColor || '#EF4444'}
-                  isManaged={awayTeam.team.isManaged}
-                  playersPerTeam={game.format.playersPerTeam}
-                  gameStatus={game.status}
-                  currentPeriod={currentPeriod}
-                  currentPeriodSeconds={currentPeriodSeconds}
-                  onFormationChange={(formation, periodSecs) =>
-                    handleFormationChange(awayTeam.id, formation, periodSecs)
-                  }
-                  onFieldPlayerClickForSub={handleFieldPlayerClickForSub}
-                  hasBenchSelectionActive={panelBenchSelection !== null}
-                  onEmptyPositionClickForSub={
-                    isActivePlay ? setEmptyPositionForSub : undefined
-                  }
-                  queuedPlayerIds={queuedPlayerIds}
-                  selectedFieldPlayerId={selectedFieldPlayerId}
-                  onEmptyPositionClick={
-                    isLineupSetupPhase
-                      ? setSelectedPositionForLineup
-                      : undefined
-                  }
-                  onFieldPlayerClickForLineup={
-                    isLineupSetupPhase
-                      ? setSelectedFieldPlayerForLineup
-                      : undefined
-                  }
-                  hideBench={isLineupSetupPhase || isActivePlay}
-                  statsFeatures={awayEffectiveFeatures}
-                  onAddToFieldClick={getAddToFieldHandler(
-                    awayOnField.length,
-                    awayEffectiveFeatures.trackPositions,
-                  )}
-                  gameEvents={
-                    awayTeam.events?.map((e) => ({
-                      id: e.id,
-                      playerId: e.playerId,
-                      externalPlayerName: e.externalPlayerName,
-                      eventType: e.eventType,
-                      period: e.period ?? '1',
-                      periodSecond: e.periodSecond,
-                      childEvents: e.childEvents?.map((ce) => ({
-                        playerId: ce.playerId,
-                        externalPlayerName: ce.externalPlayerName,
-                        eventType: ce.eventType,
-                      })),
-                    })) ?? []
-                  }
-                  onFieldPlayerClickForSwap={setFieldPlayerForSwap}
-                />
-              )}
-            </div>
-          )}
-
-          {/* Stats Tab - Game Summary and Playing Time */}
-          {activeTab === 'stats' && (
-            <div className="space-y-6">
-              {/* Game Summary - shown for completed games */}
-              {game.status === GameStatus.Completed && homeTeam && awayTeam && (
-                <GameSummaryPresentation
-                  homeTeam={{
-                    id: homeTeam.id,
-                    teamType: 'home',
-                    team: {
-                      id: homeTeam.team.id,
-                      name: homeTeam.team.name,
-                      homePrimaryColor: homeTeam.team.homePrimaryColor,
-                    },
-                    events: homeTeam.events?.map((e) => ({
-                      id: e.id,
-                      createdAt: e.createdAt,
-                      period: e.period,
-                      periodSecond: e.periodSecond,
-                      playerId: e.playerId,
-                      externalPlayerName: e.externalPlayerName,
-                      externalPlayerNumber: e.externalPlayerNumber,
-                      player: e.player,
-                      eventType: e.eventType,
-                      childEvents: e.childEvents,
-                    })),
-                  }}
-                  awayTeam={{
-                    id: awayTeam.id,
-                    teamType: 'away',
-                    team: {
-                      id: awayTeam.team.id,
-                      name: awayTeam.team.name,
-                      homePrimaryColor: awayTeam.team.homePrimaryColor,
-                    },
-                    events: awayTeam.events?.map((e) => ({
-                      id: e.id,
-                      createdAt: e.createdAt,
-                      period: e.period,
-                      periodSecond: e.periodSecond,
-                      playerId: e.playerId,
-                      externalPlayerName: e.externalPlayerName,
-                      externalPlayerNumber: e.externalPlayerNumber,
-                      player: e.player,
-                      eventType: e.eventType,
-                      childEvents: e.childEvents,
-                    })),
-                  }}
-                />
-              )}
-
-              {/* Player Statistics Section */}
+          {/* Tab Content */}
+          <div className="p-4 sm:p-6">
+            {/* Lineup Tab */}
+            {activeTab === 'lineup' && showLineupTab && (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Player Statistics
-                </h3>
-
                 {/* Team Selector */}
                 <div className="flex justify-center gap-2">
                   <button
@@ -2051,696 +1872,975 @@ export const GamePage = () => {
                   </button>
                 </div>
 
-                {/* Stats Content - Now using GameStats component */}
+                {/* Lineup Content */}
                 {activeTeam === 'home' && homeTeam && (
-                  <GameStats
+                  <GameLineupTab
+                    gameTeamId={homeTeam.id}
+                    gameId={gameId}
+                    teamId={homeTeam.team.id}
                     teamName={homeTeam.team.name}
                     teamColor={homeTeam.team.homePrimaryColor || '#3B82F6'}
-                    players={homeTeam.players || []}
-                    elapsedSeconds={
-                      isActivePlay ? syncedTime.periodSecond : undefined
+                    isManaged={homeTeam.team.isManaged}
+                    playersPerTeam={game.format.playersPerTeam}
+                    gameStatus={game.status}
+                    currentPeriod={currentPeriod}
+                    currentPeriodSeconds={currentPeriodSeconds}
+                    onFormationChange={(formation, periodSecs) =>
+                      handleFormationChange(homeTeam.id, formation, periodSecs)
                     }
-                    isLoading={loading}
+                    onFieldPlayerClickForSub={handleFieldPlayerClickForSub}
+                    hasBenchSelectionActive={panelBenchSelection !== null}
+                    onEmptyPositionClickForSub={
+                      isActivePlay ? setEmptyPositionForSub : undefined
+                    }
+                    queuedPlayerIds={queuedPlayerIds}
+                    selectedFieldPlayerId={selectedFieldPlayerId}
+                    onEmptyPositionClick={
+                      isLineupSetupPhase
+                        ? setSelectedPositionForLineup
+                        : undefined
+                    }
+                    onFieldPlayerClickForLineup={
+                      isLineupSetupPhase
+                        ? setSelectedFieldPlayerForLineup
+                        : undefined
+                    }
+                    hideBench={isLineupSetupPhase || isActivePlay}
+                    statsFeatures={homeEffectiveFeatures}
+                    onAddToFieldClick={getAddToFieldHandler(
+                      homeOnField.length,
+                      homeEffectiveFeatures.trackPositions,
+                    )}
+                    gameEvents={
+                      homeTeam.events?.map((e) => ({
+                        id: e.id,
+                        playerId: e.playerId,
+                        externalPlayerName: e.externalPlayerName,
+                        eventType: e.eventType,
+                        period: e.period ?? '1',
+                        periodSecond: e.periodSecond,
+                        childEvents: e.childEvents?.map((ce) => ({
+                          playerId: ce.playerId,
+                          externalPlayerName: ce.externalPlayerName,
+                          eventType: ce.eventType,
+                        })),
+                      })) ?? []
+                    }
+                    onFieldPlayerClickForSwap={setFieldPlayerForSwap}
                   />
                 )}
                 {activeTeam === 'away' && awayTeam && (
-                  <GameStats
+                  <GameLineupTab
+                    gameTeamId={awayTeam.id}
+                    gameId={gameId}
+                    teamId={awayTeam.team.id}
                     teamName={awayTeam.team.name}
                     teamColor={awayTeam.team.homePrimaryColor || '#EF4444'}
-                    players={awayTeam.players || []}
-                    elapsedSeconds={
-                      isActivePlay ? syncedTime.periodSecond : undefined
+                    isManaged={awayTeam.team.isManaged}
+                    playersPerTeam={game.format.playersPerTeam}
+                    gameStatus={game.status}
+                    currentPeriod={currentPeriod}
+                    currentPeriodSeconds={currentPeriodSeconds}
+                    onFormationChange={(formation, periodSecs) =>
+                      handleFormationChange(awayTeam.id, formation, periodSecs)
                     }
-                    isLoading={loading}
+                    onFieldPlayerClickForSub={handleFieldPlayerClickForSub}
+                    hasBenchSelectionActive={panelBenchSelection !== null}
+                    onEmptyPositionClickForSub={
+                      isActivePlay ? setEmptyPositionForSub : undefined
+                    }
+                    queuedPlayerIds={queuedPlayerIds}
+                    selectedFieldPlayerId={selectedFieldPlayerId}
+                    onEmptyPositionClick={
+                      isLineupSetupPhase
+                        ? setSelectedPositionForLineup
+                        : undefined
+                    }
+                    onFieldPlayerClickForLineup={
+                      isLineupSetupPhase
+                        ? setSelectedFieldPlayerForLineup
+                        : undefined
+                    }
+                    hideBench={isLineupSetupPhase || isActivePlay}
+                    statsFeatures={awayEffectiveFeatures}
+                    onAddToFieldClick={getAddToFieldHandler(
+                      awayOnField.length,
+                      awayEffectiveFeatures.trackPositions,
+                    )}
+                    gameEvents={
+                      awayTeam.events?.map((e) => ({
+                        id: e.id,
+                        playerId: e.playerId,
+                        externalPlayerName: e.externalPlayerName,
+                        eventType: e.eventType,
+                        period: e.period ?? '1',
+                        periodSecond: e.periodSecond,
+                        childEvents: e.childEvents?.map((ce) => ({
+                          playerId: ce.playerId,
+                          externalPlayerName: ce.externalPlayerName,
+                          eventType: ce.eventType,
+                        })),
+                      })) ?? []
+                    }
+                    onFieldPlayerClickForSwap={setFieldPlayerForSwap}
                   />
                 )}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Events Tab */}
-          {activeTab === 'events' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Match Events
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setShowManualGoalModal(true)}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700"
-                >
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 4v16m8-8H4"
+            {/* Stats Tab - Game Summary and Playing Time */}
+            {activeTab === 'stats' && (
+              <div className="space-y-6">
+                {/* Game Summary - shown for completed games */}
+                {game.status === GameStatus.Completed &&
+                  homeTeam &&
+                  awayTeam && (
+                    <GameSummaryPresentation
+                      homeTeam={{
+                        id: homeTeam.id,
+                        teamType: 'home',
+                        team: {
+                          id: homeTeam.team.id,
+                          name: homeTeam.team.name,
+                          homePrimaryColor: homeTeam.team.homePrimaryColor,
+                        },
+                        events: homeTeam.events?.map((e) => ({
+                          id: e.id,
+                          createdAt: e.createdAt,
+                          period: e.period,
+                          periodSecond: e.periodSecond,
+                          playerId: e.playerId,
+                          externalPlayerName: e.externalPlayerName,
+                          externalPlayerNumber: e.externalPlayerNumber,
+                          player: e.player,
+                          eventType: e.eventType,
+                          childEvents: e.childEvents,
+                        })),
+                      }}
+                      awayTeam={{
+                        id: awayTeam.id,
+                        teamType: 'away',
+                        team: {
+                          id: awayTeam.team.id,
+                          name: awayTeam.team.name,
+                          homePrimaryColor: awayTeam.team.homePrimaryColor,
+                        },
+                        events: awayTeam.events?.map((e) => ({
+                          id: e.id,
+                          createdAt: e.createdAt,
+                          period: e.period,
+                          periodSecond: e.periodSecond,
+                          playerId: e.playerId,
+                          externalPlayerName: e.externalPlayerName,
+                          externalPlayerNumber: e.externalPlayerNumber,
+                          player: e.player,
+                          eventType: e.eventType,
+                          childEvents: e.childEvents,
+                        })),
+                      }}
                     />
-                  </svg>
-                  Add Goal
-                </button>
+                  )}
+
+                {/* Player Statistics Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Player Statistics
+                  </h3>
+
+                  {/* Team Selector */}
+                  <div className="flex justify-center gap-2">
+                    <button
+                      onClick={() => setActiveTeam('home')}
+                      className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                        activeTeam === 'home'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                      type="button"
+                    >
+                      {homeTeam?.team.name || 'Home'}
+                    </button>
+                    <button
+                      onClick={() => setActiveTeam('away')}
+                      className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                        activeTeam === 'away'
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                      type="button"
+                    >
+                      {awayTeam?.team.name || 'Away'}
+                    </button>
+                  </div>
+
+                  {/* Stats Content - Now using GameStats component */}
+                  {activeTeam === 'home' && homeTeam && (
+                    <GameStats
+                      teamName={homeTeam.team.name}
+                      teamColor={homeTeam.team.homePrimaryColor || '#3B82F6'}
+                      players={homeTeam.players || []}
+                      elapsedSeconds={
+                        isActivePlay ? syncedTime.periodSecond : undefined
+                      }
+                      isLoading={loading}
+                    />
+                  )}
+                  {activeTeam === 'away' && awayTeam && (
+                    <GameStats
+                      teamName={awayTeam.team.name}
+                      teamColor={awayTeam.team.homePrimaryColor || '#EF4444'}
+                      players={awayTeam.players || []}
+                      elapsedSeconds={
+                        isActivePlay ? syncedTime.periodSecond : undefined
+                      }
+                      isLoading={loading}
+                    />
+                  )}
+                </div>
               </div>
-              {(() => {
-                // Player info type for resolved names
-                type PlayerInfo = {
-                  firstName?: string | null;
-                  lastName?: string | null;
-                  email?: string | null;
-                };
+            )}
 
-                // Define event types for the timeline
-                type MatchEvent = {
-                  id: string;
-                  createdAt: string;
-                  eventType:
-                    | 'goal'
-                    | 'substitution'
-                    | 'position_swap'
-                    | 'starter_entry'
-                    | 'formation_change'
-                    | 'game_start'
-                    | 'period_start'
-                    | 'period_end'
-                    | 'game_end';
-                  periodSecond: number;
-                  teamType: string;
-                  teamName: string;
-                  teamColor: string;
-                  // Timing event-specific
-                  period?: string | null;
-                  // Goal-specific
-                  playerId?: string | null;
-                  externalPlayerName?: string | null;
-                  externalPlayerNumber?: string | null;
-                  player?: PlayerInfo | null;
-                  assist?: {
-                    playerId?: string | null;
-                    externalPlayerName?: string | null;
-                    player?: PlayerInfo | null;
-                  } | null;
-                  // Substitution-specific
-                  playerOut?: {
+            {/* Events Tab */}
+            {activeTab === 'events' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Match Events
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowManualGoalModal(true)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700"
+                  >
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    Add Goal
+                  </button>
+                </div>
+                {(() => {
+                  // Player info type for resolved names
+                  type PlayerInfo = {
+                    firstName?: string | null;
+                    lastName?: string | null;
+                    email?: string | null;
+                  };
+
+                  // Define event types for the timeline
+                  type MatchEvent = {
+                    id: string;
+                    createdAt: string;
+                    eventType:
+                      | 'goal'
+                      | 'substitution'
+                      | 'position_swap'
+                      | 'starter_entry'
+                      | 'formation_change'
+                      | 'game_start'
+                      | 'period_start'
+                      | 'period_end'
+                      | 'game_end';
+                    periodSecond: number;
+                    teamType: string;
+                    teamName: string;
+                    teamColor: string;
+                    // Timing event-specific
+                    period?: string | null;
+                    // Goal-specific
                     playerId?: string | null;
                     externalPlayerName?: string | null;
                     externalPlayerNumber?: string | null;
                     player?: PlayerInfo | null;
-                  };
-                  playerIn?: {
-                    playerId?: string | null;
-                    externalPlayerName?: string | null;
-                    externalPlayerNumber?: string | null;
-                    player?: PlayerInfo | null;
-                  };
-                  // Position swap-specific
-                  swapPlayer1?: {
-                    playerId?: string | null;
-                    externalPlayerName?: string | null;
-                    externalPlayerNumber?: string | null;
-                    position?: string | null;
-                    player?: PlayerInfo | null;
-                  };
-                  swapPlayer2?: {
-                    playerId?: string | null;
-                    externalPlayerName?: string | null;
-                    externalPlayerNumber?: string | null;
-                    position?: string | null;
-                    player?: PlayerInfo | null;
-                  };
-                  // Formation change-specific
-                  newFormation?: string | null;
-                  // Period event child events (players entering/exiting)
-                  childEvents?: ChildEventData[];
-                };
-
-                const matchEvents: MatchEvent[] = [];
-
-                // Helper to process events for a team
-                const processTeamEvents = (
-                  gameTeam: typeof homeTeam,
-                  teamType: 'home' | 'away',
-                  defaultColor: string,
-                ) => {
-                  if (!gameTeam?.events) return;
-
-                  // Track SUB_IN events we've already paired
-                  const processedSubIns = new Set<string>();
-                  // Track POSITION_SWAP events we've already paired
-                  const processedSwaps = new Set<string>();
-                  // Track child events of period events (should not be shown separately)
-                  const periodChildEventIds = new Set<string>();
-
-                  // First pass: collect all child event IDs from period and game end events
-                  gameTeam.events.forEach((event) => {
-                    if (
-                      (event.eventType?.name === 'PERIOD_START' ||
-                        event.eventType?.name === 'PERIOD_END') &&
-                      event.childEvents
-                    ) {
-                      event.childEvents.forEach((child) => {
-                        periodChildEventIds.add(child.id);
-                      });
-                    }
-                  });
-
-                  gameTeam.events.forEach((event) => {
-                    // Skip events that are children of period events
-                    if (periodChildEventIds.has(event.id)) {
-                      return;
-                    }
-                    // Process GOAL events
-                    if (event.eventType?.name === 'GOAL') {
-                      const assistEvent = gameTeam.events?.find(
-                        (e) =>
-                          e.eventType?.name === 'ASSIST' &&
-                          e.periodSecond === event.periodSecond,
-                      );
-                      matchEvents.push({
-                        id: event.id,
-                        createdAt: event.createdAt,
-                        eventType: 'goal',
-                        periodSecond: event.periodSecond,
-                        teamType,
-                        teamName: gameTeam.team.name,
-                        teamColor:
-                          gameTeam.team.homePrimaryColor || defaultColor,
-                        playerId: event.playerId,
-                        externalPlayerName: event.externalPlayerName,
-                        externalPlayerNumber: event.externalPlayerNumber,
-                        player: event.player,
-                        assist: assistEvent
-                          ? {
-                              playerId: assistEvent.playerId,
-                              externalPlayerName:
-                                assistEvent.externalPlayerName,
-                              player: assistEvent.player,
-                            }
-                          : null,
-                      });
-                    }
-
-                    // Process SUBSTITUTION_OUT events (pair with SUBSTITUTION_IN at same time)
-                    if (event.eventType?.name === 'SUBSTITUTION_OUT') {
-                      // Find matching SUBSTITUTION_IN at same time
-                      const subInEvent = gameTeam.events?.find(
-                        (e) =>
-                          e.eventType?.name === 'SUBSTITUTION_IN' &&
-                          e.periodSecond === event.periodSecond &&
-                          !processedSubIns.has(e.id),
-                      );
-
-                      if (subInEvent) {
-                        processedSubIns.add(subInEvent.id);
-                      }
-
-                      matchEvents.push({
-                        id: event.id,
-                        createdAt: event.createdAt,
-                        eventType: 'substitution',
-                        periodSecond: event.periodSecond,
-                        teamType,
-                        teamName: gameTeam.team.name,
-                        teamColor:
-                          gameTeam.team.homePrimaryColor || defaultColor,
-                        playerOut: {
-                          playerId: event.playerId,
-                          externalPlayerName: event.externalPlayerName,
-                          externalPlayerNumber: event.externalPlayerNumber,
-                          player: event.player,
-                        },
-                        playerIn: subInEvent
-                          ? {
-                              playerId: subInEvent.playerId,
-                              externalPlayerName: subInEvent.externalPlayerName,
-                              externalPlayerNumber:
-                                subInEvent.externalPlayerNumber,
-                              player: subInEvent.player,
-                            }
-                          : undefined,
-                      });
-                    }
-
-                    // Process POSITION_SWAP events (pair two swaps at same time)
-                    if (
-                      event.eventType?.name === 'POSITION_SWAP' &&
-                      !processedSwaps.has(event.id)
-                    ) {
-                      // Find the paired swap event at the same time
-                      const pairedSwap = gameTeam.events?.find(
-                        (e) =>
-                          e.eventType?.name === 'POSITION_SWAP' &&
-                          e.id !== event.id &&
-                          e.periodSecond === event.periodSecond &&
-                          !processedSwaps.has(e.id),
-                      );
-
-                      // Mark both as processed
-                      processedSwaps.add(event.id);
-                      if (pairedSwap) {
-                        processedSwaps.add(pairedSwap.id);
-                      }
-
-                      matchEvents.push({
-                        id: event.id,
-                        createdAt: event.createdAt,
-                        eventType: 'position_swap',
-                        periodSecond: event.periodSecond,
-                        teamType,
-                        teamName: gameTeam.team.name,
-                        teamColor:
-                          gameTeam.team.homePrimaryColor || defaultColor,
-                        swapPlayer1: {
-                          playerId: event.playerId,
-                          externalPlayerName: event.externalPlayerName,
-                          externalPlayerNumber: event.externalPlayerNumber,
-                          position: event.position,
-                          player: event.player,
-                        },
-                        swapPlayer2: pairedSwap
-                          ? {
-                              playerId: pairedSwap.playerId,
-                              externalPlayerName: pairedSwap.externalPlayerName,
-                              externalPlayerNumber:
-                                pairedSwap.externalPlayerNumber,
-                              position: pairedSwap.position,
-                              player: pairedSwap.player,
-                            }
-                          : undefined,
-                      });
-                    }
-
-                    // Process SUBSTITUTION_IN events at second 0 (starters entering field)
-                    // These are not paired with SUBSTITUTION_OUT events
-                    if (
-                      event.eventType?.name === 'SUBSTITUTION_IN' &&
-                      event.periodSecond === 0 &&
-                      !processedSubIns.has(event.id)
-                    ) {
-                      matchEvents.push({
-                        id: event.id,
-                        createdAt: event.createdAt,
-                        eventType: 'starter_entry',
-                        periodSecond: event.periodSecond,
-                        teamType,
-                        teamName: gameTeam.team.name,
-                        teamColor:
-                          gameTeam.team.homePrimaryColor || defaultColor,
-                        playerIn: {
-                          playerId: event.playerId,
-                          externalPlayerName: event.externalPlayerName,
-                          externalPlayerNumber: event.externalPlayerNumber,
-                          player: event.player,
-                        },
-                      });
-                    }
-
-                    // Process FORMATION_CHANGE events
-                    if (event.eventType?.name === 'FORMATION_CHANGE') {
-                      matchEvents.push({
-                        id: event.id,
-                        createdAt: event.createdAt,
-                        eventType: 'formation_change',
-                        periodSecond: event.periodSecond,
-                        teamType,
-                        teamName: gameTeam.team.name,
-                        teamColor:
-                          gameTeam.team.homePrimaryColor || defaultColor,
-                        newFormation: event.formation,
-                      });
-                    }
-
-                    // Note: GAME_START events are not displayed - PERIOD_START period 1 serves as the game start indicator
-
-                    // Helper to build child event data from childEvents array
-                    const buildChildEvents = (
-                      children: typeof event.childEvents,
-                    ): ChildEventData[] => {
-                      if (!children) return [];
-                      return children.map((child) => ({
-                        id: child.id,
-                        playerName:
-                          child.externalPlayerName ||
-                          (child.externalPlayerNumber
-                            ? `#${child.externalPlayerNumber}`
-                            : null) ||
-                          (child.player
-                            ? `${child.player.firstName || ''} ${child.player.lastName || ''}`.trim() ||
-                              'Unknown'
-                            : 'Unknown'),
-                        position: (child as { position?: string }).position,
-                      }));
+                    assist?: {
+                      playerId?: string | null;
+                      externalPlayerName?: string | null;
+                      player?: PlayerInfo | null;
+                    } | null;
+                    // Substitution-specific
+                    playerOut?: {
+                      playerId?: string | null;
+                      externalPlayerName?: string | null;
+                      externalPlayerNumber?: string | null;
+                      player?: PlayerInfo | null;
                     };
+                    playerIn?: {
+                      playerId?: string | null;
+                      externalPlayerName?: string | null;
+                      externalPlayerNumber?: string | null;
+                      player?: PlayerInfo | null;
+                    };
+                    // Position swap-specific
+                    swapPlayer1?: {
+                      playerId?: string | null;
+                      externalPlayerName?: string | null;
+                      externalPlayerNumber?: string | null;
+                      position?: string | null;
+                      player?: PlayerInfo | null;
+                    };
+                    swapPlayer2?: {
+                      playerId?: string | null;
+                      externalPlayerName?: string | null;
+                      externalPlayerNumber?: string | null;
+                      position?: string | null;
+                      player?: PlayerInfo | null;
+                    };
+                    // Formation change-specific
+                    newFormation?: string | null;
+                    // Period event child events (players entering/exiting)
+                    childEvents?: ChildEventData[];
+                  };
 
-                    // Process PERIOD_START events (show all - period 1 implies game started)
-                    if (event.eventType?.name === 'PERIOD_START') {
-                      matchEvents.push({
-                        id: event.id,
-                        createdAt: event.createdAt,
-                        eventType: 'period_start',
-                        periodSecond: event.periodSecond,
-                        teamType,
-                        teamName: gameTeam.team.name,
-                        teamColor:
-                          gameTeam.team.homePrimaryColor || defaultColor,
-                        period: event.period,
-                        childEvents: buildChildEvents(event.childEvents),
-                      });
+                  const matchEvents: MatchEvent[] = [];
+
+                  // Helper to process events for a team
+                  const processTeamEvents = (
+                    gameTeam: typeof homeTeam,
+                    teamType: 'home' | 'away',
+                    defaultColor: string,
+                  ) => {
+                    if (!gameTeam?.events) return;
+
+                    // Track SUB_IN events we've already paired
+                    const processedSubIns = new Set<string>();
+                    // Track POSITION_SWAP events we've already paired
+                    const processedSwaps = new Set<string>();
+                    // Track child events of period events (should not be shown separately)
+                    const periodChildEventIds = new Set<string>();
+
+                    // First pass: collect all child event IDs from period and game end events
+                    gameTeam.events.forEach((event) => {
+                      if (
+                        (event.eventType?.name === 'PERIOD_START' ||
+                          event.eventType?.name === 'PERIOD_END') &&
+                        event.childEvents
+                      ) {
+                        event.childEvents.forEach((child) => {
+                          periodChildEventIds.add(child.id);
+                        });
+                      }
+                    });
+
+                    gameTeam.events.forEach((event) => {
+                      // Skip events that are children of period events
+                      if (periodChildEventIds.has(event.id)) {
+                        return;
+                      }
+                      // Process GOAL events
+                      if (event.eventType?.name === 'GOAL') {
+                        const assistEvent = gameTeam.events?.find(
+                          (e) =>
+                            e.eventType?.name === 'ASSIST' &&
+                            e.periodSecond === event.periodSecond,
+                        );
+                        matchEvents.push({
+                          id: event.id,
+                          createdAt: event.createdAt,
+                          eventType: 'goal',
+                          periodSecond: event.periodSecond,
+                          teamType,
+                          teamName: gameTeam.team.name,
+                          teamColor:
+                            gameTeam.team.homePrimaryColor || defaultColor,
+                          playerId: event.playerId,
+                          externalPlayerName: event.externalPlayerName,
+                          externalPlayerNumber: event.externalPlayerNumber,
+                          player: event.player,
+                          assist: assistEvent
+                            ? {
+                                playerId: assistEvent.playerId,
+                                externalPlayerName:
+                                  assistEvent.externalPlayerName,
+                                player: assistEvent.player,
+                              }
+                            : null,
+                        });
+                      }
+
+                      // Process SUBSTITUTION_OUT events (pair with SUBSTITUTION_IN at same time)
+                      if (event.eventType?.name === 'SUBSTITUTION_OUT') {
+                        // Find matching SUBSTITUTION_IN at same time
+                        const subInEvent = gameTeam.events?.find(
+                          (e) =>
+                            e.eventType?.name === 'SUBSTITUTION_IN' &&
+                            e.periodSecond === event.periodSecond &&
+                            !processedSubIns.has(e.id),
+                        );
+
+                        if (subInEvent) {
+                          processedSubIns.add(subInEvent.id);
+                        }
+
+                        matchEvents.push({
+                          id: event.id,
+                          createdAt: event.createdAt,
+                          eventType: 'substitution',
+                          periodSecond: event.periodSecond,
+                          teamType,
+                          teamName: gameTeam.team.name,
+                          teamColor:
+                            gameTeam.team.homePrimaryColor || defaultColor,
+                          playerOut: {
+                            playerId: event.playerId,
+                            externalPlayerName: event.externalPlayerName,
+                            externalPlayerNumber: event.externalPlayerNumber,
+                            player: event.player,
+                          },
+                          playerIn: subInEvent
+                            ? {
+                                playerId: subInEvent.playerId,
+                                externalPlayerName:
+                                  subInEvent.externalPlayerName,
+                                externalPlayerNumber:
+                                  subInEvent.externalPlayerNumber,
+                                player: subInEvent.player,
+                              }
+                            : undefined,
+                        });
+                      }
+
+                      // Process POSITION_SWAP events (pair two swaps at same time)
+                      if (
+                        event.eventType?.name === 'POSITION_SWAP' &&
+                        !processedSwaps.has(event.id)
+                      ) {
+                        // Find the paired swap event at the same time
+                        const pairedSwap = gameTeam.events?.find(
+                          (e) =>
+                            e.eventType?.name === 'POSITION_SWAP' &&
+                            e.id !== event.id &&
+                            e.periodSecond === event.periodSecond &&
+                            !processedSwaps.has(e.id),
+                        );
+
+                        // Mark both as processed
+                        processedSwaps.add(event.id);
+                        if (pairedSwap) {
+                          processedSwaps.add(pairedSwap.id);
+                        }
+
+                        matchEvents.push({
+                          id: event.id,
+                          createdAt: event.createdAt,
+                          eventType: 'position_swap',
+                          periodSecond: event.periodSecond,
+                          teamType,
+                          teamName: gameTeam.team.name,
+                          teamColor:
+                            gameTeam.team.homePrimaryColor || defaultColor,
+                          swapPlayer1: {
+                            playerId: event.playerId,
+                            externalPlayerName: event.externalPlayerName,
+                            externalPlayerNumber: event.externalPlayerNumber,
+                            position: event.position,
+                            player: event.player,
+                          },
+                          swapPlayer2: pairedSwap
+                            ? {
+                                playerId: pairedSwap.playerId,
+                                externalPlayerName:
+                                  pairedSwap.externalPlayerName,
+                                externalPlayerNumber:
+                                  pairedSwap.externalPlayerNumber,
+                                position: pairedSwap.position,
+                                player: pairedSwap.player,
+                              }
+                            : undefined,
+                        });
+                      }
+
+                      // Process SUBSTITUTION_IN events at second 0 (starters entering field)
+                      // These are not paired with SUBSTITUTION_OUT events
+                      if (
+                        event.eventType?.name === 'SUBSTITUTION_IN' &&
+                        event.periodSecond === 0 &&
+                        !processedSubIns.has(event.id)
+                      ) {
+                        matchEvents.push({
+                          id: event.id,
+                          createdAt: event.createdAt,
+                          eventType: 'starter_entry',
+                          periodSecond: event.periodSecond,
+                          teamType,
+                          teamName: gameTeam.team.name,
+                          teamColor:
+                            gameTeam.team.homePrimaryColor || defaultColor,
+                          playerIn: {
+                            playerId: event.playerId,
+                            externalPlayerName: event.externalPlayerName,
+                            externalPlayerNumber: event.externalPlayerNumber,
+                            player: event.player,
+                          },
+                        });
+                      }
+
+                      // Process FORMATION_CHANGE events
+                      if (event.eventType?.name === 'FORMATION_CHANGE') {
+                        matchEvents.push({
+                          id: event.id,
+                          createdAt: event.createdAt,
+                          eventType: 'formation_change',
+                          periodSecond: event.periodSecond,
+                          teamType,
+                          teamName: gameTeam.team.name,
+                          teamColor:
+                            gameTeam.team.homePrimaryColor || defaultColor,
+                          newFormation: event.formation,
+                        });
+                      }
+
+                      // Note: GAME_START events are not displayed - PERIOD_START period 1 serves as the game start indicator
+
+                      // Helper to build child event data from childEvents array
+                      const buildChildEvents = (
+                        children: typeof event.childEvents,
+                      ): ChildEventData[] => {
+                        if (!children) return [];
+                        return children.map((child) => ({
+                          id: child.id,
+                          playerName:
+                            child.externalPlayerName ||
+                            (child.externalPlayerNumber
+                              ? `#${child.externalPlayerNumber}`
+                              : null) ||
+                            (child.player
+                              ? `${child.player.firstName || ''} ${child.player.lastName || ''}`.trim() ||
+                                'Unknown'
+                              : 'Unknown'),
+                          position: (child as { position?: string }).position,
+                        }));
+                      };
+
+                      // Process PERIOD_START events (show all - period 1 implies game started)
+                      if (event.eventType?.name === 'PERIOD_START') {
+                        matchEvents.push({
+                          id: event.id,
+                          createdAt: event.createdAt,
+                          eventType: 'period_start',
+                          periodSecond: event.periodSecond,
+                          teamType,
+                          teamName: gameTeam.team.name,
+                          teamColor:
+                            gameTeam.team.homePrimaryColor || defaultColor,
+                          period: event.period,
+                          childEvents: buildChildEvents(event.childEvents),
+                        });
+                      }
+
+                      // Process PERIOD_END events
+                      // For final period (determined by format.numberOfPeriods), this serves as the "game end" indicator
+                      // (similar to how PERIOD_START period=1 serves as "game start")
+                      if (event.eventType?.name === 'PERIOD_END') {
+                        // Check if this is the final period using numberOfPeriods from game format
+                        const numberOfPeriods =
+                          game.format?.numberOfPeriods ?? 2;
+                        const isFinalPeriod =
+                          event.period === String(numberOfPeriods);
+                        matchEvents.push({
+                          id: event.id,
+                          createdAt: event.createdAt,
+                          // Use 'game_end' type for final period to show "Full Time" label
+                          eventType: isFinalPeriod ? 'game_end' : 'period_end',
+                          periodSecond: event.periodSecond,
+                          teamType,
+                          teamName: gameTeam.team.name,
+                          teamColor:
+                            gameTeam.team.homePrimaryColor || defaultColor,
+                          period: event.period,
+                          childEvents: buildChildEvents(event.childEvents),
+                        });
+                      }
+                    });
+                  };
+
+                  // Process both teams
+                  processTeamEvents(homeTeam, 'home', '#3B82F6');
+                  processTeamEvents(awayTeam, 'away', '#EF4444');
+
+                  // Sort by createdAt (most recent first, substitutions before swaps in batch)
+                  matchEvents.sort(
+                    (a, b) =>
+                      new Date(b.createdAt).getTime() -
+                      new Date(a.createdAt).getTime(),
+                  );
+
+                  // Helper to get player name from event data or team roster
+                  const getPlayerName = (
+                    playerId?: string | null,
+                    externalName?: string | null,
+                    externalNumber?: string | null,
+                    player?: PlayerInfo | null,
+                    team?: typeof homeTeam,
+                  ) => {
+                    // Priority 1: External player name (for unmanaged teams)
+                    if (externalName) return externalName;
+                    // Priority 2: External player number
+                    if (externalNumber) return `#${externalNumber}`;
+                    // Priority 3: Player data from event relation (most reliable)
+                    if (player) {
+                      const name = `${player.firstName || ''} ${
+                        player.lastName || ''
+                      }`.trim();
+                      return name || player.email || 'Unknown';
                     }
-
-                    // Process PERIOD_END events
-                    // For final period (determined by format.numberOfPeriods), this serves as the "game end" indicator
-                    // (similar to how PERIOD_START period=1 serves as "game start")
-                    if (event.eventType?.name === 'PERIOD_END') {
-                      // Check if this is the final period using numberOfPeriods from game format
-                      const numberOfPeriods = game.format?.numberOfPeriods ?? 2;
-                      const isFinalPeriod =
-                        event.period === String(numberOfPeriods);
-                      matchEvents.push({
-                        id: event.id,
-                        createdAt: event.createdAt,
-                        // Use 'game_end' type for final period to show "Full Time" label
-                        eventType: isFinalPeriod ? 'game_end' : 'period_end',
-                        periodSecond: event.periodSecond,
-                        teamType,
-                        teamName: gameTeam.team.name,
-                        teamColor:
-                          gameTeam.team.homePrimaryColor || defaultColor,
-                        period: event.period,
-                        childEvents: buildChildEvents(event.childEvents),
-                      });
+                    // Priority 4: Fallback to game players lookup
+                    if (playerId && team?.players) {
+                      const gamePlayer = team.players.find(
+                        (p) => p.playerId === playerId,
+                      );
+                      if (gamePlayer?.playerName) {
+                        return gamePlayer.playerName;
+                      }
                     }
-                  });
-                };
+                    return 'Unknown';
+                  };
 
-                // Process both teams
-                processTeamEvents(homeTeam, 'home', '#3B82F6');
-                processTeamEvents(awayTeam, 'away', '#EF4444');
-
-                // Sort by createdAt (most recent first, substitutions before swaps in batch)
-                matchEvents.sort(
-                  (a, b) =>
-                    new Date(b.createdAt).getTime() -
-                    new Date(a.createdAt).getTime(),
-                );
-
-                // Helper to get player name from event data or team roster
-                const getPlayerName = (
-                  playerId?: string | null,
-                  externalName?: string | null,
-                  externalNumber?: string | null,
-                  player?: PlayerInfo | null,
-                  team?: typeof homeTeam,
-                ) => {
-                  // Priority 1: External player name (for unmanaged teams)
-                  if (externalName) return externalName;
-                  // Priority 2: External player number
-                  if (externalNumber) return `#${externalNumber}`;
-                  // Priority 3: Player data from event relation (most reliable)
-                  if (player) {
-                    const name = `${player.firstName || ''} ${
-                      player.lastName || ''
-                    }`.trim();
-                    return name || player.email || 'Unknown';
-                  }
-                  // Priority 4: Fallback to game players lookup
-                  if (playerId && team?.players) {
-                    const gamePlayer = team.players.find(
-                      (p) => p.playerId === playerId,
+                  if (matchEvents.length === 0) {
+                    return (
+                      <div className="py-8 text-center text-gray-500">
+                        <p>No events recorded yet</p>
+                      </div>
                     );
-                    if (gamePlayer?.playerName) {
-                      return gamePlayer.playerName;
-                    }
                   }
-                  return 'Unknown';
-                };
 
-                if (matchEvents.length === 0) {
+                  // Helper to check if deleting based on event type
+                  const isDeletingEvent = (
+                    eventId: string,
+                    _eventType: EventCardType,
+                  ) => {
+                    // If this event is the target of cascade delete
+                    if (deleteTarget?.id === eventId) {
+                      return (
+                        deletingWithCascade ||
+                        deletingGoal ||
+                        deletingSubstitution ||
+                        deletingPositionSwap ||
+                        deletingStarterEntry
+                      );
+                    }
+                    return false;
+                  };
+
+                  // Helper to check if checking dependents for this event
+                  const isCheckingEvent = (eventId: string) => {
+                    return deleteTarget?.id === eventId && checkingDependents;
+                  };
+
                   return (
-                    <div className="py-8 text-center text-gray-500">
-                      <p>No events recorded yet</p>
+                    <div className="space-y-3">
+                      {matchEvents.map((event) => {
+                        const team =
+                          event.teamType === 'home' ? homeTeam : awayTeam;
+
+                        // Resolve player names based on event type
+                        const scorerName =
+                          event.eventType === 'goal'
+                            ? getPlayerName(
+                                event.playerId,
+                                event.externalPlayerName,
+                                event.externalPlayerNumber,
+                                event.player,
+                                team,
+                              )
+                            : undefined;
+
+                        const assisterName =
+                          event.eventType === 'goal' && event.assist
+                            ? getPlayerName(
+                                event.assist.playerId,
+                                event.assist.externalPlayerName,
+                                null,
+                                event.assist.player,
+                                team,
+                              )
+                            : null;
+
+                        const playerInName =
+                          event.eventType === 'substitution' ||
+                          event.eventType === 'starter_entry'
+                            ? getPlayerName(
+                                event.playerIn?.playerId,
+                                event.playerIn?.externalPlayerName,
+                                event.playerIn?.externalPlayerNumber,
+                                event.playerIn?.player,
+                                team,
+                              )
+                            : undefined;
+
+                        const playerOutName =
+                          event.eventType === 'substitution'
+                            ? getPlayerName(
+                                event.playerOut?.playerId,
+                                event.playerOut?.externalPlayerName,
+                                event.playerOut?.externalPlayerNumber,
+                                event.playerOut?.player,
+                                team,
+                              )
+                            : undefined;
+
+                        const player1Name =
+                          event.eventType === 'position_swap'
+                            ? getPlayerName(
+                                event.swapPlayer1?.playerId,
+                                event.swapPlayer1?.externalPlayerName,
+                                event.swapPlayer1?.externalPlayerNumber,
+                                event.swapPlayer1?.player,
+                                team,
+                              )
+                            : undefined;
+
+                        const player2Name =
+                          event.eventType === 'position_swap'
+                            ? getPlayerName(
+                                event.swapPlayer2?.playerId,
+                                event.swapPlayer2?.externalPlayerName,
+                                event.swapPlayer2?.externalPlayerNumber,
+                                event.swapPlayer2?.player,
+                                team,
+                              )
+                            : undefined;
+
+                        return (
+                          <EventCard
+                            key={event.id}
+                            id={event.id}
+                            eventType={event.eventType}
+                            periodSecond={event.periodSecond}
+                            teamName={event.teamName}
+                            teamColor={event.teamColor}
+                            scorerName={scorerName}
+                            assisterName={assisterName}
+                            playerInName={playerInName}
+                            playerOutName={playerOutName}
+                            player1Name={player1Name}
+                            player1Position={event.swapPlayer1?.position}
+                            player2Name={player2Name}
+                            player2Position={event.swapPlayer2?.position}
+                            newFormation={event.newFormation}
+                            period={event.period}
+                            childEvents={event.childEvents}
+                            onDeleteClick={handleDeleteClick}
+                            onEdit={
+                              event.eventType === 'goal'
+                                ? () =>
+                                    setEditGoalData({
+                                      team: event.teamType as 'home' | 'away',
+                                      goal: {
+                                        id: event.id,
+                                        period: event.period || '1',
+                                        periodSecond: event.periodSecond,
+                                        playerId: event.playerId,
+                                        externalPlayerName:
+                                          event.externalPlayerName,
+                                        externalPlayerNumber:
+                                          event.externalPlayerNumber,
+                                        assist: event.assist
+                                          ? {
+                                              playerId: event.assist.playerId,
+                                              externalPlayerName:
+                                                event.assist.externalPlayerName,
+                                            }
+                                          : null,
+                                      },
+                                    })
+                                : undefined
+                            }
+                            isDeleting={isDeletingEvent(
+                              event.id,
+                              event.eventType,
+                            )}
+                            isCheckingDependents={isCheckingEvent(event.id)}
+                            isHighlighted={isEventHighlighted(event.id)}
+                          />
+                        );
+                      })}
                     </div>
                   );
-                }
-
-                // Helper to check if deleting based on event type
-                const isDeletingEvent = (
-                  eventId: string,
-                  _eventType: EventCardType,
-                ) => {
-                  // If this event is the target of cascade delete
-                  if (deleteTarget?.id === eventId) {
-                    return (
-                      deletingWithCascade ||
-                      deletingGoal ||
-                      deletingSubstitution ||
-                      deletingPositionSwap ||
-                      deletingStarterEntry
-                    );
-                  }
-                  return false;
-                };
-
-                // Helper to check if checking dependents for this event
-                const isCheckingEvent = (eventId: string) => {
-                  return deleteTarget?.id === eventId && checkingDependents;
-                };
-
-                return (
-                  <div className="space-y-3">
-                    {matchEvents.map((event) => {
-                      const team =
-                        event.teamType === 'home' ? homeTeam : awayTeam;
-
-                      // Resolve player names based on event type
-                      const scorerName =
-                        event.eventType === 'goal'
-                          ? getPlayerName(
-                              event.playerId,
-                              event.externalPlayerName,
-                              event.externalPlayerNumber,
-                              event.player,
-                              team,
-                            )
-                          : undefined;
-
-                      const assisterName =
-                        event.eventType === 'goal' && event.assist
-                          ? getPlayerName(
-                              event.assist.playerId,
-                              event.assist.externalPlayerName,
-                              null,
-                              event.assist.player,
-                              team,
-                            )
-                          : null;
-
-                      const playerInName =
-                        event.eventType === 'substitution' ||
-                        event.eventType === 'starter_entry'
-                          ? getPlayerName(
-                              event.playerIn?.playerId,
-                              event.playerIn?.externalPlayerName,
-                              event.playerIn?.externalPlayerNumber,
-                              event.playerIn?.player,
-                              team,
-                            )
-                          : undefined;
-
-                      const playerOutName =
-                        event.eventType === 'substitution'
-                          ? getPlayerName(
-                              event.playerOut?.playerId,
-                              event.playerOut?.externalPlayerName,
-                              event.playerOut?.externalPlayerNumber,
-                              event.playerOut?.player,
-                              team,
-                            )
-                          : undefined;
-
-                      const player1Name =
-                        event.eventType === 'position_swap'
-                          ? getPlayerName(
-                              event.swapPlayer1?.playerId,
-                              event.swapPlayer1?.externalPlayerName,
-                              event.swapPlayer1?.externalPlayerNumber,
-                              event.swapPlayer1?.player,
-                              team,
-                            )
-                          : undefined;
-
-                      const player2Name =
-                        event.eventType === 'position_swap'
-                          ? getPlayerName(
-                              event.swapPlayer2?.playerId,
-                              event.swapPlayer2?.externalPlayerName,
-                              event.swapPlayer2?.externalPlayerNumber,
-                              event.swapPlayer2?.player,
-                              team,
-                            )
-                          : undefined;
-
-                      return (
-                        <EventCard
-                          key={event.id}
-                          id={event.id}
-                          eventType={event.eventType}
-                          periodSecond={event.periodSecond}
-                          teamName={event.teamName}
-                          teamColor={event.teamColor}
-                          scorerName={scorerName}
-                          assisterName={assisterName}
-                          playerInName={playerInName}
-                          playerOutName={playerOutName}
-                          player1Name={player1Name}
-                          player1Position={event.swapPlayer1?.position}
-                          player2Name={player2Name}
-                          player2Position={event.swapPlayer2?.position}
-                          newFormation={event.newFormation}
-                          period={event.period}
-                          childEvents={event.childEvents}
-                          onDeleteClick={handleDeleteClick}
-                          onEdit={
-                            event.eventType === 'goal'
-                              ? () =>
-                                  setEditGoalData({
-                                    team: event.teamType as 'home' | 'away',
-                                    goal: {
-                                      id: event.id,
-                                      period: event.period || '1',
-                                      periodSecond: event.periodSecond,
-                                      playerId: event.playerId,
-                                      externalPlayerName:
-                                        event.externalPlayerName,
-                                      externalPlayerNumber:
-                                        event.externalPlayerNumber,
-                                      assist: event.assist
-                                        ? {
-                                            playerId: event.assist.playerId,
-                                            externalPlayerName:
-                                              event.assist.externalPlayerName,
-                                          }
-                                        : null,
-                                    },
-                                  })
-                              : undefined
-                          }
-                          isDeleting={isDeletingEvent(
-                            event.id,
-                            event.eventType,
-                          )}
-                          isCheckingDependents={isCheckingEvent(event.id)}
-                          isHighlighted={isEventHighlighted(event.id)}
-                        />
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </div>
-          )}
+                })()}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Goal Modal - New Goal */}
-      {goalModalTeam && (
-        <GoalModal
-          gameTeamId={goalModalTeam === 'home' ? homeTeam!.id : awayTeam!.id}
-          gameId={gameId!}
-          teamId={
-            goalModalTeam === 'home' ? homeTeam!.team.id : awayTeam!.team.id
-          }
-          teamName={
-            goalModalTeam === 'home' ? homeTeam!.team.name : awayTeam!.team.name
-          }
-          teamColor={
-            goalModalTeam === 'home'
-              ? homeTeam!.team.homePrimaryColor || '#3B82F6'
-              : awayTeam!.team.homePrimaryColor || '#EF4444'
-          }
-          onField={goalModalTeam === 'home' ? homeOnField : awayOnField}
-          bench={goalModalTeam === 'home' ? homeBench : awayBench}
-          period={currentPeriod}
-          periodSecond={currentPeriodSeconds}
-          onClose={() => setGoalModalTeam(null)}
-          statsFeatures={getEffectiveStatsFeatures(goalModalTeam)}
-        />
-      )}
-
-      {/* Goal Modal - Edit Goal */}
-      {editGoalData && (
-        <GoalModal
-          gameTeamId={
-            editGoalData.team === 'home' ? homeTeam!.id : awayTeam!.id
-          }
-          gameId={gameId!}
-          teamId={
-            editGoalData.team === 'home' ? homeTeam!.team.id : awayTeam!.team.id
-          }
-          teamName={
-            editGoalData.team === 'home'
-              ? homeTeam!.team.name
-              : awayTeam!.team.name
-          }
-          teamColor={
-            editGoalData.team === 'home'
-              ? homeTeam!.team.homePrimaryColor || '#3B82F6'
-              : awayTeam!.team.homePrimaryColor || '#EF4444'
-          }
-          onField={editGoalData.team === 'home' ? homeOnField : awayOnField}
-          bench={editGoalData.team === 'home' ? homeBench : awayBench}
-          period={editGoalData.goal.period}
-          periodSecond={editGoalData.goal.periodSecond}
-          onClose={() => setEditGoalData(null)}
-          editGoal={editGoalData.goal}
-          statsFeatures={getEffectiveStatsFeatures(editGoalData.team)}
-        />
-      )}
-
-      {/* Manual Goal Modal - Add missed goals at any time */}
-      {showManualGoalModal && homeTeam && awayTeam && (
-        <ManualGoalModal
-          gameId={gameId!}
-          homeTeam={{
-            gameTeamId: homeTeam.id,
-            teamId: homeTeam.team.id,
-            teamName: homeTeam.team.name,
-            teamColor: homeTeam.team.homePrimaryColor || '#3B82F6',
-            teamType: 'home',
-            onField: homeOnField,
-            bench: homeBench,
-            statsFeatures: getEffectiveStatsFeatures('home'),
-          }}
-          awayTeam={{
-            gameTeamId: awayTeam.id,
-            teamId: awayTeam.team.id,
-            teamName: awayTeam.team.name,
-            teamColor: awayTeam.team.homePrimaryColor || '#EF4444',
-            teamType: 'away',
-            onField: awayOnField,
-            bench: awayBench,
-            statsFeatures: getEffectiveStatsFeatures('away'),
-          }}
-          onClose={() => setShowManualGoalModal(false)}
-        />
-      )}
-
-      {/* Lineup Panel - rendered via portal to sit outside <main> in the flex layout */}
-      {isLineupSetupPhase &&
-        homeTeam &&
-        awayTeam &&
-        document.getElementById('panel-portal') &&
-        createPortal(
-          <LineupPanel
+        {/* Goal Modal - New Goal */}
+        {goalModalTeam && (
+          <GoalModal
+            gameTeamId={goalModalTeam === 'home' ? homeTeam!.id : awayTeam!.id}
             gameId={gameId!}
-            gameTeamId={activeTeam === 'home' ? homeTeam.id : awayTeam.id}
-            gameStatus={
-              game.status === GameStatus.Scheduled ? 'SCHEDULED' : 'HALFTIME'
+            teamId={
+              goalModalTeam === 'home' ? homeTeam!.team.id : awayTeam!.team.id
             }
+            teamName={
+              goalModalTeam === 'home'
+                ? homeTeam!.team.name
+                : awayTeam!.team.name
+            }
+            teamColor={
+              goalModalTeam === 'home'
+                ? homeTeam!.team.homePrimaryColor || '#3B82F6'
+                : awayTeam!.team.homePrimaryColor || '#EF4444'
+            }
+            onField={goalModalTeam === 'home' ? homeOnField : awayOnField}
+            bench={goalModalTeam === 'home' ? homeBench : awayBench}
+            period={currentPeriod}
+            periodSecond={currentPeriodSeconds}
+            onClose={() => setGoalModalTeam(null)}
+            statsFeatures={getEffectiveStatsFeatures(goalModalTeam)}
+          />
+        )}
+
+        {/* Goal Modal - Edit Goal */}
+        {editGoalData && (
+          <GoalModal
+            gameTeamId={
+              editGoalData.team === 'home' ? homeTeam!.id : awayTeam!.id
+            }
+            gameId={gameId!}
+            teamId={
+              editGoalData.team === 'home'
+                ? homeTeam!.team.id
+                : awayTeam!.team.id
+            }
+            teamName={
+              editGoalData.team === 'home'
+                ? homeTeam!.team.name
+                : awayTeam!.team.name
+            }
+            teamColor={
+              editGoalData.team === 'home'
+                ? homeTeam!.team.homePrimaryColor || '#3B82F6'
+                : awayTeam!.team.homePrimaryColor || '#EF4444'
+            }
+            onField={editGoalData.team === 'home' ? homeOnField : awayOnField}
+            bench={editGoalData.team === 'home' ? homeBench : awayBench}
+            period={editGoalData.goal.period}
+            periodSecond={editGoalData.goal.periodSecond}
+            onClose={() => setEditGoalData(null)}
+            editGoal={editGoalData.goal}
+            statsFeatures={getEffectiveStatsFeatures(editGoalData.team)}
+          />
+        )}
+
+        {/* Manual Goal Modal - Add missed goals at any time */}
+        {showManualGoalModal && homeTeam && awayTeam && (
+          <ManualGoalModal
+            gameId={gameId!}
+            homeTeam={{
+              gameTeamId: homeTeam.id,
+              teamId: homeTeam.team.id,
+              teamName: homeTeam.team.name,
+              teamColor: homeTeam.team.homePrimaryColor || '#3B82F6',
+              teamType: 'home',
+              onField: homeOnField,
+              bench: homeBench,
+              statsFeatures: getEffectiveStatsFeatures('home'),
+            }}
+            awayTeam={{
+              gameTeamId: awayTeam.id,
+              teamId: awayTeam.team.id,
+              teamName: awayTeam.team.name,
+              teamColor: awayTeam.team.homePrimaryColor || '#EF4444',
+              teamType: 'away',
+              onField: awayOnField,
+              bench: awayBench,
+              statsFeatures: getEffectiveStatsFeatures('away'),
+            }}
+            onClose={() => setShowManualGoalModal(false)}
+          />
+        )}
+
+        {/* Lineup Panel - rendered via portal to sit outside <main> in the flex layout */}
+        {isLineupSetupPhase &&
+          homeTeam &&
+          awayTeam &&
+          document.getElementById('panel-portal') &&
+          createPortal(
+            <LineupPanel
+              gameId={gameId!}
+              gameTeamId={activeTeam === 'home' ? homeTeam.id : awayTeam.id}
+              gameStatus={
+                game.status === GameStatus.Scheduled ? 'SCHEDULED' : 'HALFTIME'
+              }
+              teamName={
+                activeTeam === 'home' ? homeTeam.team.name : awayTeam.team.name
+              }
+              teamColor={
+                activeTeam === 'home'
+                  ? homeTeam.team.homePrimaryColor || '#3B82F6'
+                  : awayTeam.team.homePrimaryColor || '#EF4444'
+              }
+              playersPerTeam={game?.format?.playersPerTeam || 5}
+              trackPositions={
+                activeTeam === 'home'
+                  ? homeEffectiveFeatures.trackPositions
+                  : awayEffectiveFeatures.trackPositions
+              }
+              formation={
+                (activeTeam === 'home'
+                  ? homeTeam.formation
+                  : awayTeam.formation) ?? null
+              }
+              onField={activeTeam === 'home' ? homeOnField : awayOnField}
+              bench={activeTeam === 'home' ? homeBench : awayBench}
+              firstHalfLineup={
+                game.status === GameStatus.Halftime
+                  ? activeTeam === 'home'
+                    ? homeOnField
+                    : awayOnField
+                  : undefined
+              }
+              gameEvents={
+                (activeTeam === 'home'
+                  ? homeTeam.events
+                  : awayTeam.events
+                )?.map((e) => ({
+                  id: e.id,
+                  playerId: e.playerId,
+                  externalPlayerName: e.externalPlayerName,
+                  eventType: e.eventType,
+                  period: e.period ?? '1',
+                  periodSecond: e.periodSecond,
+                  childEvents: e.childEvents?.map((ce) => ({
+                    playerId: ce.playerId,
+                    externalPlayerName: ce.externalPlayerName,
+                    eventType: ce.eventType,
+                  })),
+                })) ?? []
+              }
+              externalPositionSelection={selectedPositionForLineup}
+              onExternalPositionHandled={() =>
+                setSelectedPositionForLineup(null)
+              }
+              externalFieldPlayerSelection={selectedFieldPlayerForLineup}
+              onExternalFieldPlayerHandled={() =>
+                setSelectedFieldPlayerForLineup(null)
+              }
+              onQueuedPositionsChange={setLineupQueuedPositions}
+              onSelectedPositionChange={setLineupSelectedPosition}
+              onPlayerSelectionChange={setLineupPanelHasPlayerSelected}
+              onSelectedFieldPlayerIdChange={setSelectedFieldPlayerId}
+              onQueuedPlayerIdsChange={setQueuedPlayerIds}
+              externalAddToField={addToFieldForLineup}
+              onExternalAddToFieldHandled={() => setAddToFieldForLineup(null)}
+            />,
+            document.getElementById('panel-portal')!,
+          )}
+
+        {/* Inline Substitution Panel - show during active play only */}
+        {isActivePlay && homeTeam && awayTeam && (
+          <SubstitutionPanel
+            key={activeTeam}
+            gameTeamId={activeTeam === 'home' ? homeTeam.id : awayTeam.id}
+            gameId={gameId!}
             teamName={
               activeTeam === 'home' ? homeTeam.team.name : awayTeam.team.name
             }
@@ -2749,26 +2849,11 @@ export const GamePage = () => {
                 ? homeTeam.team.homePrimaryColor || '#3B82F6'
                 : awayTeam.team.homePrimaryColor || '#EF4444'
             }
-            playersPerTeam={game?.format?.playersPerTeam || 5}
-            trackPositions={
-              activeTeam === 'home'
-                ? homeEffectiveFeatures.trackPositions
-                : awayEffectiveFeatures.trackPositions
-            }
-            formation={
-              (activeTeam === 'home'
-                ? homeTeam.formation
-                : awayTeam.formation) ?? null
-            }
             onField={activeTeam === 'home' ? homeOnField : awayOnField}
             bench={activeTeam === 'home' ? homeBench : awayBench}
-            firstHalfLineup={
-              game.status === GameStatus.Halftime
-                ? activeTeam === 'home'
-                  ? homeOnField
-                  : awayOnField
-                : undefined
-            }
+            period={currentPeriod}
+            periodSecond={currentPeriodSeconds}
+            executeImmediately={false}
             gameEvents={
               (activeTeam === 'home' ? homeTeam.events : awayTeam.events)?.map(
                 (e) => ({
@@ -2786,106 +2871,56 @@ export const GamePage = () => {
                 }),
               ) ?? []
             }
-            externalPositionSelection={selectedPositionForLineup}
-            onExternalPositionHandled={() => setSelectedPositionForLineup(null)}
-            externalFieldPlayerSelection={selectedFieldPlayerForLineup}
-            onExternalFieldPlayerHandled={() =>
-              setSelectedFieldPlayerForLineup(null)
+            externalFieldPlayerSelection={selectedFieldPlayerForSub}
+            onExternalSelectionHandled={() =>
+              setSelectedFieldPlayerForSub(null)
             }
-            onQueuedPositionsChange={setLineupQueuedPositions}
-            onSelectedPositionChange={setLineupSelectedPosition}
-            onPlayerSelectionChange={setLineupPanelHasPlayerSelected}
-            onSelectedFieldPlayerIdChange={setSelectedFieldPlayerId}
+            onBenchSelectionChange={setPanelBenchSelection}
+            externalFieldPlayerToReplace={fieldPlayerToReplaceForPanel}
+            onExternalFieldPlayerToReplaceHandled={() =>
+              setFieldPlayerToReplaceForPanel(null)
+            }
+            externalFieldPlayerForSwap={fieldPlayerForSwap}
+            onExternalFieldPlayerForSwapHandled={() =>
+              setFieldPlayerForSwap(null)
+            }
+            externalEmptyPosition={emptyPositionForSub}
+            onExternalEmptyPositionHandled={() => setEmptyPositionForSub(null)}
+            onPanelStateChange={setSubPanelState}
             onQueuedPlayerIdsChange={setQueuedPlayerIds}
-            externalAddToField={addToFieldForLineup}
-            onExternalAddToFieldHandled={() => setAddToFieldForLineup(null)}
-          />,
-          document.getElementById('panel-portal')!,
+            onSelectedFieldPlayerChange={setSelectedFieldPlayerId}
+            externalAddToField={addToFieldForSub}
+            onExternalAddToFieldHandled={() => setAddToFieldForSub(null)}
+            onProjectedOnFieldCountChange={setProjectedOnFieldCount}
+          />
         )}
 
-      {/* Inline Substitution Panel - show during active play only */}
-      {isActivePlay && homeTeam && awayTeam && (
-        <SubstitutionPanel
-          key={activeTeam}
-          gameTeamId={activeTeam === 'home' ? homeTeam.id : awayTeam.id}
-          gameId={gameId!}
-          teamName={
-            activeTeam === 'home' ? homeTeam.team.name : awayTeam.team.name
-          }
-          teamColor={
-            activeTeam === 'home'
-              ? homeTeam.team.homePrimaryColor || '#3B82F6'
-              : awayTeam.team.homePrimaryColor || '#EF4444'
-          }
-          onField={activeTeam === 'home' ? homeOnField : awayOnField}
-          bench={activeTeam === 'home' ? homeBench : awayBench}
-          period={currentPeriod}
-          periodSecond={currentPeriodSeconds}
-          executeImmediately={false}
-          gameEvents={
-            (activeTeam === 'home' ? homeTeam.events : awayTeam.events)?.map(
-              (e) => ({
-                id: e.id,
-                playerId: e.playerId,
-                externalPlayerName: e.externalPlayerName,
-                eventType: e.eventType,
-                period: e.period ?? '1',
-                periodSecond: e.periodSecond,
-                childEvents: e.childEvents?.map((ce) => ({
-                  playerId: ce.playerId,
-                  externalPlayerName: ce.externalPlayerName,
-                  eventType: ce.eventType,
-                })),
-              }),
-            ) ?? []
-          }
-          externalFieldPlayerSelection={selectedFieldPlayerForSub}
-          onExternalSelectionHandled={() => setSelectedFieldPlayerForSub(null)}
-          onBenchSelectionChange={setPanelBenchSelection}
-          externalFieldPlayerToReplace={fieldPlayerToReplaceForPanel}
-          onExternalFieldPlayerToReplaceHandled={() =>
-            setFieldPlayerToReplaceForPanel(null)
-          }
-          externalFieldPlayerForSwap={fieldPlayerForSwap}
-          onExternalFieldPlayerForSwapHandled={() =>
-            setFieldPlayerForSwap(null)
-          }
-          externalEmptyPosition={emptyPositionForSub}
-          onExternalEmptyPositionHandled={() => setEmptyPositionForSub(null)}
-          onPanelStateChange={setSubPanelState}
-          onQueuedPlayerIdsChange={setQueuedPlayerIds}
-          onSelectedFieldPlayerChange={setSelectedFieldPlayerId}
-          externalAddToField={addToFieldForSub}
-          onExternalAddToFieldHandled={() => setAddToFieldForSub(null)}
-          onProjectedOnFieldCountChange={setProjectedOnFieldCount}
-        />
-      )}
+        {/* Cascade Delete Modal */}
+        {cascadeModalData && deleteTarget && (
+          <CascadeDeleteModal
+            isOpen={true}
+            eventType={deleteTarget.eventType}
+            dependentEvents={cascadeModalData.dependentEvents}
+            warningMessage={cascadeModalData.warningMessage}
+            isDeleting={deletingWithCascade}
+            onConfirm={handleCascadeConfirm}
+            onCancel={handleCascadeCancel}
+          />
+        )}
 
-      {/* Cascade Delete Modal */}
-      {cascadeModalData && deleteTarget && (
-        <CascadeDeleteModal
-          isOpen={true}
-          eventType={deleteTarget.eventType}
-          dependentEvents={cascadeModalData.dependentEvents}
-          warningMessage={cascadeModalData.warningMessage}
-          isDeleting={deletingWithCascade}
-          onConfirm={handleCascadeConfirm}
-          onCancel={handleCascadeCancel}
+        {/* Conflict Resolution Modal */}
+        <ConflictResolutionModal
+          isOpen={conflictData !== null}
+          conflictId={conflictData?.conflictId || ''}
+          eventType={conflictData?.eventType || ''}
+          period={conflictData?.period}
+          periodSecond={conflictData?.periodSecond || 0}
+          conflictingEvents={conflictData?.conflictingEvents || []}
+          isResolving={resolvingConflict}
+          onResolve={handleResolveConflict}
+          onClose={() => setConflictData(null)}
         />
-      )}
-
-      {/* Conflict Resolution Modal */}
-      <ConflictResolutionModal
-        isOpen={conflictData !== null}
-        conflictId={conflictData?.conflictId || ''}
-        eventType={conflictData?.eventType || ''}
-        period={conflictData?.period}
-        periodSecond={conflictData?.periodSecond || 0}
-        conflictingEvents={conflictData?.conflictingEvents || []}
-        isResolving={resolvingConflict}
-        onResolve={handleResolveConflict}
-        onClose={() => setConflictData(null)}
-      />
-    </div>
+      </div>
+    </PlayerNameDisplayProvider>
   );
 };

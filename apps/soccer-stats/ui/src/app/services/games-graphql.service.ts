@@ -101,6 +101,11 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
           homePrimaryColor
           homeSecondaryColor
           isManaged
+          teamConfiguration {
+            playerNameDisplayFormat
+            showJerseyNumber
+            jerseyNumberPosition
+          }
         }
         events {
           id
