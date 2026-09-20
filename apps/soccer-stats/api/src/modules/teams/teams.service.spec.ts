@@ -1,7 +1,11 @@
 import { Repository } from 'typeorm';
 
 import { Team } from '../../entities/team.entity';
-import { TeamConfiguration } from '../../entities/team-configuration.entity';
+import {
+  JerseyNumberPosition,
+  PlayerNameDisplayFormat,
+  TeamConfiguration,
+} from '../../entities/team-configuration.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { GameFormat } from '../../entities/game-format.entity';
 import { TeamMembersService } from '../team-members/team-members.service';
@@ -103,6 +107,43 @@ describe('TeamsService', () => {
       expect(teamConfigurationRepository.findOne).toHaveBeenLastCalledWith({
         where: { teamId: 'team-1' },
         relations: { defaultGameFormat: true },
+      });
+    });
+
+    it('persists player name display and jersey number preferences', async () => {
+      const existingConfig = {
+        id: 'config-1',
+        teamId: 'team-1',
+        playerNameDisplayFormat: PlayerNameDisplayFormat.FIRST_LAST,
+        showJerseyNumber: true,
+        jerseyNumberPosition: JerseyNumberPosition.BEFORE,
+      } as TeamConfiguration;
+      const reloadedConfig = {
+        ...existingConfig,
+        playerNameDisplayFormat: PlayerNameDisplayFormat.LAST_COMMA_FIRST,
+        showJerseyNumber: false,
+        jerseyNumberPosition: JerseyNumberPosition.AFTER,
+      } as TeamConfiguration;
+
+      teamRepository.findOne.mockResolvedValue({ id: 'team-1' } as Team);
+      teamConfigurationRepository.findOne
+        .mockResolvedValueOnce(existingConfig)
+        .mockResolvedValueOnce(reloadedConfig);
+      teamConfigurationRepository.save.mockResolvedValue(reloadedConfig);
+
+      await expect(
+        service.updateTeamConfiguration('team-1', {
+          playerNameDisplayFormat: PlayerNameDisplayFormat.LAST_COMMA_FIRST,
+          showJerseyNumber: false,
+          jerseyNumberPosition: JerseyNumberPosition.AFTER,
+        }),
+      ).resolves.toBe(reloadedConfig);
+
+      expect(teamConfigurationRepository.save).toHaveBeenCalledWith({
+        ...existingConfig,
+        playerNameDisplayFormat: PlayerNameDisplayFormat.LAST_COMMA_FIRST,
+        showJerseyNumber: false,
+        jerseyNumberPosition: JerseyNumberPosition.AFTER,
       });
     });
   });

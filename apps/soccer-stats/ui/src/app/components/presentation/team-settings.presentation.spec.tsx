@@ -1,6 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import {
+  JerseyNumberPosition,
+  PlayerNameDisplayFormat,
+} from '@garage/soccer-stats/graphql-codegen';
+
 import { UITeam } from '../types/ui.types';
 
 import { TeamSettingsPresentation } from './team-settings.presentation';
@@ -31,6 +36,11 @@ const baseProps = {
     trackSubstitutions: true,
     trackPositions: true,
   },
+  playerNameDisplay: {
+    format: PlayerNameDisplayFormat.FirstLast,
+    showJerseyNumber: true,
+    jerseyNumberPosition: JerseyNumberPosition.Before,
+  },
   gameFormats: [],
   formations: [],
   positions: [],
@@ -44,6 +54,7 @@ const baseProps = {
   onGameFormatSelect: vi.fn(),
   onFormationSelect: vi.fn(),
   onStatsFeaturesChange: vi.fn(),
+  onPlayerNameDisplayChange: vi.fn(),
   onPositionUpdate: vi.fn(),
   onAddPosition: vi.fn(),
   onRemovePosition: vi.fn(),
@@ -109,5 +120,83 @@ describe('TeamSettingsPresentation calendar import', () => {
 
     fireEvent.click(screen.getByText('Sync Now'));
     expect(onSyncCalendarSource).toHaveBeenCalledWith('source-1');
+  });
+});
+
+describe('TeamSettingsPresentation player display', () => {
+  it('shows the jersey number position toggle only when jersey numbers are shown', () => {
+    const { rerender } = render(<TeamSettingsPresentation {...baseProps} />);
+
+    expect(
+      screen.getByRole('radiogroup', { name: 'Jersey number position' }),
+    ).toBeTruthy();
+
+    rerender(
+      <TeamSettingsPresentation
+        {...baseProps}
+        playerNameDisplay={{
+          ...baseProps.playerNameDisplay,
+          showJerseyNumber: false,
+        }}
+      />,
+    );
+
+    expect(
+      screen.queryByRole('radiogroup', { name: 'Jersey number position' }),
+    ).toBeNull();
+  });
+
+  it('reports a name format change', () => {
+    const onPlayerNameDisplayChange = vi.fn();
+    render(
+      <TeamSettingsPresentation
+        {...baseProps}
+        onPlayerNameDisplayChange={onPlayerNameDisplayChange}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Name format'), {
+      target: { value: 'LAST_COMMA_FIRST' },
+    });
+
+    expect(onPlayerNameDisplayChange).toHaveBeenCalledWith({
+      ...baseProps.playerNameDisplay,
+      format: 'LAST_COMMA_FIRST',
+    });
+  });
+
+  it('reports a jersey number position change', () => {
+    const onPlayerNameDisplayChange = vi.fn();
+    render(
+      <TeamSettingsPresentation
+        {...baseProps}
+        onPlayerNameDisplayChange={onPlayerNameDisplayChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText('After name'));
+
+    expect(onPlayerNameDisplayChange).toHaveBeenCalledWith({
+      ...baseProps.playerNameDisplay,
+      jerseyNumberPosition: JerseyNumberPosition.After,
+    });
+  });
+
+  it('includes player name display in the saved settings payload', () => {
+    const onSaveSettings = vi.fn();
+    render(
+      <TeamSettingsPresentation
+        {...baseProps}
+        onSaveSettings={onSaveSettings}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Save Team Settings'));
+
+    expect(onSaveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        playerNameDisplay: baseProps.playerNameDisplay,
+      }),
+    );
   });
 });

@@ -1,5 +1,11 @@
 import { graphql } from '@garage/soccer-stats/graphql-codegen';
-import type { StatsFeatures } from '@garage/soccer-stats/graphql-codegen';
+import type {
+  StatsFeatures,
+  PlayerNameDisplayFormat,
+  JerseyNumberPosition,
+} from '@garage/soccer-stats/graphql-codegen';
+
+export type { PlayerNameDisplayFormat, JerseyNumberPosition };
 
 export const GET_TEAMS = graphql(/* GraphQL */ `
   query GetTeams {
@@ -89,6 +95,9 @@ export const GET_TEAM_BY_ID = graphql(/* GraphQL */ `
           trackSubstitutions
           trackPositions
         }
+        playerNameDisplayFormat
+        showJerseyNumber
+        jerseyNumberPosition
         defaultGameFormat {
           id
           name
@@ -171,6 +180,9 @@ export const UPDATE_TEAM_CONFIGURATION = graphql(/* GraphQL */ `
         trackSubstitutions
         trackPositions
       }
+      playerNameDisplayFormat
+      showJerseyNumber
+      jerseyNumberPosition
       defaultGameFormat {
         id
         name
@@ -381,6 +393,9 @@ export interface TeamConfiguration {
   defaultGameDuration: number;
   defaultPlayerCount: number;
   statsFeatures: StatsFeatures;
+  playerNameDisplayFormat: PlayerNameDisplayFormat;
+  showJerseyNumber: boolean;
+  jerseyNumberPosition: JerseyNumberPosition;
   // TODO: Add defaultLineup when implementing lineup defaults feature
   defaultGameFormat: {
     id: string;
@@ -396,6 +411,9 @@ export interface UpdateTeamConfigurationInput {
   defaultGameDuration?: number;
   defaultPlayerCount?: number;
   statsFeatures?: StatsFeatures;
+  playerNameDisplayFormat?: PlayerNameDisplayFormat;
+  showJerseyNumber?: boolean;
+  jerseyNumberPosition?: JerseyNumberPosition;
   // TODO: Add defaultLineup when implementing lineup defaults feature
 }
 

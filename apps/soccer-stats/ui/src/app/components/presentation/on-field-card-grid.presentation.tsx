@@ -1,8 +1,7 @@
 import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 
 import { FIELD_SENTINEL_POSITION } from '../smart/lineup-panel/types';
-
-import { PlayerCard } from './player-card.presentation';
+import { PlayerCardConnected } from '../smart/player-card-connected.smart';
 
 const getPlayerId = (player: GqlRosterPlayer) =>
   player.playerId || player.externalPlayerName || '';
@@ -64,7 +63,7 @@ export function OnFieldCardGrid({
           player.position && player.position !== FIELD_SENTINEL_POSITION;
 
         return (
-          <PlayerCard
+          <PlayerCardConnected
             key={player.gameEventId}
             player={player}
             variant="onField"

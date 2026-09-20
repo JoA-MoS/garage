@@ -35,6 +35,7 @@ import { DefaultFinalScoreToZero1775509578482 } from './1775509578482-DefaultFin
 import { CreateGameEventsDetailView1775600000000 } from './1775600000000-CreateGameEventsDetailView';
 import { RemoveFinalScoreColumn1776000000000 } from './1776000000000-RemoveFinalScoreColumn';
 import { AddTeamCalendarSources1776100000000 } from './1776100000000-AddTeamCalendarSources';
+import { AddPlayerNameDisplayFormatToTeamConfiguration1789926501879 } from './1789926501879-AddPlayerNameDisplayFormatToTeamConfiguration';
 
 /**
  * All migrations in chronological order.
@@ -67,4 +68,5 @@ export const migrations = [
   CreateGameEventsDetailView1775600000000,
   RemoveFinalScoreColumn1776000000000,
   AddTeamCalendarSources1776100000000,
+  AddPlayerNameDisplayFormatToTeamConfiguration1789926501879,
 ];

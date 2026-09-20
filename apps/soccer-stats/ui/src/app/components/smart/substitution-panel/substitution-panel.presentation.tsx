@@ -1,7 +1,7 @@
 import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond } from '@garage/soccer-stats/utils';
 
-import { PlayerCard } from '../../presentation/player-card.presentation';
+import { PlayerCardConnected } from '../player-card-connected.smart';
 
 import { SubstitutionPanelPresentationProps, QueuedItem } from './types';
 
@@ -226,7 +226,7 @@ export const SubstitutionPanelPresentation = ({
                   );
 
                   return (
-                    <PlayerCard
+                    <PlayerCardConnected
                       key={player.gameEventId}
                       player={player}
                       variant="bench"
