@@ -2,6 +2,7 @@ import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-co
 
 import {
   DEFAULT_PLAYER_NAME_DISPLAY_CONFIG,
+  JerseyNumberPosition,
   type PlayerNameDisplayConfig,
 } from '../../context/player-name-display.context';
 import { formatTime } from '../../utils';
@@ -9,7 +10,6 @@ import {
   formatPlayerName,
   type PlayerNameDisplayFormat,
 } from '../../utils/format-player-name';
-import { JerseyNumberPosition } from '@garage/soccer-stats/graphql-codegen';
 
 /**
  * Prefers firstName/lastName (formatted per the team's configured display

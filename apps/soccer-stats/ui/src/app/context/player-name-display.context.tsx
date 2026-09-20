@@ -5,7 +5,7 @@ import {
   PlayerNameDisplayFormat,
 } from '@garage/soccer-stats/graphql-codegen';
 
-export type { JerseyNumberPosition, PlayerNameDisplayFormat };
+export { JerseyNumberPosition, PlayerNameDisplayFormat };
 
 export interface PlayerNameDisplayConfig {
   format: PlayerNameDisplayFormat;
