@@ -1,6 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import {
+  JerseyNumberPosition,
+  PlayerNameDisplayFormat,
+} from '@garage/soccer-stats/graphql-codegen';
+
 import { UITeam } from '../types/ui.types';
 
 import { TeamSettingsPresentation } from './team-settings.presentation';
@@ -32,9 +37,9 @@ const baseProps = {
     trackPositions: true,
   },
   playerNameDisplay: {
-    format: 'FIRST_LAST' as const,
+    format: PlayerNameDisplayFormat.FirstLast,
     showJerseyNumber: true,
-    jerseyNumberPosition: 'BEFORE' as const,
+    jerseyNumberPosition: JerseyNumberPosition.Before,
   },
   gameFormats: [],
   formations: [],
@@ -173,7 +178,7 @@ describe('TeamSettingsPresentation player display', () => {
 
     expect(onPlayerNameDisplayChange).toHaveBeenCalledWith({
       ...baseProps.playerNameDisplay,
-      jerseyNumberPosition: 'AFTER',
+      jerseyNumberPosition: JerseyNumberPosition.After,
     });
   });
 

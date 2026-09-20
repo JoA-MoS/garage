@@ -1,11 +1,15 @@
 import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 
-import { usePlayerNameDisplay } from '../../context/player-name-display.context';
+import {
+  DEFAULT_PLAYER_NAME_DISPLAY_CONFIG,
+  type PlayerNameDisplayConfig,
+} from '../../context/player-name-display.context';
 import { formatTime } from '../../utils';
 import {
   formatPlayerName,
   type PlayerNameDisplayFormat,
 } from '../../utils/format-player-name';
+import { JerseyNumberPosition } from '@garage/soccer-stats/graphql-codegen';
 
 /**
  * Prefers firstName/lastName (formatted per the team's configured display
@@ -46,6 +50,12 @@ export interface PlayerCardProps {
   /** Disables the underlying button (e.g. while a mutation is in flight). */
   disabled?: boolean;
   onClick: () => void;
+  /**
+   * Display preferences for name format and jersey number. Defaults to
+   * {@link DEFAULT_PLAYER_NAME_DISPLAY_CONFIG} when omitted so the component
+   * remains usable in isolation (Storybook, unit tests) without a provider.
+   */
+  nameDisplayConfig?: PlayerNameDisplayConfig;
 }
 
 /**
@@ -65,9 +75,9 @@ export function PlayerCard({
   jerseyNumber,
   disabled = false,
   onClick,
+  nameDisplayConfig = DEFAULT_PLAYER_NAME_DISPLAY_CONFIG,
 }: PlayerCardProps) {
-  const { format, showJerseyNumber, jerseyNumberPosition } =
-    usePlayerNameDisplay();
+  const { format, showJerseyNumber, jerseyNumberPosition } = nameDisplayConfig;
   const isOnField = variant === 'onField';
   const displayNumber = jerseyNumber ?? player.externalPlayerNumber;
   const showNumberBadge = showJerseyNumber && !!displayNumber;
@@ -107,7 +117,7 @@ export function PlayerCard({
         </span>
       )}
       <div className="flex items-center gap-2">
-        {jerseyNumberPosition === 'AFTER' ? (
+        {jerseyNumberPosition === JerseyNumberPosition.After ? (
           <>
             <span className={`text-sm font-medium ${nameClasses}`}>
               {getPlayerDisplayName(player, format)}

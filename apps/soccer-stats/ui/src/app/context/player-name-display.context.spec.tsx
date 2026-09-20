@@ -2,6 +2,11 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import {
+  JerseyNumberPosition,
+  PlayerNameDisplayFormat,
+} from '@garage/soccer-stats/graphql-codegen';
+
+import {
   DEFAULT_PLAYER_NAME_DISPLAY_CONFIG,
   PlayerNameDisplayProvider,
   usePlayerNameDisplay,
@@ -25,9 +30,9 @@ describe('PlayerNameDisplayContext', () => {
     render(
       <PlayerNameDisplayProvider
         config={{
-          format: 'LAST_COMMA_FIRST',
+          format: PlayerNameDisplayFormat.LastCommaFirst,
           showJerseyNumber: false,
-          jerseyNumberPosition: 'AFTER',
+          jerseyNumberPosition: JerseyNumberPosition.After,
         }}
       >
         <ConfigProbe />

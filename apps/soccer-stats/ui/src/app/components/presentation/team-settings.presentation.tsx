@@ -6,6 +6,10 @@ import {
   type UICreateTeamInput,
   type UIStatsFeatures,
 } from '@garage/soccer-stats/ui-components';
+import {
+  JerseyNumberPosition,
+  PlayerNameDisplayFormat,
+} from '@garage/soccer-stats/graphql-codegen';
 
 import { CalendarSourceViewModel } from '../../services/calendar-sync-graphql.service';
 import { UITeam, UIGameFormat, UIFormation } from '../types/ui.types';
@@ -250,7 +254,7 @@ export const TeamSettingsPresentation = ({
               onChange={(e) =>
                 onPlayerNameDisplayChange({
                   ...playerNameDisplay,
-                  format: e.target.value as PlayerNameDisplayConfig['format'],
+                  format: e.target.value as PlayerNameDisplayFormat,
                 })
               }
               disabled={loading}
@@ -287,7 +291,7 @@ export const TeamSettingsPresentation = ({
                 aria-label="Jersey number position"
                 className="flex items-center gap-4 text-sm text-gray-700"
               >
-                {(['BEFORE', 'AFTER'] as const).map((position) => (
+                {([JerseyNumberPosition.Before, JerseyNumberPosition.After]).map((position) => (
                   <label key={position} className="flex items-center gap-1.5">
                     <input
                       type="radio"
@@ -304,7 +308,7 @@ export const TeamSettingsPresentation = ({
                       disabled={loading}
                       className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                    {position === 'BEFORE' ? 'Before name' : 'After name'}
+                    {position === JerseyNumberPosition.Before ? 'Before name' : 'After name'}
                   </label>
                 ))}
               </div>

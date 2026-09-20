@@ -1,9 +1,11 @@
 import { createContext, useContext, ReactNode } from 'react';
 
-import type {
+import {
   JerseyNumberPosition,
   PlayerNameDisplayFormat,
-} from '../services/teams-graphql.service';
+} from '@garage/soccer-stats/graphql-codegen';
+
+export type { JerseyNumberPosition, PlayerNameDisplayFormat };
 
 export interface PlayerNameDisplayConfig {
   format: PlayerNameDisplayFormat;
@@ -12,9 +14,9 @@ export interface PlayerNameDisplayConfig {
 }
 
 export const DEFAULT_PLAYER_NAME_DISPLAY_CONFIG: PlayerNameDisplayConfig = {
-  format: 'FIRST_LAST',
+  format: PlayerNameDisplayFormat.FirstLast,
   showJerseyNumber: true,
-  jerseyNumberPosition: 'BEFORE',
+  jerseyNumberPosition: JerseyNumberPosition.Before,
 };
 
 const PlayerNameDisplayContext = createContext<PlayerNameDisplayConfig>(

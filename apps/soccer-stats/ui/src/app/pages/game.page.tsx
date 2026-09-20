@@ -1616,11 +1616,10 @@ export const GamePage = () => {
   const activeTeamNameDisplayConfig: PlayerNameDisplayConfig | undefined =
     activeTeamConfiguration
       ? {
-          format:
-            activeTeamConfiguration.playerNameDisplayFormat as PlayerNameDisplayConfig['format'],
+          format: activeTeamConfiguration.playerNameDisplayFormat,
           showJerseyNumber: activeTeamConfiguration.showJerseyNumber,
           jerseyNumberPosition:
-            activeTeamConfiguration.jerseyNumberPosition as PlayerNameDisplayConfig['jerseyNumberPosition'],
+            activeTeamConfiguration.jerseyNumberPosition,
         }
       : undefined;
 

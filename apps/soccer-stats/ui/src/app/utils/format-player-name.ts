@@ -1,13 +1,9 @@
-export type PlayerNameDisplayFormat =
-  | 'FIRST_NAME'
-  | 'LAST_NAME'
-  | 'FIRST_LAST'
-  | 'LAST_COMMA_FIRST'
-  | 'FIRST_LASTINITIAL'
-  | 'FIRSTINITIAL_LASTINITIAL'
-  | 'FIRSTINITIAL_LAST';
+import {
+  JerseyNumberPosition,
+  PlayerNameDisplayFormat,
+} from '@garage/soccer-stats/graphql-codegen';
 
-export type JerseyNumberPosition = 'BEFORE' | 'AFTER';
+export type { JerseyNumberPosition, PlayerNameDisplayFormat };
 
 type NameParts = {
   firstName?: string | null;
@@ -35,20 +31,20 @@ export function formatPlayerName(
   const lastInitial = last ? `${last[0]}.` : '';
 
   switch (format) {
-    case 'FIRST_NAME':
+    case PlayerNameDisplayFormat.FirstName:
       return first || last;
-    case 'LAST_NAME':
+    case PlayerNameDisplayFormat.LastName:
       return last || first;
-    case 'FIRST_LAST':
+    case PlayerNameDisplayFormat.FirstLast:
       return [first, last].filter(Boolean).join(' ');
-    case 'LAST_COMMA_FIRST':
+    case PlayerNameDisplayFormat.LastCommaFirst:
       return last && first ? `${last}, ${first}` : first || last;
-    case 'FIRST_LASTINITIAL':
-      return last ? `${first} ${lastInitial}` : first;
-    case 'FIRSTINITIAL_LASTINITIAL':
+    case PlayerNameDisplayFormat.FirstLastinitial:
+      return [first, lastInitial].filter(Boolean).join(' ');
+    case PlayerNameDisplayFormat.FirstinitialLastinitial:
       return last ? `${firstInitial}${lastInitial}` : firstInitial;
-    case 'FIRSTINITIAL_LAST':
-      return last ? `${firstInitial} ${last}` : firstInitial;
+    case PlayerNameDisplayFormat.FirstinitialLast:
+      return [firstInitial, last].filter(Boolean).join(' ');
   }
 }
 
@@ -59,13 +55,13 @@ export const PLAYER_NAME_DISPLAY_FORMAT_OPTIONS: Array<{
   sample: string;
 }> = (
   [
-    ['FIRST_LAST', 'First Last'],
-    ['LAST_COMMA_FIRST', 'Last, First'],
-    ['FIRST_NAME', 'First name only'],
-    ['LAST_NAME', 'Last name only'],
-    ['FIRST_LASTINITIAL', 'First, last initial'],
-    ['FIRSTINITIAL_LAST', 'First initial, last'],
-    ['FIRSTINITIAL_LASTINITIAL', 'Initials only'],
+    [PlayerNameDisplayFormat.FirstLast, 'First Last'],
+    [PlayerNameDisplayFormat.LastCommaFirst, 'Last, First'],
+    [PlayerNameDisplayFormat.FirstName, 'First name only'],
+    [PlayerNameDisplayFormat.LastName, 'Last name only'],
+    [PlayerNameDisplayFormat.FirstLastinitial, 'First, last initial'],
+    [PlayerNameDisplayFormat.FirstinitialLast, 'First initial, last'],
+    [PlayerNameDisplayFormat.FirstinitialLastinitial, 'Initials only'],
   ] as const
 ).map(([value, label]) => ({
   value,
@@ -83,7 +79,7 @@ export function formatJerseyDisplay(
 ): string {
   if (!showJerseyNumber || !jerseyNumber) return name;
 
-  return jerseyNumberPosition === 'BEFORE'
+  return jerseyNumberPosition === JerseyNumberPosition.Before
     ? `#${jerseyNumber} ${name}`
     : `${name} #${jerseyNumber}`;
 }

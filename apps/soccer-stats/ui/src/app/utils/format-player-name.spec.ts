@@ -1,22 +1,26 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  JerseyNumberPosition,
+  PlayerNameDisplayFormat,
+} from '@garage/soccer-stats/graphql-codegen';
+
+import {
   formatJerseyDisplay,
   formatPlayerName,
-  type PlayerNameDisplayFormat,
 } from './format-player-name';
 
 describe('formatPlayerName', () => {
   const player = { firstName: 'Justin', lastName: 'Dietz' };
 
   const cases: Array<[PlayerNameDisplayFormat, string]> = [
-    ['FIRST_NAME', 'Justin'],
-    ['LAST_NAME', 'Dietz'],
-    ['FIRST_LAST', 'Justin Dietz'],
-    ['LAST_COMMA_FIRST', 'Dietz, Justin'],
-    ['FIRST_LASTINITIAL', 'Justin D.'],
-    ['FIRSTINITIAL_LASTINITIAL', 'J.D.'],
-    ['FIRSTINITIAL_LAST', 'J. Dietz'],
+    [PlayerNameDisplayFormat.FirstName, 'Justin'],
+    [PlayerNameDisplayFormat.LastName, 'Dietz'],
+    [PlayerNameDisplayFormat.FirstLast, 'Justin Dietz'],
+    [PlayerNameDisplayFormat.LastCommaFirst, 'Dietz, Justin'],
+    [PlayerNameDisplayFormat.FirstLastinitial, 'Justin D.'],
+    [PlayerNameDisplayFormat.FirstinitialLastinitial, 'J.D.'],
+    [PlayerNameDisplayFormat.FirstinitialLast, 'J. Dietz'],
   ];
 
   it.each(cases)('formats %s as "%s"', (format, expected) => {
@@ -27,13 +31,13 @@ describe('formatPlayerName', () => {
     const noLastName = { firstName: 'Justin', lastName: null };
 
     const fallbackCases: Array<[PlayerNameDisplayFormat, string]> = [
-      ['FIRST_NAME', 'Justin'],
-      ['LAST_NAME', 'Justin'],
-      ['FIRST_LAST', 'Justin'],
-      ['LAST_COMMA_FIRST', 'Justin'],
-      ['FIRST_LASTINITIAL', 'Justin'],
-      ['FIRSTINITIAL_LASTINITIAL', 'J.'],
-      ['FIRSTINITIAL_LAST', 'J.'],
+      [PlayerNameDisplayFormat.FirstName, 'Justin'],
+      [PlayerNameDisplayFormat.LastName, 'Justin'],
+      [PlayerNameDisplayFormat.FirstLast, 'Justin'],
+      [PlayerNameDisplayFormat.LastCommaFirst, 'Justin'],
+      [PlayerNameDisplayFormat.FirstLastinitial, 'Justin'],
+      [PlayerNameDisplayFormat.FirstinitialLastinitial, 'J.'],
+      [PlayerNameDisplayFormat.FirstinitialLast, 'J.'],
     ];
 
     it.each(fallbackCases)(
@@ -46,13 +50,13 @@ describe('formatPlayerName', () => {
 
   it('returns an empty string when both names are missing', () => {
     expect(
-      formatPlayerName({ firstName: null, lastName: null }, 'FIRST_LAST'),
+      formatPlayerName({ firstName: null, lastName: null }, PlayerNameDisplayFormat.FirstLast),
     ).toBe('');
   });
 
   it('trims whitespace-only names as if they were missing', () => {
     expect(
-      formatPlayerName({ firstName: 'Justin', lastName: '  ' }, 'FIRST_LAST'),
+      formatPlayerName({ firstName: 'Justin', lastName: '  ' }, PlayerNameDisplayFormat.FirstLast),
     ).toBe('Justin');
   });
 });
@@ -62,7 +66,7 @@ describe('formatJerseyDisplay', () => {
     expect(
       formatJerseyDisplay('Justin Dietz', '7', {
         showJerseyNumber: true,
-        jerseyNumberPosition: 'BEFORE',
+        jerseyNumberPosition: JerseyNumberPosition.Before,
       }),
     ).toBe('#7 Justin Dietz');
   });
@@ -71,7 +75,7 @@ describe('formatJerseyDisplay', () => {
     expect(
       formatJerseyDisplay('Justin Dietz', '7', {
         showJerseyNumber: true,
-        jerseyNumberPosition: 'AFTER',
+        jerseyNumberPosition: JerseyNumberPosition.After,
       }),
     ).toBe('Justin Dietz #7');
   });
@@ -80,7 +84,7 @@ describe('formatJerseyDisplay', () => {
     expect(
       formatJerseyDisplay('Justin Dietz', '7', {
         showJerseyNumber: false,
-        jerseyNumberPosition: 'BEFORE',
+        jerseyNumberPosition: JerseyNumberPosition.Before,
       }),
     ).toBe('Justin Dietz');
   });
@@ -89,7 +93,7 @@ describe('formatJerseyDisplay', () => {
     expect(
       formatJerseyDisplay('Justin Dietz', null, {
         showJerseyNumber: true,
-        jerseyNumberPosition: 'BEFORE',
+        jerseyNumberPosition: JerseyNumberPosition.Before,
       }),
     ).toBe('Justin Dietz');
   });

@@ -1,5 +1,11 @@
 import { graphql } from '@garage/soccer-stats/graphql-codegen';
-import type { StatsFeatures } from '@garage/soccer-stats/graphql-codegen';
+import type {
+  StatsFeatures,
+  PlayerNameDisplayFormat,
+  JerseyNumberPosition,
+} from '@garage/soccer-stats/graphql-codegen';
+
+export type { PlayerNameDisplayFormat, JerseyNumberPosition };
 
 export const GET_TEAMS = graphql(/* GraphQL */ `
   query GetTeams {
@@ -379,17 +385,6 @@ export interface TeamPlayer {
     };
   };
 }
-
-export type PlayerNameDisplayFormat =
-  | 'FIRST_NAME'
-  | 'LAST_NAME'
-  | 'FIRST_LAST'
-  | 'LAST_COMMA_FIRST'
-  | 'FIRST_LASTINITIAL'
-  | 'FIRSTINITIAL_LASTINITIAL'
-  | 'FIRSTINITIAL_LAST';
-
-export type JerseyNumberPosition = 'BEFORE' | 'AFTER';
 
 export interface TeamConfiguration {
   id: string;
