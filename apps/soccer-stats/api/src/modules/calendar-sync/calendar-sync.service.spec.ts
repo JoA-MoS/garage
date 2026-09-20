@@ -198,6 +198,30 @@ describe('CalendarSyncService', () => {
     );
   });
 
+  it('does not revert a completed game back to scheduled on resync', async () => {
+    const existingGame = {
+      id: 'game-existing',
+      status: GameStatus.COMPLETED,
+    } as Game;
+    mappingRepo.findOne.mockResolvedValue({
+      id: 'mapping-1',
+      gameId: existingGame.id,
+      game: existingGame,
+      externalUid: 'Game_4494939',
+      externalSequence: 1,
+    } as ExternalGameMapping);
+
+    const result = await service.syncSource(source.id);
+
+    expect(result).toMatchObject({ created: 0, updated: 1, skipped: 0 });
+    expect(gameRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: existingGame.id,
+        status: GameStatus.COMPLETED,
+      }),
+    );
+  });
+
   it('creates a scheduled game from a SportsEngine feed', async () => {
     const sportsEngineSource = {
       ...source,

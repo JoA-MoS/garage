@@ -274,7 +274,9 @@ export class CalendarSyncService {
     game.scheduledStart = imported.startsAt;
     game.venue = imported.location;
     game.notes = this.buildGameNotes(imported);
-    game.status = this.toGameStatus(imported.status);
+    if (this.isCalendarManagedStatus(game.status)) {
+      game.status = this.toGameStatus(imported.status);
+    }
     game.durationMinutes = this.durationMinutes(imported, game.durationMinutes);
 
     await this.gameRepository.save(game);
@@ -382,6 +384,12 @@ export class CalendarSyncService {
 
   private toGameStatus(status: ImportedCalendarGame['status']): GameStatus {
     return status === 'CANCELLED' ? GameStatus.CANCELLED : GameStatus.SCHEDULED;
+  }
+
+  // The feed only knows SCHEDULED/CANCELLED, so once live tracking has moved
+  // a game further (in progress or completed), resync must not revert it.
+  private isCalendarManagedStatus(status: GameStatus): boolean {
+    return status === GameStatus.SCHEDULED || status === GameStatus.CANCELLED;
   }
 
   private inferProvider(
