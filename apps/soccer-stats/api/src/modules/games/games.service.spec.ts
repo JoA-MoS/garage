@@ -392,10 +392,10 @@ describe('GamesService', () => {
     });
 
     describe('publishGameEvent (via timing event creation)', () => {
-      let warnSpy: jest.SpyInstance;
+      let errorSpy: jest.SpyInstance;
 
       beforeEach(() => {
-        warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+        errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
 
         // The timing event created by createTimingEventsForStatusChange is
         // re-fetched with relations before publishing; return a hydrated
@@ -416,7 +416,7 @@ describe('GamesService', () => {
       });
 
       afterEach(() => {
-        warnSpy.mockRestore();
+        errorSpy.mockRestore();
       });
 
       it('publishes a slim event payload without nested relations', async () => {
@@ -458,7 +458,7 @@ describe('GamesService', () => {
           ),
         ).resolves.toBeDefined();
 
-        expect(warnSpy).toHaveBeenCalledWith(
+        expect(errorSpy).toHaveBeenCalledWith(
           'Real-time game event notification failed',
           expect.objectContaining({
             action: GameEventAction.CREATED,

@@ -11,14 +11,14 @@ import { GameEventAction } from '../dto/game-event-subscription.output';
 import { EventCoreService } from './event-core.service';
 
 describe('EventCoreService publishGameEvent', () => {
-  let warnSpy: jest.SpyInstance;
+  let errorSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
   });
 
   afterEach(() => {
-    warnSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 
   const createService = (publish = jest.fn().mockResolvedValue(undefined)) =>
@@ -86,7 +86,7 @@ describe('EventCoreService publishGameEvent', () => {
         gameId: 'game-1',
       } as GameEvent),
     ).resolves.toBeUndefined();
-    expect(warnSpy).toHaveBeenCalledWith(
+    expect(errorSpy).toHaveBeenCalledWith(
       'Real-time game event notification failed',
       expect.objectContaining({
         action: GameEventAction.CREATED,
@@ -94,5 +94,27 @@ describe('EventCoreService publishGameEvent', () => {
         gameId: 'game-1',
       }),
     );
+  });
+
+  it('publishes with an undefined event field when no event is provided (e.g. conflict resolution)', async () => {
+    const publish = jest.fn().mockResolvedValue(undefined);
+    const service = createService(publish);
+
+    await service.publishGameEvent(
+      'game-1',
+      GameEventAction.DELETED,
+      undefined,
+      'deleted-event-1',
+    );
+
+    expect(publish).toHaveBeenCalledWith('gameEvent:game-1', {
+      gameEventChanged: {
+        action: GameEventAction.DELETED,
+        gameId: 'game-1',
+        event: undefined,
+        deletedEventId: 'deleted-event-1',
+        conflict: undefined,
+      },
+    });
   });
 });

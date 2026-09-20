@@ -145,7 +145,11 @@ export class EventCoreService implements OnModuleInit {
         gameEventChanged: payload,
       });
     } catch (error) {
-      this.logger.warn('Real-time game event notification failed', {
+      // error, not warn: a failed publish means every subscriber for this
+      // game is now out of sync, and PostgresPubSub's connect() never
+      // resets a rejected connection promise - one failure can mean every
+      // subsequent publish for the process's lifetime silently fails too.
+      this.logger.error('Real-time game event notification failed', {
         action,
         deletedEventId,
         error: error instanceof Error ? error.message : String(error),
