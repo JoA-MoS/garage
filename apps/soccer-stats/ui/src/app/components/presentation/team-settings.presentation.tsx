@@ -9,6 +9,8 @@ import {
 
 import { CalendarSourceViewModel } from '../../services/calendar-sync-graphql.service';
 import { UITeam, UIGameFormat, UIFormation } from '../types/ui.types';
+import type { PlayerNameDisplayConfig } from '../../context/player-name-display.context';
+import { PLAYER_NAME_DISPLAY_FORMAT_OPTIONS } from '../../utils/format-player-name';
 
 import { StatsTrackingSelector } from './stats-tracking-selector.presentation';
 
@@ -17,6 +19,7 @@ interface TeamSettingsPresentationProps {
   selectedGameFormat?: string;
   selectedFormation?: string;
   statsFeatures: UIStatsFeatures;
+  playerNameDisplay: PlayerNameDisplayConfig;
   gameFormats: UIGameFormat[];
   formations: UIFormation[];
   positions: Array<{
@@ -40,6 +43,7 @@ interface TeamSettingsPresentationProps {
     gameFormat?: string;
     formation?: string;
     statsFeatures: UIStatsFeatures;
+    playerNameDisplay: PlayerNameDisplayConfig;
     positions: Array<{
       id: string;
       name: string;
@@ -51,6 +55,7 @@ interface TeamSettingsPresentationProps {
   onGameFormatSelect: (formatId: string) => void;
   onFormationSelect: (formationId: string) => void;
   onStatsFeaturesChange: (features: UIStatsFeatures) => void;
+  onPlayerNameDisplayChange: (config: PlayerNameDisplayConfig) => void;
   onPositionUpdate: (
     positionId: string,
     updates: Partial<{
@@ -73,6 +78,7 @@ export const TeamSettingsPresentation = ({
   selectedGameFormat,
   selectedFormation,
   statsFeatures,
+  playerNameDisplay,
   gameFormats,
   formations,
   positions,
@@ -89,6 +95,7 @@ export const TeamSettingsPresentation = ({
   onGameFormatSelect,
   onFormationSelect,
   onStatsFeaturesChange,
+  onPlayerNameDisplayChange,
   onPositionUpdate,
   onAddPosition,
   onRemovePosition,
@@ -125,6 +132,7 @@ export const TeamSettingsPresentation = ({
       gameFormat: selectedGameFormat,
       formation: selectedFormation,
       statsFeatures,
+      playerNameDisplay,
       positions,
     };
 
@@ -134,6 +142,7 @@ export const TeamSettingsPresentation = ({
     selectedGameFormat,
     selectedFormation,
     statsFeatures,
+    playerNameDisplay,
     positions,
     onSaveSettings,
   ]);
@@ -216,6 +225,91 @@ export const TeamSettingsPresentation = ({
             disabled={loading}
             description="Choose which statistics to track during games. These settings will be the default for all new games."
           />
+        </div>
+
+        {/* Player Display */}
+        <div className="space-y-6">
+          <h3 className="border-b border-gray-200 pb-2 text-lg font-medium text-gray-900">
+            Player Display
+          </h3>
+          <p className="text-sm text-gray-600">
+            Control how player names and jersey numbers appear on the lineup and
+            substitution screens during games.
+          </p>
+
+          <div>
+            <label
+              htmlFor="player-name-display-format"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Name format
+            </label>
+            <select
+              id="player-name-display-format"
+              value={playerNameDisplay.format}
+              onChange={(e) =>
+                onPlayerNameDisplayChange({
+                  ...playerNameDisplay,
+                  format: e.target.value as PlayerNameDisplayConfig['format'],
+                })
+              }
+              disabled={loading}
+              className="mt-1 block w-full max-w-sm rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              {PLAYER_NAME_DISPLAY_FORMAT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label} ({option.sample})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-6">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={playerNameDisplay.showJerseyNumber}
+                onChange={(e) =>
+                  onPlayerNameDisplayChange({
+                    ...playerNameDisplay,
+                    showJerseyNumber: e.target.checked,
+                  })
+                }
+                disabled={loading}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              Show jersey number
+            </label>
+
+            {playerNameDisplay.showJerseyNumber && (
+              <div
+                role="radiogroup"
+                aria-label="Jersey number position"
+                className="flex items-center gap-4 text-sm text-gray-700"
+              >
+                {(['BEFORE', 'AFTER'] as const).map((position) => (
+                  <label key={position} className="flex items-center gap-1.5">
+                    <input
+                      type="radio"
+                      name="jersey-number-position"
+                      checked={
+                        playerNameDisplay.jerseyNumberPosition === position
+                      }
+                      onChange={() =>
+                        onPlayerNameDisplayChange({
+                          ...playerNameDisplay,
+                          jerseyNumberPosition: position,
+                        })
+                      }
+                      disabled={loading}
+                      className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    {position === 'BEFORE' ? 'Before name' : 'After name'}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Game Format Selection */}

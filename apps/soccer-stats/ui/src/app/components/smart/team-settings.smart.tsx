@@ -12,6 +12,10 @@ import {
 } from '@garage/soccer-stats/ui-components';
 
 import {
+  DEFAULT_PLAYER_NAME_DISPLAY_CONFIG,
+  type PlayerNameDisplayConfig,
+} from '../../context/player-name-display.context';
+import {
   GET_TEAM_BY_ID,
   UPDATE_TEAM,
   UPDATE_TEAM_CONFIGURATION,
@@ -44,6 +48,8 @@ export const TeamSettingsSmart = () => {
   const [statsFeatures, setStatsFeatures] = useState<UIStatsFeatures>(
     UI_DEFAULT_STATS_FEATURES,
   );
+  const [playerNameDisplay, setPlayerNameDisplay] =
+    useState<PlayerNameDisplayConfig>(DEFAULT_PLAYER_NAME_DISPLAY_CONFIG);
 
   // Team configuration manager
   const {
@@ -138,6 +144,15 @@ export const TeamSettingsSmart = () => {
         });
       }
 
+      // Initialize player name display preferences from team configuration
+      if (config) {
+        setPlayerNameDisplay({
+          format: config.playerNameDisplayFormat,
+          showJerseyNumber: config.showJerseyNumber,
+          jerseyNumberPosition: config.jerseyNumberPosition,
+        });
+      }
+
       // Initialize game format from configuration
       // Use format name (e.g., '9v9') as the local ID for formation filtering
       if (config?.defaultGameFormat?.name) {
@@ -157,6 +172,7 @@ export const TeamSettingsSmart = () => {
       gameFormat?: string;
       formation?: string;
       statsFeatures: UIStatsFeatures;
+      playerNameDisplay: PlayerNameDisplayConfig;
       positions: Array<{
         id: string;
         name: string;
@@ -222,6 +238,10 @@ export const TeamSettingsSmart = () => {
               }))(settingsData.statsFeatures) as StatsFeatures,
               defaultFormation: settingsData.formation || undefined,
               defaultGameFormatId: backendGameFormatId,
+              playerNameDisplayFormat: settingsData.playerNameDisplay.format,
+              showJerseyNumber: settingsData.playerNameDisplay.showJerseyNumber,
+              jerseyNumberPosition:
+                settingsData.playerNameDisplay.jerseyNumberPosition,
             },
           },
         });
@@ -352,6 +372,7 @@ export const TeamSettingsSmart = () => {
       selectedGameFormat={selectedGameFormat}
       selectedFormation={selectedFormation}
       statsFeatures={statsFeatures}
+      playerNameDisplay={playerNameDisplay}
       gameFormats={gameFormats}
       formations={availableFormations}
       positions={positions}
@@ -368,6 +389,7 @@ export const TeamSettingsSmart = () => {
       onGameFormatSelect={selectGameFormat}
       onFormationSelect={selectFormation}
       onStatsFeaturesChange={setStatsFeatures}
+      onPlayerNameDisplayChange={setPlayerNameDisplay}
       onPositionUpdate={updatePosition}
       onAddPosition={handleAddPosition}
       onRemovePosition={removePosition}

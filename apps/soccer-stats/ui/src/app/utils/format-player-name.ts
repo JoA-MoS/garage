@@ -52,6 +52,27 @@ export function formatPlayerName(
   }
 }
 
+/** Every format option with a human label and a sample rendering, for settings UI pickers. */
+export const PLAYER_NAME_DISPLAY_FORMAT_OPTIONS: Array<{
+  value: PlayerNameDisplayFormat;
+  label: string;
+  sample: string;
+}> = (
+  [
+    ['FIRST_LAST', 'First Last'],
+    ['LAST_COMMA_FIRST', 'Last, First'],
+    ['FIRST_NAME', 'First name only'],
+    ['LAST_NAME', 'Last name only'],
+    ['FIRST_LASTINITIAL', 'First, last initial'],
+    ['FIRSTINITIAL_LAST', 'First initial, last'],
+    ['FIRSTINITIAL_LASTINITIAL', 'Initials only'],
+  ] as const
+).map(([value, label]) => ({
+  value,
+  label,
+  sample: formatPlayerName({ firstName: 'Sarah', lastName: 'Smith' }, value),
+}));
+
 export function formatJerseyDisplay(
   name: string,
   jerseyNumber: string | null | undefined,
