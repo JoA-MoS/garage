@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -11,6 +12,7 @@ import { EventType, EventCategory } from '../../entities/event-type.entity';
 import { TeamConfiguration } from '../../entities/team-configuration.entity';
 import { DEFAULT_STATS_FEATURES } from '../../entities/stats-features.type';
 import { GameEventsService } from '../game-events/game-events.service';
+import { GameEventAction } from '../game-events/dto/game-event-subscription.output';
 
 import { GamesService } from './games.service';
 import { GameTimingService } from './game-timing.service';
@@ -389,6 +391,85 @@ describe('GamesService', () => {
       });
     });
 
+    describe('publishGameEvent (via timing event creation)', () => {
+      let warnSpy: jest.SpyInstance;
+
+      beforeEach(() => {
+        warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+
+        // The timing event created by createTimingEventsForStatusChange is
+        // re-fetched with relations before publishing; return a hydrated
+        // event so the slimming behavior has something to strip.
+        mockGameEventRepository.findOne.mockResolvedValue({
+          id: 'event-1',
+          gameId: 'game-1',
+          eventTypeId: 'et-period-start',
+          recordedByUserId: 'user-123',
+          gameTeamId: 'game-team-home',
+          period: '1',
+          periodSecond: 0,
+          eventType: { id: 'et-period-start', name: 'PERIOD_START' },
+          recordedByUser: { id: 'user-123', firstName: 'Coach' },
+          gameTeam: { id: 'game-team-home' },
+          childEvents: [],
+        } as unknown as GameEvent);
+      });
+
+      afterEach(() => {
+        warnSpy.mockRestore();
+      });
+
+      it('publishes a slim event payload without nested relations', async () => {
+        await service.update(
+          'game-1',
+          { status: GameStatus.FIRST_HALF },
+          'user-123',
+        );
+
+        expect(mockPubSub.publish).toHaveBeenCalledWith('gameEvent:game-1', {
+          gameEventChanged: {
+            action: GameEventAction.CREATED,
+            gameId: 'game-1',
+            event: expect.objectContaining({
+              id: 'event-1',
+              gameId: 'game-1',
+              eventTypeId: 'et-period-start',
+            }),
+          },
+        });
+        const payloadEvent =
+          mockPubSub.publish.mock.calls[0][1].gameEventChanged.event;
+        expect(payloadEvent).not.toHaveProperty('eventType');
+        expect(payloadEvent).not.toHaveProperty('recordedByUser');
+        expect(payloadEvent).not.toHaveProperty('gameTeam');
+        expect(payloadEvent).not.toHaveProperty('childEvents');
+      });
+
+      it('does not fail the game update when realtime publish fails', async () => {
+        mockPubSub.publish.mockRejectedValueOnce(
+          new Error('payload string too long'),
+        );
+
+        await expect(
+          service.update(
+            'game-1',
+            { status: GameStatus.FIRST_HALF },
+            'user-123',
+          ),
+        ).resolves.toBeDefined();
+
+        expect(warnSpy).toHaveBeenCalledWith(
+          'Real-time game event notification failed',
+          expect.objectContaining({
+            action: GameEventAction.CREATED,
+            error: 'payload string too long',
+            eventId: 'event-1',
+            gameId: 'game-1',
+          }),
+        );
+      });
+    });
+
     describe('handlePauseResumeEvent', () => {
       beforeEach(() => {
         mockEventTypeRepository.findOne.mockImplementation(({ where }: any) => {
@@ -651,7 +732,9 @@ describe('GamesService', () => {
 
       await expect(
         service.update('game-1', { gameFormatId: 'format-2' }),
-      ).rejects.toThrow('Game format can only be changed while the game is scheduled');
+      ).rejects.toThrow(
+        'Game format can only be changed while the game is scheduled',
+      );
     });
   });
 });

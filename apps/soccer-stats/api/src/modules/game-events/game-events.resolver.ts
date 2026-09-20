@@ -5,6 +5,7 @@ import {
   Args,
   ID,
   Subscription,
+  Context,
 } from '@nestjs/graphql';
 import { UseGuards, Inject, BadRequestException } from '@nestjs/common';
 import type { PubSub } from 'graphql-subscriptions';
@@ -14,6 +15,7 @@ import { Public } from '../auth/public.decorator';
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
 import { CurrentUser } from '../auth/user.decorator';
 import { AuthenticatedUser } from '../auth/authenticated-user.type';
+import { DataLoadersService, GraphQLContext } from '../dataloaders';
 
 import { GameEventsService } from './game-events.service';
 import { SubstitutePlayerInput } from './dto/substitute-player.input';
@@ -46,6 +48,7 @@ export class GameEventsResolver {
   constructor(
     private readonly gameEventsService: GameEventsService,
     @Inject('PUB_SUB') private pubSub: PubSub,
+    private readonly dataLoadersService: DataLoadersService,
   ) {}
 
   @Query(() => GameLineup, { name: 'gameLineup' })
@@ -347,8 +350,36 @@ export class GameEventsResolver {
     ) => payload.gameEventChanged.gameId === variables.gameId,
   })
   @Public()
-  gameEventChanged(@Args('gameId', { type: () => ID }) gameId: string) {
-    return this.pubSub.asyncIterableIterator(`gameEvent:${gameId}`);
+  gameEventChanged(
+    @Args('gameId', { type: () => ID }) gameId: string,
+    @Context() context: GraphQLContext,
+  ) {
+    const source = this.pubSub.asyncIterableIterator<{
+      gameEventChanged: GameEventSubscriptionPayload;
+    }>(`gameEvent:${gameId}`);
+    return this.withFreshLoadersPerEvent(source, context);
+  }
+
+  /**
+   * The GraphQL context (and its DataLoaders) is created once for the
+   * lifetime of a WebSocket subscription, not per emitted event. Event
+   * payloads published to this subscription are slimmed (see
+   * createSlimGameEventForSubscription), so GameEventFieldsResolver
+   * re-resolves relations like eventType/player/childEvents via DataLoader
+   * for every event. Without fresh loaders per event, the first event's
+   * loader results (e.g. an empty childEvents list) would stay cached in
+   * the shared context for the rest of the subscription and mask later
+   * updates to the same entity. Swap in a fresh loader set right before
+   * each event is handed off to field resolution.
+   */
+  private async *withFreshLoadersPerEvent<T>(
+    source: AsyncIterable<T>,
+    context: GraphQLContext,
+  ): AsyncGenerator<T> {
+    for await (const value of source) {
+      context.loaders = this.dataLoadersService.createLoaders();
+      yield value;
+    }
   }
 
   // Note: The `period` field is now a computed getter on the GameEvent entity itself,
