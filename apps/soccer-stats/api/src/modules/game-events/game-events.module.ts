@@ -9,6 +9,7 @@ import { Team } from '../../entities/team.entity';
 import { AuthModule } from '../auth/auth.module';
 import { UsersModule } from '../users/users.module';
 import { GamesModule } from '../games/games.module';
+import { DataLoadersModule } from '../dataloaders';
 
 import { GameEventsService } from './game-events.service';
 import { GameEventsResolver } from './game-events.resolver';
@@ -30,6 +31,7 @@ import {
     forwardRef(() => AuthModule), // forwardRef needed due to DataLoadersModule dependency chain
     forwardRef(() => UsersModule), // forwardRef needed due to AuthModule re-exporting UsersModule
     forwardRef(() => GamesModule), // Circular dependency with GamesModule
+    forwardRef(() => DataLoadersModule), // DataLoadersModule imports this module for LineupService/StatsService
   ],
   providers: [
     // Core service (must be first - other services depend on it)
