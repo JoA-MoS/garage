@@ -7,6 +7,7 @@ import {
   FormationPosition,
   POSITIONS,
 } from '../../constants/positions';
+import { usePlayerNameDisplay } from '../../context/player-name-display.context';
 import { getPlayerDisplayName } from '../../hooks/use-lineup';
 
 // Get initials from a player (e.g., firstName="John", lastName="Doe" -> "JD")
@@ -62,6 +63,8 @@ export function FieldLineup({
   queuedPlayerIds = new Set(),
   selectedFieldPlayerId = null,
 }: FieldLineupProps) {
+  const { format } = usePlayerNameDisplay();
+
   // Precompute player assignments for each formation position slot
   // This handles formations with multiple slots sharing the same position code (e.g., two CBs)
   const positionAssignments = useMemo(() => {
@@ -277,7 +280,7 @@ export function FieldLineup({
                         : 'bg-black/50'
                   }`}
                 >
-                  {getPlayerDisplayName(assignedPlayer).split(' ').pop()}
+                  {getPlayerDisplayName(assignedPlayer, format)}
                 </span>
               )}
             </button>

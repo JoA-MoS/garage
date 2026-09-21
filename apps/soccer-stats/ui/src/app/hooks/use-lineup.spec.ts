@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 
-import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
+import {
+  RosterPlayer as GqlRosterPlayer,
+  PlayerNameDisplayFormat,
+} from '@garage/soccer-stats/graphql-codegen';
 
 import { getPlayerDisplayName } from './use-lineup';
 
@@ -63,6 +66,45 @@ describe('getPlayerDisplayName', () => {
       externalPlayerNumber: '',
     });
     // Empty string is falsy, so no number prefix
+    expect(getPlayerDisplayName(player)).toBe('Guest');
+  });
+
+  it('formats firstName/lastName per the given format, defaulting to First Last', () => {
+    const player = createPlayer({
+      firstName: 'Sarah',
+      lastName: 'Smith',
+      playerName: 'Sarah Smith',
+    });
+    expect(getPlayerDisplayName(player)).toBe('Sarah Smith');
+    expect(
+      getPlayerDisplayName(player, PlayerNameDisplayFormat.LastCommaFirst),
+    ).toBe('Smith, Sarah');
+    expect(
+      getPlayerDisplayName(
+        player,
+        PlayerNameDisplayFormat.FirstinitialLastinitial,
+      ),
+    ).toBe('S.S.');
+  });
+
+  it('prefers firstName/lastName over the playerName fallback', () => {
+    const player = createPlayer({
+      firstName: 'Sarah',
+      lastName: 'Smith',
+      // A stale/mismatched playerName should never win once name parts exist.
+      playerName: 'Old Name',
+    });
+    expect(getPlayerDisplayName(player, PlayerNameDisplayFormat.LastName)).toBe(
+      'Smith',
+    );
+  });
+
+  it('still prefers externalPlayerName over firstName/lastName', () => {
+    const player = createPlayer({
+      externalPlayerName: 'Guest',
+      firstName: 'Sarah',
+      lastName: 'Smith',
+    });
     expect(getPlayerDisplayName(player)).toBe('Guest');
   });
 });

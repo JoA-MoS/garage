@@ -1,6 +1,8 @@
 import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 
+import { usePlayerNameDisplay } from '../../context/player-name-display.context';
 import { getPlayerDisplayName, RosterPlayer } from '../../hooks/use-lineup';
+import { formatPlayerName } from '../../utils/format-player-name';
 
 interface LineupBenchProps {
   bench: GqlRosterPlayer[];
@@ -23,6 +25,8 @@ export function LineupBench({
   isManaged = true,
   disabled = false,
 }: LineupBenchProps) {
+  const { format } = usePlayerNameDisplay();
+
   // Bench players are already filtered (position == null) in the hook
 
   return (
@@ -56,7 +60,7 @@ export function LineupBench({
                   {player.externalPlayerNumber || 'B'}
                 </span>
                 <span className="max-w-24 truncate">
-                  {getPlayerDisplayName(player)}
+                  {getPlayerDisplayName(player, format)}
                 </span>
               </button>
             ))
@@ -91,9 +95,7 @@ export function LineupBench({
                   </span>
                   <span className="max-w-24 truncate">
                     {player.firstName || player.lastName
-                      ? `${player.firstName || ''} ${
-                          player.lastName || ''
-                        }`.trim()
+                      ? formatPlayerName(player, format)
                       : player.email || 'Unknown'}
                   </span>
                 </button>
