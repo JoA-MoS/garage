@@ -17,9 +17,11 @@ import {
   StartPeriodDocument,
   EndPeriodDocument,
   RosterPlayer as GqlRosterPlayer,
+  PlayerNameDisplayFormat,
 } from '@garage/soccer-stats/graphql-codegen';
 
 import { RECORD_POSITION_CHANGE } from '../services/games-graphql.service';
+import { formatPlayerName } from '../utils/format-player-name';
 
 // Extract TeamPlayer type from team query result
 type TeamPlayerFromQuery = NonNullable<
@@ -515,13 +517,29 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
   };
 }
 
-// Helper to get player display name
-export function getPlayerDisplayName(player: GqlRosterPlayer): string {
+/**
+ * Helper to get player display name. Prefers firstName/lastName (formatted
+ * per the team's configured display format) so a team's format choice
+ * actually takes effect; playerName is a server-computed "First Last"
+ * fallback for rows that don't carry name parts, and externalPlayerName
+ * (with a jersey-number prefix) takes priority for players with no linked
+ * account, since they never have firstName/lastName to format.
+ */
+export function getPlayerDisplayName(
+  player: GqlRosterPlayer,
+  format: PlayerNameDisplayFormat = PlayerNameDisplayFormat.FirstLast,
+): string {
   if (player.externalPlayerName) {
     const number = player.externalPlayerNumber
       ? `#${player.externalPlayerNumber} `
       : '';
     return `${number}${player.externalPlayerName}`;
+  }
+  if (player.firstName || player.lastName) {
+    return formatPlayerName(
+      { firstName: player.firstName, lastName: player.lastName },
+      format,
+    );
   }
   if (player.playerName) {
     return player.playerName;
