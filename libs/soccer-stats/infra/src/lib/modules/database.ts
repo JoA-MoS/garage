@@ -14,6 +14,7 @@ export interface DatabaseConfig {
   dbInstanceClass: string;
   dbMinCapacity: number;
   dbMaxCapacity: number;
+  dbSecondsUntilAutoPause: number;
   awsProvider: aws.Provider;
   /** Allow direct connections from the internet (dev only - for local development) */
   publiclyAccessible?: boolean;
@@ -46,6 +47,7 @@ export function createDatabase(config: DatabaseConfig): DatabaseOutputs {
     dbInstanceClass,
     dbMinCapacity,
     dbMaxCapacity,
+    dbSecondsUntilAutoPause,
     awsProvider,
     publiclyAccessible = false,
   } = config;
@@ -98,6 +100,7 @@ export function createDatabase(config: DatabaseConfig): DatabaseOutputs {
       dbPassword,
       dbMinCapacity,
       dbMaxCapacity,
+      dbSecondsUntilAutoPause,
       awsProvider,
     });
     dbEndpoint = result.endpoint;
@@ -190,6 +193,7 @@ interface AuroraConfig {
   dbPassword: random.RandomPassword;
   dbMinCapacity: number;
   dbMaxCapacity: number;
+  dbSecondsUntilAutoPause: number;
   awsProvider: aws.Provider;
 }
 
@@ -210,6 +214,7 @@ function createAuroraCluster(config: AuroraConfig): {
     dbPassword,
     dbMinCapacity,
     dbMaxCapacity,
+    dbSecondsUntilAutoPause,
     awsProvider,
   } = config;
 
@@ -229,6 +234,11 @@ function createAuroraCluster(config: AuroraConfig): {
       serverlessv2ScalingConfiguration: {
         minCapacity: dbMinCapacity,
         maxCapacity: dbMaxCapacity,
+        // Only applies when minCapacity is 0. Aurora also won't pause while
+        // any connection is open (see PostgresPubSub idle release).
+        ...(dbMinCapacity === 0
+          ? { secondsUntilAutoPause: dbSecondsUntilAutoPause }
+          : {}),
       },
       storageEncrypted: true,
       skipFinalSnapshot: stack !== 'prod',

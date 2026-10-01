@@ -56,4 +56,10 @@ export interface SharedInfraConfig {
   databaseMinCapacity?: number;
   /** Max Aurora ACU (default: 4) */
   databaseMaxCapacity?: number;
+  /**
+   * Idle seconds before Aurora auto-pauses when min capacity is 0
+   * (default: 900). Long enough to ride out halftime, short enough that the
+   * hourly calendar sync doesn't keep the cluster awake.
+   */
+  databaseSecondsUntilAutoPause?: number;
 }

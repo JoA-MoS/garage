@@ -1,5 +1,5 @@
 import { Global, Module } from '@nestjs/common';
-import createSubscriber, { type Subscriber } from 'pg-listen';
+import createSubscriber from 'pg-listen';
 
 import {
   getDatabaseUrl,
@@ -13,16 +13,11 @@ import {
 
 import {
   PostgresPubSub,
-  PUBSUB_NOTIFY_CHANNEL,
-  type PubSubRelayMessage,
+  type PgListenSubscriberFactory,
+  type PubSubChannelEvents,
 } from './postgres-pubsub';
 
-export const PG_LISTEN_SUBSCRIBER = 'PG_LISTEN_SUBSCRIBER';
-
-type PubSubChannelEvents = Record<
-  typeof PUBSUB_NOTIFY_CHANNEL,
-  PubSubRelayMessage
->;
+export const PG_LISTEN_SUBSCRIBER_FACTORY = 'PG_LISTEN_SUBSCRIBER_FACTORY';
 
 /**
  * Mirrors the connection selection in `database/typeorm.config.ts`: prefer
@@ -62,26 +57,24 @@ function buildPgListenConnectionConfig() {
  *
  * The PubSub instance is backed by Postgres LISTEN/NOTIFY (see
  * `postgres-pubsub.ts` and `docs/SUBSCRIPTIONS.md`), so this also holds
- * across multiple ECS tasks, not just within one process.
+ * across multiple ECS tasks, not just within one process. The LISTEN
+ * connection is opened lazily and released when idle so Aurora can pause.
  */
 @Global() // Makes PUB_SUB available to all modules without explicit imports
 @Module({
   providers: [
     {
-      provide: PG_LISTEN_SUBSCRIBER,
-      useFactory: (): Subscriber<PubSubChannelEvents> =>
-        createSubscriber<PubSubChannelEvents>(buildPgListenConnectionConfig()),
+      provide: PG_LISTEN_SUBSCRIBER_FACTORY,
+      useValue: (() =>
+        createSubscriber<PubSubChannelEvents>(
+          buildPgListenConnectionConfig(),
+        )) satisfies PgListenSubscriberFactory,
     },
     {
       provide: 'PUB_SUB',
-      inject: [PG_LISTEN_SUBSCRIBER],
-      useFactory: async (
-        subscriber: Subscriber<PubSubChannelEvents>,
-      ): Promise<PostgresPubSub> => {
-        const pubSub = new PostgresPubSub(subscriber);
-        await pubSub.connect();
-        return pubSub;
-      },
+      inject: [PG_LISTEN_SUBSCRIBER_FACTORY],
+      useFactory: (createListenSubscriber: PgListenSubscriberFactory) =>
+        new PostgresPubSub(createListenSubscriber),
     },
   ],
   exports: ['PUB_SUB'],

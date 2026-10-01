@@ -41,6 +41,7 @@ import { nestTypeOrmConfig } from '../database/typeorm.config';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { WarmupController } from './warmup.controller';
 import { ConfigController } from './config.controller';
 import {
   API_PREFIX,
@@ -144,7 +145,7 @@ interface AuthenticatedRequest extends Request {
     CalendarSyncModule,
     MyModule,
   ],
-  controllers: [AppController, ConfigController],
+  controllers: [AppController, ConfigController, WarmupController],
   providers: [
     AppService,
     // Register LoggingInterceptor globally for request lifecycle logging

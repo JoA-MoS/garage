@@ -241,18 +241,18 @@ describe('Environment Configuration', () => {
         expect(getDbPoolMin()).toBe(5);
       });
 
-      it('should return 2 as default when DB_POOL_MIN is not set', () => {
+      it('should return 0 as default when DB_POOL_MIN is not set so Aurora can auto-pause', () => {
         delete process.env['DB_POOL_MIN'];
-        expect(getDbPoolMin()).toBe(2);
+        expect(getDbPoolMin()).toBe(0);
       });
 
-      it('should warn and return 2 when DB_POOL_MIN is not a valid number', () => {
+      it('should warn and return 0 when DB_POOL_MIN is not a valid number', () => {
         process.env['DB_POOL_MIN'] = 'abc';
         const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
-        expect(getDbPoolMin()).toBe(2);
+        expect(getDbPoolMin()).toBe(0);
         expect(warnSpy).toHaveBeenCalledWith(
           '[Environment] DB_POOL_MIN has invalid value "abc". ' +
-            'Expected an integer. Defaulting to 2.',
+            'Expected an integer. Defaulting to 0.',
         );
         warnSpy.mockRestore();
       });
@@ -331,7 +331,7 @@ describe('Environment Configuration', () => {
         delete process.env['DB_POOL_MIN'];
         delete process.env['DB_POOL_MAX'];
         const config = getValidatedPoolConfig();
-        expect(config.min).toBe(2);
+        expect(config.min).toBe(0);
         expect(config.max).toBe(10);
       });
     });
