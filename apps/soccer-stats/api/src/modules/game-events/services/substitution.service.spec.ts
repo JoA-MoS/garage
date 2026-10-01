@@ -13,6 +13,7 @@ import {
 import { SubstitutionService } from './substitution.service';
 import { EventCoreService } from './event-core.service';
 import { LineupService } from './lineup.service';
+import { ActionReceiptService } from './action-receipt.service';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,9 @@ const GAME_ID = 'game-1';
 const PLAYER_ID = 'player-1';
 const USER_ID = 'user-1';
 const PLAYER_EVENT_ID = 'evt-1';
+const ACTION_ID = '3f2b8c1e-9a4d-4e6f-8b2a-1c3d5e7f9a0b';
+const SUB_OUT_ID = '7a1c2e3f-4b5d-4c6e-9f8a-0b1c2d3e4f5a';
+const SUB_IN_ID = '9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
 
 function makeGameTeam(overrides: Partial<GameTeam> = {}): GameTeam {
   return {
@@ -61,11 +65,13 @@ describe('SubstitutionService', () => {
   let mockGamesRepository: jest.Mocked<Partial<Repository<Game>>>;
   let mockCoreService: jest.Mocked<Partial<EventCoreService>>;
   let mockLineupService: jest.Mocked<Partial<LineupService>>;
+  let mockReceiptService: { applyOnce: jest.Mock; loadEvents: jest.Mock };
 
   beforeEach(() => {
     mockGameEventsRepository = {
       create: jest.fn().mockImplementation((data) => data),
       save: jest.fn().mockImplementation((e) => Promise.resolve(e)),
+      insert: jest.fn().mockResolvedValue({ identifiers: [] }),
       findOne: jest.fn(),
     };
 
@@ -93,9 +99,23 @@ describe('SubstitutionService', () => {
       getGameLineup: jest.fn(),
     };
 
+    // Runs `apply` against the same mocked repository, as if inside the
+    // transaction. Individual tests override this to simulate a replay.
+    const fakeManager = {
+      getRepository: () => mockGameEventsRepository,
+    };
+    mockReceiptService = {
+      applyOnce: jest.fn(async (_action, { apply }) => ({
+        result: (await apply(fakeManager)).result,
+        replayed: false,
+      })),
+      loadEvents: jest.fn(),
+    };
+
     service = new SubstitutionService(
       mockCoreService as unknown as EventCoreService,
       mockLineupService as unknown as LineupService,
+      mockReceiptService as unknown as ActionReceiptService,
     );
   });
 
@@ -398,12 +418,8 @@ describe('SubstitutionService', () => {
       (mockGameEventsRepository.findOne as jest.Mock).mockResolvedValue(
         makeGameEvent({ position: 'LM' }),
       );
-      // Give each save call a distinct id so we can tell them apart
-      (mockGameEventsRepository.save as jest.Mock)
-        .mockResolvedValueOnce({ position: 'LM', id: 'sub-out-1' })
-        .mockResolvedValueOnce({ position: 'LM', id: 'sub-in-1' });
 
-      const [subOut, subIn] = await service.substitutePlayer(
+      await service.substitutePlayer(
         {
           gameTeamId: GAME_TEAM_ID,
           playerOutEventId: PLAYER_EVENT_ID,
@@ -455,6 +471,122 @@ describe('SubstitutionService', () => {
         .calls[1][0];
       expect(subOutCreate.position).toBeUndefined();
       expect(subInCreate.position).toBe('FIELD');
+    });
+
+    describe('client actions (outbox)', () => {
+      const baseInput = {
+        gameTeamId: GAME_TEAM_ID,
+        playerOutEventId: PLAYER_EVENT_ID,
+        playerInId: PLAYER_IN_ID,
+        period: '2',
+        periodSecond: 600,
+      };
+
+      beforeEach(() => {
+        (mockCoreService.getGameTeam as jest.Mock).mockResolvedValue(
+          makeGameTeam({
+            statsFeatures: { ...DEFAULT_STATS_FEATURES, trackPositions: true },
+          }),
+        );
+        (mockGameEventsRepository.findOne as jest.Mock).mockResolvedValue(
+          makeGameEvent({ position: 'LM' }),
+        );
+      });
+
+      it('applies the substitution once per actionId', async () => {
+        await service.substitutePlayer(
+          { ...baseInput, actionId: ACTION_ID },
+          USER_ID,
+        );
+
+        expect(mockReceiptService.applyOnce).toHaveBeenCalledWith(
+          {
+            actionId: ACTION_ID,
+            gameId: GAME_ID,
+            recordedByUserId: USER_ID,
+            kind: 'substitutePlayer',
+          },
+          expect.objectContaining({
+            apply: expect.any(Function),
+            replay: expect.any(Function),
+          }),
+        );
+      });
+
+      it('creates the rows with the client-chosen IDs, linked, and stamped with occurredAt', async () => {
+        const occurredAt = new Date(Date.now() - 60_000);
+
+        const [subOut, subIn] = await service.substitutePlayer(
+          {
+            ...baseInput,
+            actionId: ACTION_ID,
+            subOutEventId: SUB_OUT_ID,
+            subInEventId: SUB_IN_ID,
+            occurredAt,
+          },
+          USER_ID,
+        );
+
+        expect(subOut).toMatchObject({ id: SUB_OUT_ID, occurredAt });
+        expect(subIn).toMatchObject({
+          id: SUB_IN_ID,
+          parentEventId: SUB_OUT_ID,
+          occurredAt,
+        });
+      });
+
+      it('inserts new rows rather than saving, so a reused ID cannot overwrite an existing event', async () => {
+        await service.substitutePlayer(
+          { ...baseInput, subOutEventId: SUB_OUT_ID, subInEventId: SUB_IN_ID },
+          USER_ID,
+        );
+
+        expect(mockGameEventsRepository.insert).toHaveBeenCalledTimes(2);
+        expect(mockGameEventsRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('publishes the substitution when applied', async () => {
+        await service.substitutePlayer(
+          { ...baseInput, actionId: ACTION_ID },
+          USER_ID,
+        );
+
+        expect(mockCoreService.publishGameEvent).toHaveBeenCalledTimes(1);
+      });
+
+      it('returns the recorded events and does not publish again on a retry', async () => {
+        const recorded = [{ id: SUB_OUT_ID }, { id: SUB_IN_ID }];
+        mockReceiptService.applyOnce.mockImplementation(
+          async (_action, { replay }) => ({
+            result: await replay([SUB_OUT_ID, SUB_IN_ID]),
+            replayed: true,
+          }),
+        );
+        mockReceiptService.loadEvents.mockResolvedValue(recorded);
+
+        const result = await service.substitutePlayer(
+          { ...baseInput, actionId: ACTION_ID },
+          USER_ID,
+        );
+
+        expect(result).toBe(recorded);
+        expect(mockReceiptService.loadEvents).toHaveBeenCalledWith([
+          SUB_OUT_ID,
+          SUB_IN_ID,
+        ]);
+        expect(mockCoreService.publishGameEvent).not.toHaveBeenCalled();
+      });
+
+      it('rejects a client event ID that is not a UUID', async () => {
+        await expect(
+          service.substitutePlayer(
+            { ...baseInput, subInEventId: 'sub-in-1' },
+            USER_ID,
+          ),
+        ).rejects.toThrow(
+          new BadRequestException('subInEventId must be a UUID'),
+        );
+      });
     });
   });
 

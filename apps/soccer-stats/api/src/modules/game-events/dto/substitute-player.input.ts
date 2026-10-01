@@ -43,4 +43,30 @@ export class SubstitutePlayerInput {
   @Min(0)
   @Max(5999)
   periodSecond: number;
+
+  @Field(() => ID, {
+    nullable: true,
+    description:
+      'Client-generated idempotency key. A retry with the same actionId returns the original result without creating new events.',
+  })
+  actionId?: string;
+
+  @Field(() => ID, {
+    nullable: true,
+    description: 'Client-chosen ID for the SUBSTITUTION_OUT event',
+  })
+  subOutEventId?: string;
+
+  @Field(() => ID, {
+    nullable: true,
+    description:
+      'Client-chosen ID for the SUBSTITUTION_IN event, so later queued actions can reference it before it syncs',
+  })
+  subInEventId?: string;
+
+  @Field({
+    nullable: true,
+    description: 'Client wall-clock time the substitution was confirmed',
+  })
+  occurredAt?: Date;
 }

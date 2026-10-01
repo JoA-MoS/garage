@@ -18,9 +18,14 @@ import { RemovePlayerFromFieldInput } from '../dto/remove-player-from-field.inpu
 import { BatchLineupChangesInput } from '../dto/batch-lineup-changes.input';
 import { SwapPositionsInput } from '../dto/swap-positions.input';
 import { GameEventAction } from '../dto/game-event-subscription.output';
+import {
+  assertClientUuid,
+  resolveOccurredAt,
+} from '../utils/client-action.util';
 
 import { EventCoreService } from './event-core.service';
 import { LineupService } from './lineup.service';
+import { ActionReceiptService } from './action-receipt.service';
 
 /**
  * Sentinel position stored on a SUBSTITUTION_IN event when the team has
@@ -43,6 +48,7 @@ export class SubstitutionService {
     private readonly coreService: EventCoreService,
     @Inject(forwardRef(() => LineupService))
     private readonly lineupService: LineupService,
+    private readonly receipts: ActionReceiptService,
   ) {}
 
   private get gameEventsRepository() {
@@ -235,6 +241,15 @@ export class SubstitutionService {
     return savedEvent;
   }
 
+  /**
+   * Replace an on-field player. Creates SUBSTITUTION_OUT and a linked
+   * SUBSTITUTION_IN in one transaction.
+   *
+   * Outbox support: with `actionId`, a retry returns the originally created
+   * events instead of substituting again. `subOutEventId`/`subInEventId`
+   * let the client name the rows so later queued actions can reference
+   * them before this one syncs.
+   */
   async substitutePlayer(
     input: SubstitutePlayerInput,
     recordedByUserId: string,
@@ -245,74 +260,104 @@ export class SubstitutionService {
       input.externalPlayerInName,
       'substitution (player in)',
     );
+    assertClientUuid(input.subOutEventId, 'subOutEventId');
+    assertClientUuid(input.subInEventId, 'subInEventId');
+    const occurredAt = resolveOccurredAt(input.occurredAt);
 
     const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
     const features = await this.getEffectiveFeatures(gameTeam);
     const trackPosition = features.trackPositions;
 
-    // Get the player being subbed out
-    const playerOutEvent = await this.gameEventsRepository.findOne({
-      where: { id: input.playerOutEventId },
-      relations: ['eventType'],
-    });
+    const { result, replayed } = await this.receipts.applyOnce(
+      {
+        actionId: input.actionId,
+        gameId: gameTeam.gameId,
+        recordedByUserId,
+        kind: 'substitutePlayer',
+      },
+      {
+        apply: async (manager) => {
+          const events = manager.getRepository(GameEvent);
 
-    if (!playerOutEvent) {
-      throw new NotFoundException(
-        `GameEvent ${input.playerOutEventId} not found`,
+          // Looked up after the receipt check: on a retry the outgoing
+          // player's event may since have been deleted.
+          const playerOutEvent = await events.findOne({
+            where: { id: input.playerOutEventId },
+            relations: ['eventType'],
+          });
+          if (!playerOutEvent) {
+            throw new NotFoundException(
+              `GameEvent ${input.playerOutEventId} not found`,
+            );
+          }
+
+          const subOutType =
+            this.coreService.getEventTypeByName('SUBSTITUTION_OUT');
+          const subInType =
+            this.coreService.getEventTypeByName('SUBSTITUTION_IN');
+
+          // insert, not save: save() with an existing id would UPDATE that
+          // row, letting a reused client ID overwrite another event.
+          const subOut = events.create({
+            id: input.subOutEventId,
+            gameId: gameTeam.gameId,
+            gameTeamId: input.gameTeamId,
+            eventTypeId: subOutType.id,
+            playerId: playerOutEvent.playerId,
+            externalPlayerName: playerOutEvent.externalPlayerName,
+            externalPlayerNumber: playerOutEvent.externalPlayerNumber,
+            recordedByUserId,
+            period: input.period,
+            periodSecond: input.periodSecond,
+            occurredAt,
+            position: trackPosition ? playerOutEvent.position : undefined,
+          });
+          await events.insert(subOut);
+
+          // SUBSTITUTION_IN takes the position of the player going out.
+          // When position tracking is off, this still needs a non-null
+          // position - otherwise the incoming player is indistinguishable
+          // from a benched one (see LineupService.getGameRoster's
+          // `position != null` on-field check).
+          const subIn = events.create({
+            id: input.subInEventId,
+            gameId: gameTeam.gameId,
+            gameTeamId: input.gameTeamId,
+            eventTypeId: subInType.id,
+            playerId: input.playerInId,
+            externalPlayerName: input.externalPlayerInName,
+            externalPlayerNumber: input.externalPlayerInNumber,
+            recordedByUserId,
+            period: input.period,
+            periodSecond: input.periodSecond,
+            occurredAt,
+            position: trackPosition
+              ? playerOutEvent.position
+              : NON_TRACKED_FIELD_POSITION,
+            parentEventId: subOut.id,
+          });
+          await events.insert(subIn);
+
+          return {
+            result: [subOut, subIn],
+            eventIds: [subOut.id, subIn.id],
+          };
+        },
+        replay: (eventIds) => this.receipts.loadEvents(eventIds),
+      },
+    );
+
+    // Publish after commit, and only once: a replay was already published.
+    // SUB_OUT is the primary event; field resolvers load relations.
+    if (!replayed) {
+      await this.coreService.publishGameEvent(
+        gameTeam.gameId,
+        GameEventAction.CREATED,
+        result[0],
       );
     }
 
-    const subOutType = this.coreService.getEventTypeByName('SUBSTITUTION_OUT');
-    const subInType = this.coreService.getEventTypeByName('SUBSTITUTION_IN');
-
-    // Create SUBSTITUTION_OUT event
-    const subOutEvent = this.gameEventsRepository.create({
-      gameId: gameTeam.gameId,
-      gameTeamId: input.gameTeamId,
-      eventTypeId: subOutType.id,
-      playerId: playerOutEvent.playerId,
-      externalPlayerName: playerOutEvent.externalPlayerName,
-      externalPlayerNumber: playerOutEvent.externalPlayerNumber,
-      recordedByUserId,
-      period: input.period,
-      periodSecond: input.periodSecond,
-      position: trackPosition ? playerOutEvent.position : undefined,
-    });
-
-    const savedSubOut = await this.gameEventsRepository.save(subOutEvent);
-
-    // Create SUBSTITUTION_IN event (takes the position of the player going out).
-    // When position tracking is off, this still needs a non-null position -
-    // otherwise the incoming player is indistinguishable from a benched one
-    // (see LineupService.getGameRoster's `position != null` on-field check).
-    const subInEvent = this.gameEventsRepository.create({
-      gameId: gameTeam.gameId,
-      gameTeamId: input.gameTeamId,
-      eventTypeId: subInType.id,
-      playerId: input.playerInId,
-      externalPlayerName: input.externalPlayerInName,
-      externalPlayerNumber: input.externalPlayerInNumber,
-      recordedByUserId,
-      period: input.period,
-      periodSecond: input.periodSecond,
-      position: trackPosition
-        ? playerOutEvent.position
-        : NON_TRACKED_FIELD_POSITION,
-      parentEventId: savedSubOut.id,
-    });
-
-    const savedSubIn = await this.gameEventsRepository.save(subInEvent);
-
-    // Publish the substitution event (use SUB_OUT as the primary event)
-    // Field resolvers handle relation loading for subscribers
-    await this.coreService.publishGameEvent(
-      gameTeam.gameId,
-      GameEventAction.CREATED,
-      savedSubOut,
-    );
-
-    // Return base entities - field resolvers handle relation loading on-demand
-    return [savedSubOut, savedSubIn];
+    return result;
   }
 
   /**

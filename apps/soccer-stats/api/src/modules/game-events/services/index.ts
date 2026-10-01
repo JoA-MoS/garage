@@ -6,3 +6,4 @@ export { SubstitutionService } from './substitution.service';
 export { StatsService } from './stats.service';
 export { PeriodService } from './period.service';
 export { EventManagementService } from './event-management.service';
+export { ActionReceiptService } from './action-receipt.service';
