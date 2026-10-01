@@ -1,8 +1,24 @@
 import { InputType, Field, ID, Int } from '@nestjs/graphql';
-import { IsOptional, IsUUID, IsString, IsInt, Min, Max } from 'class-validator';
+import {
+  IsOptional,
+  IsUUID,
+  IsString,
+  IsInt,
+  Min,
+  Max,
+  MaxLength,
+} from 'class-validator';
 
 @InputType()
 export class RecordGoalInput {
+  @Field(() => ID, {
+    nullable: true,
+    description: 'Stable client UUID for idempotent goal creation',
+  })
+  @IsOptional()
+  @IsUUID('4')
+  clientActionId?: string;
+
   @Field(() => ID)
   @IsUUID()
   gameTeamId: string;
@@ -21,11 +37,13 @@ export class RecordGoalInput {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   externalScorerName?: string;
 
   @Field({ nullable: true, description: 'External player jersey number' })
   @IsOptional()
   @IsString()
+  @MaxLength(10)
   externalScorerNumber?: string;
 
   @Field(() => ID, {
@@ -42,6 +60,7 @@ export class RecordGoalInput {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   externalAssisterName?: string;
 
   @Field({
@@ -50,12 +69,14 @@ export class RecordGoalInput {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(10)
   externalAssisterNumber?: string;
 
   @Field(() => String, {
     description: 'Period identifier (e.g., "1", "2", "OT1")',
   })
   @IsString()
+  @MaxLength(20)
   period: string;
 
   @Field(() => Int, {

@@ -1,24 +1,29 @@
 import { ApolloProvider } from '@apollo/client/react';
 import { useAuth } from '@clerk/clerk-react';
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useMemo, useRef } from 'react';
 
-import { apolloClient, setTokenGetter } from '../services/apollo-client';
+import { createSessionApolloClient } from '../services/apollo-client';
 
-interface ApiProviderProps {
-  children: ReactNode;
-}
-
-/**
- * Apollo Client provider component that wraps the app to provide GraphQL functionality
- * Integrates with Clerk authentication to add auth headers to requests
- */
-export const ApiProvider = ({ children }: ApiProviderProps) => {
-  const { getToken } = useAuth();
-
-  // Set up the token getter for Apollo Client auth
-  useEffect(() => {
-    setTokenGetter(getToken);
-  }, [getToken]);
-
-  return <ApolloProvider client={apolloClient}>{children}</ApolloProvider>;
+export const ApiProvider = ({ children }: { children: ReactNode }) => {
+  const { getToken, userId, sessionId, isLoaded } = useAuth();
+  const identity = JSON.stringify([userId, sessionId]);
+  const current = useRef(identity);
+  current.current = identity;
+  const session = useMemo(
+    () =>
+      createSessionApolloClient(async () => {
+        if (current.current !== identity) throw new Error('Account changed');
+        const token = await getToken();
+        if (current.current !== identity) throw new Error('Account changed');
+        return token;
+      }),
+    [identity, getToken],
+  );
+  useEffect(() => () => session.dispose(), [session]);
+  if (!isLoaded) return null;
+  return (
+    <ApolloProvider key={identity} client={session.client}>
+      {children}
+    </ApolloProvider>
+  );
 };

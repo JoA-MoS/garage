@@ -25,10 +25,111 @@ export class GoalService {
     return this.coreService.gameEventsRepository;
   }
 
+  /** Receipts deliberately survive event deletion: an old retry must not resurrect a goal. */
+  private async recordIdempotentGoal(
+    input: RecordGoalInput,
+    recordedByUserId: string,
+  ): Promise<GameEvent> {
+    const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
+    const actionId = input.clientActionId!;
+    // Stable ordering and null normalization make transport serialization irrelevant.
+    const payload = JSON.stringify(
+      Object.keys(input)
+        .sort()
+        .map((key) => [key, input[key as keyof RecordGoalInput] ?? null]),
+    );
+    let replay = false;
+    const goal = await this.gameEventsRepository.manager.transaction(
+      async (manager) => {
+        await manager.query(
+          'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+          [actionId],
+        );
+        const [receipt] = await manager.query(
+          'SELECT payload, result FROM goal_action_receipts WHERE "userId" = $1 AND "actionId" = $2',
+          [recordedByUserId, actionId],
+        );
+        if (receipt) {
+          replay = true;
+          if (receipt.payload !== payload)
+            throw new BadRequestException(
+              'Action ID reused with different payload',
+            );
+          return Object.assign(new GameEvent(), receipt.result, {
+            createdAt: new Date(receipt.result.createdAt),
+            updatedAt: new Date(receipt.result.updatedAt),
+          });
+        }
+        const repository = manager.getRepository(GameEvent);
+        const common = {
+          gameId: gameTeam.gameId,
+          gameTeamId: input.gameTeamId,
+          recordedByUserId,
+          period: input.period,
+          periodSecond: input.periodSecond,
+        };
+        // Never use save with a client-controlled primary key: it can UPDATE an
+        // unrelated existing event. INSERT makes collisions fail without mutation.
+        const goalEvent = repository.create({
+          ...common,
+          id: actionId,
+          eventTypeId: this.coreService.getEventTypeByName('GOAL').id,
+          playerId: input.scorerId,
+          externalPlayerName: input.externalScorerName,
+          externalPlayerNumber: input.externalScorerNumber,
+        });
+        await repository.insert(goalEvent);
+        const saved = await repository.findOneByOrFail({ id: actionId });
+        if (input.assisterId || input.externalAssisterName) {
+          await repository.save(
+            repository.create({
+              ...common,
+              eventTypeId: this.coreService.getEventTypeByName('ASSIST').id,
+              parentEventId: saved.id,
+              playerId: input.assisterId,
+              externalPlayerName: input.externalAssisterName,
+              externalPlayerNumber: input.externalAssisterNumber,
+            }),
+          );
+        }
+        await manager.query(
+          'INSERT INTO goal_action_receipts ("userId", "actionId", payload, result) VALUES ($1, $2, $3, $4::jsonb)',
+          [recordedByUserId, actionId, payload, JSON.stringify(saved)],
+        );
+        return saved;
+      },
+    );
+    // Publish only new commits. Historical receipts may describe a goal that
+    // was edited/deleted; replaying CREATED would resurrect it in other caches.
+    // Game-scoped catch-up recovers missed pub/sub delivery.
+    if (!replay)
+      await this.coreService.publishGameEvent(
+        gameTeam.gameId,
+        GameEventAction.CREATED,
+        goal,
+      );
+    return goal;
+  }
+
   async recordGoal(
     input: RecordGoalInput,
     recordedByUserId: string,
   ): Promise<GameEvent> {
+    if (input.clientActionId) {
+      try {
+        return await this.recordIdempotentGoal(input, recordedByUserId);
+      } catch (error) {
+        // Only known permanent payload/constraint failures are terminal. Connection
+        // failures, deadlocks and unknown internal errors must remain retryable.
+        const code = (error as { driverError?: { code?: string } }).driverError
+          ?.code;
+        if (code && ['22001', '23503', '23505', '23514'].includes(code))
+          throw new BadRequestException(
+            'Goal could not be recorded: invalid or conflicting input. Discard it and record a corrected goal.',
+          );
+        throw error;
+      }
+    }
     const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
     const goalEventType = this.coreService.getEventTypeByName('GOAL');
 

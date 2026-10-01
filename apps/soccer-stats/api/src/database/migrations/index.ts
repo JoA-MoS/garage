@@ -36,6 +36,7 @@ import { CreateGameEventsDetailView1775600000000 } from './1775600000000-CreateG
 import { RemoveFinalScoreColumn1776000000000 } from './1776000000000-RemoveFinalScoreColumn';
 import { AddTeamCalendarSources1776100000000 } from './1776100000000-AddTeamCalendarSources';
 import { AddPlayerNameDisplayFormatToTeamConfiguration1789926501879 } from './1789926501879-AddPlayerNameDisplayFormatToTeamConfiguration';
+import { AddGoalActionReceipts1790500000000 } from './1790500000000-AddGoalActionReceipts';
 
 /**
  * All migrations in chronological order.
@@ -69,4 +70,5 @@ export const migrations = [
   RemoveFinalScoreColumn1776000000000,
   AddTeamCalendarSources1776100000000,
   AddPlayerNameDisplayFormatToTeamConfiguration1789926501879,
+  AddGoalActionReceipts1790500000000,
 ];

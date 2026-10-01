@@ -49,7 +49,14 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm nx affected --target=lint --parallel --max-parallel=3
-      - run: pnpm nx affected --target=test --parallel --max-parallel=2
+      # The local-first goal suite uses real Chromium IndexedDB. Dependencies are
+      # installed with scripts disabled above, so provision the pinned browser here.
+      - name: Install Playwright Chromium for durable-storage tests
+        run: pnpm exec playwright install chromium
+      - name: Test affected projects
+        run: |
+          echo "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=$(node -e \"console.log(require('@playwright/test').chromium.executablePath())\")" >> "$GITHUB_ENV"
+          pnpm nx affected --target=test --parallel --max-parallel=2
       - run: pnpm nx affected --target=build --parallel --max-parallel=3
       # Deployment is handled by deploy-soccer-stats.yml. Keep CI limited to
       # validation so unrelated Vercel deploy targets do not pollute GitHub's

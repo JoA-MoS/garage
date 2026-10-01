@@ -79,6 +79,20 @@ describe('useResyncOnWake', () => {
     consoleErrorSpy.mockRestore();
   });
 
+  it('coalesces scoped wake triggers without active-query refetch', async () => {
+    vi.useFakeTimers();
+    const reconcile = vi.fn().mockResolvedValue(undefined);
+    const { unmount } = renderHook(() => useResyncOnWake(reconcile));
+    window.dispatchEvent(new Event('online'));
+    window.dispatchEvent(new Event('pageshow'));
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(200);
+    expect(reconcile).toHaveBeenCalledTimes(1);
+    expect(mockRefetchQueries).not.toHaveBeenCalled();
+    unmount();
+    vi.useRealTimers();
+  });
+
   it('removes all listeners on unmount', () => {
     const { unmount } = renderHook(() => useResyncOnWake());
     unmount();

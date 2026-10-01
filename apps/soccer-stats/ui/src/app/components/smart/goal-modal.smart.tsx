@@ -9,6 +9,7 @@ import {
 import { fromPeriodSecond, toPeriodSecond } from '@garage/soccer-stats/utils';
 
 import { RECORD_GOAL, UPDATE_GOAL } from '../../services/games-graphql.service';
+import type { GoalInput } from '../../local-first/goal-outbox';
 
 // Data for an existing goal being edited
 export interface EditGoalData {
@@ -37,6 +38,7 @@ interface GoalModalProps {
   periodSecond: number;
   onClose: () => void;
   onSuccess?: () => void;
+  recordLocalGoal?: (input: GoalInput) => Promise<void>;
   // Edit mode props
   editGoal?: EditGoalData;
   // Stats features - determines which fields to show
@@ -85,6 +87,7 @@ export const GoalModal = ({
   onSuccess,
   editGoal,
   statsFeatures,
+  recordLocalGoal,
 }: GoalModalProps) => {
   // Determine which fields to show based on feature flags
   const showScorerField = statsFeatures?.trackScorer ?? true;
@@ -146,7 +149,8 @@ export const GoalModal = ({
 
   const [updateGoal, { loading: updateLoading }] = useMutation(UPDATE_GOAL);
 
-  const loading = recordLoading || updateLoading;
+  const [localSaving, setLocalSaving] = useState(false);
+  const loading = recordLoading || updateLoading || localSaving;
 
   // Players available for selection (always include bench in edit mode for flexibility)
   const availablePlayers =
@@ -160,6 +164,8 @@ export const GoalModal = ({
   });
 
   const handleSubmit = async () => {
+    if (localSaving) return;
+    setLocalSaving(true);
     setError(null); // Clear any previous error
 
     // Find the selected scorer player (lineup mode)
@@ -219,7 +225,11 @@ export const GoalModal = ({
       } else {
         // Create new goal - wait for server to confirm before closing
         // The subscription will update all connected clients with the new event
-        await recordGoal({
+        const createGoal = recordLocalGoal
+          ? ({ variables }: { variables: { input: GoalInput } }) =>
+              recordLocalGoal(variables.input)
+          : recordGoal;
+        await createGoal({
           variables: {
             input: {
               gameTeamId,
@@ -262,6 +272,8 @@ export const GoalModal = ({
       const message =
         err instanceof Error ? err.message : 'An unexpected error occurred';
       setError(message);
+    } finally {
+      setLocalSaving(false);
     }
   };
 
