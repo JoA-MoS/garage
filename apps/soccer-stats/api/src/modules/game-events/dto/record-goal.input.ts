@@ -66,4 +66,29 @@ export class RecordGoalInput {
   @Min(0)
   @Max(5999)
   periodSecond: number;
+
+  @Field(() => ID, {
+    nullable: true,
+    description:
+      'Client-generated idempotency key. A retry with the same actionId returns the original goal without recording it again.',
+  })
+  actionId?: string;
+
+  @Field(() => ID, {
+    nullable: true,
+    description: 'Client-chosen ID for the GOAL event',
+  })
+  goalEventId?: string;
+
+  @Field(() => ID, {
+    nullable: true,
+    description: 'Client-chosen ID for the ASSIST event (child of the goal)',
+  })
+  assistEventId?: string;
+
+  @Field({
+    nullable: true,
+    description: 'Client wall-clock time the goal was recorded',
+  })
+  occurredAt?: Date;
 }

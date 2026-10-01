@@ -145,6 +145,50 @@ items show Retry/Discard.
 5. **Cross-device (deferred):** stop materializing period-end snapshots at
    receipt, or validate late events against them.
 
+## Phase 1 status (implemented)
+
+Mutations that accept `actionId`, client event IDs and `occurredAt`:
+
+| Mutation                                        | Client IDs                                                                     | Atomic                                            |
+| ----------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------- |
+| `substitutePlayer`                              | `subOutEventId`, `subInEventId`                                                | yes                                               |
+| `batchLineupChanges`                            | per sub `subOutEventId`/`subInEventId`, per swap `swap1EventId`/`swap2EventId` | yes, whole batch                                  |
+| `swapPositions`                                 | `swap1EventId`, `swap2EventId`                                                 | yes                                               |
+| `bringPlayerOntoField`, `removePlayerFromField` | `eventId`                                                                      | yes                                               |
+| `recordPositionChange`, `recordFormationChange` | `eventId`                                                                      | yes (formation also updates `GameTeam.formation`) |
+| `recordGoal`                                    | `goalEventId`, `assistEventId`                                                 | yes                                               |
+| `updateGame` (status, pause/resume)             | none; also takes `period` for stoppages                                        | **no** — see below                                |
+
+What the outbox client can rely on:
+
+- **Retry semantics.** Resending an action with the same `actionId` returns
+  the original result and writes nothing, even when two copies arrive
+  concurrently. Reusing an `actionId` for a different game, user or
+  mutation is a `BAD_REQUEST`.
+- **Deleted since applied.** A retry whose recorded events were deleted
+  afterwards returns a 409 (`ConflictException`) for single-event
+  mutations. The client should treat it as "already applied".
+- **Validation happens once.** Checks that depend on current state (field
+  capacity, player lookups, goal duplicate detection) run only on the first
+  application, so a retry can't fail because of its own earlier success.
+- **New rows are inserted, never saved.** A client ID that already exists
+  is rejected rather than overwriting the existing event.
+- **Publishing.** Subscription events go out after commit and never on a
+  replay.
+
+Deviations from the plan:
+
+- `updateGame` is guarded by the receipt but not a single transaction: a
+  status change writes through several services. The receipt commits only
+  if every write succeeded, so retries are safe, but a mid-way failure can
+  still leave partial rows (as before). Making it atomic belongs with
+  phase 5.
+- The goal duplicate rule is unchanged (see Known issues). With one phone
+  per game the receipt now covers retries, so the 60s rule only matters
+  for genuine double-entry.
+- `startPeriod`/`endPeriod`/`setSecondHalfLineup` are not converted. The
+  live UI uses `updateGame` for period changes.
+
 ## Known issues found during design (not addressed here)
 
 - The goal duplicate check (`DUPLICATE_CONFLICT_WINDOW_SECONDS`) silently
