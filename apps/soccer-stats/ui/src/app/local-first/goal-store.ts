@@ -1,6 +1,6 @@
-import type { GoalState, GoalStore } from './goal-outbox';
+import type { OutboxState, GoalStore } from './goal-outbox';
 
-/** One record per authenticated user/game; every RMW is a cross-tab IDB transaction. */
+/** One outbox record per authenticated user/game; every RMW is a cross-tab IDB transaction. */
 export class IndexedGoalStore implements GoalStore {
   private database?: Promise<IDBDatabase>;
   private open(): Promise<IDBDatabase> {
@@ -33,7 +33,7 @@ export class IndexedGoalStore implements GoalStore {
     }
     return this.database;
   }
-  async read(scope: string): Promise<GoalState | undefined> {
+  async read(scope: string): Promise<OutboxState | undefined> {
     const db = await this.open();
     return new Promise((resolve, reject) => {
       const tx = db.transaction('games', 'readonly');
@@ -44,15 +44,15 @@ export class IndexedGoalStore implements GoalStore {
   }
   async change(
     scope: string,
-    update: (state: GoalState) => GoalState,
-  ): Promise<GoalState> {
+    update: (state: OutboxState) => OutboxState,
+  ): Promise<OutboxState> {
     const db = await this.open();
     return new Promise((resolve, reject) => {
       // Resolve only on transaction completion, never on individual request success.
       const tx = db.transaction('games', 'readwrite', { durability: 'strict' });
       const store = tx.objectStore('games');
       const request = store.get(scope);
-      let next: GoalState;
+      let next: OutboxState;
       let failure: unknown;
       request.onsuccess = () => {
         try {

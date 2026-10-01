@@ -12,29 +12,25 @@ import { onTransportReconnect } from '../services/transport-reconnect';
  * go stale silently - events published while asleep never reach the
  * cache and the UI has no way to know it's out of date. Refetching on
  * wake reconciles the cache with the server regardless of whether the
- * subscription socket noticed it was disconnected.
+ * subscription socket noticed it was disconnected. The same triggers fire
+ * when the subscription socket reconnects, and run the optional `onWake`
+ * callback (used to drain the local-first goal outbox).
  */
-export function useResyncOnWake(reconcileGame?: () => Promise<void>): void {
+export function useResyncOnWake(onWake?: () => Promise<void>): void {
   const client = useApolloClient();
 
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
     const resync = () => {
       if (document.visibilityState !== 'visible') return;
-      if (reconcileGame) {
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-          void reconcileGame().catch((error) =>
-            console.error('[Resync on Wake] Failed to reconcile game:', error),
-          );
-        }, 100);
-        return;
-      }
       client.refetchQueries({ include: 'active' }).catch((error: unknown) => {
         console.error('[Resync on Wake] Failed to refetch queries:', error);
       });
+      onWake?.().catch((error: unknown) => {
+        console.error('[Resync on Wake] Wake callback failed:', error);
+      });
     };
 
+    // A socket reconnect means subscription events may have been missed.
     const unsubscribeReconnect = onTransportReconnect(client, resync);
     document.addEventListener('visibilitychange', resync);
     window.addEventListener('pageshow', resync);
@@ -42,10 +38,9 @@ export function useResyncOnWake(reconcileGame?: () => Promise<void>): void {
 
     return () => {
       unsubscribeReconnect();
-      clearTimeout(timer);
       document.removeEventListener('visibilitychange', resync);
       window.removeEventListener('pageshow', resync);
       window.removeEventListener('online', resync);
     };
-  }, [client, reconcileGame]);
+  }, [client, onWake]);
 }

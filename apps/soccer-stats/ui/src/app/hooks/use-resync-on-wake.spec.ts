@@ -1,14 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 
+import { notifyTransportReconnect } from '../services/transport-reconnect';
+
 import { useResyncOnWake } from './use-resync-on-wake';
 
 const mockRefetchQueries = vi.fn().mockResolvedValue([]);
+const mockClient = { refetchQueries: mockRefetchQueries };
 
 vi.mock('@apollo/client/react', () => ({
-  useApolloClient: () => ({
-    refetchQueries: mockRefetchQueries,
-  }),
+  useApolloClient: () => mockClient,
 }));
 
 function setVisibility(state: DocumentVisibilityState) {
@@ -79,18 +80,20 @@ describe('useResyncOnWake', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it('coalesces scoped wake triggers without active-query refetch', async () => {
-    vi.useFakeTimers();
-    const reconcile = vi.fn().mockResolvedValue(undefined);
-    const { unmount } = renderHook(() => useResyncOnWake(reconcile));
+  it('runs the wake callback alongside the active-query refetch', () => {
+    const onWake = vi.fn().mockResolvedValue(undefined);
+    renderHook(() => useResyncOnWake(onWake));
     window.dispatchEvent(new Event('online'));
-    window.dispatchEvent(new Event('pageshow'));
-    document.dispatchEvent(new Event('visibilitychange'));
-    await vi.advanceTimersByTimeAsync(200);
-    expect(reconcile).toHaveBeenCalledTimes(1);
+    expect(onWake).toHaveBeenCalledTimes(1);
+    expect(mockRefetchQueries).toHaveBeenCalledTimes(1);
+  });
+
+  it("resyncs when its own client's subscription socket reconnects", () => {
+    renderHook(() => useResyncOnWake());
+    notifyTransportReconnect({});
     expect(mockRefetchQueries).not.toHaveBeenCalled();
-    unmount();
-    vi.useRealTimers();
+    notifyTransportReconnect(mockClient);
+    expect(mockRefetchQueries).toHaveBeenCalledTimes(1);
   });
 
   it('removes all listeners on unmount', () => {
@@ -100,6 +103,7 @@ describe('useResyncOnWake', () => {
     document.dispatchEvent(new Event('visibilitychange'));
     window.dispatchEvent(new Event('pageshow'));
     window.dispatchEvent(new Event('online'));
+    notifyTransportReconnect(mockClient);
 
     expect(mockRefetchQueries).not.toHaveBeenCalled();
   });

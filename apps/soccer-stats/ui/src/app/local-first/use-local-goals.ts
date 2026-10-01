@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { useApolloClient } from '@apollo/client/react';
 import { gql } from '@apollo/client';
@@ -11,7 +11,7 @@ import {
   GoalOutbox,
   projectGoals,
   type GoalInput,
-  type GoalState,
+  type PendingGoal,
 } from './goal-outbox';
 import { IndexedGoalStore } from './goal-store';
 
@@ -22,7 +22,38 @@ const RECORD_LOCAL_GOAL = gql`
     }
   }
 `;
+const SYNC_TIMEOUT_MS = 15000;
+const RECOVERY_INTERVAL_MS = 5000;
 const store = new IndexedGoalStore();
+
+/**
+ * Abort and reject after a deadline. Racing as well as aborting matters: links
+ * and transports may ignore the AbortSignal, and a hung request must not hold
+ * the outbox's single in-flight drain forever.
+ */
+function withTimeout<T>(
+  work: (signal: AbortSignal) => Promise<T>,
+  message: string,
+): Promise<T> {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(message));
+      controller.abort();
+    }, SYNC_TIMEOUT_MS);
+  });
+  return Promise.race([work(controller.signal), timeout]).finally(() =>
+    clearTimeout(timer),
+  );
+}
+
+/**
+ * Local-first goal entry: goals are committed to an on-device outbox and shown
+ * immediately on top of the confirmed (Apollo) game data, then delivered in the
+ * background. ApiProvider remounts the tree per account, so a hook instance
+ * never outlives the account it was created for.
+ */
 export function useLocalGoals(
   gameId: string | undefined,
   confirmed: GetGameByIdQuery | undefined,
@@ -34,222 +65,141 @@ export function useLocalGoals(
     enabled && isLoaded && isSignedIn && userId && gameId
       ? JSON.stringify([userId, gameId])
       : '';
-  // A retained query object from a different account is never an ingress source.
-  // The provider remounts with a fresh client per identity; this guard also covers
-  // a hook surviving a provider/account transition before that remount completes.
-  const owner = useRef({ userId, client });
-  const trustedCache =
-    owner.current.userId === userId && owner.current.client === client;
-  const epoch = useMemo(() => ({}), [scope, client]);
-  const activeEpoch = useRef(epoch);
-  activeEpoch.current = epoch;
-  const activeScope = useRef(scope);
-  activeScope.current = scope;
-  const [saved, setSaved] = useState<{ scope: string; state: GoalState }>();
-  const [busy, setBusy] = useState(false);
-  const [storageError, setStorageError] = useState<string>();
-  const outbox = useMemo(
-    () =>
-      scope
-        ? new GoalOutbox(
-            scope,
-            store,
-            async (input) => {
-              if (activeScope.current !== scope)
-                throw new Error('Account changed');
-              const controller = new AbortController();
-              let timer: ReturnType<typeof setTimeout> | undefined;
-              const timeout = new Promise<never>((_, reject) => {
-                timer = setTimeout(() => {
-                  reject(
-                    new Error('Goal sync timed out; saved on device for retry'),
-                  );
-                  controller.abort();
-                }, 15000);
-              });
-              try {
-                await Promise.race([
-                  client.mutate({
-                    mutation: RECORD_LOCAL_GOAL,
-                    variables: { input },
-                    fetchPolicy: 'no-cache',
-                    context: { fetchOptions: { signal: controller.signal } },
-                  }),
-                  timeout,
-                ]);
-              } finally {
-                clearTimeout(timer);
-              }
-            },
-            async (signal) => {
-              // Network-only still reads/writes through the union merge policy. Fetch
-              // without cache participation, then replace confirmed membership explicitly.
-              const result = await client.query({
-                query: GET_GAME_BY_ID,
-                variables: { id: gameId! },
-                fetchPolicy: 'no-cache',
-                context: {
-                  queryDeduplication: false,
-                  fetchOptions: { signal },
-                },
-              });
-              if (signal.aborted || activeScope.current !== scope)
-                throw new Error('Snapshot request no longer active');
-              if (!result.data)
-                throw new Error('No confirmed game snapshot returned');
-              return result.data;
-            },
-            (state) => setSaved({ scope, state }),
-            () =>
-              activeScope.current === scope && activeEpoch.current === epoch,
-            (snapshot) =>
-              client.cache.writeQuery({
-                query: GET_GAME_BY_ID,
-                variables: { id: gameId! },
-                data: snapshot,
-                overwrite: true,
-              }),
-          )
-        : undefined,
-    [scope, client, gameId, epoch],
-  );
-  const failure = useCallback(
-    (e: unknown) =>
-      setStorageError(
-        e instanceof Error ? e.message : 'Local storage unavailable',
-      ),
-    [],
-  );
-  useEffect(() => {
-    if (!outbox) return;
-    let live = true;
-    activeScope.current = scope;
-    setStorageError(undefined);
-    void outbox
-      .load()
-      .then((state) => {
-        if (live)
-          setSaved((previous) =>
-            previous?.scope === scope ? previous : { scope, state },
-          );
-      })
-      .catch(failure);
-    return () => {
-      live = false;
-      if (activeScope.current === scope) activeScope.current = '';
-    };
-  }, [outbox, scope, failure]);
-  useEffect(() => {
-    if (trustedCache && outbox && confirmed && confirmed.game.id === gameId)
-      void outbox.hydrate(confirmed).catch(failure);
-  }, [outbox, confirmed, gameId, failure, trustedCache]);
-  const syncing = useRef<{ outbox: GoalOutbox; promise: Promise<void> }>();
-  const invalidated = useRef<GoalOutbox>();
-  const reconcile = useCallback(() => {
-    if (!outbox || !navigator.onLine) return Promise.resolve();
-    if (syncing.current?.outbox === outbox) return syncing.current.promise;
-    setBusy(true);
-    const promise = (async () => {
-      do {
-        if (invalidated.current === outbox) invalidated.current = undefined;
-        await outbox.sync();
-        if (activeScope.current !== scope || activeEpoch.current !== epoch)
-          return;
-        await outbox.refresh();
-      } while (invalidated.current === outbox && activeEpoch.current === epoch);
-      if (activeScope.current === scope) setStorageError(undefined);
-    })()
-      .catch((e) => {
-        if (activeScope.current === scope) failure(e);
-      })
-      .finally(() => {
-        if (syncing.current?.outbox === outbox) {
-          syncing.current = undefined;
-          setBusy(false);
-        }
-      });
-    syncing.current = { outbox, promise };
-    return promise;
-  }, [outbox, scope, failure, epoch]);
-  // Fresh subscription messages are invalidations, not unversioned cache snapshots.
-  const invalidate = useCallback(() => {
-    if (!outbox) return Promise.resolve();
-    invalidated.current = outbox;
-    return reconcile();
-  }, [outbox, reconcile]);
-  useEffect(() => {
-    if (!outbox) return;
-    // Periodic drain is a recovery path, not the initial send path. Offline browsers
-    // keep work on device; resuming the page/connection triggers reconciliation.
-    void reconcile();
-    const timer = setInterval(() => {
-      if (navigator.onLine && document.visibilityState === 'visible') {
-        setBusy(true);
-        void outbox
-          .sync()
-          .catch((e) => {
-            if (activeScope.current === scope) failure(e);
-          })
-          .finally(() => {
-            if (
-              activeScope.current === scope &&
-              syncing.current?.outbox !== outbox
-            )
-              setBusy(false);
+  const [saved, setSaved] = useState<{
+    scope: string;
+    actions: PendingGoal[];
+  }>();
+  const [syncing, setSyncing] = useState(0);
+  const [syncError, setSyncError] = useState<string>();
+
+  const session = useMemo(() => {
+    if (!scope || !gameId) return undefined;
+    // Flipped by the effect below so a replaced or unmounted outbox stops
+    // touching state; StrictMode's effect re-run turns it back on.
+    const life = { live: true };
+    const outbox = new GoalOutbox(
+      scope,
+      store,
+      (input) =>
+        withTimeout(
+          (signal) =>
+            client.mutate({
+              mutation: RECORD_LOCAL_GOAL,
+              variables: { input },
+              fetchPolicy: 'no-cache',
+              context: { fetchOptions: { signal } },
+            }),
+          'Goal sync timed out; saved on device for retry',
+        ),
+      () =>
+        withTimeout(async (signal) => {
+          const result = await client.query({
+            query: GET_GAME_BY_ID,
+            variables: { id: gameId },
+            fetchPolicy: 'network-only',
+            context: { fetchOptions: { signal } },
           });
+          if (result.error) throw result.error;
+        }, 'Game refresh timed out; retry available'),
+      (state) => setSaved({ scope, actions: state.actions }),
+      () => life.live,
+    );
+    return { outbox, life };
+  }, [scope, client, gameId]);
+
+  const drain = useCallback(async () => {
+    if (!session || !navigator.onLine) return;
+    try {
+      const { actions } = await session.outbox.load();
+      // Idle polling must not re-render the game page every few seconds.
+      if (!actions.some((a) => a.status !== 'needs-attention')) return;
+      setSyncing((n) => n + 1);
+      try {
+        await session.outbox.sync();
+        if (session.life.live) setSyncError(undefined);
+      } finally {
+        setSyncing((n) => n - 1);
       }
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [outbox, reconcile, scope, failure]);
+    } catch (error) {
+      if (session.life.live)
+        setSyncError(
+          error instanceof Error ? error.message : 'Goal sync failed',
+        );
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (!session) return;
+    session.life.live = true;
+    setSyncError(undefined);
+    session.outbox.load().then(
+      (state) => {
+        if (session.life.live)
+          setSaved((previous) =>
+            previous?.scope === scope
+              ? previous
+              : { scope, actions: state.actions },
+          );
+      },
+      (error) =>
+        setSyncError(
+          error instanceof Error ? error.message : 'Local storage unavailable',
+        ),
+    );
+    // Recovery path only: new goals start their own drain, and wake/reconnect
+    // drains through useResyncOnWake.
+    void drain();
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') void drain();
+    }, RECOVERY_INTERVAL_MS);
+    return () => {
+      session.life.live = false;
+      clearInterval(timer);
+    };
+  }, [session, scope, drain]);
+
   const record = useCallback(
     async (input: GoalInput) => {
-      if (!outbox)
+      if (!session)
         throw new Error('Local goal recording requires a signed-in account');
-      await outbox.enqueue(input);
-      // No network await on the interaction path: modal may now close.
-      if (navigator.onLine && activeScope.current === scope) {
-        setBusy(true);
-        void outbox
-          .sync()
-          .catch((e) => {
-            if (activeScope.current === scope) failure(e);
-          })
-          .finally(() => {
-            if (
-              activeScope.current === scope &&
-              syncing.current?.outbox !== outbox
-            )
-              setBusy(false);
-          });
-      }
+      if (!confirmed?.game.teams?.some((t) => t.id === input.gameTeamId))
+        throw new Error('Game data is still loading; try again');
+      await session.outbox.enqueue(input);
+      // No network await on the interaction path: the modal may now close.
+      void drain();
     },
-    [outbox, scope, failure],
+    [session, confirmed, drain],
   );
-  const state = saved?.scope === scope && scope ? saved.state : undefined;
-  const actions = state?.actions ?? [];
+
+  const actions = useMemo(
+    () => (saved?.scope === scope ? saved.actions : []),
+    [saved, scope],
+  );
+  const data = useMemo(
+    () => (scope ? projectGoals(confirmed, actions) : confirmed),
+    [scope, confirmed, actions],
+  );
   return {
     enabled,
-    ready: !!state?.snapshot,
-    data: scope ? projectGoals(state) : undefined,
+    data,
     record,
-    reconcile,
-    invalidate,
+    sync: drain,
     actions,
-    storageError,
+    syncError,
     status:
-      storageError || actions.some((a) => a.status === 'needs-attention')
+      syncError || actions.some((a) => a.status === 'needs-attention')
         ? 'Needs attention'
-        : busy
+        : syncing
           ? 'Syncing'
           : actions.length
             ? 'Saved on device'
             : 'Synced',
     retry: async (id: string) => {
-      await outbox?.retry(id);
-      await reconcile();
+      await session?.outbox.retry(id);
+      await drain();
     },
     discard: async (id: string) => {
-      await outbox?.discard(id);
+      await session?.outbox.discard(id);
     },
   };
 }

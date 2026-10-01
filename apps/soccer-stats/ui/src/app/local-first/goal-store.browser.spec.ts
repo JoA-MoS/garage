@@ -14,7 +14,7 @@ const describeWithChromium =
     : describe.skip;
 
 describeWithChromium('IndexedDB goal durability (real Chromium)', () => {
-  it('runs offline goal entry, reload, lost ACK replay, echo merge and rejection recovery through the real outbox and IndexedDB', async () => {
+  it('runs offline goal entry, reload, lost ACK replay and rejection recovery through the real outbox and IndexedDB', async () => {
     const compile = (name: string) =>
       ts.transpileModule(readFileSync(new URL(name, import.meta.url), 'utf8'), {
         compilerOptions: {
@@ -34,24 +34,21 @@ describeWithChromium('IndexedDB goal durability (real Chromium)', () => {
       await page.goto('http://outbox.test');
       const install = async () => {
         await page.addScriptTag({
-          content: `window.exports = {}; ${compile('./goal-store.ts')}; ${compile('./goal-outbox.ts')}; window.store = new exports.IndexedGoalStore();`,
+          content: `window.exports = {}; ${compile('./goal-store.ts')}; ${compile('./goal-outbox.ts')}; window.store = new exports.IndexedGoalStore(); window.confirmed = (ids) => ({ game: { id: 'game', teams: [{ id: 'team', events: ids.map((id) => ({ id })) }] } });`,
         });
       };
       await install();
-      const initial = await page.evaluate(async () => {
+      const offline = await page.evaluate(async () => {
         const w = window as any;
-        w.outbox = new w.exports.GoalOutbox(
+        const outbox = new w.exports.GoalOutbox(
           'user/game',
           w.store,
-          () => {
+          async () => {
             throw new Error('offline');
           },
           async () => undefined,
         );
-        await w.outbox.hydrate({
-          game: { id: 'game', teams: [{ id: 'team', events: [] }] },
-        });
-        await w.outbox.enqueue(
+        await outbox.enqueue(
           {
             gameTeamId: 'team',
             period: '1',
@@ -60,73 +57,65 @@ describeWithChromium('IndexedDB goal durability (real Chromium)', () => {
           },
           'action',
         );
-        await w.outbox.sync(1000);
-        return w.exports.projectGoals(await w.outbox.load()).game.teams[0]
-          .events;
+        await outbox.sync(1000);
+        const { actions } = await outbox.load();
+        return {
+          actions,
+          events: w.exports.projectGoals(w.confirmed([]), actions).game.teams[0]
+            .events,
+        };
       });
-      expect(initial).toHaveLength(1);
-      expect(initial[0].childEvents[0].externalPlayerName).toBe('Sam');
+      expect(offline.actions[0]).toMatchObject({
+        id: 'action',
+        attempts: 1,
+        status: 'saved-device',
+      });
+      expect(offline.events[0].childEvents[0].externalPlayerName).toBe('Sam');
       await page.reload();
       await install();
       const restored = await page.evaluate(async () => {
         const w = window as any;
-        return w.exports.projectGoals(await w.store.read('user/game')).game
-          .teams[0].events;
+        const { actions } = await w.store.read('user/game');
+        return w.exports.projectGoals(w.confirmed([]), actions).game.teams[0]
+          .events;
       });
-      expect(restored).toEqual(initial);
+      expect(restored).toEqual(offline.events);
       const replay = await page.evaluate(async () => {
         const w = window as any;
-        // Transport fixture models a committed response lost in flight. Storage and
-        // outbox are production code; server transaction semantics are tested on PG.
+        // Transport fixture models a committed response lost in flight. Storage
+        // and outbox are production code; server receipts are tested on PG.
         const receipts = new Set<string>();
-        let calls = 0;
-        const snapshot = () => ({
-          game: {
-            id: 'game',
-            teams: [
-              { id: 'team', events: [...receipts].map((id) => ({ id })) },
-            ],
-          },
-        });
+        let sends = 0;
+        let confirms = 0;
         const outbox = new w.exports.GoalOutbox(
           'user/game',
           w.store,
           async (input: any) => {
             receipts.add(input.clientActionId);
-            if (++calls === 1) throw new Error('lost ACK');
+            if (++sends === 1) throw new Error('lost ACK');
           },
-          async () => snapshot(),
+          async () => {
+            confirms++;
+          },
         );
         await outbox.sync(100000);
         const afterLostAck = (await outbox.load()).actions.length;
         await outbox.sync(200000);
-        await outbox.enqueue({ gameTeamId: 'team', period: '1' }, 'pending');
-        await outbox.confirm(
-          {
-            game: {
-              id: 'game',
-              teams: [
-                { id: 'team', events: [{ id: 'action' }, { id: 'remote' }] },
-              ],
-            },
-          },
-          (await outbox.load()).revision ?? 0,
-        );
         return {
           afterLostAck,
-          calls,
+          sends,
+          confirms,
           receipts: receipts.size,
           state: await outbox.load(),
-          projected: w.exports.projectGoals(await outbox.load()),
         };
       });
-      expect(replay.afterLostAck).toBe(1);
-      expect(replay.calls).toBe(2);
-      expect(replay.receipts).toBe(1);
-      expect(replay.state.actions.map((a: any) => a.id)).toEqual(['pending']);
-      expect(
-        replay.projected.game.teams[0].events.map((e: any) => e.id),
-      ).toEqual(['action', 'remote', 'pending']);
+      expect(replay).toEqual({
+        afterLostAck: 1,
+        sends: 2,
+        confirms: 1,
+        receipts: 1,
+        state: { actions: [] },
+      });
       const rejected = await page.evaluate(async () => {
         const w = window as any;
         const outbox = new w.exports.GoalOutbox(
@@ -140,15 +129,17 @@ describeWithChromium('IndexedDB goal durability (real Chromium)', () => {
           },
           async () => undefined,
         );
+        await outbox.enqueue({ gameTeamId: 'team', period: '1' }, 'denied');
         await outbox.sync(300000);
-        const state = await outbox.load();
+        const { actions } = await outbox.load();
         return {
-          state,
-          events: w.exports.projectGoals(state).game.teams[0].events,
+          actions,
+          events: w.exports.projectGoals(w.confirmed(['remote']), actions).game
+            .teams[0].events,
         };
       });
-      expect(rejected.state.actions[0].status).toBe('needs-attention');
-      expect(rejected.events).toHaveLength(2);
+      expect(rejected.actions[0].status).toBe('needs-attention');
+      expect(rejected.events.map((e: any) => e.id)).toEqual(['remote']);
       await page.reload();
       await install();
       expect(
@@ -192,7 +183,6 @@ describeWithChromium('IndexedDB goal durability (real Chromium)', () => {
         await Promise.all(
           ['a', 'b'].map((id) =>
             store.change('user/game', (s: any) => ({
-              snapshot: { game: { id: 'game' } },
               actions: [...s.actions, { id }],
             })),
           ),
@@ -221,7 +211,6 @@ describeWithChromium('IndexedDB goal durability (real Chromium)', () => {
       ).toBe(2);
       await page.evaluate(async () =>
         (window as any).store.change('user/game', (s: any) => ({
-          snapshot: { game: { id: 'confirmed' } },
           actions: s.actions.filter((a: any) => a.id !== 'a'),
         })),
       );
@@ -230,7 +219,6 @@ describeWithChromium('IndexedDB goal durability (real Chromium)', () => {
       const acknowledged = await page.evaluate(async () =>
         (window as any).store.read('user/game'),
       );
-      expect(acknowledged.snapshot.game.id).toBe('confirmed');
       expect(acknowledged.actions.map((a: any) => a.id)).toEqual(['b']);
     } finally {
       await browser.close();

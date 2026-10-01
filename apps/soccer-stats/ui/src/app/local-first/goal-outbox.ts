@@ -13,35 +13,41 @@ export interface PendingGoal {
   status: 'saved-device' | 'needs-attention';
   error?: string;
 }
-export interface GoalState {
-  snapshot?: GetGameByIdQuery;
-  revision?: number;
+/** Only unsent work lives on the device; Apollo owns confirmed game data. */
+export interface OutboxState {
   actions: PendingGoal[];
 }
 export interface GoalStore {
-  read(scope: string): Promise<GoalState | undefined>;
+  read(scope: string): Promise<OutboxState | undefined>;
   change(
     scope: string,
-    update: (state: GoalState) => GoalState,
-  ): Promise<GoalState>;
+    update: (state: OutboxState) => OutboxState,
+  ): Promise<OutboxState>;
 }
 
-/** Confirmed data is never contaminated with optimistic events. */
-export function projectGoals(state?: GoalState): GetGameByIdQuery | undefined {
-  if (!state?.snapshot) return undefined;
-  const snapshot = state.snapshot;
+/**
+ * Overlay pending goals on confirmed game data. The server stores a goal under
+ * its clientActionId, so once the confirmed copy arrives the pending one is
+ * hidden by ID and the two never show twice.
+ */
+export function projectGoals(
+  confirmed: GetGameByIdQuery | undefined,
+  actions: PendingGoal[],
+): GetGameByIdQuery | undefined {
+  if (!confirmed) return undefined;
+  const pending = actions.filter((a) => a.status !== 'needs-attention');
+  if (!pending.length) return confirmed;
   return {
-    ...snapshot,
+    ...confirmed,
     game: {
-      ...snapshot.game,
-      teams: (snapshot.game.teams ?? []).map((team) => ({
+      ...confirmed.game,
+      teams: (confirmed.game.teams ?? []).map((team) => ({
         ...team,
         events: [
           ...(team.events ?? []),
-          ...state.actions
+          ...pending
             .filter(
               (a) =>
-                a.status !== 'needs-attention' &&
                 a.input.gameTeamId === team.id &&
                 !team.events?.some((e) => e.id === a.id),
             )
@@ -94,92 +100,66 @@ export function projectGoals(state?: GoalState): GetGameByIdQuery | undefined {
   };
 }
 
+/**
+ * Decide whether a failed send needs the user (terminal) or can be retried
+ * automatically with backoff. Terminal goals stop syncing and show Retry/Discard.
+ */
+export function isTerminalSyncError(error: unknown): boolean {
+  const e = error as { errors?: { extensions?: { code?: string } }[] };
+  return !!e?.errors?.some((x) =>
+    [
+      'BAD_REQUEST',
+      'BAD_USER_INPUT',
+      'FORBIDDEN',
+      'UNAUTHENTICATED',
+      'NOT_FOUND',
+    ].includes(x.extensions?.code ?? ''),
+  );
+}
+
 export class GoalOutbox {
   private running?: Promise<void>;
   constructor(
     readonly scope: string,
     private store: GoalStore,
     private send: (input: GoalInput) => Promise<unknown>,
-    private fetchSnapshot: (signal: AbortSignal) => Promise<GetGameByIdQuery>,
-    private changed: (state: GoalState) => void = () => undefined,
+    /** Refresh confirmed game data (the Apollo cache) from the server. */
+    private confirm: () => Promise<unknown>,
+    private changed: (state: OutboxState) => void = () => undefined,
     private active: () => boolean = () => true,
-    private accepted: (snapshot: GetGameByIdQuery) => void = () => undefined,
   ) {}
-  async load() {
-    return (await this.store.read(this.scope)) ?? { actions: [] };
+  async load(): Promise<OutboxState> {
+    return { actions: (await this.store.read(this.scope))?.actions ?? [] };
   }
-  private async change(update: (state: GoalState) => GoalState) {
+  private async change(update: (state: OutboxState) => OutboxState) {
     const state = await this.store.change(this.scope, (s) =>
-      this.active() ? update(s) : s,
+      this.active() ? { actions: update(s).actions } : s,
     );
     if (this.active()) this.changed(state);
     return state;
   }
-  /** Unversioned cache data may seed an empty store, never replace durable truth. */
-  hydrate(snapshot: GetGameByIdQuery) {
-    return this.change((s) =>
-      s.snapshot
-        ? s
-        : {
-            ...s,
-            snapshot,
-            revision: (s.revision ?? 0) + 1,
-          },
-    );
-  }
-  /** Capture expectedRevision before obtaining fresh data, not after its arrival. */
-  async confirm(
-    snapshot: GetGameByIdQuery,
-    expectedRevision: number,
-    acknowledgedId?: string,
-  ) {
-    const ids = new Set(
-      snapshot.game.teams?.flatMap((t) => t.events?.map((e) => e.id) ?? []),
-    );
-    let accepted = false;
-    await this.change((s) => {
-      if ((s.revision ?? 0) !== expectedRevision) return s;
-      accepted = true;
-      return {
-        snapshot,
-        revision: expectedRevision + 1,
-        actions: s.actions.filter(
-          (a) => a.id !== acknowledgedId && !ids.has(a.id),
-        ),
-      };
-    });
-    return accepted;
-  }
+  /** Resolves once the goal is committed to the device, never on network. */
   async enqueue(
     input: GoalInput,
     id: string = crypto.randomUUID(),
   ): Promise<void> {
     if (!this.active()) throw new Error('Sign in before recording goals');
-    await this.change((s) => {
-      if (
-        !s.snapshot ||
-        !s.snapshot.game.teams?.some((t) => t.id === input.gameTeamId)
-      )
-        throw new Error('A confirmed game snapshot is required');
-      return {
-        ...s,
-        actions: [
-          ...s.actions,
-          {
-            id,
-            input: { ...input, clientActionId: id },
-            createdAt: new Date().toISOString(),
-            attempts: 0,
-            nextAttempt: 0,
-            status: 'saved-device',
-          },
-        ],
-      };
-    });
+    await this.change((s) => ({
+      actions: [
+        ...s.actions,
+        {
+          id,
+          input: { ...input, clientActionId: id },
+          createdAt: new Date().toISOString(),
+          attempts: 0,
+          nextAttempt: 0,
+          status: 'saved-device',
+        },
+      ],
+    }));
   }
   retry(id: string) {
     return this.change((s) => ({
-      ...s,
       actions: s.actions.map((a) =>
         a.id === id
           ? { ...a, status: 'saved-device', error: undefined, nextAttempt: 0 }
@@ -189,12 +169,12 @@ export class GoalOutbox {
   }
   discard(id: string) {
     return this.change((s) => ({
-      ...s,
       actions: s.actions.filter(
         (a) => a.id !== id || a.status !== 'needs-attention',
       ),
     }));
   }
+  /** Concurrent callers share one in-flight drain. */
   sync(now = Date.now()): Promise<void> {
     if (this.running) return this.running;
     this.running = this.flush(now).finally(() => {
@@ -202,67 +182,19 @@ export class GoalOutbox {
     });
     return this.running;
   }
-  private async snapshot(): Promise<GetGameByIdQuery> {
-    const controller = new AbortController();
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    // Race as well as abort: links/transports may ignore AbortSignal. Their late
-    // results must never resume a timed-out drain or commit stale membership.
-    const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => {
-        reject(new Error('Confirmed game snapshot timed out; retry available'));
-        controller.abort();
-      }, 15000);
-    });
-    try {
-      return await Promise.race([
-        this.fetchSnapshot(controller.signal),
-        timeout,
-      ]);
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-  private async fetchAndCommit(acknowledgedId?: string) {
-    // Read the durable generation before starting I/O. Subscription ingress and
-    // other tabs advance it in the same transaction as membership/retirement.
-    const revision = (await this.load()).revision ?? 0;
-    if (!this.active()) return;
-    const snapshot = await this.snapshot();
-    const accepted = await this.confirm(snapshot, revision, acknowledgedId);
-    // Cache publication follows ordering and durable commit, never network return.
-    if (accepted && this.active()) this.accepted(snapshot);
-  }
-  async refresh() {
-    if (!this.active()) return;
-    await this.fetchAndCommit();
-  }
   private async flush(now: number) {
+    const acknowledged = new Set<string>();
     for (const action of (await this.load()).actions) {
       if (!this.active()) return;
       if (action.status === 'needs-attention') continue;
-      if (action.nextAttempt > now) return;
+      // Preserve recording order: later goals wait behind a backed-off one.
+      if (action.nextAttempt > now) break;
       try {
         await this.send(action.input);
-        if (!this.active()) return;
-        // Fetch after ACK, even if the goal was since deleted. Snapshot replacement and
-        // outbox retirement are ONE local transaction: crash cannot lose either half.
-        await this.fetchAndCommit(action.id);
+        acknowledged.add(action.id);
       } catch (error) {
-        const e = error as {
-          message?: string;
-          errors?: { extensions?: { code?: string } }[];
-        };
-        const terminal = e.errors?.some((x) =>
-          [
-            'BAD_REQUEST',
-            'BAD_USER_INPUT',
-            'FORBIDDEN',
-            'UNAUTHENTICATED',
-            'NOT_FOUND',
-          ].includes(x.extensions?.code ?? ''),
-        );
+        const terminal = isTerminalSyncError(error);
         await this.change((s) => ({
-          ...s,
           actions: s.actions.map((a) =>
             a.id !== action.id
               ? a
@@ -272,12 +204,22 @@ export class GoalOutbox {
                   nextAttempt:
                     now + Math.min(60000, 1000 * 2 ** Math.min(a.attempts, 6)),
                   status: terminal ? 'needs-attention' : 'saved-device',
-                  error: e.message ?? 'Sync failed; retry available',
+                  error:
+                    (error as { message?: string })?.message ??
+                    'Sync failed; retry available',
                 },
           ),
         }));
-        if (!terminal) return;
+        if (!terminal) break;
       }
     }
+    if (!acknowledged.size || !this.active()) return;
+    // Pull the server's copy into the cache before dropping the local one so
+    // the goal never vanishes from view. If this fails or the page dies here,
+    // the goal is simply resent and the server answers from its receipt.
+    await this.confirm();
+    await this.change((s) => ({
+      actions: s.actions.filter((a) => !acknowledged.has(a.id)),
+    }));
   }
 }

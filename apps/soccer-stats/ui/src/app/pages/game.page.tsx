@@ -283,8 +283,6 @@ export const GamePage = () => {
 
   const apolloClient = useApolloClient();
 
-  // Reconcile the cache with the server when the tab/device wakes from
-  // sleep - subscriptions can silently miss events while asleep.
   const {
     data: confirmedData,
     loading,
@@ -299,13 +297,13 @@ export const GamePage = () => {
     fetchPolicy: 'cache-first',
   });
 
+  // Confirmed data stays in Apollo; pending local goals are overlaid on top.
   const localGoals = useLocalGoals(gameId, confirmedData);
-  const invalidateLocalGoalsRef = useRef(localGoals.invalidate);
-  invalidateLocalGoalsRef.current = localGoals.invalidate;
-  const data = localGoals.enabled
-    ? (localGoals.data ?? confirmedData)
-    : confirmedData;
-  useResyncOnWake(localGoals.enabled ? localGoals.reconcile : undefined);
+  const data = localGoals.data;
+
+  // Reconcile the cache with the server when the tab/device wakes from
+  // sleep - subscriptions can silently miss events while asleep.
+  useResyncOnWake(localGoals.enabled ? localGoals.sync : undefined);
 
   // Server-synced game time - keeps multiple clients in sync
   const syncedTime = useSyncedGameTime(
@@ -944,7 +942,6 @@ export const GamePage = () => {
       updateQuery: (prev: any, { subscriptionData }: any) => {
         const payload = subscriptionData.data?.gameEventChanged;
         if (!payload) return prev;
-        void invalidateLocalGoalsRef.current();
 
         switch (payload.action) {
           case GameEventAction.Created:
@@ -1003,7 +1000,6 @@ export const GamePage = () => {
       updateQuery: (prev: any, { subscriptionData }: any) => {
         const gameUpdate = subscriptionData.data?.gameUpdated;
         if (!gameUpdate || !prev.game) return prev;
-        void invalidateLocalGoalsRef.current();
 
         return {
           ...prev,
@@ -1044,7 +1040,6 @@ export const GamePage = () => {
       updateQuery: (prev: any, { subscriptionData }: any) => {
         const gameTeamUpdate = subscriptionData.data?.gameTeamUpdated;
         if (!gameTeamUpdate || !prev.game) return prev;
-        void invalidateLocalGoalsRef.current();
 
         return {
           ...prev,
@@ -1592,7 +1587,7 @@ export const GamePage = () => {
     return <Navigate to="/games" replace />;
   }
 
-  if (loading && !data?.game) {
+  if (loading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
@@ -1603,7 +1598,7 @@ export const GamePage = () => {
     );
   }
 
-  if (error && !data?.game) {
+  if (error) {
     return (
       <div className="rounded-lg border border-red-200 bg-red-50 p-6">
         <h2 className="mb-2 text-xl font-bold text-red-900">
@@ -1749,9 +1744,7 @@ export const GamePage = () => {
             {localGoals.status}
             {!navigator.onLine ? ' — offline' : ''}
           </p>
-          {localGoals.storageError && (
-            <p role="alert">{localGoals.storageError}</p>
-          )}
+          {localGoals.syncError && <p role="alert">{localGoals.syncError}</p>}
           {localGoals.actions
             .filter((a) => a.status === 'needs-attention')
             .map((a) => (

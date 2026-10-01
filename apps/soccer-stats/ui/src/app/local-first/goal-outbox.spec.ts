@@ -2,17 +2,28 @@ import { describe, it, expect, vi } from 'vitest';
 
 import {
   GoalOutbox,
+  isTerminalSyncError,
   projectGoals,
-  type GoalState,
+  type GoalInput,
   type GoalStore,
+  type OutboxState,
+  type PendingGoal,
 } from './goal-outbox';
 
-const snapshot = {
-  game: { id: 'game', teams: [{ id: 'team', events: [] }] },
-} as any;
+const confirmed = (...ids: string[]) =>
+  ({
+    game: {
+      id: 'game',
+      teams: [{ id: 'team', events: ids.map((id) => ({ id })) }],
+    },
+  }) as any;
 const input = { gameTeamId: 'team', period: '1', periodSecond: 42 };
-function setup() {
-  const records = new Map<string, GoalState>();
+const graphQLError = (code: string, message = code) => ({
+  message,
+  errors: [{ extensions: { code } }],
+});
+
+function setup(scope = 'user/game', records = new Map<string, OutboxState>()) {
   const store: GoalStore = {
     read: async (key) => structuredClone(records.get(key)),
     change: async (key, fn) => {
@@ -21,263 +32,250 @@ function setup() {
       return next;
     },
   };
-  const send = vi.fn<
-    (input: import('./goal-outbox').GoalInput) => Promise<void>
-  >(async () => undefined);
-  const fetch = vi.fn(async () => snapshot);
-  const outbox = new GoalOutbox('user/game', store, send, fetch);
-  return { outbox, store, send, fetch };
+  const send = vi.fn<(input: GoalInput) => Promise<unknown>>(
+    async () => undefined,
+  );
+  const confirm = vi.fn<() => Promise<unknown>>(async () => undefined);
+  const changed = vi.fn();
+  let active = true;
+  const outbox = new GoalOutbox(
+    scope,
+    store,
+    send,
+    confirm,
+    changed,
+    () => active,
+  );
+  const ids = async () => (await outbox.load()).actions.map((a) => a.id);
+  return {
+    outbox,
+    store,
+    records,
+    send,
+    confirm,
+    changed,
+    ids,
+    deactivate: () => {
+      active = false;
+    },
+  };
 }
-describe('durable goal outbox', () => {
-  it('rejects an older confirmed ingress generation from another client', async () => {
-    const s = setup();
-    await s.outbox.hydrate(snapshot);
-    const b = new GoalOutbox('user/game', s.store, s.send, s.fetch);
-    const revision = (await b.load()).revision ?? 0;
-    await s.outbox.enqueue(input, 'ack');
-    const fresh = {
-      game: {
-        ...snapshot.game,
-        teams: [{ id: 'team', events: [{ id: 'ack' }] }],
-      },
-    };
-    s.fetch.mockResolvedValue(fresh);
-    await s.outbox.sync();
-    // A delayed server/subscription ingress must carry its pre-I/O generation.
-    await b.confirm(snapshot, revision);
-    expect((await b.load()).snapshot).toEqual(fresh);
-    expect((await b.load()).actions).toEqual([]);
+
+describe('projectGoals', () => {
+  const pending = (id: string, extra: Partial<PendingGoal> = {}) =>
+    ({
+      id,
+      input: { ...input, externalAssisterName: 'Sam' },
+      createdAt: 'now',
+      attempts: 0,
+      nextAttempt: 0,
+      status: 'saved-device',
+      ...extra,
+    }) as PendingGoal;
+
+  it('returns confirmed data untouched when nothing is pending', () => {
+    const data = confirmed('a');
+    expect(projectGoals(data, [])).toBe(data);
+    expect(projectGoals(undefined, [pending('x')])).toBeUndefined();
   });
 
-  it.each(['own', 'remote'])(
-    'rejects a stale refresh after %s echo, including after reload',
-    async (kind) => {
-      const s = setup();
-      await s.outbox.hydrate(snapshot);
-      if (kind === 'own') await s.outbox.enqueue(input, 'echo');
-      let resolve!: (v: any) => void;
-      s.fetch.mockImplementationOnce(
-        () =>
-          new Promise((r) => {
-            resolve = r;
-          }),
-      );
-      const refresh = s.outbox.refresh();
-      await vi.waitFor(() => expect(resolve).toBeDefined());
-      await s.outbox.confirm(
-        {
-          game: {
-            ...snapshot.game,
-            teams: [{ id: 'team', events: [{ id: 'echo' }] }],
-          },
-        },
-        (await s.outbox.load()).revision ?? 0,
-      );
-      resolve(snapshot);
-      await refresh;
-      const restored = new GoalOutbox('user/game', s.store, s.send, s.fetch);
-      expect(
-        (await restored.load()).snapshot?.game.teams?.[0].events?.map(
-          (e) => e.id,
-        ),
-      ).toEqual(['echo']);
-      expect((await restored.load()).actions).toEqual([]);
-    },
-  );
-  it('rejects stale post-ACK membership without retiring an unconfirmed action', async () => {
+  it('overlays pending goals with their assist after confirmed events', () => {
+    const events = projectGoals(confirmed('a'), [pending('x')])!.game.teams![0]
+      .events!;
+    expect(events.map((e) => e.id)).toEqual(['a', 'x']);
+    expect(events[1].eventType.name).toBe('GOAL');
+    expect(events[1].childEvents?.[0].externalPlayerName).toBe('Sam');
+  });
+
+  it('hides a pending goal once its confirmed copy (same ID) arrives', () => {
+    const events = projectGoals(confirmed('x'), [pending('x')])!.game.teams![0]
+      .events!;
+    expect(events.map((e) => e.id)).toEqual(['x']);
+  });
+
+  it('does not count rejected goals toward the score', () => {
+    const events = projectGoals(confirmed(), [
+      pending('x', { status: 'needs-attention' }),
+    ])!.game.teams![0].events!;
+    expect(events).toHaveLength(0);
+  });
+});
+
+describe('isTerminalSyncError', () => {
+  it('treats validation and permission errors as terminal', () => {
+    expect(isTerminalSyncError(graphQLError('BAD_USER_INPUT'))).toBe(true);
+    expect(isTerminalSyncError(graphQLError('FORBIDDEN'))).toBe(true);
+  });
+  it('retries network failures and unknown server errors', () => {
+    expect(isTerminalSyncError(new Error('Failed to fetch'))).toBe(false);
+    expect(isTerminalSyncError(graphQLError('INTERNAL_SERVER_ERROR'))).toBe(
+      false,
+    );
+    expect(isTerminalSyncError(undefined)).toBe(false);
+  });
+});
+
+describe('GoalOutbox', () => {
+  it('commits to the device before resolving and never awaits the network', async () => {
     const s = setup();
-    await s.outbox.hydrate(snapshot);
-    await s.outbox.enqueue(input, 'action');
-    let resolve!: (v: any) => void;
-    s.fetch.mockImplementationOnce(
+    await s.outbox.enqueue(input, 'a');
+    expect(await s.ids()).toEqual(['a']);
+    expect(s.send).not.toHaveBeenCalled();
+    expect((await s.outbox.load()).actions[0].input.clientActionId).toBe('a');
+    expect(s.changed).toHaveBeenCalledWith({
+      actions: [expect.objectContaining({ id: 'a' })],
+    });
+  });
+
+  it('a storage failure rejects so the goal is never reported as saved', async () => {
+    const s = setup();
+    s.store.change = async () => {
+      throw new Error('QuotaExceededError');
+    };
+    await expect(s.outbox.enqueue(input)).rejects.toThrow('QuotaExceeded');
+  });
+
+  it('refreshes confirmed data before retiring acknowledged goals', async () => {
+    const s = setup();
+    await s.outbox.enqueue(input, 'a');
+    let release!: () => void;
+    s.confirm.mockImplementationOnce(
       () =>
-        new Promise((r) => {
-          resolve = r;
+        new Promise<void>((resolve) => {
+          release = resolve;
         }),
     );
     const sync = s.outbox.sync();
-    await vi.waitFor(() => expect(resolve).toBeDefined());
-    await s.outbox.confirm(
-      {
-        game: {
-          ...snapshot.game,
-          teams: [{ id: 'team', events: [{ id: 'remote' }] }],
-        },
-      },
-      (await s.outbox.load()).revision ?? 0,
-    );
-    resolve(snapshot);
+    await vi.waitFor(() => expect(s.confirm).toHaveBeenCalled());
+    // Still pending (and so still displayed) until the cache has the goal
+    expect(await s.ids()).toEqual(['a']);
+    release();
     await sync;
-    expect(
-      (await s.outbox.load()).snapshot?.game.teams?.[0].events?.map(
-        (e) => e.id,
-      ),
-    ).toEqual(['remote']);
-    expect((await s.outbox.load()).actions.map((a) => a.id)).toEqual([
-      'action',
+    expect(await s.ids()).toEqual([]);
+  });
+
+  it('confirms once for a batch of acknowledged goals', async () => {
+    const s = setup();
+    await s.outbox.enqueue(input, 'a');
+    await s.outbox.enqueue(input, 'b');
+    await s.outbox.sync();
+    expect(s.send).toHaveBeenCalledTimes(2);
+    expect(s.confirm).toHaveBeenCalledTimes(1);
+    expect(await s.ids()).toEqual([]);
+  });
+
+  it('a failed refresh keeps the goal; the resend reuses its action ID', async () => {
+    const s = setup();
+    await s.outbox.enqueue(input, 'a');
+    s.confirm.mockRejectedValueOnce(new Error('offline'));
+    await expect(s.outbox.sync()).rejects.toThrow('offline');
+    expect(await s.ids()).toEqual(['a']);
+    await s.outbox.sync();
+    expect(s.send.mock.calls.map(([i]) => i.clientActionId)).toEqual([
+      'a',
+      'a',
     ]);
+    expect(await s.ids()).toEqual([]);
   });
-  it('commits before reporting saved; does not await network', async () => {
+
+  it('a lost response backs off and later goals wait behind it, in order', async () => {
     const s = setup();
-    await s.outbox.hydrate(snapshot);
-    s.send.mockImplementation(() => new Promise(() => undefined));
-    await s.outbox.enqueue(input, 'action');
-    expect((await s.store.read('user/game'))?.actions[0].id).toBe('action');
-    expect(
-      projectGoals(await s.store.read('user/game'))?.game.teams?.[0].events,
-    ).toHaveLength(1);
-  });
-  it('restores pending work after reload and keeps account/game isolation', async () => {
-    const s = setup();
-    await s.outbox.hydrate(snapshot);
-    await s.outbox.enqueue(input, 'action');
-    const restored = new GoalOutbox('user/game', s.store, s.send, s.fetch);
-    expect((await restored.load()).actions).toHaveLength(1);
-    expect(
-      (await new GoalOutbox('other/game', s.store, s.send, s.fetch).load())
-        .actions,
-    ).toHaveLength(0);
-  });
-  it('retries lost responses with the same action ID and backs off', async () => {
-    const s = setup();
-    await s.outbox.hydrate(snapshot);
-    await s.outbox.enqueue(input, 'action');
-    s.send.mockRejectedValueOnce(new Error('offline'));
+    await s.outbox.enqueue(input, 'a');
+    await s.outbox.enqueue(input, 'b');
+    s.send.mockRejectedValueOnce(new Error('Failed to fetch'));
     await s.outbox.sync(1000);
-    expect((await s.outbox.load()).actions[0].nextAttempt).toBeGreaterThan(
-      1000,
-    );
-    await s.outbox.sync(1001);
     expect(s.send).toHaveBeenCalledTimes(1);
-    await s.outbox.sync(100000);
-    expect(s.send.mock.calls[0][0].clientActionId).toBe('action');
-    expect(s.send.mock.calls[1][0].clientActionId).toBe('action');
-    expect((await s.outbox.load()).actions).toHaveLength(0);
-  });
-  it('keeps later actions behind a transient failure and its backoff', async () => {
-    const s = setup();
-    await s.outbox.hydrate(snapshot);
-    await s.outbox.enqueue(input, 'A');
-    await s.outbox.enqueue(input, 'B');
-    s.send.mockRejectedValueOnce(new Error('offline'));
-    await s.outbox.sync(1000);
-    expect(s.send.mock.calls.map(([value]) => value.clientActionId)).toEqual([
-      'A',
-    ]);
-    await s.outbox.sync(1001);
-    expect(s.send.mock.calls.map(([value]) => value.clientActionId)).toEqual([
-      'A',
-    ]);
+    const [a] = (await s.outbox.load()).actions;
+    expect(a).toMatchObject({
+      status: 'saved-device',
+      attempts: 1,
+      nextAttempt: 2000,
+      error: 'Failed to fetch',
+    });
+    await s.outbox.sync(1500);
+    expect(s.send).toHaveBeenCalledTimes(1);
     await s.outbox.sync(2000);
-    expect(s.send.mock.calls.map(([value]) => value.clientActionId)).toEqual([
-      'A',
-      'A',
-      'B',
+    expect(s.send.mock.calls.map(([i]) => i.clientActionId)).toEqual([
+      'a',
+      'a',
+      'b',
     ]);
-    expect((await s.outbox.load()).actions).toEqual([]);
+    expect(await s.ids()).toEqual([]);
   });
-  it('releases a stalled post-ACK snapshot and ignores its late result after recovery', async () => {
-    vi.useFakeTimers();
-    try {
-      const s = setup();
-      await s.outbox.hydrate(snapshot);
-      await s.outbox.enqueue(input, 'A');
-      let resolve!: (value: any) => void;
-      s.fetch.mockImplementationOnce(
-        () =>
-          new Promise((r) => {
-            resolve = r;
-          }),
-      );
-      let settled = false;
-      const first = s.outbox.sync(1000).then(() => {
-        settled = true;
-      });
-      await vi.advanceTimersByTimeAsync(15001);
-      expect(settled).toBe(true);
-      await first;
-      expect((await s.outbox.load()).actions.map((a) => a.id)).toEqual(['A']);
-      await s.outbox.sync(100000);
-      expect((await s.outbox.load()).actions).toEqual([]);
-      resolve({
-        game: {
-          ...snapshot.game,
-          teams: [{ id: 'team', events: [{ id: 'stale' }] }],
-        },
-      });
-      await vi.advanceTimersByTimeAsync(0);
-      expect((await s.outbox.load()).snapshot).toEqual(snapshot);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-  it('incoming other-phone events preserve local pending goals and own echo does not duplicate', async () => {
+
+  it('a terminal rejection needs attention and does not block later goals', async () => {
     const s = setup();
-    await s.outbox.hydrate(snapshot);
-    await s.outbox.enqueue(input, 'action');
-    await s.outbox.enqueue(input, 'still-pending');
-    const incoming = {
-      game: {
-        ...snapshot.game,
-        teams: [{ id: 'team', events: [{ id: 'remote' }, { id: 'action' }] }],
-      },
-    } as any;
-    await s.outbox.confirm(incoming, (await s.outbox.load()).revision ?? 0);
-    expect(
-      projectGoals(await s.outbox.load())?.game.teams?.[0].events,
-    ).toHaveLength(3);
-    expect((await s.outbox.load()).actions.map((a) => a.id)).toEqual([
-      'still-pending',
+    await s.outbox.enqueue(input, 'a');
+    await s.outbox.enqueue(input, 'b');
+    s.send.mockRejectedValueOnce(graphQLError('BAD_REQUEST', 'Invalid goal'));
+    await s.outbox.sync();
+    const actions = (await s.outbox.load()).actions;
+    expect(actions).toEqual([
+      expect.objectContaining({
+        id: 'a',
+        status: 'needs-attention',
+        error: 'Invalid goal',
+      }),
     ]);
+    // Rejected goals are skipped on later drains until the user retries
+    await s.outbox.sync();
+    expect(s.send).toHaveBeenCalledTimes(2);
   });
-  it('does not retire acknowledgement until snapshot is committed; reload retries safely', async () => {
+
+  it('retry re-queues a rejected goal; discard only removes rejected goals', async () => {
     const s = setup();
-    await s.outbox.hydrate(snapshot);
-    await s.outbox.enqueue(input, 'action');
-    s.fetch.mockRejectedValueOnce(new Error('snapshot lost'));
-    await s.outbox.sync(1000);
-    expect((await s.outbox.load()).actions).toHaveLength(1);
-    await s.outbox.sync(100000);
-    expect((await s.outbox.load()).actions).toHaveLength(0);
+    await s.outbox.enqueue(input, 'a');
+    await s.outbox.enqueue(input, 'b');
+    s.send.mockRejectedValueOnce(graphQLError('FORBIDDEN'));
+    s.send.mockRejectedValueOnce(new Error('Failed to fetch'));
+    await s.outbox.sync();
+    await s.outbox.discard('b');
+    expect(await s.ids()).toEqual(['a', 'b']);
+    await s.outbox.retry('a');
+    expect((await s.outbox.load()).actions[0]).toMatchObject({
+      status: 'saved-device',
+      nextAttempt: 0,
+      error: undefined,
+    });
+    await s.outbox.discard('a');
+    expect(await s.ids()).toEqual(['a', 'b']);
   });
-  it.each([
-    'BAD_REQUEST',
-    'BAD_USER_INPUT',
-    'FORBIDDEN',
-    'UNAUTHENTICATED',
-    'NOT_FOUND',
-  ])(
-    'terminal rejection %s is retained for retry or discard and not counted in score',
-    async (code) => {
-      const s = setup();
-      await s.outbox.hydrate(snapshot);
-      await s.outbox.enqueue(input, 'action');
-      s.send.mockRejectedValueOnce({
-        errors: [{ extensions: { code } }],
-        message: 'invalid scorer',
-      });
-      await s.outbox.sync(1000);
-      expect((await s.outbox.load()).actions[0].status).toBe('needs-attention');
-      expect(
-        projectGoals(await s.outbox.load())?.game.teams?.[0].events,
-      ).toHaveLength(0);
-      await s.outbox.retry('action');
-      await s.outbox.sync(2000);
-      expect((await s.outbox.load()).actions).toHaveLength(0);
-    },
-  );
-  it('storage failure never reports a goal as saved', async () => {
+
+  it('concurrent syncs share one drain and never double-send', async () => {
     const s = setup();
-    await s.outbox.hydrate(snapshot);
-    s.store.change = async () => {
-      throw new Error('quota');
-    };
-    await expect(s.outbox.enqueue(input, 'action')).rejects.toThrow('quota');
-    expect((await s.store.read('user/game'))?.actions).toHaveLength(0);
+    await s.outbox.enqueue(input, 'a');
+    await Promise.all([s.outbox.sync(), s.outbox.sync()]);
+    expect(s.send).toHaveBeenCalledTimes(1);
   });
-  it('requires a confirmed snapshot before accepting local work', async () => {
-    await expect(setup().outbox.enqueue(input, 'action')).rejects.toThrow(
-      'snapshot',
-    );
+
+  it('an inactive outbox stops sending and leaves storage alone', async () => {
+    const s = setup();
+    await s.outbox.enqueue(input, 'a');
+    s.deactivate();
+    await s.outbox.sync();
+    expect(s.send).not.toHaveBeenCalled();
+    await s.outbox.retry('a');
+    expect(await s.ids()).toEqual(['a']);
+    await expect(s.outbox.enqueue(input)).rejects.toThrow('Sign in');
+  });
+
+  it('keeps pending work isolated per account and game', async () => {
+    const records = new Map<string, OutboxState>();
+    const a = setup('A/game', records);
+    const b = setup('B/game', records);
+    await a.outbox.enqueue(input, 'a');
+    expect(await b.ids()).toEqual([]);
+    await b.outbox.sync();
+    expect(b.send).not.toHaveBeenCalled();
+    expect(await setup('A/game', records).ids()).toEqual(['a']);
+  });
+
+  it('drops legacy snapshot fields from stored records on the next write', async () => {
+    const records = new Map<string, OutboxState>([
+      ['user/game', { actions: [], snapshot: {}, revision: 3 } as never],
+    ]);
+    const s = setup('user/game', records);
+    await s.outbox.enqueue(input, 'a');
+    expect(Object.keys(records.get('user/game')!)).toEqual(['actions']);
   });
 });
