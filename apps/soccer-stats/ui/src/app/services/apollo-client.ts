@@ -51,14 +51,7 @@ function getWsUrl(): string {
   return `/${API_PREFIX}/graphql`;
 }
 
-// Token getter function - will be set by the AuthApolloProvider
-let getToken: (() => Promise<string | null>) | null = null;
-
-export function setTokenGetter(getter: () => Promise<string | null>) {
-  getToken = getter;
-}
-
-// Auth error handler - will be set by the AuthApolloProvider
+// Auth error handler - will be set by the AuthErrorProvider
 let onAuthError: (() => void) | null = null;
 
 export function setAuthErrorHandler(handler: (() => void) | null) {
@@ -247,8 +240,3 @@ export function createSessionApolloClient(
     },
   };
 }
-
-// Compatibility for legacy consumers; the application provider uses session clients.
-export const apolloClient = createSessionApolloClient(
-  () => getToken?.() ?? Promise.resolve(null),
-).client;

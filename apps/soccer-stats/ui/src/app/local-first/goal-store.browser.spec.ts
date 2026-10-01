@@ -5,11 +5,13 @@ import { chromium } from '@playwright/test';
 import * as ts from 'typescript';
 import { describe, it, expect } from 'vitest';
 
-// Browser binaries are deliberately opt-in: ordinary unit-test jobs must not
-// download a browser. CI/device jobs set this path and exercise IndexedDB.
-const describeWithChromium = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
-  ? describe
-  : describe.skip;
+// Browser binaries are opt-in locally: ordinary unit-test runs must not
+// download a browser. CI always runs this suite (Playwright's default install
+// path), so a missing browser fails the job instead of silently skipping.
+const describeWithChromium =
+  process.env.CI || process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+    ? describe
+    : describe.skip;
 
 describeWithChromium('IndexedDB goal durability (real Chromium)', () => {
   it('runs offline goal entry, reload, lost ACK replay, echo merge and rejection recovery through the real outbox and IndexedDB', async () => {

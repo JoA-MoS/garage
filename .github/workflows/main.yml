@@ -51,12 +51,12 @@ jobs:
       - run: pnpm nx affected --target=lint --parallel --max-parallel=3
       # The local-first goal suite uses real Chromium IndexedDB. Dependencies are
       # installed with scripts disabled above, so provision the pinned browser here.
+      # Playwright finds it at its default install path; the suite fails (rather
+      # than skips) under CI if the browser is missing.
       - name: Install Playwright Chromium for durable-storage tests
         run: pnpm exec playwright install chromium
       - name: Test affected projects
-        run: |
-          echo "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=$(node -e \"console.log(require('@playwright/test').chromium.executablePath())\")" >> "$GITHUB_ENV"
-          pnpm nx affected --target=test --parallel --max-parallel=2
+        run: pnpm nx affected --target=test --parallel --max-parallel=2
       - run: pnpm nx affected --target=build --parallel --max-parallel=3
       # Deployment is handled by deploy-soccer-stats.yml. Keep CI limited to
       # validation so unrelated Vercel deploy targets do not pollute GitHub's

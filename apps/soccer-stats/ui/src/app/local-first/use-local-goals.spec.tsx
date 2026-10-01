@@ -2,10 +2,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ApolloClient, ApolloLink, Observable } from '@apollo/client';
 
-import {
-  apolloClient,
-  createSessionApolloClient,
-} from '../services/apollo-client';
+import { createSessionApolloClient } from '../services/apollo-client';
 import { useResyncOnWake } from '../hooks/use-resync-on-wake';
 import { GET_GAME_BY_ID } from '../services/games-graphql.service';
 
@@ -44,10 +41,12 @@ vi.mock('./goal-store', () => ({
     }
   },
 }));
+// A real session cache (with the app's type policies) shared across tests
+const sessionCache = createSessionApolloClient(null).client.cache;
 const defaultClient = {
   mutate: mocks.mutate,
   query: mocks.query,
-  cache: apolloClient.cache,
+  cache: sessionCache,
 };
 let client: any = defaultClient;
 const data = {
@@ -376,7 +375,7 @@ describe('local goal integration', () => {
       const fresh = {
         game: { ...old.game, teams: [{ ...old.game.teams[0], events: [] }] },
       };
-      const cache = apolloClient.cache;
+      const cache = sessionCache;
       cache.restore({});
       cache.writeQuery({
         query: GET_GAME_BY_ID,

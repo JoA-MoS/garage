@@ -77,7 +77,7 @@ const databaseUrl = process.env.GOAL_TEST_DATABASE_URL;
       'INSERT INTO event_types (id, name, category) VALUES ($1, $2, $3), ($4, $5, $3)',
       [goalTypeId, 'GOAL', 'SCORING', assistTypeId, 'ASSIST'],
     );
-    service = new GoalService({
+    const core = {
       gameEventsRepository: db.getRepository(GameEvent),
       getGameTeam: (id: string) =>
         db.getRepository(GameTeam).findOneByOrFail({ id }),
@@ -85,7 +85,20 @@ const databaseUrl = process.env.GOAL_TEST_DATABASE_URL;
         id: name === 'GOAL' ? goalTypeId : assistTypeId,
       }),
       publishGameEvent: publish,
-    } as unknown as EventCoreService);
+    } as unknown as EventCoreService;
+    // Real duplicate/conflict detection, so semantic dedup runs real SQL
+    // inside the receipt transaction.
+    for (const method of [
+      'checkForDuplicateOrConflict',
+      'buildConflictInfo',
+      'getPlayerNameFromEvent',
+      'getRecordedByUserName',
+    ] as const) {
+      Object.assign(core, {
+        [method]: EventCoreService.prototype[method].bind(core),
+      });
+    }
+    service = new GoalService(core);
   }, 30000);
   beforeEach(async () => {
     publish.mockClear();
@@ -158,5 +171,44 @@ const databaseUrl = process.env.GOAL_TEST_DATABASE_URL;
           .findOneByOrFail({ id: action.clientActionId })
       ).periodSecond,
     ).toBe(12);
+  });
+  it('two devices recording the same goal concurrently commit it once', async () => {
+    // Different action IDs, so only semantic dedup can catch the second device
+    const [first, second] = await Promise.all([
+      service.recordGoal(input(), userId),
+      service.recordGoal(input(), userId),
+    ]);
+    expect(second.id).toBe(first.id);
+    expect(await db.getRepository(GameEvent).count()).toBe(2);
+    expect(await db.query('SELECT * FROM goal_action_receipts')).toHaveLength(
+      2,
+    );
+    expect((publish.mock.calls as unknown[][]).map((call) => call[1])).toEqual(
+      expect.arrayContaining(['CREATED', 'DUPLICATE_DETECTED']),
+    );
+  });
+  it('a different scorer at the same moment is flagged as a conflict', async () => {
+    const first = await service.recordGoal(input(), userId);
+    const second = await service.recordGoal(
+      {
+        ...input(),
+        externalScorerName: 'Other',
+        externalAssisterName: undefined,
+      },
+      userId,
+    );
+    const rows = await db
+      .getRepository(GameEvent)
+      .findBy([{ id: first.id }, { id: second.id }]);
+    expect(rows).toHaveLength(2);
+    expect(rows[0].conflictId).toBeTruthy();
+    expect(rows[1].conflictId).toBe(rows[0].conflictId);
+    expect(publish).toHaveBeenLastCalledWith(
+      expect.any(String),
+      'CONFLICT_DETECTED',
+      expect.objectContaining({ id: second.id }),
+      undefined,
+      expect.objectContaining({ conflictId: rows[0].conflictId }),
+    );
   });
 });

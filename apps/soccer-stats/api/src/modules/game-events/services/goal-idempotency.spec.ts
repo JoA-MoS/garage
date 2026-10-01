@@ -23,6 +23,8 @@ describe('local-first goal idempotency', () => {
       findOneByOrFail: jest.fn(async ({ id }) =>
         rows.find((row: any) => row.id === id),
       ),
+      update: jest.fn(async () => undefined),
+      find: jest.fn(async () => []),
       save: jest.fn(async (x) => {
         const row = { ...x, id: x.id || 'assist-id' };
         rows.push(row);
@@ -62,6 +64,7 @@ describe('local-first goal idempotency', () => {
         isDuplicate: false,
       })),
       publishGameEvent: jest.fn(async () => undefined),
+      buildConflictInfo: jest.fn(() => ({ conflictId: 'conflict' })),
     };
     return {
       service: new GoalService(core as unknown as EventCoreService),
@@ -84,7 +87,7 @@ describe('local-first goal idempotency', () => {
       expect(s.core.publishGameEvent).not.toHaveBeenCalled();
     },
   );
-  it('commits goal and assist once on concurrent retries, bypassing semantic dedup', async () => {
+  it('commits goal and assist once on concurrent retries', async () => {
     const s = setup();
     const results = await Promise.all([
       s.service.recordGoal(input, 'user'),
@@ -94,7 +97,50 @@ describe('local-first goal idempotency', () => {
     expect(s.rows()).toHaveLength(2);
     expect(results[0].id).toBe(input.clientActionId);
     expect(results[1].id).toBe(results[0].id);
-    expect(s.core.checkForDuplicateOrConflict).not.toHaveBeenCalled();
+    // The retry is answered from the receipt before semantic dedup runs
+    expect(s.core.checkForDuplicateOrConflict).toHaveBeenCalledTimes(1);
+  });
+  it('returns the existing goal when another device already recorded it', async () => {
+    const s = setup();
+    s.repo.insert({ id: 'existing-goal', gameTeamId: 'team' });
+    s.core.checkForDuplicateOrConflict.mockResolvedValueOnce({
+      isDuplicate: true,
+      existingEvent: { id: 'existing-goal' },
+    } as never);
+    const result = await s.service.recordGoal(input, 'user');
+    expect(result.id).toBe('existing-goal');
+    expect(s.rows()).toHaveLength(1);
+    expect(s.core.publishGameEvent).toHaveBeenCalledWith(
+      'game',
+      'DUPLICATE_DETECTED',
+      expect.objectContaining({ id: 'existing-goal' }),
+    );
+    // A retry replays the receipt instead of re-running dedup or publishing
+    await s.service.recordGoal(input, 'user');
+    expect(s.core.checkForDuplicateOrConflict).toHaveBeenCalledTimes(1);
+    expect(s.core.publishGameEvent).toHaveBeenCalledTimes(1);
+  });
+  it('flags a conflicting goal from another device and publishes CONFLICT_DETECTED', async () => {
+    const s = setup();
+    s.core.checkForDuplicateOrConflict.mockResolvedValueOnce({
+      isDuplicate: false,
+      isConflict: true,
+      conflictingEvents: [{ id: 'other-goal' }],
+    } as never);
+    const result = await s.service.recordGoal(input, 'user');
+    const conflictId = (result as { conflictId?: string }).conflictId;
+    expect(conflictId).toEqual(expect.any(String));
+    expect(s.repo.update).toHaveBeenCalledWith(
+      { id: expect.anything() },
+      { conflictId },
+    );
+    expect(s.core.publishGameEvent).toHaveBeenCalledWith(
+      'game',
+      'CONFLICT_DETECTED',
+      expect.objectContaining({ id: input.clientActionId }),
+      undefined,
+      { conflictId: 'conflict' },
+    );
   });
   it('rolls back goal if assist fails and does not publish', async () => {
     const s = setup();
