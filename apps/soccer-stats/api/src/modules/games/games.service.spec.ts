@@ -13,6 +13,7 @@ import { TeamConfiguration } from '../../entities/team-configuration.entity';
 import { DEFAULT_STATS_FEATURES } from '../../entities/stats-features.type';
 import { GameEventsService } from '../game-events/game-events.service';
 import { GameEventAction } from '../game-events/dto/game-event-subscription.output';
+import { ActionReceiptService } from '../game-events/services/action-receipt.service';
 
 import { GamesService } from './games.service';
 import { GameTimingService } from './game-timing.service';
@@ -86,6 +87,14 @@ describe('GamesService', () => {
     publish: jest.fn().mockResolvedValue(undefined),
   };
 
+  // Default: behaves as a first application (runs apply, not replayed).
+  const mockActionReceiptService = {
+    applyOnce: jest.fn(async (_action, { apply }) => ({
+      result: (await apply({})).result,
+      replayed: false,
+    })),
+  };
+
   // Mock event types for timing
   const mockTimingEventTypes: Partial<EventType>[] = [
     {
@@ -143,6 +152,10 @@ describe('GamesService', () => {
         {
           provide: GameTimingService,
           useValue: mockGameTimingService,
+        },
+        {
+          provide: ActionReceiptService,
+          useValue: mockActionReceiptService,
         },
         {
           provide: 'PUB_SUB',
@@ -467,6 +480,132 @@ describe('GamesService', () => {
             gameId: 'game-1',
           }),
         );
+      });
+    });
+
+    describe('client actions (outbox)', () => {
+      const ACTION_ID = '3f2b8c1e-9a4d-4e6f-8b2a-1c3d5e7f9a0b';
+
+      beforeEach(() => {
+        mockEventTypeRepository.findOne.mockImplementation(({ where }: any) =>
+          Promise.resolve(
+            mockTimingEventTypes.find((et) => et.name === where.name),
+          ),
+        );
+      });
+
+      it('applies a status change once per actionId', async () => {
+        await service.update(
+          'game-1',
+          { status: GameStatus.HALFTIME, actionId: ACTION_ID },
+          'user-123',
+        );
+
+        expect(mockActionReceiptService.applyOnce).toHaveBeenCalledWith(
+          {
+            actionId: ACTION_ID,
+            gameId: 'game-1',
+            recordedByUserId: 'user-123',
+            kind: 'updateGame',
+          },
+          expect.objectContaining({ apply: expect.any(Function) }),
+        );
+        expect(mockGameEventRepository.create).toHaveBeenCalledTimes(1);
+      });
+
+      it('writes nothing and returns the current game on a retry', async () => {
+        mockActionReceiptService.applyOnce.mockImplementationOnce(
+          async (_action, { replay }) => ({
+            result: await replay([]),
+            replayed: true,
+          }),
+        );
+
+        const game = await service.update(
+          'game-1',
+          { status: GameStatus.HALFTIME, actionId: ACTION_ID },
+          'user-123',
+        );
+
+        expect(game).toMatchObject({ id: 'game-1' });
+        expect(mockGameEventRepository.create).not.toHaveBeenCalled();
+        expect(mockGameRepository.update).not.toHaveBeenCalled();
+      });
+
+      it('does not use the receipt when no actionId is given', async () => {
+        await service.update(
+          'game-1',
+          { status: GameStatus.HALFTIME },
+          'user-123',
+        );
+
+        expect(mockActionReceiptService.applyOnce).not.toHaveBeenCalled();
+      });
+
+      it('never passes the outbox fields to the games table', async () => {
+        await service.update(
+          'game-1',
+          {
+            status: GameStatus.HALFTIME,
+            actionId: ACTION_ID,
+            occurredAt: new Date(),
+            period: '1',
+          },
+          'user-123',
+        );
+
+        const fields = mockGameRepository.update.mock.calls[0][1];
+        expect(fields).toEqual({ status: GameStatus.HALFTIME });
+      });
+
+      it('stamps period events with the client occurredAt', async () => {
+        const occurredAt = new Date(Date.now() - 30_000);
+
+        await service.update(
+          'game-1',
+          { status: GameStatus.HALFTIME, periodSecond: 1500, occurredAt },
+          'user-123',
+        );
+
+        expect(mockGameEventRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            eventTypeId: 'et-period-end',
+            occurredAt,
+          }),
+        );
+      });
+
+      it('places a pause in its period at the given second, with occurredAt', async () => {
+        const occurredAt = new Date(Date.now() - 5_000);
+
+        await service.update(
+          'game-1',
+          { pausedAt: occurredAt, period: '2', periodSecond: 734, occurredAt },
+          'user-123',
+        );
+
+        expect(mockGameEventRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            eventTypeId: 'et-stoppage-start',
+            period: '2',
+            periodSecond: 734,
+            occurredAt,
+          }),
+        );
+      });
+
+      it('keeps the legacy period-less stoppage when no period is sent', async () => {
+        await service.update('game-1', { pausedAt: null }, 'user-123');
+
+        expect(mockGameEventRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            eventTypeId: 'et-stoppage-end',
+            periodSecond: 0,
+          }),
+        );
+        expect(
+          mockGameEventRepository.create.mock.calls[0][0].period,
+        ).toBeUndefined();
       });
     });
 

@@ -59,4 +59,23 @@ export class RemovePlayerFromFieldInput {
   @IsString()
   @MaxLength(500)
   notes?: string;
+
+  @Field(() => ID, {
+    nullable: true,
+    description:
+      'Client-generated idempotency key. A retry with the same actionId returns the original result without creating new events.',
+  })
+  actionId?: string;
+
+  @Field(() => ID, {
+    nullable: true,
+    description: 'Client-chosen ID for the SUBSTITUTION_OUT event',
+  })
+  eventId?: string;
+
+  @Field({
+    nullable: true,
+    description: 'Client wall-clock time the player was removed',
+  })
+  occurredAt?: Date;
 }

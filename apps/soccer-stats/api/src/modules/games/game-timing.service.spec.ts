@@ -32,7 +32,7 @@ describe('GameTimingService', () => {
   const createMockEvent = (
     eventTypeName: string,
     createdAt: Date,
-    options?: { period?: string },
+    options?: { period?: string; occurredAt?: Date },
   ): Partial<GameEvent> => {
     const eventType = mockEventTypes.find((et) => et.name === eventTypeName);
     return {
@@ -40,6 +40,7 @@ describe('GameTimingService', () => {
       gameId: 'game-1',
       eventTypeId: eventType?.id,
       createdAt,
+      occurredAt: options?.occurredAt,
       period: options?.period,
     };
   };
@@ -128,6 +129,61 @@ describe('GameTimingService', () => {
       const timing = await service.getGameTiming('game-1');
 
       expect(timing).toEqual({});
+    });
+
+    describe('client occurredAt (events synced late from the outbox)', () => {
+      it('uses occurredAt over createdAt for a period start that synced late', async () => {
+        const tapped = new Date('2024-01-01T10:00:00Z');
+        const synced = new Date('2024-01-01T10:03:00Z');
+        setupQueryBuilder([
+          createMockEvent('PERIOD_START', synced, {
+            period: '1',
+            occurredAt: tapped,
+          }),
+        ]);
+
+        const timing = await service.getGameTiming('game-1');
+
+        expect(timing.actualStart).toEqual(tapped);
+      });
+
+      it('orders timing events by when they happened, not when they arrived', async () => {
+        // Pause tapped at 10:10, resume tapped at 10:12. The pause synced
+        // after the resume (arrival order reversed), so the game must still
+        // read as resumed.
+        const pause = createMockEvent(
+          'STOPPAGE_START',
+          new Date('2024-01-01T10:13:00Z'),
+          { occurredAt: new Date('2024-01-01T10:10:00Z') },
+        );
+        const resume = createMockEvent(
+          'STOPPAGE_END',
+          new Date('2024-01-01T10:12:30Z'),
+          { occurredAt: new Date('2024-01-01T10:12:00Z') },
+        );
+        setupQueryBuilder([
+          createMockEvent('PERIOD_START', new Date('2024-01-01T10:00:00Z'), {
+            period: '1',
+          }),
+          resume, // arrives first (DB order is by createdAt)
+          pause,
+        ]);
+
+        const timing = await service.getGameTiming('game-1');
+
+        expect(timing.pausedAt).toBeUndefined();
+      });
+
+      it('falls back to createdAt for events without occurredAt', async () => {
+        const createdAt = new Date('2024-01-01T10:00:00Z');
+        setupQueryBuilder([
+          createMockEvent('PERIOD_START', createdAt, { period: '1' }),
+        ]);
+
+        const timing = await service.getGameTiming('game-1');
+
+        expect(timing.actualStart).toEqual(createdAt);
+      });
     });
 
     it('should compute actualStart from PERIOD_START with period="1"', async () => {

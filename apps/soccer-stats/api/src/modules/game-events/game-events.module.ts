@@ -60,6 +60,11 @@ import {
     GameEventFieldsResolver,
     LineupPlayerResolver,
   ],
-  exports: [GameEventsService, StatsService, LineupService],
+  exports: [
+    GameEventsService,
+    StatsService,
+    LineupService,
+    ActionReceiptService,
+  ],
 })
 export class GameEventsModule {}

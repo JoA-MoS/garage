@@ -1,5 +1,12 @@
-import { InputType, PartialType, Field, Int } from '@nestjs/graphql';
-import { IsOptional, IsEnum, IsBoolean, IsInt, Min, ValidateNested } from 'class-validator';
+import { InputType, PartialType, Field, ID, Int } from '@nestjs/graphql';
+import {
+  IsOptional,
+  IsEnum,
+  IsBoolean,
+  IsInt,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 import { GameStatus } from '../../../entities/game.entity';
@@ -73,4 +80,25 @@ export class UpdateGameInput extends PartialType(CreateGameInput) {
   @ValidateNested()
   @Type(() => StatsFeaturesInput)
   statsFeatures?: StatsFeaturesInput;
+
+  @Field(() => ID, {
+    nullable: true,
+    description:
+      'Client-generated idempotency key. A retry with the same actionId returns the current game without applying the change again.',
+  })
+  actionId?: string;
+
+  @Field({
+    nullable: true,
+    description:
+      'Client wall-clock time of the change. The game clock uses it, so a change that syncs late is still timed correctly.',
+  })
+  occurredAt?: Date;
+
+  @Field(() => String, {
+    nullable: true,
+    description:
+      'Current period when pausing/resuming (e.g. "1", "2"), with periodSecond, to place the stoppage in game time',
+  })
+  period?: string;
 }

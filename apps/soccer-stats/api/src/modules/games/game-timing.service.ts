@@ -41,6 +41,15 @@ type TimingEventName = (typeof TIMING_EVENT_NAMES)[number];
  * - PERIOD_END (period="1" = first half end, highest period = game end)
  * - STOPPAGE_START, STOPPAGE_END
  */
+/**
+ * When a timing event actually happened: the client's `occurredAt` when
+ * present (the event may have synced late from the outbox), otherwise the
+ * server receipt time.
+ */
+function effectiveTime(event: GameEvent): Date {
+  return event.occurredAt ?? event.createdAt;
+}
+
 @Injectable()
 export class GameTimingService implements OnModuleInit {
   private readonly logger = new Logger(GameTimingService.name);
@@ -176,8 +185,13 @@ export class GameTimingService implements OnModuleInit {
         eventsByGame.set(event.gameId, gameEvents);
       }
 
-      // Process events for each game
+      // Process events for each game, in the order they happened. The DB
+      // order is by arrival (createdAt); outbox events can arrive late.
+      // Array.sort is stable, so arrival order breaks ties.
       for (const [gameId, gameEvents] of eventsByGame) {
+        gameEvents.sort(
+          (a, b) => effectiveTime(a).getTime() - effectiveTime(b).getTime(),
+        );
         const timing = this.computeTimingFromEvents(gameEvents);
         result.set(gameId, timing);
       }
@@ -194,7 +208,7 @@ export class GameTimingService implements OnModuleInit {
 
   /**
    * Compute timing from a list of events for a single game.
-   * Events must be sorted by createdAt in ascending order.
+   * Events must be sorted by effectiveTime (occurredAt, else createdAt).
    *
    * Timing is derived from period events:
    * - actualStart: PERIOD_START with period="1" (game start)
@@ -219,15 +233,15 @@ export class GameTimingService implements OnModuleInit {
         case 'PERIOD_START':
           // PERIOD_START with period="1" indicates game start
           if (period === '1') {
-            timing.actualStart = event.createdAt;
+            timing.actualStart = effectiveTime(event);
           } else if (period === '2') {
-            timing.secondHalfStart = event.createdAt;
+            timing.secondHalfStart = effectiveTime(event);
           }
           break;
 
         case 'PERIOD_END': {
           if (period === '1') {
-            timing.firstHalfEnd = event.createdAt;
+            timing.firstHalfEnd = effectiveTime(event);
           }
           // Track the highest period PERIOD_END as the game end
           const periodNum = parseInt(period ?? '0', 10);
@@ -235,13 +249,16 @@ export class GameTimingService implements OnModuleInit {
             periodNum > 0 &&
             (!highestPeriodEnd || periodNum > highestPeriodEnd.period)
           ) {
-            highestPeriodEnd = { period: periodNum, date: event.createdAt };
+            highestPeriodEnd = {
+              period: periodNum,
+              date: effectiveTime(event),
+            };
           }
           break;
         }
 
         case 'STOPPAGE_START':
-          lastStoppageStart = event.createdAt;
+          lastStoppageStart = effectiveTime(event);
           break;
 
         case 'STOPPAGE_END':
