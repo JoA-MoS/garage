@@ -170,11 +170,13 @@ export class EventCoreService implements OnModuleInit {
     externalPlayerName: string | undefined,
     period: string,
     periodSecond: number,
+    // Pass a transaction-scoped repository to read inside an open transaction
+    repository: Repository<GameEvent> = this.gameEventsRepository,
   ): Promise<DuplicateConflictResult> {
     const eventType = this.getEventTypeByName(eventTypeName);
 
     // Find events of the same type within the same period
-    const events = await this.gameEventsRepository.find({
+    const events = await repository.find({
       where: {
         gameTeamId,
         eventTypeId: eventType.id,

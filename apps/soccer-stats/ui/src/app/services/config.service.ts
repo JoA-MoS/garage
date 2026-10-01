@@ -24,7 +24,7 @@ export async function fetchPublicConfig(): Promise<PublicConfig> {
 
     if (!response.ok) {
       throw new Error(
-        `Failed to fetch configuration: ${response.status} ${response.statusText}`
+        `Failed to fetch configuration: ${response.status} ${response.statusText}`,
       );
     }
 
@@ -42,7 +42,7 @@ export async function fetchPublicConfig(): Promise<PublicConfig> {
       const apiLocation = apiUrl || 'same origin (via Vite proxy)';
       throw new Error(
         `Configuration fetch failed: ${error.message}. ` +
-          `Make sure the API is running at ${apiLocation}`
+          `Make sure the API is running at ${apiLocation}`,
       );
     }
     throw error;

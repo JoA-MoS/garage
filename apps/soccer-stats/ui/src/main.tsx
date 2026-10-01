@@ -1,25 +1,13 @@
 import { StrictMode, useEffect, useState } from 'react';
 import * as ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router/dom';
-import { ClerkProvider, useAuth } from '@clerk/clerk-react';
-import { ApolloProvider } from '@apollo/client/react';
+import { ClerkProvider } from '@clerk/clerk-react';
 
 import { router } from './app/router/router';
-import { apolloClient, setTokenGetter } from './app/services/apollo-client';
+import { ApiProvider } from './app/providers/api-provider';
 import { fetchPublicConfig, PublicConfig } from './app/services/config.service';
 import { AuthErrorProvider } from './app/providers/auth-error-provider';
 import { registerServiceWorker } from './app/pwa/register-service-worker';
-
-// Component that sets up the auth token getter for Apollo
-function AuthApolloProvider({ children }: { children: React.ReactNode }) {
-  const { getToken } = useAuth();
-
-  useEffect(() => {
-    setTokenGetter(getToken);
-  }, [getToken]);
-
-  return <ApolloProvider client={apolloClient}>{children}</ApolloProvider>;
-}
 
 // Loading component displayed while configuration is being fetched
 function LoadingScreen() {
@@ -98,9 +86,9 @@ function App() {
       afterSignOutUrl="/"
     >
       <AuthErrorProvider>
-        <AuthApolloProvider>
+        <ApiProvider>
           <RouterProvider router={router} />
-        </AuthApolloProvider>
+        </ApiProvider>
       </AuthErrorProvider>
     </ClerkProvider>
   );

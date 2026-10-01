@@ -61,6 +61,7 @@ import {
 } from '../context/player-name-display.context';
 import { useSyncedGameTime } from '../hooks/use-synced-game-time';
 import { useResyncOnWake } from '../hooks/use-resync-on-wake';
+import { useLocalGoals } from '../local-first/use-local-goals';
 import {
   areGameEventNotificationsEnabled,
   enableGameEventNotifications,
@@ -282,11 +283,12 @@ export const GamePage = () => {
 
   const apolloClient = useApolloClient();
 
-  // Reconcile the cache with the server when the tab/device wakes from
-  // sleep - subscriptions can silently miss events while asleep.
-  useResyncOnWake();
-
-  const { data, loading, error, subscribeToMore } = useQuery(GET_GAME_BY_ID, {
+  const {
+    data: confirmedData,
+    loading,
+    error,
+    subscribeToMore,
+  } = useQuery(GET_GAME_BY_ID, {
     variables: { id: gameId! },
     skip: !gameId,
     // Prevent loading state from becoming true during cache updates or background refetches
@@ -294,6 +296,14 @@ export const GamePage = () => {
     notifyOnNetworkStatusChange: false,
     fetchPolicy: 'cache-first',
   });
+
+  // Confirmed data stays in Apollo; pending local goals are overlaid on top.
+  const localGoals = useLocalGoals(gameId, confirmedData);
+  const data = localGoals.data;
+
+  // Reconcile the cache with the server when the tab/device wakes from
+  // sleep - subscriptions can silently miss events while asleep.
+  useResyncOnWake(localGoals.enabled ? localGoals.sync : undefined);
 
   // Server-synced game time - keeps multiple clients in sync
   const syncedTime = useSyncedGameTime(
@@ -1499,6 +1509,14 @@ export const GamePage = () => {
       if (!gameTeam || !game) return;
 
       try {
+        if (localGoals.enabled) {
+          await localGoals.record({
+            gameTeamId: gameTeam.id,
+            period: currentPeriod,
+            periodSecond: syncedTime.periodSecond,
+          });
+          return;
+        }
         // Call mutation - subscription will update cache for all connected clients
         // Use server-synced time for consistent timing across clients
         await recordGoalDirect({
@@ -1618,8 +1636,7 @@ export const GamePage = () => {
       ? {
           format: activeTeamConfiguration.playerNameDisplayFormat,
           showJerseyNumber: activeTeamConfiguration.showJerseyNumber,
-          jerseyNumberPosition:
-            activeTeamConfiguration.jerseyNumberPosition,
+          jerseyNumberPosition: activeTeamConfiguration.jerseyNumberPosition,
         }
       : undefined;
 
@@ -1718,6 +1735,47 @@ export const GamePage = () => {
 
   return (
     <PlayerNameDisplayProvider config={activeTeamNameDisplayConfig}>
+      {localGoals.enabled && (
+        <section
+          aria-label="Goal synchronization"
+          className="mx-auto max-w-6xl rounded border p-3 text-sm"
+        >
+          <p role="status">
+            {localGoals.status}
+            {!navigator.onLine ? ' — offline' : ''}
+          </p>
+          {localGoals.syncError && <p role="alert">{localGoals.syncError}</p>}
+          {localGoals.actions
+            .filter((a) => a.status === 'needs-attention')
+            .map((a) => (
+              <div key={a.id}>
+                <span>
+                  Goal at {a.input.period}:{a.input.periodSecond}: {a.error}
+                </span>
+                <button
+                  className="ml-3 underline"
+                  onClick={() =>
+                    void localGoals
+                      .retry(a.id)
+                      .catch((e) => setActionError(String(e)))
+                  }
+                >
+                  Retry
+                </button>
+                <button
+                  className="ml-3 underline"
+                  onClick={() =>
+                    void localGoals
+                      .discard(a.id)
+                      .catch((e) => setActionError(String(e)))
+                  }
+                >
+                  Discard rejected goal
+                </button>
+              </div>
+            ))}
+        </section>
+      )}
       <div
         className="mx-auto max-w-6xl space-y-6"
         style={{ paddingBottom: isActivePlay ? panelScrollPadding : undefined }}
@@ -2673,6 +2731,7 @@ export const GamePage = () => {
         {/* Goal Modal - New Goal */}
         {goalModalTeam && (
           <GoalModal
+            recordLocalGoal={localGoals.enabled ? localGoals.record : undefined}
             gameTeamId={goalModalTeam === 'home' ? homeTeam!.id : awayTeam!.id}
             gameId={gameId!}
             teamId={

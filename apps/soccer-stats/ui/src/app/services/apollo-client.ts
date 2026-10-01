@@ -14,6 +14,7 @@ import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
 
 import { API_PREFIX, getApiUrl } from './environment';
+import { notifyTransportReconnect } from './transport-reconnect';
 
 /**
  * Get the HTTP URL for GraphQL queries/mutations.
@@ -50,70 +51,68 @@ function getWsUrl(): string {
   return `/${API_PREFIX}/graphql`;
 }
 
-const httpUrl = getHttpUrl();
-const wsUrl = getWsUrl();
-
-// GraphQL endpoint for queries and mutations
-const httpLink = createHttpLink({
-  uri: httpUrl,
-});
-
-// Token getter function - will be set by the AuthApolloProvider
-let getToken: (() => Promise<string | null>) | null = null;
-
-export function setTokenGetter(getter: () => Promise<string | null>) {
-  getToken = getter;
-}
-
-// Auth error handler - will be set by the AuthApolloProvider
+// Auth error handler - will be set by the AuthErrorProvider
 let onAuthError: (() => void) | null = null;
 
 export function setAuthErrorHandler(handler: (() => void) | null) {
   onAuthError = handler;
 }
 
-// Error link to handle GraphQL errors globally
-const errorLink = new ErrorLink(({ error, operation }) => {
-  if (CombinedGraphQLErrors.is(error)) {
-    // Handle GraphQL errors
-    for (const err of error.errors) {
-      const errorCode = err.extensions?.code;
+/** Each session owns its cache and transports. */
+export function createSessionApolloClient(
+  tokenGetter: (() => Promise<string | null>) | null,
+) {
+  const httpUrl = getHttpUrl();
+  const wsUrl = getWsUrl();
 
-      // Log all GraphQL errors for debugging/monitoring
-      console.error(
-        `[GraphQL Error] ${operation.operationName || 'Unknown'}:`,
-        {
-          message: err.message,
-          code: errorCode,
-          path: err.path,
-        },
-      );
+  // GraphQL endpoint for queries and mutations
+  const httpLink = createHttpLink({
+    uri: httpUrl,
+  });
 
-      // Trigger auth error handler for authentication failures
-      if (errorCode === 'UNAUTHENTICATED') {
-        if (onAuthError) {
-          onAuthError();
+  // Error link to handle GraphQL errors globally
+  const errorLink = new ErrorLink(({ error, operation }) => {
+    if (CombinedGraphQLErrors.is(error)) {
+      // Handle GraphQL errors
+      for (const err of error.errors) {
+        const errorCode = err.extensions?.code;
+
+        // Log all GraphQL errors for debugging/monitoring
+        console.error(
+          `[GraphQL Error] ${operation.operationName || 'Unknown'}:`,
+          {
+            message: err.message,
+            code: errorCode,
+            path: err.path,
+          },
+        );
+
+        // Trigger auth error handler for authentication failures
+        if (errorCode === 'UNAUTHENTICATED') {
+          if (onAuthError) {
+            onAuthError();
+          }
         }
       }
+    } else {
+      // Handle network errors
+      console.error('[Network Error]:', error);
     }
-  } else {
-    // Handle network errors
-    console.error('[Network Error]:', error);
-  }
-});
+  });
 
-// Create WebSocket link for subscriptions
-const wsLink = new GraphQLWsLink(
-  createClient({
+  let connectedBefore = false;
+  let disposed = false;
+  // Create WebSocket link for subscriptions
+  const wsClient = createClient({
     url: wsUrl,
     connectionParams: async () => {
       // No token getter configured - allow anonymous connection
-      if (!getToken) {
+      if (!tokenGetter) {
         return {};
       }
 
       try {
-        const token = await getToken();
+        const token = await tokenGetter();
         return {
           ...(token ? { authorization: `Bearer ${token}` } : {}),
         };
@@ -138,6 +137,9 @@ const wsLink = new GraphQLWsLink(
     on: {
       connected: () => {
         console.log('[WebSocket] Connected to', wsUrl);
+        if (disposed) return;
+        if (connectedBefore) notifyTransportReconnect(client);
+        connectedBefore = true;
       },
       closed: (event) => {
         console.warn('[WebSocket] Connection closed:', event);
@@ -146,86 +148,95 @@ const wsLink = new GraphQLWsLink(
         console.error('[WebSocket] Connection error:', error);
       },
     },
-  }),
-);
+  });
+  const wsLink = new GraphQLWsLink(wsClient);
 
-// Auth link that adds the token to HTTP requests
-const authLink = setContext(async (_, { headers }) => {
-  // No token getter configured - proceed without auth
-  if (!getToken) {
-    return { headers };
-  }
-
-  let token: string | null = null;
-  try {
-    token = await getToken();
-  } catch (error) {
-    console.error('[Apollo] Failed to retrieve authentication token:', error);
-    // Notify UI about auth failure so user can take action
-    if (onAuthError) {
-      onAuthError();
+  // Auth link that adds the token to HTTP requests
+  const authLink = setContext(async (_, { headers }) => {
+    // No token getter configured - proceed without auth
+    if (!tokenGetter) {
+      return { headers };
     }
-    // Proceed without token - server will reject if auth required
-    // The onAuthError handler should prompt user to re-authenticate
-  }
-  return {
-    headers: {
-      ...headers,
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
+
+    let token: string | null = null;
+    try {
+      token = await tokenGetter();
+    } catch (error) {
+      console.error('[Apollo] Failed to retrieve authentication token:', error);
+      // Notify UI about auth failure so user can take action
+      if (onAuthError) {
+        onAuthError();
+      }
+      // Proceed without token - server will reject if auth required
+      // The onAuthError handler should prompt user to re-authenticate
+    }
+    return {
+      headers: {
+        ...headers,
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+    };
+  });
+
+  // Split link - use WebSocket for subscriptions, HTTP for queries/mutations
+  const splitLink = split(
+    ({ query }) => {
+      const definition = getMainDefinition(query);
+      return (
+        definition.kind === 'OperationDefinition' &&
+        definition.operation === 'subscription'
+      );
     },
-  };
-});
+    wsLink,
+    ApolloLink.from([
+      removeTypenameFromVariables(),
+      errorLink,
+      authLink,
+      httpLink,
+    ]),
+  );
 
-// Split link - use WebSocket for subscriptions, HTTP for queries/mutations
-const splitLink = split(
-  ({ query }) => {
-    const definition = getMainDefinition(query);
-    return (
-      definition.kind === 'OperationDefinition' &&
-      definition.operation === 'subscription'
-    );
-  },
-  wsLink,
-  ApolloLink.from([
-    removeTypenameFromVariables(),
-    errorLink,
-    authLink,
-    httpLink,
-  ]),
-);
-
-// Create Apollo Client instance
-export const apolloClient = new ApolloClient({
-  link: splitLink,
-  cache: new InMemoryCache({
-    typePolicies: {
-      GameTeam: {
-        fields: {
-          events: {
-            // Merge incoming events with existing, deduplicating by cache reference.
-            // Prevents cache.modify additions from being lost when a refetch or
-            // subscribeToMore response replaces the array.
-            merge(
-              existing: Array<{ __ref: string }> = [],
-              incoming: Array<{ __ref: string }>,
-            ) {
-              const refs = new Map(existing.map((ref) => [ref.__ref, ref]));
-              for (const ref of incoming) {
-                refs.set(ref.__ref, ref);
-              }
-              return [...refs.values()];
+  // Create Apollo Client instance
+  const client = new ApolloClient({
+    link: splitLink,
+    cache: new InMemoryCache({
+      typePolicies: {
+        GameTeam: {
+          fields: {
+            events: {
+              // Merge incoming events with existing, deduplicating by cache reference.
+              // Prevents cache.modify additions from being lost when a refetch or
+              // subscribeToMore response replaces the array.
+              merge(
+                existing: Array<{ __ref: string }> = [],
+                incoming: Array<{ __ref: string }>,
+              ) {
+                const refs = new Map(existing.map((ref) => [ref.__ref, ref]));
+                for (const ref of incoming) {
+                  refs.set(ref.__ref, ref);
+                }
+                return [...refs.values()];
+              },
             },
           },
         },
       },
+    }),
+    defaultOptions: {
+      watchQuery: {
+        errorPolicy: 'all',
+      },
+      query: {
+        errorPolicy: 'all',
+      },
     },
-  }),
-  defaultOptions: {
-    watchQuery: {
-      errorPolicy: 'all',
+  });
+  return {
+    client,
+    dispose: () => {
+      disposed = true;
+      client.stop();
+      void wsClient.dispose();
     },
-    query: {
-      errorPolicy: 'all',
-    },
-  },
-});
+  };
+}

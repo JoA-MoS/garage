@@ -3,7 +3,7 @@ import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { defineConfig } from 'vite';
+import { defineConfig, type ProxyOptions } from 'vite';
 import react from '@vitejs/plugin-react';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
@@ -31,7 +31,7 @@ function getGitSha(): string {
   }
 }
 
-const proxyConfig = {
+const proxyConfig: Record<string, ProxyOptions> = {
   '/api': {
     target: 'http://localhost:3333',
     secure: false,
