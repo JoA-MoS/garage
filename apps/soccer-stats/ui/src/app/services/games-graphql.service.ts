@@ -102,6 +102,7 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
           homeSecondaryColor
           isManaged
           teamConfiguration {
+            defaultFormation
             playerNameDisplayFormat
             showJerseyNumber
             jerseyNumberPosition
@@ -110,6 +111,7 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
         events {
           id
           createdAt
+          parentEventId
           period
           periodSecond
           position

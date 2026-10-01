@@ -51,7 +51,11 @@ export type AddToGameRosterInput = {
 };
 
 export type BatchLineupChangesInput = {
+  /** Client-generated idempotency key. A retry with the same actionId returns the original result without creating new events. */
+  actionId?: InputMaybe<Scalars['ID']['input']>;
   gameTeamId: Scalars['ID']['input'];
+  /** Client wall-clock time the change was confirmed */
+  occurredAt?: InputMaybe<Scalars['DateTime']['input']>;
   /** Period identifier (e.g., "1", "2", "OT1") */
   period: Scalars['String']['input'];
   /** Seconds elapsed within the period (0-5999) */
@@ -71,6 +75,10 @@ export type BatchSubstitutionInput = {
   playerInId?: InputMaybe<Scalars['ID']['input']>;
   /** The GameEvent ID of the player being substituted out */
   playerOutEventId: Scalars['ID']['input'];
+  /** Client-chosen ID for the SUBSTITUTION_IN event. Swaps in the same batch can reference it by eventId. */
+  subInEventId?: InputMaybe<Scalars['ID']['input']>;
+  /** Client-chosen ID for the SUBSTITUTION_OUT event */
+  subOutEventId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 export type BatchSwapInput = {
@@ -78,6 +86,10 @@ export type BatchSwapInput = {
   player1: BatchSwapPlayerRef;
   /** Second player reference (will get player1 position). Use eventId for on-field players, or substitutionIndex to reference an incoming player from a queued substitution. */
   player2: BatchSwapPlayerRef;
+  /** Client-chosen ID for the first POSITION_SWAP event */
+  swap1EventId?: InputMaybe<Scalars['ID']['input']>;
+  /** Client-chosen ID for the second POSITION_SWAP event (child of the first) */
+  swap2EventId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 export type BatchSwapPlayerRef = {
@@ -88,6 +100,10 @@ export type BatchSwapPlayerRef = {
 };
 
 export type BringPlayerOntoFieldInput = {
+  /** Client-generated idempotency key. A retry with the same actionId returns the original result without creating new events. */
+  actionId?: InputMaybe<Scalars['ID']['input']>;
+  /** Client-chosen ID for the SUBSTITUTION_IN event */
+  eventId?: InputMaybe<Scalars['ID']['input']>;
   /** External player name (for opponents) */
   externalPlayerName?: InputMaybe<Scalars['String']['input']>;
   /** External player jersey number */
@@ -95,6 +111,8 @@ export type BringPlayerOntoFieldInput = {
   gameTeamId: Scalars['ID']['input'];
   /** Optional notes about the substitution */
   notes?: InputMaybe<Scalars['String']['input']>;
+  /** Client wall-clock time the player was brought on */
+  occurredAt?: InputMaybe<Scalars['DateTime']['input']>;
   /** Period identifier (e.g., "1", "2", "OT1") */
   period: Scalars['String']['input'];
   /** Seconds elapsed within the period (0-5999) */
@@ -325,6 +343,7 @@ export type GameEvent = {
   gameTeam: GameTeam;
   gameTeamId: Scalars['ID']['output'];
   id: Scalars['ID']['output'];
+  occurredAt?: Maybe<Scalars['DateTime']['output']>;
   parentEvent?: Maybe<GameEvent>;
   parentEventId?: Maybe<Scalars['ID']['output']>;
   period?: Maybe<Scalars['String']['output']>;
@@ -1146,9 +1165,15 @@ export type QueryUsersByTeamArgs = {
 };
 
 export type RecordFormationChangeInput = {
+  /** Client-generated idempotency key. A retry with the same actionId returns the original result without creating new events. */
+  actionId?: InputMaybe<Scalars['ID']['input']>;
+  /** Client-chosen ID for the FORMATION_CHANGE event */
+  eventId?: InputMaybe<Scalars['ID']['input']>;
   /** Formation code (e.g., "4-3-3", "3-5-2") */
   formation: Scalars['String']['input'];
   gameTeamId: Scalars['ID']['input'];
+  /** Client wall-clock time the formation change was confirmed */
+  occurredAt?: InputMaybe<Scalars['DateTime']['input']>;
   /** Period identifier (e.g., "1", "2", "OT1") */
   period: Scalars['String']['input'];
   /** Seconds elapsed within the period (0-5999) */
@@ -1156,6 +1181,10 @@ export type RecordFormationChangeInput = {
 };
 
 export type RecordGoalInput = {
+  /** Client-generated idempotency key. A retry with the same actionId returns the original goal without recording it again. */
+  actionId?: InputMaybe<Scalars['ID']['input']>;
+  /** Client-chosen ID for the ASSIST event (child of the goal) */
+  assistEventId?: InputMaybe<Scalars['ID']['input']>;
   /** Player ID for managed team assister */
   assisterId?: InputMaybe<Scalars['ID']['input']>;
   /** External player name for opponent assister */
@@ -1167,6 +1196,10 @@ export type RecordGoalInput = {
   /** External player jersey number */
   externalScorerNumber?: InputMaybe<Scalars['String']['input']>;
   gameTeamId: Scalars['ID']['input'];
+  /** Client-chosen ID for the GOAL event */
+  goalEventId?: InputMaybe<Scalars['ID']['input']>;
+  /** Client wall-clock time the goal was recorded */
+  occurredAt?: InputMaybe<Scalars['DateTime']['input']>;
   /** Period identifier (e.g., "1", "2", "OT1") */
   period: Scalars['String']['input'];
   /** Seconds elapsed within the period (0-5999) */
@@ -1176,10 +1209,16 @@ export type RecordGoalInput = {
 };
 
 export type RecordPositionChangeInput = {
+  /** Client-generated idempotency key. A retry with the same actionId returns the original result without creating new events. */
+  actionId?: InputMaybe<Scalars['ID']['input']>;
+  /** Client-chosen ID for the POSITION_CHANGE event */
+  eventId?: InputMaybe<Scalars['ID']['input']>;
   /** The game team ID */
   gameTeamId: Scalars['ID']['input'];
   /** The new position code (e.g., "CM", "ST", "GK") */
   newPosition: Scalars['String']['input'];
+  /** Client wall-clock time the position change was confirmed */
+  occurredAt?: InputMaybe<Scalars['DateTime']['input']>;
   /** Period identifier (e.g., "1", "2", "OT1") */
   period: Scalars['String']['input'];
   /** Seconds elapsed within the period (0-5999) */
@@ -1191,10 +1230,16 @@ export type RecordPositionChangeInput = {
 };
 
 export type RemovePlayerFromFieldInput = {
+  /** Client-generated idempotency key. A retry with the same actionId returns the original result without creating new events. */
+  actionId?: InputMaybe<Scalars['ID']['input']>;
+  /** Client-chosen ID for the SUBSTITUTION_OUT event */
+  eventId?: InputMaybe<Scalars['ID']['input']>;
   /** The game team ID */
   gameTeamId: Scalars['ID']['input'];
   /** Optional notes about the removal */
   notes?: InputMaybe<Scalars['String']['input']>;
+  /** Client wall-clock time the player was removed */
+  occurredAt?: InputMaybe<Scalars['DateTime']['input']>;
   /** Period identifier (e.g., "1", "2", "OT1") */
   period: Scalars['String']['input'];
   /** Seconds elapsed within the period (0-5999) */
@@ -1315,11 +1360,15 @@ export type SubscriptionGameUpdatedArgs = {
 };
 
 export type SubstitutePlayerInput = {
+  /** Client-generated idempotency key. A retry with the same actionId returns the original result without creating new events. */
+  actionId?: InputMaybe<Scalars['ID']['input']>;
   /** External player name if substituting in an opponent player */
   externalPlayerInName?: InputMaybe<Scalars['String']['input']>;
   /** External player number if substituting in an opponent player */
   externalPlayerInNumber?: InputMaybe<Scalars['String']['input']>;
   gameTeamId: Scalars['ID']['input'];
+  /** Client wall-clock time the substitution was confirmed */
+  occurredAt?: InputMaybe<Scalars['DateTime']['input']>;
   /** Period identifier (e.g., "1", "2", "OT1") */
   period: Scalars['String']['input'];
   /** Seconds elapsed within the period (0-5999) */
@@ -1328,6 +1377,10 @@ export type SubstitutePlayerInput = {
   playerInId?: InputMaybe<Scalars['ID']['input']>;
   /** The GameEvent ID of the player being substituted out */
   playerOutEventId: Scalars['ID']['input'];
+  /** Client-chosen ID for the SUBSTITUTION_IN event, so later queued actions can reference it before it syncs */
+  subInEventId?: InputMaybe<Scalars['ID']['input']>;
+  /** Client-chosen ID for the SUBSTITUTION_OUT event */
+  subOutEventId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 /** Reason for an unbalanced substitution (removing or adding a player without a paired event) */
@@ -1340,7 +1393,11 @@ export enum SubstitutionReason {
 }
 
 export type SwapPositionsInput = {
+  /** Client-generated idempotency key. A retry with the same actionId returns the original result without creating new events. */
+  actionId?: InputMaybe<Scalars['ID']['input']>;
   gameTeamId: Scalars['ID']['input'];
+  /** Client wall-clock time the change was confirmed */
+  occurredAt?: InputMaybe<Scalars['DateTime']['input']>;
   /** Period identifier (e.g., "1", "2", "OT1") */
   period: Scalars['String']['input'];
   /** Seconds elapsed within the period (0-5999) */
@@ -1349,6 +1406,10 @@ export type SwapPositionsInput = {
   player1EventId: Scalars['ID']['input'];
   /** The GameEvent ID of the second player (will get player1 position) */
   player2EventId: Scalars['ID']['input'];
+  /** Client-chosen ID for the first POSITION_SWAP event */
+  swap1EventId?: InputMaybe<Scalars['ID']['input']>;
+  /** Client-chosen ID for the second POSITION_SWAP event (child of the first) */
+  swap2EventId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 export type Team = {
@@ -1512,6 +1573,8 @@ export type TeamStatsResponse = {
 };
 
 export type UpdateGameInput = {
+  /** Client-generated idempotency key. A retry with the same actionId returns the current game without applying the change again. */
+  actionId?: InputMaybe<Scalars['ID']['input']>;
   actualEnd?: InputMaybe<Scalars['DateTime']['input']>;
   actualStart?: InputMaybe<Scalars['DateTime']['input']>;
   awayTeamId?: InputMaybe<Scalars['ID']['input']>;
@@ -1521,8 +1584,12 @@ export type UpdateGameInput = {
   firstHalfEnd?: InputMaybe<Scalars['DateTime']['input']>;
   gameFormatId?: InputMaybe<Scalars['ID']['input']>;
   homeTeamId?: InputMaybe<Scalars['ID']['input']>;
+  /** Client wall-clock time of the change. The game clock uses it, so a change that syncs late is still timed correctly. */
+  occurredAt?: InputMaybe<Scalars['DateTime']['input']>;
   /** When the game clock was paused (null to unpause) */
   pausedAt?: InputMaybe<Scalars['DateTime']['input']>;
+  /** Current period when pausing/resuming (e.g. "1", "2"), with periodSecond, to place the stoppage in game time */
+  period?: InputMaybe<Scalars['String']['input']>;
   /** Period-relative seconds when status changes (used for timing events) */
   periodSecond?: InputMaybe<Scalars['Int']['input']>;
   /** If true, resets the game to SCHEDULED status and clears all timestamps */
@@ -2089,6 +2156,7 @@ export type GetGameByIdQuery = {
         isManaged: boolean;
         teamConfiguration?: {
           __typename?: 'TeamConfiguration';
+          defaultFormation: string;
           playerNameDisplayFormat: PlayerNameDisplayFormat;
           showJerseyNumber: boolean;
           jerseyNumberPosition: JerseyNumberPosition;
@@ -2098,6 +2166,7 @@ export type GetGameByIdQuery = {
         __typename?: 'GameEvent';
         id: string;
         createdAt: any;
+        parentEventId?: string | null;
         period?: string | null;
         periodSecond: number;
         position?: string | null;
@@ -5695,6 +5764,13 @@ export const GetGameByIdDocument = {
                                     kind: 'Field',
                                     name: {
                                       kind: 'Name',
+                                      value: 'defaultFormation',
+                                    },
+                                  },
+                                  {
+                                    kind: 'Field',
+                                    name: {
+                                      kind: 'Name',
                                       value: 'playerNameDisplayFormat',
                                     },
                                   },
@@ -5731,6 +5807,10 @@ export const GetGameByIdDocument = {
                             {
                               kind: 'Field',
                               name: { kind: 'Name', value: 'createdAt' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'parentEventId' },
                             },
                             {
                               kind: 'Field',
