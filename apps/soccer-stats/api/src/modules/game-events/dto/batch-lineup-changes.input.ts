@@ -28,6 +28,19 @@ export class BatchSubstitutionInput {
     description: 'External player number if substituting in an opponent player',
   })
   externalPlayerInNumber?: string;
+
+  @Field(() => ID, {
+    nullable: true,
+    description: 'Client-chosen ID for the SUBSTITUTION_OUT event',
+  })
+  subOutEventId?: string;
+
+  @Field(() => ID, {
+    nullable: true,
+    description:
+      'Client-chosen ID for the SUBSTITUTION_IN event. Swaps in the same batch can reference it by eventId.',
+  })
+  subInEventId?: string;
 }
 
 /**
@@ -65,6 +78,19 @@ export class BatchSwapInput {
       'Second player reference (will get player1 position). Use eventId for on-field players, or substitutionIndex to reference an incoming player from a queued substitution.',
   })
   player2: BatchSwapPlayerRef;
+
+  @Field(() => ID, {
+    nullable: true,
+    description: 'Client-chosen ID for the first POSITION_SWAP event',
+  })
+  swap1EventId?: string;
+
+  @Field(() => ID, {
+    nullable: true,
+    description:
+      'Client-chosen ID for the second POSITION_SWAP event (child of the first)',
+  })
+  swap2EventId?: string;
 }
 
 /**
@@ -103,4 +129,17 @@ export class BatchLineupChangesInput {
       'List of position swaps to process (processed after substitutions)',
   })
   swaps: BatchSwapInput[];
+
+  @Field(() => ID, {
+    nullable: true,
+    description:
+      'Client-generated idempotency key. A retry with the same actionId returns the original result without creating new events.',
+  })
+  actionId?: string;
+
+  @Field({
+    nullable: true,
+    description: 'Client wall-clock time the change was confirmed',
+  })
+  occurredAt?: Date;
 }

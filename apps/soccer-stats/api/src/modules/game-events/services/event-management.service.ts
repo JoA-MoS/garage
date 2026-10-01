@@ -18,10 +18,18 @@ import {
   DependentEventsResult,
 } from '../dto/dependent-event.output';
 import { GameEventAction } from '../dto/game-event-subscription.output';
+import {
+  assertClientUuid,
+  resolveOccurredAt,
+} from '../utils/client-action.util';
 
 import { EventCoreService } from './event-core.service';
 import { GoalService } from './goal.service';
-import { SubstitutionService } from './substitution.service';
+import {
+  SubstitutionService,
+  type ActionWriteContext,
+} from './substitution.service';
+import { ActionReceiptService } from './action-receipt.service';
 
 /**
  * Service responsible for event management operations.
@@ -35,6 +43,7 @@ export class EventManagementService {
     private readonly goalService: GoalService,
     @Inject(forwardRef(() => SubstitutionService))
     private readonly substitutionService: SubstitutionService,
+    private readonly receipts: ActionReceiptService,
   ) {}
 
   private get gameEventsRepository() {
@@ -195,19 +204,76 @@ export class EventManagementService {
     return eventWithRelations;
   }
 
+  /**
+   * Swap two on-field players' positions. Creates two linked POSITION_SWAP
+   * events in one transaction. With `actionId`, a retry returns the
+   * original events instead of swapping again.
+   */
   async swapPositions(
     input: SwapPositionsInput,
     recordedByUserId: string,
   ): Promise<GameEvent[]> {
+    const occurredAt = resolveOccurredAt(input.occurredAt);
     const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
 
-    // Get both player events
+    const { result, replayed } = await this.receipts.applyOnce(
+      {
+        actionId: input.actionId,
+        gameId: gameTeam.gameId,
+        recordedByUserId,
+        kind: 'swapPositions',
+      },
+      {
+        apply: async (manager) => {
+          const events = await this.applySwap(
+            {
+              events: manager.getRepository(GameEvent),
+              gameId: gameTeam.gameId,
+              recordedByUserId,
+              occurredAt,
+            },
+            input,
+          );
+          return { result: events, eventIds: events.map((e) => e.id) };
+        },
+        replay: (eventIds) => this.receipts.loadEvents(eventIds),
+      },
+    );
+
+    // Publish after commit, never on a replay. swap1 is the primary event;
+    // field resolvers handle relation loading for subscribers.
+    if (!replayed) {
+      await this.coreService.publishGameEvent(
+        gameTeam.gameId,
+        GameEventAction.CREATED,
+        result[0],
+      );
+    }
+
+    return result;
+  }
+
+  /**
+   * Writes a swap's two POSITION_SWAP events inside the caller's
+   * transaction, with no receipt and no publishing (the caller owns both).
+   * Used directly by batchLineupChanges.
+   */
+  async applySwap(
+    ctx: ActionWriteContext,
+    input: SwapPositionsInput,
+  ): Promise<[GameEvent, GameEvent]> {
+    assertClientUuid(input.swap1EventId, 'swap1EventId');
+    assertClientUuid(input.swap2EventId, 'swap2EventId');
+    const { events } = ctx;
+
+    // Read through the transaction: in a batch a player may have been
+    // subbed in earlier in the same, not-yet-committed, action.
     const [player1Event, player2Event] = await Promise.all([
-      this.gameEventsRepository.findOne({
+      events.findOne({
         where: { id: input.player1EventId },
         relations: ['eventType'],
       }),
-      this.gameEventsRepository.findOne({
+      events.findOne({
         where: { id: input.player2EventId },
         relations: ['eventType'],
       }),
@@ -231,49 +297,43 @@ export class EventManagementService {
 
     const swapEventType = this.coreService.getEventTypeByName('POSITION_SWAP');
 
-    // Create first POSITION_SWAP event (player 1 gets player 2's position)
-    const swap1Event = this.gameEventsRepository.create({
-      gameId: gameTeam.gameId,
+    // insert, not save: a reused client ID must fail, not overwrite.
+    // First POSITION_SWAP: player 1 gets player 2's position.
+    const swap1 = events.create({
+      id: input.swap1EventId,
+      gameId: ctx.gameId,
       gameTeamId: input.gameTeamId,
       eventTypeId: swapEventType.id,
       playerId: player1Event.playerId,
       externalPlayerName: player1Event.externalPlayerName,
       externalPlayerNumber: player1Event.externalPlayerNumber,
-      recordedByUserId,
+      recordedByUserId: ctx.recordedByUserId,
       period: input.period,
       periodSecond: input.periodSecond,
-      position: player2Event.position, // Player 1 gets player 2's position
+      occurredAt: ctx.occurredAt,
+      position: player2Event.position,
     });
+    await events.insert(swap1);
 
-    const savedSwap1 = await this.gameEventsRepository.save(swap1Event);
-
-    // Create second POSITION_SWAP event (player 2 gets player 1's position), linked to first
-    const swap2Event = this.gameEventsRepository.create({
-      gameId: gameTeam.gameId,
+    // Second POSITION_SWAP: player 2 gets player 1's position, linked to first.
+    const swap2 = events.create({
+      id: input.swap2EventId,
+      gameId: ctx.gameId,
       gameTeamId: input.gameTeamId,
       eventTypeId: swapEventType.id,
       playerId: player2Event.playerId,
       externalPlayerName: player2Event.externalPlayerName,
       externalPlayerNumber: player2Event.externalPlayerNumber,
-      recordedByUserId,
+      recordedByUserId: ctx.recordedByUserId,
       period: input.period,
       periodSecond: input.periodSecond,
-      position: player1Event.position, // Player 2 gets player 1's position
-      parentEventId: savedSwap1.id,
+      occurredAt: ctx.occurredAt,
+      position: player1Event.position,
+      parentEventId: swap1.id,
     });
+    await events.insert(swap2);
 
-    const savedSwap2 = await this.gameEventsRepository.save(swap2Event);
-
-    // Publish the position swap event (use swap1 as the primary event)
-    // Field resolvers handle relation loading for subscribers
-    await this.coreService.publishGameEvent(
-      gameTeam.gameId,
-      GameEventAction.CREATED,
-      savedSwap1,
-    );
-
-    // Return base entities - field resolvers handle relation loading on-demand
-    return [savedSwap1, savedSwap2];
+    return [swap1, swap2];
   }
 
   /**

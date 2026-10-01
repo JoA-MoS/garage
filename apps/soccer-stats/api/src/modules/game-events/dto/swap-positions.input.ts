@@ -32,4 +32,30 @@ export class SwapPositionsInput {
   @Min(0)
   @Max(5999)
   periodSecond: number;
+
+  @Field(() => ID, {
+    nullable: true,
+    description:
+      'Client-generated idempotency key. A retry with the same actionId returns the original result without creating new events.',
+  })
+  actionId?: string;
+
+  @Field(() => ID, {
+    nullable: true,
+    description: 'Client-chosen ID for the first POSITION_SWAP event',
+  })
+  swap1EventId?: string;
+
+  @Field(() => ID, {
+    nullable: true,
+    description:
+      'Client-chosen ID for the second POSITION_SWAP event (child of the first)',
+  })
+  swap2EventId?: string;
+
+  @Field({
+    nullable: true,
+    description: 'Client wall-clock time the change was confirmed',
+  })
+  occurredAt?: Date;
 }
