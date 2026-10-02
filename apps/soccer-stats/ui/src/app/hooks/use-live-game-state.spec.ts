@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { renderHook } from '@testing-library/react';
 
 import {
+  mergePendingEvents,
   toRosterSourceEvents,
   useTeamRoster,
   type LiveGameEvent,
@@ -113,5 +114,70 @@ describe('useTeamRoster', () => {
     const { result } = renderHook(() => useTeamRoster(undefined));
 
     expect(result.current).toBeUndefined();
+  });
+});
+
+describe('mergePendingEvents', () => {
+  it('appends pending events after the confirmed ones', () => {
+    const confirmed = [event('a', 'GAME_ROSTER')];
+    const pending = [event('p1', 'SUBSTITUTION_OUT')];
+
+    expect(mergePendingEvents(confirmed, pending).map((e) => e.id)).toEqual([
+      'a',
+      'p1',
+    ]);
+  });
+
+  it('drops a pending event once its confirmed copy (same ID) is in the cache, even nested', () => {
+    const confirmed = [
+      event('out', 'SUBSTITUTION_OUT', {
+        childEvents: [{ id: 'in', eventType: { name: 'SUBSTITUTION_IN' } }],
+      }),
+    ];
+    const pending = [
+      event('out', 'SUBSTITUTION_OUT'),
+      event('in', 'SUBSTITUTION_IN'),
+    ];
+
+    expect(mergePendingEvents(confirmed, pending)).toBe(confirmed);
+  });
+
+  it('returns the confirmed list unchanged when nothing is pending', () => {
+    const confirmed = [event('a', 'GAME_ROSTER')];
+
+    expect(mergePendingEvents(confirmed, [])).toBe(confirmed);
+  });
+});
+
+describe('useTeamRoster with pending events', () => {
+  it('shows a pending substitution before the server confirms it', () => {
+    const team = {
+      id: 'gt-1',
+      events: [
+        event('alice-in', 'SUBSTITUTION_IN', {
+          playerId: 'alice',
+          position: 'GK',
+        }),
+      ],
+    };
+    const pending = [
+      event('sub-out', 'SUBSTITUTION_OUT', {
+        playerId: 'alice',
+        periodSecond: 300,
+      }),
+      event('sub-in', 'SUBSTITUTION_IN', {
+        playerId: 'bob',
+        position: 'GK',
+        periodSecond: 300,
+        parentEventId: 'sub-out',
+      }),
+    ];
+
+    const { result } = renderHook(() => useTeamRoster(team, pending));
+
+    const byPlayer = Object.fromEntries(
+      result.current!.players.map((p) => [p.playerId, p.position]),
+    );
+    expect(byPlayer).toEqual({ alice: null, bob: 'GK' });
   });
 });

@@ -532,6 +532,7 @@ export const RECORD_FORMATION_CHANGE = graphql(/* GraphQL */ `
   mutation RecordFormationChange($input: RecordFormationChangeInput!) {
     recordFormationChange(input: $input) {
       id
+      ...LineupEvent
       period
       periodSecond
       eventType {
@@ -562,6 +563,7 @@ export const RECORD_GOAL = graphql(/* GraphQL */ `
   mutation RecordGoal($input: RecordGoalInput!) {
     recordGoal(input: $input) {
       id
+      ...LineupEvent
       period
       periodSecond
       playerId

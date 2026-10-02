@@ -46,9 +46,9 @@ type Documents = {
   '\n  mutation RemoveFromLineup($gameEventId: ID!) {\n    removeFromLineup(gameEventId: $gameEventId)\n  }\n': typeof types.RemoveFromLineupDocument;
   '\n  mutation UpdatePlayerPosition($gameEventId: ID!, $position: String) {\n    updatePlayerPosition(gameEventId: $gameEventId, position: $position) {\n      id\n      position\n    }\n  }\n': typeof types.UpdatePlayerPositionDocument;
   '\n  mutation SubstitutePlayer($input: SubstitutePlayerInput!) {\n    substitutePlayer(input: $input) {\n      id\n      ...LineupEvent\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.SubstitutePlayerDocument;
-  '\n  mutation RecordFormationChange($input: RecordFormationChangeInput!) {\n    recordFormationChange(input: $input) {\n      id\n      period\n      periodSecond\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.RecordFormationChangeDocument;
+  '\n  mutation RecordFormationChange($input: RecordFormationChangeInput!) {\n    recordFormationChange(input: $input) {\n      id\n      ...LineupEvent\n      period\n      periodSecond\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.RecordFormationChangeDocument;
   '\n  mutation RecordPositionChange($input: RecordPositionChangeInput!) {\n    recordPositionChange(input: $input) {\n      id\n      ...LineupEvent\n      period\n      periodSecond\n      position\n      eventType {\n        id\n        name\n      }\n    }\n  }\n': typeof types.RecordPositionChangeDocument;
-  '\n  mutation RecordGoal($input: RecordGoalInput!) {\n    recordGoal(input: $input) {\n      id\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n      childEvents {\n        id\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n      }\n    }\n  }\n': typeof types.RecordGoalDocument;
+  '\n  mutation RecordGoal($input: RecordGoalInput!) {\n    recordGoal(input: $input) {\n      id\n      ...LineupEvent\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n      childEvents {\n        id\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n      }\n    }\n  }\n': typeof types.RecordGoalDocument;
   '\n  mutation DeleteGoal($gameEventId: ID!) {\n    deleteGoal(gameEventId: $gameEventId)\n  }\n': typeof types.DeleteGoalDocument;
   '\n  mutation DeleteSubstitution($gameEventId: ID!) {\n    deleteSubstitution(gameEventId: $gameEventId)\n  }\n': typeof types.DeleteSubstitutionDocument;
   '\n  mutation DeletePositionSwap($gameEventId: ID!) {\n    deletePositionSwap(gameEventId: $gameEventId)\n  }\n': typeof types.DeletePositionSwapDocument;
@@ -173,11 +173,11 @@ const documents: Documents = {
     types.UpdatePlayerPositionDocument,
   '\n  mutation SubstitutePlayer($input: SubstitutePlayerInput!) {\n    substitutePlayer(input: $input) {\n      id\n      ...LineupEvent\n      period\n      periodSecond\n      position\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n    }\n  }\n':
     types.SubstitutePlayerDocument,
-  '\n  mutation RecordFormationChange($input: RecordFormationChangeInput!) {\n    recordFormationChange(input: $input) {\n      id\n      period\n      periodSecond\n      eventType {\n        id\n        name\n      }\n    }\n  }\n':
+  '\n  mutation RecordFormationChange($input: RecordFormationChangeInput!) {\n    recordFormationChange(input: $input) {\n      id\n      ...LineupEvent\n      period\n      periodSecond\n      eventType {\n        id\n        name\n      }\n    }\n  }\n':
     types.RecordFormationChangeDocument,
   '\n  mutation RecordPositionChange($input: RecordPositionChangeInput!) {\n    recordPositionChange(input: $input) {\n      id\n      ...LineupEvent\n      period\n      periodSecond\n      position\n      eventType {\n        id\n        name\n      }\n    }\n  }\n':
     types.RecordPositionChangeDocument,
-  '\n  mutation RecordGoal($input: RecordGoalInput!) {\n    recordGoal(input: $input) {\n      id\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n      childEvents {\n        id\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n      }\n    }\n  }\n':
+  '\n  mutation RecordGoal($input: RecordGoalInput!) {\n    recordGoal(input: $input) {\n      id\n      ...LineupEvent\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n      childEvents {\n        id\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n      }\n    }\n  }\n':
     types.RecordGoalDocument,
   '\n  mutation DeleteGoal($gameEventId: ID!) {\n    deleteGoal(gameEventId: $gameEventId)\n  }\n':
     types.DeleteGoalDocument,
@@ -507,8 +507,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: '\n  mutation RecordFormationChange($input: RecordFormationChangeInput!) {\n    recordFormationChange(input: $input) {\n      id\n      period\n      periodSecond\n      eventType {\n        id\n        name\n      }\n    }\n  }\n',
-): (typeof documents)['\n  mutation RecordFormationChange($input: RecordFormationChangeInput!) {\n    recordFormationChange(input: $input) {\n      id\n      period\n      periodSecond\n      eventType {\n        id\n        name\n      }\n    }\n  }\n'];
+  source: '\n  mutation RecordFormationChange($input: RecordFormationChangeInput!) {\n    recordFormationChange(input: $input) {\n      id\n      ...LineupEvent\n      period\n      periodSecond\n      eventType {\n        id\n        name\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation RecordFormationChange($input: RecordFormationChangeInput!) {\n    recordFormationChange(input: $input) {\n      id\n      ...LineupEvent\n      period\n      periodSecond\n      eventType {\n        id\n        name\n      }\n    }\n  }\n'];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -519,8 +519,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: '\n  mutation RecordGoal($input: RecordGoalInput!) {\n    recordGoal(input: $input) {\n      id\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n      childEvents {\n        id\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n      }\n    }\n  }\n',
-): (typeof documents)['\n  mutation RecordGoal($input: RecordGoalInput!) {\n    recordGoal(input: $input) {\n      id\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n      childEvents {\n        id\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n      }\n    }\n  }\n'];
+  source: '\n  mutation RecordGoal($input: RecordGoalInput!) {\n    recordGoal(input: $input) {\n      id\n      ...LineupEvent\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n      childEvents {\n        id\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n      }\n    }\n  }\n',
+): (typeof documents)['\n  mutation RecordGoal($input: RecordGoalInput!) {\n    recordGoal(input: $input) {\n      id\n      ...LineupEvent\n      period\n      periodSecond\n      playerId\n      externalPlayerName\n      externalPlayerNumber\n      eventType {\n        id\n        name\n      }\n      childEvents {\n        id\n        playerId\n        externalPlayerName\n        externalPlayerNumber\n        period\n        periodSecond\n        eventType {\n          id\n          name\n        }\n      }\n    }\n  }\n'];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

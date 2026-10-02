@@ -93,6 +93,33 @@ describe('GameOutbox', () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
+  it('runs another pass when an action is added while a pass is reading an empty queue', async () => {
+    let releaseFirstRead: () => void = () => undefined;
+    let reads = 0;
+    const storage = memoryOutboxStorage();
+    const slowStorage = {
+      ...storage,
+      read: async (scope: string) => {
+        const actions = await storage.read(scope);
+        reads += 1;
+        if (reads === 1) {
+          await new Promise<void>((r) => (releaseFirstRead = r));
+        }
+        return actions;
+      },
+    };
+    const { outbox, send } = makeOutbox({ storage: slowStorage });
+
+    const firstPass = outbox.sync(); // reads the (still empty) queue...
+    await Promise.resolve();
+    await storage.update('user-1:game-1', (a) => [...a, action()]);
+    const secondCall = outbox.sync(); // ...while this action is added
+    releaseFirstRead();
+    await Promise.all([firstPass, secondCall]);
+
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
   it('backs off on a transient failure and holds later actions behind it', async () => {
     const send = vi
       .fn()

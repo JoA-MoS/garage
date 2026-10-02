@@ -29,6 +29,8 @@ export interface GameOutboxOptions {
  */
 export class GameOutbox {
   private draining: Promise<void> | undefined;
+  /** A sync() arrived during a pass; run another once it ends. */
+  private rerun = false;
 
   constructor(private readonly options: GameOutboxOptions) {}
 
@@ -67,9 +69,22 @@ export class GameOutbox {
     );
   }
 
-  /** Sends what it can. Concurrent callers share one drain. */
-  sync(now: number = Date.now()): Promise<void> {
-    this.draining ??= this.drain(now).finally(() => {
+  /**
+   * Sends what it can. Concurrent callers share one drain; a call that
+   * arrives mid-pass gets one more pass, since the running one may have read
+   * the queue before the caller's action was added.
+   */
+  sync(now?: number): Promise<void> {
+    if (this.draining) {
+      this.rerun = true;
+      return this.draining;
+    }
+    this.draining = (async () => {
+      do {
+        this.rerun = false;
+        await this.drain(now ?? Date.now());
+      } while (this.rerun);
+    })().finally(() => {
       this.draining = undefined;
     });
     return this.draining;

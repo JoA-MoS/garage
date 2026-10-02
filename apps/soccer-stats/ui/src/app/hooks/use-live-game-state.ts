@@ -73,9 +73,33 @@ export function toRosterSourceEvents(
   return result;
 }
 
-/** One team's live roster, re-derived whenever its events change. */
+/**
+ * Confirmed events plus the outbox's pending ones, appended after them (they
+ * happened later). A pending event is dropped once its confirmed copy - same
+ * client-chosen ID - is in the cache, top-level or nested.
+ */
+export function mergePendingEvents<T extends LiveGameEvent>(
+  confirmed: readonly T[] | null | undefined,
+  pending: readonly LiveGameEvent[] | null | undefined,
+): readonly (T | LiveGameEvent)[] {
+  const base = confirmed ?? [];
+  if (!pending?.length) return base;
+  const confirmedIds = new Set<string>();
+  for (const event of base) {
+    confirmedIds.add(event.id);
+    for (const child of event.childEvents ?? []) confirmedIds.add(child.id);
+  }
+  const unconfirmed = pending.filter((e) => !confirmedIds.has(e.id));
+  return unconfirmed.length === 0 ? base : [...base, ...unconfirmed];
+}
+
+/**
+ * One team's live roster, re-derived whenever its events or pending outbox
+ * events change.
+ */
 export function useTeamRoster(
   team: LiveTeamData | null | undefined,
+  pendingEvents?: readonly LiveGameEvent[],
 ): TeamRoster | undefined {
   const events = team?.events;
   const gameTeamId = team?.id;
@@ -85,7 +109,10 @@ export function useTeamRoster(
     if (!gameTeamId) return undefined;
     return {
       gameTeamId,
-      ...deriveGameRoster(toRosterSourceEvents(events), { defaultFormation }),
+      ...deriveGameRoster(
+        toRosterSourceEvents(mergePendingEvents(events, pendingEvents)),
+        { defaultFormation },
+      ),
     };
-  }, [gameTeamId, events, defaultFormation]);
+  }, [gameTeamId, events, pendingEvents, defaultFormation]);
 }
