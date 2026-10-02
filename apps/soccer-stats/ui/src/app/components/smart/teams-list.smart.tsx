@@ -90,7 +90,10 @@ export const TeamsListSmart = ({
 
   // Loading if auth state isn't loaded yet, or if the active query is loading
   const isLoading =
-    !isLoaded || (isSignedIn ? myTeamsLoading : allTeamsLoading);
+    !isLoaded ||
+    (isSignedIn
+      ? myTeamsLoading && !myTeamsData
+      : allTeamsLoading && !allTeamsData);
 
   // Check for errors
   const error = isSignedIn ? myTeamsError : allTeamsError;

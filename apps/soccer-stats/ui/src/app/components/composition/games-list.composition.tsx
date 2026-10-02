@@ -28,7 +28,7 @@ export const GamesListComposition = () => {
     <div className="min-h-screen bg-gray-50">
       <GamesListSmart
         games={data?.games || []}
-        loading={loading}
+        loading={loading && !data}
         error={errorMessage}
         onGameDeleted={() => refetch()}
       />

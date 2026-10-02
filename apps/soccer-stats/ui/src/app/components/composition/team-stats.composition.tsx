@@ -105,7 +105,7 @@ export const TeamStatsComposition = ({ teamId }: TeamStatsCompositionProps) => {
       endDate={endDate}
       onDateRangeChange={handleDateRangeChange}
       onClearDateRange={handleClearDateRange}
-      isLoading={loading}
+      isLoading={loading && !data}
       error={error?.message}
       onRetry={() => refetch()}
       onPlayerClick={handlePlayerClick}

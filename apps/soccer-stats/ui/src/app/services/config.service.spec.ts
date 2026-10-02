@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { fetchPublicConfig } from './config.service';
+import {
+  readCachedPublicConfig,
+  savePublicConfig,
+  fetchPublicConfig,
+} from './config.service';
 
 describe('Config Service', () => {
   beforeEach(() => {
@@ -84,5 +88,29 @@ describe('Config Service', () => {
     await expect(fetchPublicConfig()).rejects.toThrow(
       'Configuration fetch failed: Network error. Make sure the API is running at same origin (via Vite proxy)',
     );
+  });
+});
+
+describe('cached public config', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('returns the last saved config, so startup needs no network', () => {
+    savePublicConfig({ clerkPublishableKey: 'pk_test_abc' });
+
+    expect(readCachedPublicConfig()).toEqual({
+      clerkPublishableKey: 'pk_test_abc',
+    });
+  });
+
+  it('returns null when nothing (or something invalid) is saved', () => {
+    expect(readCachedPublicConfig()).toBeNull();
+
+    localStorage.setItem('soccer-stats:public-config', '{"nope":1}');
+    expect(readCachedPublicConfig()).toBeNull();
+
+    localStorage.setItem('soccer-stats:public-config', 'not json');
+    expect(readCachedPublicConfig()).toBeNull();
   });
 });

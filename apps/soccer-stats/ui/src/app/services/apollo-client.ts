@@ -1,6 +1,5 @@
 import {
   ApolloClient,
-  InMemoryCache,
   createHttpLink,
   ApolloLink,
   split,
@@ -14,6 +13,7 @@ import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
 
 import { cacheTypePolicies } from './cache-type-policies';
+import { ObservableInMemoryCache } from './cache-persistence';
 import { API_PREFIX, getApiUrl } from './environment';
 
 /**
@@ -198,10 +198,16 @@ const splitLink = split(
 // Create Apollo Client instance
 export const apolloClient = new ApolloClient({
   link: splitLink,
-  cache: new InMemoryCache({ typePolicies: cacheTypePolicies }),
+  // Observable so cache-persistence can save it after changes.
+  cache: new ObservableInMemoryCache({ typePolicies: cacheTypePolicies }),
   defaultOptions: {
     watchQuery: {
       errorPolicy: 'all',
+      // The cache may be restored from the device (cache-persistence), so
+      // show what's cached at once but still refresh it from the server on
+      // mount; later reads within the same mount use the cache.
+      fetchPolicy: 'cache-and-network',
+      nextFetchPolicy: 'cache-first',
     },
     query: {
       errorPolicy: 'all',

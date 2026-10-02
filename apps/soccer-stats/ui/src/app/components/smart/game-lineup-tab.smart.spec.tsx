@@ -325,3 +325,24 @@ describe('GameLineupTab with trackPositions: false', () => {
     expect(onFieldPlayerClickForSwap).not.toHaveBeenCalled();
   });
 });
+
+describe('GameLineupTab loading state', () => {
+  it('shows a spinner only while the lineup has nothing to show', () => {
+    useLineupMock.mockReturnValue({ ...buildLineup(), loading: true });
+    const { container } = render(
+      <GameLineupTab {...baseProps} gameStatus={GameStatus.FirstHalf} />,
+    );
+    expect(container.querySelector('.animate-spin')).not.toBeNull();
+  });
+
+  it('renders the cached lineup, with no spinner, while a background refetch runs', () => {
+    // useLineup reports loading=false whenever cached game/team data exists,
+    // even though Apollo is refetching in the background (cache-and-network).
+    useLineupMock.mockReturnValue(buildLineup());
+    const { container } = render(
+      <GameLineupTab {...baseProps} gameStatus={GameStatus.FirstHalf} />,
+    );
+    expect(container.querySelector('.animate-spin')).toBeNull();
+    expect(screen.getAllByText(/Alpha/).length).toBeGreaterThan(0);
+  });
+});

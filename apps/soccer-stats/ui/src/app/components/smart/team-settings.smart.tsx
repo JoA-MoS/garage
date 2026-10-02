@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { useParams } from 'react-router';
 
@@ -118,9 +118,14 @@ export const TeamSettingsSmart = () => {
     refetchQueries: [{ query: GET_TEAM_BY_ID, variables: { id: teamId } }],
   });
 
-  // Initialize configuration from team data when loaded
+  // Initialize the form from team data once per team. Later updates (the
+  // background refresh after a cached render, or refetches after saving)
+  // must not reset edits in progress; after a save the form already shows
+  // the saved values.
+  const initializedTeamId = useRef<string | null>(null);
   useEffect(() => {
-    if (teamData?.team) {
+    if (teamData?.team && initializedTeamId.current !== teamData.team.id) {
+      initializedTeamId.current = teamData.team.id;
       const team = teamData.team;
       const config = team.teamConfiguration;
 
@@ -325,7 +330,7 @@ export const TeamSettingsSmart = () => {
   );
 
   // Show loading state for fetching
-  if (fetchLoading) {
+  if (fetchLoading && !teamData) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="animate-pulse space-y-4">
@@ -377,7 +382,7 @@ export const TeamSettingsSmart = () => {
       formations={availableFormations}
       positions={positions}
       calendarSources={calendarSourcesData?.teamCalendarSources ?? []}
-      calendarSourcesLoading={calendarSourcesLoading}
+      calendarSourcesLoading={calendarSourcesLoading && !calendarSourcesData}
       calendarSourcesError={calendarSourcesError?.message}
       creatingCalendarSource={creatingCalendarSource}
       syncingCalendarSource={syncingCalendarSource}

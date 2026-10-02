@@ -341,7 +341,6 @@ const GamePageContent = () => {
     // Prevent loading state from becoming true during cache updates or background refetches
     // Only show loading on initial fetch, not when cache is modified by subscriptions
     notifyOnNetworkStatusChange: false,
-    fetchPolicy: 'cache-first',
   });
 
   // The game with queued status/clock changes (start, halftime, pause...)
@@ -367,12 +366,12 @@ const GamePageContent = () => {
   // Debug: Log when loading spinner is displayed (for E2E testing)
   // Only logs in development/test environments to avoid polluting production console
   useEffect(() => {
-    if (import.meta.env.DEV && loading) {
+    if (import.meta.env.DEV && loading && !data) {
       console.log(
         '[Game Page Loading Spinner] Displayed - loading state is true',
       );
     }
-  }, [loading]);
+  }, [loading, data]);
 
   // Auto-switch to stats tab for completed games:
   // 1. When opening a completed game, default to stats tab
@@ -1530,7 +1529,7 @@ const GamePageContent = () => {
     return <Navigate to="/games" replace />;
   }
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
@@ -2045,7 +2044,7 @@ const GamePageContent = () => {
                       elapsedSeconds={
                         isActivePlay ? syncedTime.periodSecond : undefined
                       }
-                      isLoading={loading}
+                      isLoading={loading && !data}
                     />
                   )}
                   {activeTeam === 'away' && awayTeam && (
@@ -2056,7 +2055,7 @@ const GamePageContent = () => {
                       elapsedSeconds={
                         isActivePlay ? syncedTime.periodSecond : undefined
                       }
-                      isLoading={loading}
+                      isLoading={loading && !data}
                     />
                   )}
                 </div>
