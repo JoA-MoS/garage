@@ -189,6 +189,36 @@ Deviations from the plan:
 - `startPeriod`/`endPeriod`/`setSecondHalfLineup` are not converted. The
   live UI uses `updateGame` for period changes.
 
+## Phase 2 status (implemented)
+
+- `deriveGameRoster(events)` (`libs/soccer-stats/utils`) reproduces
+  `LineupService.getGameRoster`: each player's latest roster event,
+  position (null = bench), formation and halftime pre-fill. That includes
+  Postgres `NULLS FIRST` ordering and input-order tie-breaking where
+  `createdAt` differs only in microseconds.
+  `apps/soccer-stats/api/scripts/roster-parity.ts` checks it against a real
+  database: every existing game team plus 300 random histories (0
+  mismatches). Re-run it after changing either side.
+- `useTeamRoster(gameTeam)` (UI) derives the roster from `GetGameById`'s
+  events. The game page and `use-lineup` use it instead of the `gameRoster`
+  query.
+- Lineup mutations return their events (`LineupEvent` fragment), and the
+  response is written into `GameTeam.events`
+  (`services/game-event-cache.ts`). The screen updates when the mutation
+  responds, with no follow-up roster refetch. The substitution panel no
+  longer awaits a refetch before closing.
+- `GameTeam.events` only ever merges in. Delete mutations therefore prune
+  cached events against the refetched game (`pruneDeletedGameEvents`), so
+  a substitution's or swap's partner event, deleted without its own
+  subscription message, disappears too.
+- Prerequisite fixed in phase 1: `createdAt` now defaults to
+  `clock_timestamp()`, so rows written in one transaction keep their write
+  order.
+
+Remaining waits until phase 3: one round trip per action (the mutation
+itself), plus a background `GetGameById` refetch for server-computed play
+time.
+
 ## Known issues found during design (not addressed here)
 
 - The goal duplicate check (`DUPLICATE_CONFLICT_WINDOW_SECONDS`) silently

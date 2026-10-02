@@ -5,6 +5,10 @@ const config: CodegenConfig = {
   documents: [
     '../../../apps/soccer-stats/ui/src/**/*.tsx',
     '../../../apps/soccer-stats/ui/src/**/*.ts',
+    // Test-only documents (e.g. queries against a bare InMemoryCache)
+    // aren't app operations and needn't match the API schema.
+    '!../../../apps/soccer-stats/ui/src/**/*.spec.ts',
+    '!../../../apps/soccer-stats/ui/src/**/*.spec.tsx',
   ],
   ignoreNoDocuments: true,
   generates: {
