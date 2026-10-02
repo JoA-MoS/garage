@@ -33,9 +33,11 @@ setup('authenticate and save state to storage', async ({ page }) => {
     },
   });
 
-  // Wait for an element that is only visible when signed in
-  // eslint-disable-next-line playwright/no-wait-for-selector
-  await page.waitForSelector('text=Welcome back, User!');
+  // Wait for an element that is only visible when signed in: the
+  // dashboard's "My Teams" section.
+  await page
+    .getByRole('heading', { name: 'My Teams', level: 2 })
+    .waitFor({ state: 'visible' });
 
   await page.context().storageState({ path: authFile });
 });
