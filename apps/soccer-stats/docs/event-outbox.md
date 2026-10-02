@@ -219,6 +219,51 @@ Remaining waits until phase 3: one round trip per action (the mutation
 itself), plus a background `GetGameById` refetch for server-computed play
 time.
 
+## Phase 3 status (implemented)
+
+Code: `apps/soccer-stats/ui/src/app/outbox/`.
+
+- **Queue** (`game-outbox.ts`, `outbox-storage.ts`): actions live in
+  IndexedDB (via `idb-keyval`), one list per `userId:gameId`, so they
+  survive the app being killed. They are sent strictly in order, one at a
+  time.
+- **Failures** (`classify-send-error.ts`):
+  - Network errors, 5xx and expired sessions back off (1s doubling, max
+    60s). After 6 attempts the action needs the user.
+  - 400/403/404/validation errors mark the action failed. The queue stops
+    there until the user picks Retry or Discard.
+  - A 409 ("already applied") counts as done.
+  - NestJS reports 404/409 as `INTERNAL_SERVER_ERROR` with
+    `extensions.status`, so the status is read too.
+- **Provider** (`game-outbox-context.tsx`): `GameOutboxProvider` wraps the
+  game page. It sends on mount, after each action, on online/foreground,
+  and every 5s while anything is queued. A confirmed action's returned
+  events are written to the cache before it leaves the queue, so pending
+  events turn into confirmed ones without a flicker.
+- **Pending state:** `pending-events.ts` builds the events each action will
+  create exactly as the API does (same client IDs).
+  `game-patches.ts` / `game-clock-action.ts` give status/clock changes a
+  local patch (status, pausedAt, and the clock sync fields) so the clock
+  freezes or restarts at once. The page renders confirmed + pending
+  events and the patched game.
+- **Through the outbox:**
+  - the substitution panel's Confirm (batch, removals, additions)
+  - new goals (both modals and the quick goal)
+  - start/end of halves, end game, pause and resume
+- **Still direct:** editing or deleting events, reset, reopen, stats
+  settings, and pre-game lineup setup.
+- **UI:** `SyncStatus` shows "Syncing N change(s)" and failed actions with
+  Retry/Discard. Events still syncing can't be edited or deleted from the
+  timeline.
+- **Schema check:** codegen writes the API schema to
+  `graphql-codegen/src/generated/schema.introspection.json`.
+  `outbox-variables.schema.spec.ts` validates every kind of action the app
+  builds against it, so a misnamed input field fails a test instead of a
+  coach's sync.
+
+Not covered by automated tests: the game page's status/pause handlers and
+the full device-to-API round trip. Verify those manually.
+
 ## Known issues found during design (not addressed here)
 
 - The goal duplicate check (`DUPLICATE_CONFLICT_WINDOW_SECONDS`) silently

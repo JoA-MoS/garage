@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation } from '@apollo/client/react';
 
 import { ModalPortal } from '@garage/soccer-stats/ui-components';
@@ -8,7 +8,9 @@ import {
 } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond, toPeriodSecond } from '@garage/soccer-stats/utils';
 
-import { RECORD_GOAL, UPDATE_GOAL } from '../../services/games-graphql.service';
+import { UPDATE_GOAL } from '../../services/games-graphql.service';
+import { useGameOutbox } from '../../outbox/game-outbox-context';
+import { buildGoalAction, resolveGoalPlayer } from '../../outbox/goal-action';
 
 // Data for an existing goal being edited
 export interface EditGoalData {
@@ -141,12 +143,12 @@ export const GoalModal = ({
   // Track if we should clear the assist
   const [clearAssist, setClearAssist] = useState(false);
 
-  // Record goal mutation - cache updates happen via subscription for multi-client consistency
-  const [recordGoal, { loading: recordLoading }] = useMutation(RECORD_GOAL);
+  const { recordAction } = useGameOutbox();
+  const submitting = useRef(false);
 
   const [updateGoal, { loading: updateLoading }] = useMutation(UPDATE_GOAL);
 
-  const loading = recordLoading || updateLoading;
+  const loading = updateLoading;
 
   // Players available for selection (always include bench in edit mode for flexibility)
   const availablePlayers =
@@ -160,6 +162,10 @@ export const GoalModal = ({
   });
 
   const handleSubmit = async () => {
+    // A double-tap would otherwise record the goal twice: each submit gets
+    // its own actionId, so the server can't tell them apart.
+    if (submitting.current) return;
+    submitting.current = true;
     setError(null); // Clear any previous error
 
     // Find the selected scorer player (lineup mode)
@@ -217,44 +223,28 @@ export const GoalModal = ({
           },
         });
       } else {
-        // Create new goal - wait for server to confirm before closing
-        // The subscription will update all connected clients with the new event
-        await recordGoal({
-          variables: {
-            input: {
-              gameTeamId,
-              period: editPeriod,
-              periodSecond: editPeriodSeconds,
-              scorerId: scorer?.playerId || undefined,
-              externalScorerName:
-                scorer?.externalPlayerName ||
-                (entryMode === 'quick' && quickScorerNumber
-                  ? `#${quickScorerNumber}`
-                  : undefined),
-              externalScorerNumber:
-                scorer?.externalPlayerNumber ||
-                (entryMode === 'quick'
-                  ? quickScorerNumber || undefined
-                  : undefined),
-              assisterId: assister?.playerId || undefined,
-              externalAssisterName:
-                assister?.externalPlayerName ||
-                (entryMode === 'quick' && quickAssisterNumber
-                  ? `#${quickAssisterNumber}`
-                  : undefined),
-              externalAssisterNumber:
-                assister?.externalPlayerNumber ||
-                (entryMode === 'quick'
-                  ? quickAssisterNumber || undefined
-                  : undefined),
-            },
-          },
-          // No optimisticResponse - rely on subscription for cache updates
-          // This ensures all connected clients see the same data
-        });
+        // Create new goal: record it on this device (the score updates at
+        // once) and let the outbox send it - no waiting on the network.
+        await recordAction(
+          buildGoalAction({
+            gameTeamId,
+            period: editPeriod,
+            periodSecond: editPeriodSeconds,
+            scorer: resolveGoalPlayer(
+              scorer,
+              quickScorerNumber,
+              entryMode === 'quick',
+            ),
+            assister: resolveGoalPlayer(
+              assister,
+              quickAssisterNumber,
+              entryMode === 'quick',
+            ),
+          }),
+        );
       }
 
-      // Close modal after server confirms (for both create and edit)
+      // Close once recorded (edit: after the server confirms)
       onSuccess?.();
       onClose();
     } catch (err) {
@@ -262,6 +252,7 @@ export const GoalModal = ({
       const message =
         err instanceof Error ? err.message : 'An unexpected error occurred';
       setError(message);
+      submitting.current = false;
     }
   };
 
