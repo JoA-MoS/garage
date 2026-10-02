@@ -73,6 +73,15 @@ export class GameEvent extends BaseEntity {
   @Column({ type: 'int', default: 0 })
   periodSecond: number;
 
+  /**
+   * Client wall-clock time the action happened. Differs from `createdAt`
+   * when an action syncs late from the client outbox. Null for events
+   * recorded before this column existed, or by clients that don't send it.
+   */
+  @Field({ nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
+  occurredAt?: Date;
+
   // types must be explicit: reflection cannot infer String/varchar from the
   // union. null is significant on save: TypeORM ignores undefined but
   // persists null, and a null position is what moves a roster player to

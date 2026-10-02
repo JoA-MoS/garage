@@ -23,6 +23,8 @@ import {
   GameEventSubscriptionPayload,
 } from '../game-events/dto/game-event-subscription.output';
 import { createSlimGameEventForSubscription } from '../game-events/utils/subscription-payload.util';
+import { ActionReceiptService } from '../game-events/services/action-receipt.service';
+import { resolveOccurredAt } from '../game-events/utils/client-action.util';
 
 import { CreateGameInput } from './dto/create-game.input';
 import { UpdateGameInput } from './dto/update-game.input';
@@ -51,6 +53,7 @@ export class GamesService {
     @Inject(forwardRef(() => GameEventsService))
     private readonly gameEventsService: GameEventsService,
     private readonly gameTimingService: GameTimingService,
+    private readonly receipts: ActionReceiptService,
     @Inject('PUB_SUB') private readonly pubSub: PubSub,
   ) {}
 
@@ -160,11 +163,52 @@ export class GamesService {
     return this.findOne(savedGame.id);
   }
 
+  /**
+   * Update a game: fields, status transitions (which create period events),
+   * and pause/resume (stoppage events).
+   *
+   * Outbox support: with `actionId`, a retry returns the current game
+   * without applying again. The receipt commits only after every write
+   * succeeded, so retries are safe. The writes themselves span several
+   * services and are not one transaction: a failure part-way can still leave
+   * partial rows, as before (see docs/event-outbox.md).
+   */
   async update(
     id: string,
     updateGameInput: UpdateGameInput,
     userId?: string,
   ): Promise<Game> {
+    if (!updateGameInput.actionId) {
+      return this.applyUpdate(id, updateGameInput, userId);
+    }
+    if (!userId) {
+      throw new BadRequestException('actionId requires an authenticated user');
+    }
+    const { result } = await this.receipts.applyOnce(
+      {
+        actionId: updateGameInput.actionId,
+        gameId: id,
+        recordedByUserId: userId,
+        kind: 'updateGame',
+      },
+      {
+        apply: async () => ({
+          result: await this.applyUpdate(id, updateGameInput, userId),
+          eventIds: [],
+        }),
+        replay: () => this.findOne(id),
+      },
+    );
+    return result;
+  }
+
+  private async applyUpdate(
+    id: string,
+    updateGameInput: UpdateGameInput,
+    userId?: string,
+  ): Promise<Game> {
+    const occurredAt = resolveOccurredAt(updateGameInput.occurredAt);
+
     // Handle resetGame flag - reset to SCHEDULED and clear timing
     if (updateGameInput.resetGame) {
       if (updateGameInput.clearEvents) {
@@ -253,6 +297,9 @@ export class GamesService {
       actualEnd: _actualEnd,
       pausedAt: inputPausedAt,
       periodSecond: _periodSecond,
+      actionId: _actionId,
+      occurredAt: _occurredAt,
+      period: _period,
       ...gameFields
     } = updateGameInput as Record<string, unknown>;
 
@@ -294,6 +341,7 @@ export class GamesService {
       updateGameInput.status,
       userId,
       updateGameInput.periodSecond,
+      occurredAt,
     );
 
     // Handle pause/resume via events
@@ -315,7 +363,11 @@ export class GamesService {
         );
       }
 
-      await this.handlePauseResumeEvent(id, normalizedPausedAt, userId);
+      await this.handlePauseResumeEvent(id, normalizedPausedAt, userId, {
+        period: updateGameInput.period,
+        periodSecond: updateGameInput.periodSecond,
+        occurredAt,
+      });
     }
 
     return this.findOne(id);
@@ -431,6 +483,7 @@ export class GamesService {
     status?: GameStatus,
     userId?: string,
     providedPeriodSecond?: number,
+    occurredAt?: Date,
   ): Promise<void> {
     if (!status) return;
 
@@ -533,6 +586,7 @@ export class GamesService {
         period,
         periodSecond,
         parentEventId,
+        occurredAt,
       });
       const savedEvent = await this.gameEventRepository.save(event);
 
@@ -889,6 +943,11 @@ export class GamesService {
     gameId: string,
     pausedAt: Date | null,
     userId?: string,
+    gameTime: {
+      period?: string;
+      periodSecond?: number;
+      occurredAt?: Date;
+    } = {},
   ): Promise<void> {
     if (!userId) {
       throw new Error(
@@ -923,8 +982,11 @@ export class GamesService {
       gameTeamId: homeGameTeam.id,
       eventTypeId: eventType.id,
       recordedByUserId: userId,
-      // Stoppage events don't belong to a specific period
-      periodSecond: 0,
+      // Clients that send the current period place the stoppage in game
+      // time; older clients get the legacy period-less stoppage at 0.
+      period: gameTime.period,
+      periodSecond: gameTime.period ? (gameTime.periodSecond ?? 0) : 0,
+      occurredAt: gameTime.occurredAt,
     });
     await this.gameEventRepository.save(event);
   }

@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Injectable,
   NotFoundException,
   BadRequestException,
@@ -7,6 +8,7 @@ import {
 } from '@nestjs/common';
 
 import { GameEvent } from '../../../entities/game-event.entity';
+import { GameTeam } from '../../../entities/game-team.entity';
 import { RecordFormationChangeInput } from '../dto/record-formation-change.input';
 import {
   RecordPositionChangeInput,
@@ -18,10 +20,18 @@ import {
   DependentEventsResult,
 } from '../dto/dependent-event.output';
 import { GameEventAction } from '../dto/game-event-subscription.output';
+import {
+  assertClientUuid,
+  resolveOccurredAt,
+} from '../utils/client-action.util';
 
 import { EventCoreService } from './event-core.service';
 import { GoalService } from './goal.service';
-import { SubstitutionService } from './substitution.service';
+import {
+  SubstitutionService,
+  type ActionWriteContext,
+} from './substitution.service';
+import { ActionReceiptService } from './action-receipt.service';
 
 /**
  * Service responsible for event management operations.
@@ -35,14 +45,11 @@ export class EventManagementService {
     private readonly goalService: GoalService,
     @Inject(forwardRef(() => SubstitutionService))
     private readonly substitutionService: SubstitutionService,
+    private readonly receipts: ActionReceiptService,
   ) {}
 
   private get gameEventsRepository() {
     return this.coreService.gameEventsRepository;
-  }
-
-  private get gameTeamsRepository() {
-    return this.coreService.gameTeamsRepository;
   }
 
   private get teamsRepository() {
@@ -50,13 +57,34 @@ export class EventManagementService {
   }
 
   /**
+   * Replay for single-event actions: the recorded event, or a conflict if it
+   * has been deleted since.
+   */
+  private async loadReplayedEvent(
+    actionId: string | undefined,
+    eventIds: string[],
+  ): Promise<GameEvent> {
+    const [event] = await this.receipts.loadEvents(eventIds);
+    if (!event) {
+      throw new ConflictException(
+        `Action ${actionId} was already applied; its events have since been deleted`,
+      );
+    }
+    return event;
+  }
+
+  /**
    * Record a formation change event.
    * Creates a FORMATION_CHANGE event and updates the GameTeam's formation.
+   * The event and the formation update commit together.
    */
   async recordFormationChange(
     input: RecordFormationChangeInput,
     recordedByUserId: string,
   ): Promise<GameEvent> {
+    assertClientUuid(input.eventId, 'eventId');
+    const occurredAt = resolveOccurredAt(input.occurredAt);
+
     const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
     const formationEventType =
       this.coreService.getEventTypeByName('FORMATION_CHANGE');
@@ -64,43 +92,62 @@ export class EventManagementService {
     // Get the current formation before updating
     const previousFormation = gameTeam.formation;
 
-    // Create FORMATION_CHANGE event
-    const formationEvent = this.gameEventsRepository.create({
-      gameId: gameTeam.gameId,
-      gameTeamId: input.gameTeamId,
-      eventTypeId: formationEventType.id,
-      recordedByUserId,
-      period: input.period,
-      periodSecond: input.periodSecond,
-      formation: input.formation,
-      metadata: {
-        previousFormation: previousFormation || null,
-        newFormation: input.formation,
+    const { result, replayed } = await this.receipts.applyOnce(
+      {
+        actionId: input.actionId,
+        gameId: gameTeam.gameId,
+        recordedByUserId,
+        kind: 'recordFormationChange',
       },
-    });
+      {
+        apply: async (manager) => {
+          const events = manager.getRepository(GameEvent);
 
-    const savedEvent = await this.gameEventsRepository.save(formationEvent);
+          // Create FORMATION_CHANGE event. insert, not save: save() with an
+          // existing id would UPDATE that row.
+          const formationEvent = events.create({
+            id: input.eventId,
+            gameId: gameTeam.gameId,
+            gameTeamId: input.gameTeamId,
+            eventTypeId: formationEventType.id,
+            recordedByUserId,
+            period: input.period,
+            periodSecond: input.periodSecond,
+            occurredAt,
+            formation: input.formation,
+            metadata: {
+              previousFormation: previousFormation || null,
+              newFormation: input.formation,
+            },
+          });
+          await events.insert(formationEvent);
 
-    // Update the GameTeam's current formation
-    await this.gameTeamsRepository.update(
-      { id: input.gameTeamId },
-      { formation: input.formation },
+          // Update the GameTeam's current formation in the same transaction
+          await manager
+            .getRepository(GameTeam)
+            .update({ id: input.gameTeamId }, { formation: input.formation });
+
+          // Return event with relations loaded
+          const eventWithRelations = await events.findOneOrFail({
+            where: { id: formationEvent.id },
+            relations: ['eventType', 'recordedByUser', 'gameTeam', 'game'],
+          });
+          return { result: eventWithRelations, eventIds: [formationEvent.id] };
+        },
+        replay: (eventIds) => this.loadReplayedEvent(input.actionId, eventIds),
+      },
     );
 
-    // Return event with relations loaded
-    const eventWithRelations = await this.gameEventsRepository.findOneOrFail({
-      where: { id: savedEvent.id },
-      relations: ['eventType', 'recordedByUser', 'gameTeam', 'game'],
-    });
+    // Publish the event to subscribers (once; a replay was already published)
+    if (!replayed) {
+      await this.coreService.publishGameEvent(
+        gameTeam.gameId,
+        GameEventAction.CREATED,
+        result,
+      );
+    }
 
-    // Publish the event to subscribers
-    await this.coreService.publishGameEvent(
-      gameTeam.gameId,
-      GameEventAction.CREATED,
-      eventWithRelations,
-    );
-
-    return eventWithRelations;
+    return result;
   }
 
   /**
@@ -112,102 +159,190 @@ export class EventManagementService {
     input: RecordPositionChangeInput,
     recordedByUserId: string,
   ): Promise<GameEvent> {
+    assertClientUuid(input.eventId, 'eventId');
+    const occurredAt = resolveOccurredAt(input.occurredAt);
+
     const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
     const positionChangeType =
       this.coreService.getEventTypeByName('POSITION_CHANGE');
 
-    // Get the player's current entry event to find their current position
-    const playerEntryEvent = await this.gameEventsRepository.findOne({
-      where: { id: input.playerEventId },
-      relations: ['eventType', 'player'],
-    });
+    const { result, replayed } = await this.receipts.applyOnce(
+      {
+        actionId: input.actionId,
+        gameId: gameTeam.gameId,
+        recordedByUserId,
+        kind: 'recordPositionChange',
+      },
+      {
+        apply: async (manager) => {
+          const eventsRepo = manager.getRepository(GameEvent);
 
-    if (!playerEntryEvent) {
-      throw new NotFoundException(
-        `Player event ${input.playerEventId} not found`,
+          // Get the player's current entry event to find their current position
+          const playerEntryEvent = await eventsRepo.findOne({
+            where: { id: input.playerEventId },
+            relations: ['eventType', 'player'],
+          });
+
+          if (!playerEntryEvent) {
+            throw new NotFoundException(
+              `Player event ${input.playerEventId} not found`,
+            );
+          }
+
+          // Get the player's current position (from latest position-affecting event)
+          const events = await eventsRepo.find({
+            where: { gameTeamId: input.gameTeamId },
+            relations: ['eventType'],
+            order: { period: 'ASC', periodSecond: 'ASC', createdAt: 'ASC' },
+          });
+
+          // Find the player's current position by replaying their position history
+          const playerKey =
+            playerEntryEvent.playerId || playerEntryEvent.externalPlayerName;
+          let previousPosition: string | undefined;
+
+          for (const event of events) {
+            const eventPlayerKey = event.playerId || event.externalPlayerName;
+            if (eventPlayerKey !== playerKey) continue;
+
+            // Track position from relevant events
+            // Note: Players enter the field via SUBSTITUTION_IN (including starters at period 1, second 0)
+            if (
+              ['SUBSTITUTION_IN', 'POSITION_SWAP', 'POSITION_CHANGE'].includes(
+                event.eventType.name,
+              )
+            ) {
+              if (event.position) {
+                previousPosition = event.position;
+              }
+            }
+          }
+
+          // Create POSITION_CHANGE event. insert, not save: save() with an
+          // existing id would UPDATE that row.
+          const positionChangeEvent = eventsRepo.create({
+            id: input.eventId,
+            gameId: gameTeam.gameId,
+            gameTeamId: input.gameTeamId,
+            eventTypeId: positionChangeType.id,
+            playerId: playerEntryEvent.playerId,
+            externalPlayerName: playerEntryEvent.externalPlayerName,
+            externalPlayerNumber: playerEntryEvent.externalPlayerNumber,
+            recordedByUserId,
+            period: input.period,
+            periodSecond: input.periodSecond,
+            occurredAt,
+            position: input.newPosition,
+            metadata: {
+              previousPosition: previousPosition || null,
+              newPosition: input.newPosition,
+              reason: input.reason || PositionChangeReason.TACTICAL,
+            },
+          });
+          await eventsRepo.insert(positionChangeEvent);
+
+          // Return event with relations loaded
+          const eventWithRelations = await eventsRepo.findOneOrFail({
+            where: { id: positionChangeEvent.id },
+            relations: [
+              'eventType',
+              'player',
+              'recordedByUser',
+              'gameTeam',
+              'game',
+            ],
+          });
+          return {
+            result: eventWithRelations,
+            eventIds: [positionChangeEvent.id],
+          };
+        },
+        replay: (eventIds) => this.loadReplayedEvent(input.actionId, eventIds),
+      },
+    );
+
+    // Publish the event to subscribers (once; a replay was already published)
+    if (!replayed) {
+      await this.coreService.publishGameEvent(
+        gameTeam.gameId,
+        GameEventAction.CREATED,
+        result,
       );
     }
 
-    // Get the player's current position (from latest position-affecting event)
-    const events = await this.gameEventsRepository.find({
-      where: { gameTeamId: input.gameTeamId },
-      relations: ['eventType'],
-      order: { period: 'ASC', periodSecond: 'ASC', createdAt: 'ASC' },
-    });
-
-    // Find the player's current position by replaying their position history
-    const playerKey =
-      playerEntryEvent.playerId || playerEntryEvent.externalPlayerName;
-    let previousPosition: string | undefined;
-
-    for (const event of events) {
-      const eventPlayerKey = event.playerId || event.externalPlayerName;
-      if (eventPlayerKey !== playerKey) continue;
-
-      // Track position from relevant events
-      // Note: Players enter the field via SUBSTITUTION_IN (including starters at period 1, second 0)
-      if (
-        ['SUBSTITUTION_IN', 'POSITION_SWAP', 'POSITION_CHANGE'].includes(
-          event.eventType.name,
-        )
-      ) {
-        if (event.position) {
-          previousPosition = event.position;
-        }
-      }
-    }
-
-    // Create POSITION_CHANGE event
-    const positionChangeEvent = this.gameEventsRepository.create({
-      gameId: gameTeam.gameId,
-      gameTeamId: input.gameTeamId,
-      eventTypeId: positionChangeType.id,
-      playerId: playerEntryEvent.playerId,
-      externalPlayerName: playerEntryEvent.externalPlayerName,
-      externalPlayerNumber: playerEntryEvent.externalPlayerNumber,
-      recordedByUserId,
-      period: input.period,
-      periodSecond: input.periodSecond,
-      position: input.newPosition,
-      metadata: {
-        previousPosition: previousPosition || null,
-        newPosition: input.newPosition,
-        reason: input.reason || PositionChangeReason.TACTICAL,
-      },
-    });
-
-    const savedEvent =
-      await this.gameEventsRepository.save(positionChangeEvent);
-
-    // Return event with relations loaded
-    const eventWithRelations = await this.gameEventsRepository.findOneOrFail({
-      where: { id: savedEvent.id },
-      relations: ['eventType', 'player', 'recordedByUser', 'gameTeam', 'game'],
-    });
-
-    // Publish the event to subscribers
-    await this.coreService.publishGameEvent(
-      gameTeam.gameId,
-      GameEventAction.CREATED,
-      eventWithRelations,
-    );
-
-    return eventWithRelations;
+    return result;
   }
 
+  /**
+   * Swap two on-field players' positions. Creates two linked POSITION_SWAP
+   * events in one transaction. With `actionId`, a retry returns the
+   * original events instead of swapping again.
+   */
   async swapPositions(
     input: SwapPositionsInput,
     recordedByUserId: string,
   ): Promise<GameEvent[]> {
+    const occurredAt = resolveOccurredAt(input.occurredAt);
     const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
 
-    // Get both player events
+    const { result, replayed } = await this.receipts.applyOnce(
+      {
+        actionId: input.actionId,
+        gameId: gameTeam.gameId,
+        recordedByUserId,
+        kind: 'swapPositions',
+      },
+      {
+        apply: async (manager) => {
+          const events = await this.applySwap(
+            {
+              events: manager.getRepository(GameEvent),
+              gameId: gameTeam.gameId,
+              recordedByUserId,
+              occurredAt,
+            },
+            input,
+          );
+          return { result: events, eventIds: events.map((e) => e.id) };
+        },
+        replay: (eventIds) => this.receipts.loadEvents(eventIds),
+      },
+    );
+
+    // Publish after commit, never on a replay. swap1 is the primary event;
+    // field resolvers handle relation loading for subscribers.
+    if (!replayed) {
+      await this.coreService.publishGameEvent(
+        gameTeam.gameId,
+        GameEventAction.CREATED,
+        result[0],
+      );
+    }
+
+    return result;
+  }
+
+  /**
+   * Writes a swap's two POSITION_SWAP events inside the caller's
+   * transaction, with no receipt and no publishing (the caller owns both).
+   * Used directly by batchLineupChanges.
+   */
+  async applySwap(
+    ctx: ActionWriteContext,
+    input: SwapPositionsInput,
+  ): Promise<[GameEvent, GameEvent]> {
+    assertClientUuid(input.swap1EventId, 'swap1EventId');
+    assertClientUuid(input.swap2EventId, 'swap2EventId');
+    const { events } = ctx;
+
+    // Read through the transaction: in a batch a player may have been
+    // subbed in earlier in the same, not-yet-committed, action.
     const [player1Event, player2Event] = await Promise.all([
-      this.gameEventsRepository.findOne({
+      events.findOne({
         where: { id: input.player1EventId },
         relations: ['eventType'],
       }),
-      this.gameEventsRepository.findOne({
+      events.findOne({
         where: { id: input.player2EventId },
         relations: ['eventType'],
       }),
@@ -231,49 +366,43 @@ export class EventManagementService {
 
     const swapEventType = this.coreService.getEventTypeByName('POSITION_SWAP');
 
-    // Create first POSITION_SWAP event (player 1 gets player 2's position)
-    const swap1Event = this.gameEventsRepository.create({
-      gameId: gameTeam.gameId,
+    // insert, not save: a reused client ID must fail, not overwrite.
+    // First POSITION_SWAP: player 1 gets player 2's position.
+    const swap1 = events.create({
+      id: input.swap1EventId,
+      gameId: ctx.gameId,
       gameTeamId: input.gameTeamId,
       eventTypeId: swapEventType.id,
       playerId: player1Event.playerId,
       externalPlayerName: player1Event.externalPlayerName,
       externalPlayerNumber: player1Event.externalPlayerNumber,
-      recordedByUserId,
+      recordedByUserId: ctx.recordedByUserId,
       period: input.period,
       periodSecond: input.periodSecond,
-      position: player2Event.position, // Player 1 gets player 2's position
+      occurredAt: ctx.occurredAt,
+      position: player2Event.position,
     });
+    await events.insert(swap1);
 
-    const savedSwap1 = await this.gameEventsRepository.save(swap1Event);
-
-    // Create second POSITION_SWAP event (player 2 gets player 1's position), linked to first
-    const swap2Event = this.gameEventsRepository.create({
-      gameId: gameTeam.gameId,
+    // Second POSITION_SWAP: player 2 gets player 1's position, linked to first.
+    const swap2 = events.create({
+      id: input.swap2EventId,
+      gameId: ctx.gameId,
       gameTeamId: input.gameTeamId,
       eventTypeId: swapEventType.id,
       playerId: player2Event.playerId,
       externalPlayerName: player2Event.externalPlayerName,
       externalPlayerNumber: player2Event.externalPlayerNumber,
-      recordedByUserId,
+      recordedByUserId: ctx.recordedByUserId,
       period: input.period,
       periodSecond: input.periodSecond,
-      position: player1Event.position, // Player 2 gets player 1's position
-      parentEventId: savedSwap1.id,
+      occurredAt: ctx.occurredAt,
+      position: player1Event.position,
+      parentEventId: swap1.id,
     });
+    await events.insert(swap2);
 
-    const savedSwap2 = await this.gameEventsRepository.save(swap2Event);
-
-    // Publish the position swap event (use swap1 as the primary event)
-    // Field resolvers handle relation loading for subscribers
-    await this.coreService.publishGameEvent(
-      gameTeam.gameId,
-      GameEventAction.CREATED,
-      savedSwap1,
-    );
-
-    // Return base entities - field resolvers handle relation loading on-demand
-    return [savedSwap1, savedSwap2];
+    return [swap1, swap2];
   }
 
   /**

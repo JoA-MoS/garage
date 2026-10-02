@@ -9,3 +9,4 @@ export * from './game.entity';
 export * from './game-team.entity';
 export * from './event-type.entity';
 export * from './game-event.entity';
+export * from './applied-action.entity';

@@ -6,6 +6,7 @@ import { EventType } from '../../entities/event-type.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { Game } from '../../entities/game.entity';
 import { Team } from '../../entities/team.entity';
+import { AppliedAction } from '../../entities/applied-action.entity';
 import { AuthModule } from '../auth/auth.module';
 import { UsersModule } from '../users/users.module';
 import { GamesModule } from '../games/games.module';
@@ -23,11 +24,19 @@ import {
   StatsService,
   PeriodService,
   EventManagementService,
+  ActionReceiptService,
 } from './services';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([GameEvent, EventType, GameTeam, Game, Team]),
+    TypeOrmModule.forFeature([
+      GameEvent,
+      EventType,
+      GameTeam,
+      Game,
+      Team,
+      AppliedAction,
+    ]),
     forwardRef(() => AuthModule), // forwardRef needed due to DataLoadersModule dependency chain
     forwardRef(() => UsersModule), // forwardRef needed due to AuthModule re-exporting UsersModule
     forwardRef(() => GamesModule), // Circular dependency with GamesModule
@@ -36,6 +45,7 @@ import {
   providers: [
     // Core service (must be first - other services depend on it)
     EventCoreService,
+    ActionReceiptService,
     // Specialized services
     LineupService,
     GoalService,
@@ -50,6 +60,11 @@ import {
     GameEventFieldsResolver,
     LineupPlayerResolver,
   ],
-  exports: [GameEventsService, StatsService, LineupService],
+  exports: [
+    GameEventsService,
+    StatsService,
+    LineupService,
+    ActionReceiptService,
+  ],
 })
 export class GameEventsModule {}

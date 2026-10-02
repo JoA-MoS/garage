@@ -207,12 +207,12 @@ export class GameEventsService implements OnModuleInit {
     events: GameEvent[];
     substitutionEventIds: Map<number, string>;
   }> {
-    // Provide swapPositions function to SubstitutionService to avoid circular dependency
+    // Provide the swap writer to SubstitutionService to avoid a circular
+    // dependency; it runs inside the batch's transaction.
     return this.substitutionService.batchLineupChanges(
       input,
       recordedByUserId,
-      (swapInput, userId) =>
-        this.eventManagementService.swapPositions(swapInput, userId),
+      (ctx, swapInput) => this.eventManagementService.applySwap(ctx, swapInput),
     );
   }
 

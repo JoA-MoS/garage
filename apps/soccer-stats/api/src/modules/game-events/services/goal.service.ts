@@ -4,14 +4,25 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 
 import { GameEvent } from '../../../entities/game-event.entity';
 import { RecordGoalInput } from '../dto/record-goal.input';
 import { UpdateGoalInput } from '../dto/update-goal.input';
 import { GameEventAction } from '../dto/game-event-subscription.output';
+import {
+  assertClientUuid,
+  resolveOccurredAt,
+} from '../utils/client-action.util';
 
 import { EventCoreService } from './event-core.service';
+import { ActionReceiptService } from './action-receipt.service';
+
+/** What recordGoal's first application decided, for post-commit publishing. */
+type RecordGoalOutcome =
+  | { kind: 'duplicate'; goal: GameEvent }
+  | { kind: 'created'; goal: GameEvent; conflictId?: string };
 
 /**
  * Service responsible for goal recording and management operations.
@@ -19,133 +30,184 @@ import { EventCoreService } from './event-core.service';
  */
 @Injectable()
 export class GoalService {
-  constructor(private readonly coreService: EventCoreService) {}
+  constructor(
+    private readonly coreService: EventCoreService,
+    private readonly receipts: ActionReceiptService,
+  ) {}
 
   private get gameEventsRepository() {
     return this.coreService.gameEventsRepository;
   }
 
+  /**
+   * Record a goal (and its assist). Creates GOAL plus an optional linked
+   * ASSIST in one transaction.
+   *
+   * Duplicate/conflict detection is unchanged: a same-scorer goal within
+   * the window returns the existing goal; a different-scorer goal is
+   * created and flagged. It runs inside `apply`, so with `actionId` a retry
+   * replays the original outcome instead of being judged against itself.
+   */
   async recordGoal(
     input: RecordGoalInput,
     recordedByUserId: string,
   ): Promise<GameEvent> {
+    assertClientUuid(input.goalEventId, 'goalEventId');
+    assertClientUuid(input.assistEventId, 'assistEventId');
+    const occurredAt = resolveOccurredAt(input.occurredAt);
     const gameTeam = await this.coreService.getGameTeam(input.gameTeamId);
-    const goalEventType = this.coreService.getEventTypeByName('GOAL');
 
-    // Check for duplicate or conflict
-    const detectionResult = await this.coreService.checkForDuplicateOrConflict(
-      input.gameTeamId,
-      'GOAL',
-      input.scorerId,
-      input.externalScorerName,
-      input.period,
-      input.periodSecond,
-    );
+    const { result: outcome, replayed } =
+      await this.receipts.applyOnce<RecordGoalOutcome>(
+        {
+          actionId: input.actionId,
+          gameId: gameTeam.gameId,
+          recordedByUserId,
+          kind: 'recordGoal',
+        },
+        {
+          apply: async (manager) => {
+            const events = manager.getRepository(GameEvent);
 
-    // If duplicate: return existing event, notify subscriber with DUPLICATE_DETECTED
-    if (detectionResult.isDuplicate && detectionResult.existingEvent) {
-      // Publish duplicate detection (silent sync - event already exists)
-      // Field resolvers handle relation loading for subscribers
-      await this.coreService.publishGameEvent(
-        gameTeam.gameId,
-        GameEventAction.DUPLICATE_DETECTED,
-        detectionResult.existingEvent,
+            const detection =
+              await this.coreService.checkForDuplicateOrConflict(
+                input.gameTeamId,
+                'GOAL',
+                input.scorerId,
+                input.externalScorerName,
+                input.period,
+                input.periodSecond,
+              );
+
+            // Duplicate: nothing is written; the receipt points at the
+            // existing goal so a retry returns it too.
+            if (detection.isDuplicate && detection.existingEvent) {
+              return {
+                result: { kind: 'duplicate', goal: detection.existingEvent },
+                eventIds: [detection.existingEvent.id],
+              };
+            }
+
+            // Conflict: flag the existing goals with a shared conflictId.
+            let conflictId: string | undefined;
+            if (detection.isConflict && detection.conflictingEvents) {
+              conflictId = randomUUID();
+              for (const event of detection.conflictingEvents) {
+                if (!event.conflictId) {
+                  await events.update({ id: event.id }, { conflictId });
+                } else {
+                  // Use existing conflictId if one exists
+                  conflictId = event.conflictId;
+                }
+              }
+            }
+
+            // insert, not save: a reused client ID must fail, not overwrite.
+            const goal = events.create({
+              id: input.goalEventId,
+              gameId: gameTeam.gameId,
+              gameTeamId: input.gameTeamId,
+              eventTypeId: this.coreService.getEventTypeByName('GOAL').id,
+              playerId: input.scorerId,
+              externalPlayerName: input.externalScorerName,
+              externalPlayerNumber: input.externalScorerNumber,
+              recordedByUserId,
+              period: input.period,
+              periodSecond: input.periodSecond,
+              occurredAt,
+              conflictId,
+            });
+            await events.insert(goal);
+            const eventIds = [goal.id];
+
+            if (input.assisterId || input.externalAssisterName) {
+              const assist = events.create({
+                id: input.assistEventId,
+                gameId: gameTeam.gameId,
+                gameTeamId: input.gameTeamId,
+                eventTypeId: this.coreService.getEventTypeByName('ASSIST').id,
+                playerId: input.assisterId,
+                externalPlayerName: input.externalAssisterName,
+                externalPlayerNumber: input.externalAssisterNumber,
+                recordedByUserId,
+                period: input.period,
+                periodSecond: input.periodSecond,
+                occurredAt,
+                parentEventId: goal.id,
+              });
+              await events.insert(assist);
+              eventIds.push(assist.id);
+            }
+
+            return {
+              result: { kind: 'created', goal, conflictId },
+              eventIds,
+            };
+          },
+          replay: async (eventIds) => {
+            const [goal] = await this.receipts.loadEvents(eventIds);
+            if (!goal) {
+              throw new ConflictException(
+                `Action ${input.actionId} was already applied; its events have since been deleted`,
+              );
+            }
+            return { kind: 'created', goal };
+          },
+        },
       );
 
-      // Return base entity - field resolvers handle relation loading on-demand
-      return detectionResult.existingEvent;
+    // Publish after commit, never on a replay. Field resolvers handle
+    // relation loading for subscribers.
+    if (!replayed) {
+      await this.publishRecordGoalOutcome(gameTeam.gameId, outcome, input);
     }
 
-    // Prepare conflictId if this is a conflict
-    let conflictId: string | undefined;
-    if (detectionResult.isConflict && detectionResult.conflictingEvents) {
-      conflictId = randomUUID();
+    return outcome.goal;
+  }
 
-      // Mark existing conflicting events with the same conflictId
-      for (const event of detectionResult.conflictingEvents) {
-        if (!event.conflictId) {
-          await this.gameEventsRepository.update(
-            { id: event.id },
-            { conflictId },
-          );
-        } else {
-          // Use existing conflictId if one exists
-          conflictId = event.conflictId;
-        }
-      }
+  private async publishRecordGoalOutcome(
+    gameId: string,
+    outcome: RecordGoalOutcome,
+    input: RecordGoalInput,
+  ): Promise<void> {
+    if (outcome.kind === 'duplicate') {
+      // Silent sync - the event already exists
+      await this.coreService.publishGameEvent(
+        gameId,
+        GameEventAction.DUPLICATE_DETECTED,
+        outcome.goal,
+      );
+      return;
     }
 
-    // Create GOAL event (with conflictId if applicable)
-    const goalEvent = this.gameEventsRepository.create({
-      gameId: gameTeam.gameId,
-      gameTeamId: input.gameTeamId,
-      eventTypeId: goalEventType.id,
-      playerId: input.scorerId,
-      externalPlayerName: input.externalScorerName,
-      externalPlayerNumber: input.externalScorerNumber,
-      recordedByUserId,
-      period: input.period,
-      periodSecond: input.periodSecond,
-      conflictId,
-    });
-
-    const savedGoalEvent = await this.gameEventsRepository.save(goalEvent);
-
-    // If assister provided, create ASSIST event linked to the goal
-    if (input.assisterId || input.externalAssisterName) {
-      const assistEventType = this.coreService.getEventTypeByName('ASSIST');
-
-      const assistEvent = this.gameEventsRepository.create({
-        gameId: gameTeam.gameId,
-        gameTeamId: input.gameTeamId,
-        eventTypeId: assistEventType.id,
-        playerId: input.assisterId,
-        externalPlayerName: input.externalAssisterName,
-        externalPlayerNumber: input.externalAssisterNumber,
-        recordedByUserId,
-        period: input.period,
-        periodSecond: input.periodSecond,
-        parentEventId: savedGoalEvent.id,
-      });
-
-      await this.gameEventsRepository.save(assistEvent);
-    }
-
-    // Publish the event to subscribers
-    // Field resolvers handle relation loading for subscribers
-    if (detectionResult.isConflict && conflictId) {
-      // Get all conflicting events for the conflict info
-      // This eager loading is needed for building conflict info (business logic)
+    if (outcome.conflictId) {
+      // Eager loading is needed to build the conflict info
       const allConflictingEvents = await this.gameEventsRepository.find({
-        where: { conflictId },
+        where: { conflictId: outcome.conflictId },
         relations: ['player', 'recordedByUser'],
       });
-
       const conflictInfo = this.coreService.buildConflictInfo(
-        conflictId,
+        outcome.conflictId,
         'GOAL',
         input.period,
         input.periodSecond,
         allConflictingEvents,
       );
-
       await this.coreService.publishGameEvent(
-        gameTeam.gameId,
+        gameId,
         GameEventAction.CONFLICT_DETECTED,
-        savedGoalEvent,
+        outcome.goal,
         undefined,
         conflictInfo,
       );
-    } else {
-      await this.coreService.publishGameEvent(
-        gameTeam.gameId,
-        GameEventAction.CREATED,
-        savedGoalEvent,
-      );
+      return;
     }
 
-    // Return base entity - field resolvers handle relation loading on-demand
-    return savedGoalEvent;
+    await this.coreService.publishGameEvent(
+      gameId,
+      GameEventAction.CREATED,
+      outcome.goal,
+    );
   }
 
   async updateGoal(input: UpdateGoalInput): Promise<GameEvent> {

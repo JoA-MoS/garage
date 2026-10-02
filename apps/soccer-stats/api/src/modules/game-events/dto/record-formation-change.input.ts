@@ -26,4 +26,23 @@ export class RecordFormationChangeInput {
   @Min(0)
   @Max(5999)
   periodSecond: number;
+
+  @Field(() => ID, {
+    nullable: true,
+    description:
+      'Client-generated idempotency key. A retry with the same actionId returns the original result without creating new events.',
+  })
+  actionId?: string;
+
+  @Field(() => ID, {
+    nullable: true,
+    description: 'Client-chosen ID for the FORMATION_CHANGE event',
+  })
+  eventId?: string;
+
+  @Field({
+    nullable: true,
+    description: 'Client wall-clock time the formation change was confirmed',
+  })
+  occurredAt?: Date;
 }
