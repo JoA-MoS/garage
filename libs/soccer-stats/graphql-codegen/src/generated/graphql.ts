@@ -2280,6 +2280,7 @@ export type UpdateGameMutation = {
     currentPeriod?: string | null;
     currentPeriodSecond: number;
     serverTimestamp: number;
+    pausedAt?: any | null;
   };
 };
 
@@ -6452,6 +6453,7 @@ export const UpdateGameDocument = {
                   kind: 'Field',
                   name: { kind: 'Name', value: 'serverTimestamp' },
                 },
+                { kind: 'Field', name: { kind: 'Name', value: 'pausedAt' } },
               ],
             },
           },

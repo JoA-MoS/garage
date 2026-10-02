@@ -67,9 +67,12 @@ import {
 import {
   GameOutboxProvider,
   useGameOutbox,
+  usePendingGamePatch,
   usePendingTeamEvents,
 } from '../outbox/game-outbox-context';
 import { buildGoalAction } from '../outbox/goal-action';
+import { applyGamePatch, type GameClockAction } from '../outbox/game-patches';
+import { buildGameClockAction } from '../outbox/game-clock-action';
 import { SyncStatus } from '../components/smart/sync-status.smart';
 import { pruneDeletedGameEvents } from '../services/game-event-cache';
 import {
@@ -341,14 +344,22 @@ const GamePageContent = () => {
     fetchPolicy: 'cache-first',
   });
 
+  // The game with queued status/clock changes (start, halftime, pause...)
+  // applied, so the clock and status react the moment the coach taps.
+  const pendingGamePatch = usePendingGamePatch();
+  const liveGame = useMemo(
+    () => applyGamePatch(data?.game, pendingGamePatch),
+    [data?.game, pendingGamePatch],
+  );
+
   // Server-synced game time - keeps multiple clients in sync
   const syncedTime = useSyncedGameTime(
-    data?.game
+    liveGame
       ? {
-          currentPeriod: data.game.currentPeriod,
-          currentPeriodSecond: data.game.currentPeriodSecond,
-          serverTimestamp: data.game.serverTimestamp,
-          pausedAt: data.game.pausedAt,
+          currentPeriod: liveGame.currentPeriod,
+          currentPeriodSecond: liveGame.currentPeriodSecond,
+          serverTimestamp: liveGame.serverTimestamp,
+          pausedAt: liveGame.pausedAt,
         }
       : null,
   );
@@ -367,7 +378,7 @@ const GamePageContent = () => {
   // 1. When opening a completed game, default to stats tab
   // 2. When a game becomes completed during the session, auto-switch to stats
   useEffect(() => {
-    const gameStatus = data?.game?.status;
+    const gameStatus = liveGame?.status;
     if (!gameStatus) return;
 
     // Case 1: Initial load of a completed game - set to stats tab
@@ -387,7 +398,7 @@ const GamePageContent = () => {
 
     // Update previous status ref
     prevGameStatusRef.current = gameStatus;
-  }, [data?.game?.status]);
+  }, [liveGame?.status]);
 
   // Note: We don't use refetchQueries for updateGame.
   // Game status is updated via GameUpdated subscription (handleGameStateChanged).
@@ -1062,19 +1073,21 @@ const GamePageContent = () => {
     [resolveConflict],
   );
 
-  // Start first half
-  // Note: The backend's updateGame automatically creates PERIOD_START and SUB_IN events
-  // via createTimingEventsForStatusChange when status changes to FIRST_HALF
+  // Status/clock changes go through the outbox (see buildGameClockAction).
+  const recordGameClockAction = (
+    action: GameClockAction,
+    updateGameInput: Record<string, unknown>,
+  ) =>
+    recordAction(
+      buildGameClockAction(gameId!, action, updateGameInput, {
+        periodSecond: syncedTime.periodSecond,
+      }),
+    );
+
   const handleStartFirstHalf = async () => {
     try {
-      await updateGame({
-        variables: {
-          id: gameId!,
-          updateGameInput: {
-            status: GameStatus.FirstHalf,
-            actualStart: new Date().toISOString(),
-          },
-        },
+      await recordGameClockAction('startFirstHalf', {
+        status: GameStatus.FirstHalf,
       });
     } catch (err) {
       console.error('Failed to start first half:', err);
@@ -1084,20 +1097,11 @@ const GamePageContent = () => {
     }
   };
 
-  // End first half and go to halftime
-  // Note: The backend's updateGame automatically creates PERIOD_END and SUB_OUT events
-  // via createTimingEventsForStatusChange when status changes to HALFTIME
   const handleEndFirstHalf = async () => {
     try {
-      await updateGame({
-        variables: {
-          id: gameId!,
-          updateGameInput: {
-            status: GameStatus.Halftime,
-            firstHalfEnd: new Date().toISOString(),
-            periodSecond: syncedTime.periodSecond,
-          },
-        },
+      await recordGameClockAction('endFirstHalf', {
+        status: GameStatus.Halftime,
+        periodSecond: syncedTime.periodSecond,
       });
     } catch (err) {
       console.error('Failed to end first half:', err);
@@ -1107,20 +1111,12 @@ const GamePageContent = () => {
     }
   };
 
-  // Start second half
-  // Note: The backend's updateGame automatically creates PERIOD_START and SUB_IN events
-  // via createTimingEventsForStatusChange when status changes to SECOND_HALF.
-  // It also auto-copies the first half lineup if setSecondHalfLineup wasn't called.
+  // The backend also auto-copies the first half lineup if
+  // setSecondHalfLineup wasn't called.
   const handleStartSecondHalf = async () => {
     try {
-      await updateGame({
-        variables: {
-          id: gameId!,
-          updateGameInput: {
-            status: GameStatus.SecondHalf,
-            secondHalfStart: new Date().toISOString(),
-          },
-        },
+      await recordGameClockAction('startSecondHalf', {
+        status: GameStatus.SecondHalf,
       });
     } catch (err) {
       console.error('Failed to start second half:', err);
@@ -1130,20 +1126,11 @@ const GamePageContent = () => {
     }
   };
 
-  // End game
-  // Note: The backend's updateGame automatically creates PERIOD_END and SUB_OUT events
-  // via createTimingEventsForStatusChange when status changes to COMPLETED
   const handleEndGame = async () => {
     try {
-      await updateGame({
-        variables: {
-          id: gameId!,
-          updateGameInput: {
-            status: GameStatus.Completed,
-            actualEnd: new Date().toISOString(),
-            periodSecond: syncedTime.periodSecond,
-          },
-        },
+      await recordGameClockAction('endGame', {
+        status: GameStatus.Completed,
+        periodSecond: syncedTime.periodSecond,
       });
       setShowEndGameConfirm(false);
     } catch (err) {
@@ -1283,33 +1270,19 @@ const GamePageContent = () => {
     setDeleteTarget(null);
   };
 
-  // Pause/Resume game clock
+  // Pause/Resume game clock. Reads the live (patched) game, so a pause
+  // that hasn't synced yet is resumed correctly by the next tap.
   const handleTogglePause = async () => {
-    const game = data?.game;
-    if (!game) return;
+    if (!liveGame) return;
 
     try {
-      if (game.pausedAt) {
-        // Resume: clear pausedAt and adjust start times
-        await updateGame({
-          variables: {
-            id: gameId!,
-            updateGameInput: {
-              pausedAt: null,
-            },
-          },
-        });
-      } else {
-        // Pause: set pausedAt to now
-        await updateGame({
-          variables: {
-            id: gameId!,
-            updateGameInput: {
-              pausedAt: new Date().toISOString(),
-            },
-          },
-        });
-      }
+      const paused = !!liveGame.pausedAt;
+      await recordGameClockAction(paused ? 'resume' : 'pause', {
+        pausedAt: paused ? null : new Date().toISOString(),
+        // Places the stoppage in game time (STOPPAGE_START/END events).
+        period: syncedTime.period,
+        periodSecond: syncedTime.periodSecond,
+      });
       setShowGameMenu(false);
     } catch (err) {
       console.error('Failed to toggle pause:', err);
@@ -1385,9 +1358,9 @@ const GamePageContent = () => {
   // Falls back to status-based calculation for games that haven't started
   const currentPeriod =
     syncedTime.period ??
-    (data?.game?.status === GameStatus.SecondHalf
+    (liveGame?.status === GameStatus.SecondHalf
       ? '2'
-      : data?.game?.status === GameStatus.Halftime
+      : liveGame?.status === GameStatus.Halftime
         ? '2' // At halftime, we're transitioning to period 2
         : '1');
 
@@ -1523,9 +1496,9 @@ const GamePageContent = () => {
         ? '40vh'
         : '4rem';
   const hasFixedPanel =
-    data?.game?.status === GameStatus.FirstHalf ||
-    data?.game?.status === GameStatus.SecondHalf ||
-    data?.game?.status === GameStatus.InProgress;
+    liveGame?.status === GameStatus.FirstHalf ||
+    liveGame?.status === GameStatus.SecondHalf ||
+    liveGame?.status === GameStatus.InProgress;
   useEffect(() => {
     const main = document.querySelector('main');
     if (!main) return;
@@ -1592,7 +1565,8 @@ const GamePageContent = () => {
     );
   }
 
-  const { game } = data;
+  // Render from the game as it will be once queued changes apply.
+  const game = liveGame ?? data.game;
   // Use memoized team data (with pending events merged in) instead of
   // recalculating
   const homeTeam = homeTeamData && { ...homeTeamData, events: homeEvents };

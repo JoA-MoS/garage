@@ -90,6 +90,11 @@ const MUTATIONS: Record<
   },
 };
 
+/** The mutation document an action kind is sent with. */
+export function outboxMutationDocument(kind: OutboxActionKind) {
+  return MUTATIONS[kind].document;
+}
+
 /** Runs an action's mutation and writes the confirmed events to the cache. */
 export async function sendOutboxAction(
   client: ApolloClient,

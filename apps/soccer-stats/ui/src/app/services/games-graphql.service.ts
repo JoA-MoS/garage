@@ -213,6 +213,7 @@ export const UPDATE_GAME = graphql(/* GraphQL */ `
       currentPeriod
       currentPeriodSecond
       serverTimestamp
+      pausedAt
     }
   }
 `);
