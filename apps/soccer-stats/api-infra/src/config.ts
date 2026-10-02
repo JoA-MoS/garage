@@ -15,7 +15,9 @@ export const frontendUrl = config.get('frontendUrl');
 
 // Database connection pool configuration
 export const dbPoolMax = config.getNumber('dbPoolMax') || 10;
-export const dbPoolMin = config.getNumber('dbPoolMin') || 2;
+// Must stay 0 in AWS: Aurora Serverless v2 can't auto-pause while any pooled
+// connection is held open. `??` so an explicit 0 isn't coerced back.
+export const dbPoolMin = config.getNumber('dbPoolMin') ?? 0;
 export const dbPoolIdleTimeout = config.getNumber('dbPoolIdleTimeout') || 30000;
 export const dbPoolConnectionTimeout =
   config.getNumber('dbPoolConnectionTimeout') || 45000;

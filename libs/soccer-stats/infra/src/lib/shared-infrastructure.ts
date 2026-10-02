@@ -31,6 +31,7 @@ export function createSharedInfrastructure(
   const dbUsername = config.databaseUsername || 'postgres';
   const dbMinCapacity = config.databaseMinCapacity ?? 0;
   const dbMaxCapacity = config.databaseMaxCapacity || 4;
+  const dbSecondsUntilAutoPause = config.databaseSecondsUntilAutoPause ?? 900;
   const namePrefix = `soccer-stats-${stack}`;
 
   const awsProvider = new aws.Provider(`${namePrefix}-aws-provider`, {
@@ -95,6 +96,7 @@ export function createSharedInfrastructure(
     dbInstanceClass: 'db.t3.micro',
     dbMinCapacity,
     dbMaxCapacity,
+    dbSecondsUntilAutoPause,
     awsProvider,
     publiclyAccessible: false,
   });

@@ -5,7 +5,7 @@ import { PubSub } from 'graphql-subscriptions';
 import type { Subscriber } from 'pg-listen';
 
 import { PostgresPubSub, type PubSubRelayMessage } from './postgres-pubsub';
-import { PG_LISTEN_SUBSCRIBER, PubSubModule } from './pubsub.module';
+import { PG_LISTEN_SUBSCRIBER_FACTORY, PubSubModule } from './pubsub.module';
 
 /**
  * Fakes the Postgres LISTEN/NOTIFY transport so these tests exercise the
@@ -44,8 +44,8 @@ describe('PubSubModule', () => {
     module = await Test.createTestingModule({
       imports: [PubSubModule],
     })
-      .overrideProvider(PG_LISTEN_SUBSCRIBER)
-      .useValue(createFakeSubscriber())
+      .overrideProvider(PG_LISTEN_SUBSCRIBER_FACTORY)
+      .useValue(() => createFakeSubscriber())
       .compile();
   });
 
@@ -106,15 +106,15 @@ describe('PubSub Singleton Verification', () => {
     const module1 = await Test.createTestingModule({
       imports: [PubSubModule],
     })
-      .overrideProvider(PG_LISTEN_SUBSCRIBER)
-      .useValue(createFakeSubscriber())
+      .overrideProvider(PG_LISTEN_SUBSCRIBER_FACTORY)
+      .useValue(() => createFakeSubscriber())
       .compile();
 
     const module2 = await Test.createTestingModule({
       imports: [PubSubModule],
     })
-      .overrideProvider(PG_LISTEN_SUBSCRIBER)
-      .useValue(createFakeSubscriber())
+      .overrideProvider(PG_LISTEN_SUBSCRIBER_FACTORY)
+      .useValue(() => createFakeSubscriber())
       .compile();
 
     const pubSub1 = module1.get<PubSub>('PUB_SUB');

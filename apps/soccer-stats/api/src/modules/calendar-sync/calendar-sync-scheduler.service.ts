@@ -7,7 +7,9 @@ import {
 
 import { CalendarSyncService } from './calendar-sync.service';
 
-const DEFAULT_SYNC_INTERVAL_MS = 60 * 60 * 1000;
+// Twice a day. Each sync wakes Aurora from auto-pause, so an hourly sync
+// kept the database billing for a large share of every day.
+const DEFAULT_SYNC_INTERVAL_MS = 12 * 60 * 60 * 1000;
 
 @Injectable()
 export class CalendarSyncSchedulerService

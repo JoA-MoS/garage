@@ -118,15 +118,19 @@ export function getDbPoolMax(): number {
   return value;
 }
 
+/**
+ * Defaults to 0: idle pooled connections must be allowed to close, because
+ * Aurora Serverless v2 can only auto-pause with zero open connections.
+ */
 export function getDbPoolMin(): number {
-  const envValue = getEnv('DB_POOL_MIN', '2')!;
+  const envValue = getEnv('DB_POOL_MIN', '0')!;
   const value = parseInt(envValue, 10);
   if (isNaN(value)) {
     console.warn(
       `[Environment] DB_POOL_MIN has invalid value "${envValue}". ` +
-        `Expected an integer. Defaulting to 2.`,
+        `Expected an integer. Defaulting to 0.`,
     );
-    return 2;
+    return 0;
   }
   return value;
 }
