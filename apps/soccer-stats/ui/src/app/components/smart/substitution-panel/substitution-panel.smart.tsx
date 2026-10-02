@@ -15,9 +15,11 @@ import {
   GET_GAME_BY_ID,
 } from '../../../services/games-graphql.service';
 import { addEventsToGameTeam } from '../../../services/game-event-cache';
+import { useGameOutbox } from '../../../outbox/game-outbox-context';
 import { calculatePlayTime } from '../../../hooks/use-play-time';
 import { FIELD_SENTINEL_POSITION } from '../lineup-panel/types';
 
+import { buildQueuedActions } from './build-queued-actions';
 import { SubstitutionPanelPresentation } from './substitution-panel.presentation';
 import {
   SubstitutionPanelSmartProps,
@@ -45,6 +47,7 @@ export const SubstitutionPanel = ({
   period,
   periodSecond,
   executeImmediately = false,
+  trackPositions = true,
   gameEvents,
   onSubstitutionComplete,
   externalFieldPlayerSelection,
@@ -104,6 +107,7 @@ export const SubstitutionPanel = ({
 
   // Apollo
   const client = useApolloClient();
+  const { recordAction } = useGameOutbox();
   const [batchLineupChanges] = useMutation(BATCH_LINEUP_CHANGES);
   const [swapPositions] = useMutation(SWAP_POSITIONS);
   const [removePlayerFromFieldMutation] = useMutation(REMOVE_PLAYER_FROM_FIELD);
@@ -660,116 +664,30 @@ export const SubstitutionPanel = ({
     setExecutionProgress(0);
     setError(null);
 
-    const subs = queue.filter(
-      (q): q is Extract<QueuedItem, { type: 'substitution' }> =>
-        q.type === 'substitution',
-    );
-    const swaps = queue.filter(
-      (q): q is Extract<QueuedItem, { type: 'swap' }> => q.type === 'swap',
-    );
-    const removals = queue.filter(
-      (q): q is Extract<QueuedItem, { type: 'removal' }> =>
-        q.type === 'removal',
-    );
-    const additions = queue.filter(
-      (q): q is Extract<QueuedItem, { type: 'addition' }> =>
-        q.type === 'addition',
-    );
-
-    const subIdToIndex = new Map<string, number>();
-    subs.forEach((sub, index) => {
-      subIdToIndex.set(sub.id, index);
-    });
-
     try {
-      const substitutionInputs: BatchSubstitutionInput[] = subs.map((sub) => ({
-        playerOutEventId: sub.playerOut.gameEventId,
-        playerInId: sub.playerIn.playerId || undefined,
-        externalPlayerInName: sub.playerIn.externalPlayerName || undefined,
-        externalPlayerInNumber: sub.playerIn.externalPlayerNumber || undefined,
-      }));
-
-      const swapInputs: BatchSwapInput[] = swaps.map((swap) => {
-        const player1 =
-          swap.player1.source === 'onField'
-            ? { eventId: swap.player1.gameEventId }
-            : { substitutionIndex: subIdToIndex.get(swap.player1.queuedSubId) };
-
-        const player2 =
-          swap.player2.source === 'onField'
-            ? { eventId: swap.player2.gameEventId }
-            : { substitutionIndex: subIdToIndex.get(swap.player2.queuedSubId) };
-
-        return { player1, player2 };
+      // Record each action on this device, in order; the outbox sends them.
+      const actions = buildQueuedActions(queue, {
+        gameTeamId,
+        period,
+        periodSecond,
+        trackPositions,
       });
-
-      // Execute batch substitutions and swaps (if any)
-      if (substitutionInputs.length > 0 || swapInputs.length > 0) {
-        await batchLineupChanges({
-          variables: {
-            input: {
-              gameTeamId,
-              period,
-              periodSecond,
-              substitutions: substitutionInputs,
-              swaps: swapInputs,
-            },
-          },
-          update: (cache, { data }) =>
-            addEventsToGameTeam(cache, gameTeamId, data?.batchLineupChanges),
-        });
+      for (const action of actions) {
+        await recordAction(action);
       }
 
-      // Execute removals (each is a separate mutation)
-      for (const removal of removals) {
-        await removePlayerFromFieldMutation({
-          variables: {
-            input: {
-              gameTeamId,
-              playerEventId: removal.playerOut.gameEventId,
-              period,
-              periodSecond,
-            },
-          },
-          update: (cache, { data }) =>
-            addEventsToGameTeam(cache, gameTeamId, [
-              data?.removePlayerFromField,
-            ]),
-        });
-      }
-
-      // Execute additions (each is a separate mutation)
-      for (const addition of additions) {
-        await bringPlayerOntoFieldMutation({
-          variables: {
-            input: {
-              gameTeamId,
-              playerId: addition.playerIn.playerId || undefined,
-              externalPlayerName:
-                addition.playerIn.externalPlayerName || undefined,
-              externalPlayerNumber:
-                addition.playerIn.externalPlayerNumber || undefined,
-              position: addition.position ?? FIELD_SENTINEL_POSITION,
-              period,
-              periodSecond,
-            },
-          },
-          update: (cache, { data }) =>
-            addEventsToGameTeam(cache, gameTeamId, [
-              data?.bringPlayerOntoField,
-            ]),
-        });
-      }
-
-      // All mutations succeeded - update progress and clear queue immediately
-      // This ensures we don't lose track of successful operations
+      // Everything is recorded on this device: clear the queue and close
+      // now. The roster and score show the pending events until the outbox
+      // has sent them.
       setExecutionProgress(queue.length);
       setQueue([]);
+      setPanelState('collapsed');
 
-      // The roster updates from the mutation responses written to the cache
-      // above. The game query is still refreshed because it carries
-      // server-computed per-player stats (play time, isOnField) the client
-      // can't derive - but in the background, so the panel closes at once.
+      // The game query is still refreshed for the server-computed per-player
+      // stats (play time) the client can't derive. It runs in the background
+      // and, until the outbox has sent the changes, returns the pre-change
+      // stats; the GameEventChanged subscription's debounced refetch brings
+      // the final numbers once they're confirmed.
       client
         .query({
           query: GET_GAME_BY_ID,
@@ -777,15 +695,11 @@ export const SubstitutionPanel = ({
           fetchPolicy: 'network-only',
         })
         .catch((refetchErr) => {
-          // The mutations already succeeded; a failed refresh isn't an error
           console.warn(
-            '[SubstitutionPanel] Refetch failed after successful mutation:',
+            '[SubstitutionPanel] Background refetch failed:',
             refetchErr,
           );
         });
-
-      // Close panel and notify parent
-      setPanelState('collapsed');
 
       // Wrap callback invocation to prevent parent errors from affecting our state
       try {
@@ -797,8 +711,8 @@ export const SubstitutionPanel = ({
         );
       }
     } catch (err) {
-      // This now only catches mutation failures, not refetch failures
-      console.error('Failed to execute batch changes:', err);
+      // Only failing to store an action on this device lands here
+      console.error('Failed to record lineup changes:', err);
       const message =
         err instanceof Error ? err.message : 'An unexpected error occurred';
       setError(message);
@@ -811,11 +725,11 @@ export const SubstitutionPanel = ({
     gameId,
     period,
     periodSecond,
-    batchLineupChanges,
-    removePlayerFromFieldMutation,
-    bringPlayerOntoFieldMutation,
+    trackPositions,
+    recordAction,
     client,
     onSubstitutionComplete,
+    setPanelState,
   ]);
 
   return (

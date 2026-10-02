@@ -41,7 +41,6 @@ import {
   GET_DEPENDENT_EVENTS,
   DELETE_EVENT_WITH_CASCADE,
   RESOLVE_EVENT_CONFLICT,
-  RECORD_GOAL,
   RECORD_FORMATION_CHANGE,
   REOPEN_GAME,
 } from '../services/games-graphql.service';
@@ -61,7 +60,17 @@ import {
 } from '../context/player-name-display.context';
 import { useSyncedGameTime } from '../hooks/use-synced-game-time';
 import { useResyncOnWake } from '../hooks/use-resync-on-wake';
-import { useTeamRoster } from '../hooks/use-live-game-state';
+import {
+  mergePendingEvents,
+  useTeamRoster,
+} from '../hooks/use-live-game-state';
+import {
+  GameOutboxProvider,
+  useGameOutbox,
+  usePendingTeamEvents,
+} from '../outbox/game-outbox-context';
+import { buildGoalAction } from '../outbox/goal-action';
+import { SyncStatus } from '../components/smart/sync-status.smart';
 import { pruneDeletedGameEvents } from '../services/game-event-cache';
 import {
   areGameEventNotificationsEnabled,
@@ -124,6 +133,21 @@ type TabType = 'lineup' | 'stats' | 'events';
 
 export const GamePage = () => {
   const { gameId } = useParams<{ gameId: string }>();
+  if (!gameId) {
+    return <Navigate to="/games" replace />;
+  }
+  // The outbox provider sits above the page body so the body can read the
+  // pending (not yet confirmed) events of this game.
+  return (
+    <GameOutboxProvider gameId={gameId}>
+      <GamePageContent />
+    </GameOutboxProvider>
+  );
+};
+
+const GamePageContent = () => {
+  const { gameId } = useParams<{ gameId: string }>();
+  const { recordAction } = useGameOutbox();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -372,13 +396,6 @@ export const GamePage = () => {
   const [updateGame, { loading: updatingGame }] = useMutation(UPDATE_GAME);
   const [reopenGame, { loading: reopeningGame }] = useMutation(REOPEN_GAME);
 
-  // Direct goal recording for GOALS_ONLY mode (skips modal)
-  // Note: We intentionally don't use refetchQueries here.
-  // The real-time subscription handles adding new events to the cache
-  // via apolloClient.cache.modify, preventing loading state flickers.
-  const [recordGoalDirect, { loading: recordingGoal }] =
-    useMutation(RECORD_GOAL);
-
   const [deleteGoal, { loading: deletingGoal }] = useMutation(DELETE_GOAL, {
     refetchQueries: () => {
       const queries: Array<{
@@ -542,21 +559,43 @@ export const GamePage = () => {
     [data?.game?.teams],
   );
 
+  // Events the outbox has recorded but the server hasn't confirmed yet.
+  const homePending = usePendingTeamEvents(homeTeamData?.id);
+  const awayPending = usePendingTeamEvents(awayTeamData?.id);
+
+  // Confirmed + pending events: what the score, lineup and timeline show.
+  // Pending events have the same shape (and IDs) as the confirmed ones.
+  const homeEvents = useMemo(
+    () =>
+      mergePendingEvents(homeTeamData?.events, homePending) as NonNullable<
+        typeof homeTeamData
+      >['events'],
+    [homeTeamData, homePending],
+  );
+  const awayEvents = useMemo(
+    () =>
+      mergePendingEvents(awayTeamData?.events, awayPending) as NonNullable<
+        typeof awayTeamData
+      >['events'],
+    [awayTeamData, awayPending],
+  );
+
+  // Events not yet confirmed by the server can't be edited or deleted
+  // there, so the timeline offers no actions on them until they sync.
+  const pendingEventIds = useMemo(
+    () => new Set([...homePending, ...awayPending].map((e) => e.id)),
+    [homePending, awayPending],
+  );
+
   // Memoize scores to prevent recalculation on every render
-  const homeScore = useMemo(
-    () => computeScore(homeTeamData?.events),
-    [homeTeamData?.events],
-  );
-  const awayScore = useMemo(
-    () => computeScore(awayTeamData?.events),
-    [awayTeamData?.events],
-  );
+  const homeScore = useMemo(() => computeScore(homeEvents), [homeEvents]);
+  const awayScore = useMemo(() => computeScore(awayEvents), [awayEvents]);
 
   // On-field and bench players are derived from the game's events, so lineup
   // changes show up as soon as their events reach the cache - no roster query.
   // position != null = on field, position == null = bench
-  const homeRoster = useTeamRoster(homeTeamData);
-  const awayRoster = useTeamRoster(awayTeamData);
+  const homeRoster = useTeamRoster(homeTeamData, homePending);
+  const awayRoster = useTeamRoster(awayTeamData, awayPending);
   const homeRosterPlayers = homeRoster?.players;
   const awayRosterPlayers = awayRoster?.players;
 
@@ -1450,17 +1489,15 @@ export const GamePage = () => {
       if (!gameTeam || !game) return;
 
       try {
-        // Call mutation - subscription will update cache for all connected clients
-        // Use server-synced time for consistent timing across clients
-        await recordGoalDirect({
-          variables: {
-            input: {
-              gameTeamId: gameTeam.id,
-              period: currentPeriod,
-              periodSecond: syncedTime.periodSecond,
-            },
-          },
-        });
+        // Recorded on this device first: the score updates at once and the
+        // outbox sends it. Use server-synced time for consistent timing.
+        await recordAction(
+          buildGoalAction({
+            gameTeamId: gameTeam.id,
+            period: currentPeriod,
+            periodSecond: syncedTime.periodSecond,
+          }),
+        );
       } catch (err) {
         console.error('Failed to record goal:', err);
         setActionError(
@@ -1556,9 +1593,10 @@ export const GamePage = () => {
   }
 
   const { game } = data;
-  // Use memoized team data instead of recalculating
-  const homeTeam = homeTeamData;
-  const awayTeam = awayTeamData;
+  // Use memoized team data (with pending events merged in) instead of
+  // recalculating
+  const homeTeam = homeTeamData && { ...homeTeamData, events: homeEvents };
+  const awayTeam = awayTeamData && { ...awayTeamData, events: awayEvents };
 
   // The active tab's team controls player-name display prefs (format,
   // jersey number visibility/position) for the lineup/substitution UI below.
@@ -1757,7 +1795,7 @@ export const GamePage = () => {
           venue={game.venue}
           scheduledStart={game.scheduledStart}
           isActivePlay={isActivePlay}
-          recordingGoal={recordingGoal}
+          recordingGoal={false}
           updatingGame={updatingGame}
           showEndGameConfirm={showEndGameConfirm}
           onStartFirstHalf={handleStartFirstHalf}
@@ -1767,6 +1805,8 @@ export const GamePage = () => {
           onShowEndGameConfirm={setShowEndGameConfirm}
           onGoalClick={handleGoalClick}
         />
+
+        <SyncStatus />
 
         {/* Main Tabs */}
         <div className="rounded-lg bg-white shadow">
@@ -2577,9 +2617,14 @@ export const GamePage = () => {
                             newFormation={event.newFormation}
                             period={event.period}
                             childEvents={event.childEvents}
-                            onDeleteClick={handleDeleteClick}
+                            onDeleteClick={
+                              pendingEventIds.has(event.id)
+                                ? undefined
+                                : handleDeleteClick
+                            }
                             onEdit={
-                              event.eventType === 'goal'
+                              event.eventType === 'goal' &&
+                              !pendingEventIds.has(event.id)
                                 ? () =>
                                     setEditGoalData({
                                       team: event.teamType as 'home' | 'away',
@@ -2803,6 +2848,12 @@ export const GamePage = () => {
             period={currentPeriod}
             periodSecond={currentPeriodSeconds}
             executeImmediately={false}
+            trackPositions={
+              (activeTeam === 'home'
+                ? homeEffectiveFeatures
+                : awayEffectiveFeatures
+              ).trackPositions
+            }
             gameEvents={
               (activeTeam === 'home' ? homeTeam.events : awayTeam.events)?.map(
                 (e) => ({

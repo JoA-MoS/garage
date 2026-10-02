@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useMutation } from '@apollo/client/react';
+import { useRef, useState } from 'react';
 
 import { ModalPortal } from '@garage/soccer-stats/ui-components';
 import {
@@ -8,7 +7,8 @@ import {
 } from '@garage/soccer-stats/graphql-codegen';
 import { toPeriodSecond } from '@garage/soccer-stats/utils';
 
-import { RECORD_GOAL } from '../../services/games-graphql.service';
+import { useGameOutbox } from '../../outbox/game-outbox-context';
+import { buildGoalAction, resolveGoalPlayer } from '../../outbox/goal-action';
 
 interface TeamData {
   gameTeamId: string;
@@ -97,7 +97,8 @@ export const ManualGoalModal = ({
 
   const [error, setError] = useState<string | null>(null);
 
-  const [recordGoal, { loading }] = useMutation(RECORD_GOAL);
+  const { recordAction } = useGameOutbox();
+  const submitting = useRef(false);
 
   // Players available - include both on-field and bench for manual entry
   const availablePlayers = [...selectedTeam.onField, ...selectedTeam.bench];
@@ -122,6 +123,10 @@ export const ManualGoalModal = ({
   };
 
   const handleSubmit = async () => {
+    // A double-tap would otherwise record the goal twice: each submit gets
+    // its own actionId, so the server can't tell them apart.
+    if (submitting.current) return;
+    submitting.current = true;
     setError(null);
 
     // Find selected players (lineup mode)
@@ -140,37 +145,23 @@ export const ManualGoalModal = ({
         : null;
 
     try {
-      await recordGoal({
-        variables: {
-          input: {
-            gameTeamId: selectedTeam.gameTeamId,
-            period,
-            periodSecond: toPeriodSecond(minute, second),
-            scorerId: scorer?.playerId || undefined,
-            externalScorerName:
-              scorer?.externalPlayerName ||
-              (entryMode === 'quick' && quickScorerNumber
-                ? `#${quickScorerNumber}`
-                : undefined),
-            externalScorerNumber:
-              scorer?.externalPlayerNumber ||
-              (entryMode === 'quick'
-                ? quickScorerNumber || undefined
-                : undefined),
-            assisterId: assister?.playerId || undefined,
-            externalAssisterName:
-              assister?.externalPlayerName ||
-              (entryMode === 'quick' && quickAssisterNumber
-                ? `#${quickAssisterNumber}`
-                : undefined),
-            externalAssisterNumber:
-              assister?.externalPlayerNumber ||
-              (entryMode === 'quick'
-                ? quickAssisterNumber || undefined
-                : undefined),
-          },
-        },
-      });
+      await recordAction(
+        buildGoalAction({
+          gameTeamId: selectedTeam.gameTeamId,
+          period,
+          periodSecond: toPeriodSecond(minute, second),
+          scorer: resolveGoalPlayer(
+            scorer,
+            quickScorerNumber,
+            entryMode === 'quick',
+          ),
+          assister: resolveGoalPlayer(
+            assister,
+            quickAssisterNumber,
+            entryMode === 'quick',
+          ),
+        }),
+      );
 
       onSuccess?.();
       onClose();
@@ -179,6 +170,7 @@ export const ManualGoalModal = ({
       const message =
         err instanceof Error ? err.message : 'An unexpected error occurred';
       setError(message);
+      submitting.current = false;
     }
   };
 
@@ -463,10 +455,9 @@ export const ManualGoalModal = ({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={loading}
             className="flex-1 rounded-lg bg-green-600 px-4 py-2.5 font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-300"
           >
-            {loading ? 'Recording...' : 'Add Goal'}
+            Add Goal
           </button>
         </div>
       </div>

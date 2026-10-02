@@ -128,6 +128,12 @@ export interface SubstitutionPanelSmartProps {
    * Used at halftime where the current field state IS the second half lineup.
    */
   executeImmediately?: boolean;
+  /**
+   * Whether the team tracks positions (effective statsFeatures). Decides the
+   * positions on the pending events shown before the server confirms.
+   * Defaults to true, like the stats-feature defaults.
+   */
+  trackPositions?: boolean;
   gameEvents: Array<{
     id: string;
     playerId?: string | null;
