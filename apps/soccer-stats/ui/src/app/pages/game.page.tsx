@@ -7,7 +7,7 @@ import {
   useLazyQuery,
   useApolloClient,
 } from '@apollo/client/react';
-import { gql } from '@apollo/client';
+import { gql, type ObservableQuery } from '@apollo/client';
 
 import {
   CascadeDeleteModal,
@@ -25,6 +25,7 @@ import {
   GameEventAction,
   GameUpdatedDocument,
   GameTeamUpdatedDocument,
+  type GetGameByIdQuery,
 } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond, toPeriodSecond } from '@garage/soccer-stats/utils';
 
@@ -32,7 +33,6 @@ import {
   GET_GAME_BY_ID,
   UPDATE_GAME,
   UPDATE_GAME_TEAM,
-  GET_GAME_ROSTER,
   DELETE_GOAL,
   DELETE_SUBSTITUTION,
   DELETE_POSITION_SWAP,
@@ -61,6 +61,8 @@ import {
 } from '../context/player-name-display.context';
 import { useSyncedGameTime } from '../hooks/use-synced-game-time';
 import { useResyncOnWake } from '../hooks/use-resync-on-wake';
+import { useTeamRoster } from '../hooks/use-live-game-state';
+import { pruneDeletedGameEvents } from '../services/game-event-cache';
 import {
   areGameEventNotificationsEnabled,
   enableGameEventNotifications,
@@ -77,6 +79,7 @@ const GameEventFragmentDoc = gql`
   fragment GameEventFragment on GameEvent {
     id
     createdAt
+    parentEventId
     periodSecond
     position
     formation
@@ -282,6 +285,25 @@ export const GamePage = () => {
 
   const apolloClient = useApolloClient();
 
+  // For mutations that delete lineup events: refetch each queued query, and
+  // after the game refetch drop cached events the server no longer has. The
+  // GameTeam.events merge policy only adds, so without this a deleted event
+  // (or the partner a substitution/swap delete removes unannounced) would
+  // keep its player on the derived field.
+  const refetchAndPruneDeletedEvents = useCallback(
+    (observableQuery: ObservableQuery) =>
+      observableQuery.refetch().then((result) => {
+        if (observableQuery.queryName === 'GetGameById') {
+          pruneDeletedGameEvents(
+            apolloClient.cache,
+            (result.data as GetGameByIdQuery | undefined)?.game,
+          );
+        }
+        return result;
+      }),
+    [apolloClient],
+  );
+
   // Reconcile the cache with the server when the tab/device wakes from
   // sleep - subscriptions can silently miss events while asleep.
   useResyncOnWake();
@@ -386,12 +408,10 @@ export const GamePage = () => {
   const [deleteSubstitution, { loading: deletingSubstitution }] = useMutation(
     DELETE_SUBSTITUTION,
     {
+      onQueryUpdated: refetchAndPruneDeletedEvents,
       refetchQueries: () => {
         const queries: Array<{
-          query:
-            | typeof GET_GAME_BY_ID
-            | typeof GET_PLAYER_STATS
-            | typeof GET_GAME_ROSTER;
+          query: typeof GET_GAME_BY_ID | typeof GET_PLAYER_STATS;
           variables: object;
         }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
         const game = data?.game;
@@ -402,19 +422,11 @@ export const GamePage = () => {
             query: GET_PLAYER_STATS,
             variables: { input: { teamId: homeTeam.team.id, gameId } },
           });
-          queries.push({
-            query: GET_GAME_ROSTER,
-            variables: { gameTeamId: homeTeam.id },
-          });
         }
         if (awayTeam) {
           queries.push({
             query: GET_PLAYER_STATS,
             variables: { input: { teamId: awayTeam.team.id, gameId } },
-          });
-          queries.push({
-            query: GET_GAME_ROSTER,
-            variables: { gameTeamId: awayTeam.id },
           });
         }
         return queries;
@@ -425,40 +437,20 @@ export const GamePage = () => {
   const [deletePositionSwap, { loading: deletingPositionSwap }] = useMutation(
     DELETE_POSITION_SWAP,
     {
-      refetchQueries: () => {
-        const queries: Array<{
-          query: typeof GET_GAME_BY_ID | typeof GET_GAME_ROSTER;
-          variables: object;
-        }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
-        const game = data?.game;
-        const homeTeam = game?.teams?.find((gt) => gt.teamType === 'home');
-        const awayTeam = game?.teams?.find((gt) => gt.teamType === 'away');
-        if (homeTeam) {
-          queries.push({
-            query: GET_GAME_ROSTER,
-            variables: { gameTeamId: homeTeam.id },
-          });
-        }
-        if (awayTeam) {
-          queries.push({
-            query: GET_GAME_ROSTER,
-            variables: { gameTeamId: awayTeam.id },
-          });
-        }
-        return queries;
-      },
+      onQueryUpdated: refetchAndPruneDeletedEvents,
+      refetchQueries: () => [
+        { query: GET_GAME_BY_ID, variables: { id: gameId } },
+      ],
     },
   );
 
   const [deleteStarterEntry, { loading: deletingStarterEntry }] = useMutation(
     DELETE_STARTER_ENTRY,
     {
+      onQueryUpdated: refetchAndPruneDeletedEvents,
       refetchQueries: () => {
         const queries: Array<{
-          query:
-            | typeof GET_GAME_BY_ID
-            | typeof GET_PLAYER_STATS
-            | typeof GET_GAME_ROSTER;
+          query: typeof GET_GAME_BY_ID | typeof GET_PLAYER_STATS;
           variables: object;
         }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
         const game = data?.game;
@@ -469,19 +461,11 @@ export const GamePage = () => {
             query: GET_PLAYER_STATS,
             variables: { input: { teamId: homeTeam.team.id, gameId } },
           });
-          queries.push({
-            query: GET_GAME_ROSTER,
-            variables: { gameTeamId: homeTeam.id },
-          });
         }
         if (awayTeam) {
           queries.push({
             query: GET_PLAYER_STATS,
             variables: { input: { teamId: awayTeam.team.id, gameId } },
-          });
-          queries.push({
-            query: GET_GAME_ROSTER,
-            variables: { gameTeamId: awayTeam.id },
           });
         }
         return queries;
@@ -500,12 +484,10 @@ export const GamePage = () => {
   const [deleteWithCascade, { loading: deletingWithCascade }] = useMutation(
     DELETE_EVENT_WITH_CASCADE,
     {
+      onQueryUpdated: refetchAndPruneDeletedEvents,
       refetchQueries: () => {
         const queries: Array<{
-          query:
-            | typeof GET_GAME_BY_ID
-            | typeof GET_PLAYER_STATS
-            | typeof GET_GAME_ROSTER;
+          query: typeof GET_GAME_BY_ID | typeof GET_PLAYER_STATS;
           variables: object;
         }> = [{ query: GET_GAME_BY_ID, variables: { id: gameId } }];
         const game = data?.game;
@@ -516,19 +498,11 @@ export const GamePage = () => {
             query: GET_PLAYER_STATS,
             variables: { input: { teamId: homeTeam.team.id, gameId } },
           });
-          queries.push({
-            query: GET_GAME_ROSTER,
-            variables: { gameTeamId: homeTeam.id },
-          });
         }
         if (awayTeam) {
           queries.push({
             query: GET_PLAYER_STATS,
             variables: { input: { teamId: awayTeam.team.id, gameId } },
-          });
-          queries.push({
-            query: GET_GAME_ROSTER,
-            variables: { gameTeamId: awayTeam.id },
           });
         }
         return queries;
@@ -567,8 +541,6 @@ export const GamePage = () => {
     () => data?.game?.teams?.find((gt) => gt.teamType === 'away'),
     [data?.game?.teams],
   );
-  const homeTeamId = homeTeamData?.id;
-  const awayTeamId = awayTeamData?.id;
 
   // Memoize scores to prevent recalculation on every render
   const homeScore = useMemo(
@@ -580,23 +552,13 @@ export const GamePage = () => {
     [awayTeamData?.events],
   );
 
-  // Fetch lineup data for goal modal (only when needed)
-  const { data: homeLineupData } = useQuery(GET_GAME_ROSTER, {
-    variables: { gameTeamId: homeTeamId! },
-    skip: !homeTeamId,
-  });
-
-  const { data: awayLineupData } = useQuery(GET_GAME_ROSTER, {
-    variables: { gameTeamId: awayTeamId! },
-    skip: !awayTeamId,
-  });
-
-  // Derive on-field and bench players from roster data
+  // On-field and bench players are derived from the game's events, so lineup
+  // changes show up as soon as their events reach the cache - no roster query.
   // position != null = on field, position == null = bench
-  // Depend on players array directly (not entire query result) to avoid
-  // recomputation when Apollo creates new result wrapper objects on refetch
-  const homeRosterPlayers = homeLineupData?.gameRoster?.players;
-  const awayRosterPlayers = awayLineupData?.gameRoster?.players;
+  const homeRoster = useTeamRoster(homeTeamData);
+  const awayRoster = useTeamRoster(awayTeamData);
+  const homeRosterPlayers = homeRoster?.players;
+  const awayRosterPlayers = awayRoster?.players;
 
   const homeOnField = useMemo(
     () => homeRosterPlayers?.filter((p) => p.position != null) ?? [],
@@ -634,12 +596,11 @@ export const GamePage = () => {
   const prevHomeScoreRef = useRef(homeScore);
   const prevAwayScoreRef = useRef(awayScore);
 
-  // Debounce roster refetches for stats-affecting events
-  // Accumulates affected gameTeamIds and refetches once after events settle
+  // Debounce game refetches for stats-affecting events (the roster itself is
+  // derived from cached events; this is for server-computed player stats)
   const rosterRefetchTimerRef = useRef<
     ReturnType<typeof setTimeout> | undefined
   >(undefined);
-  const pendingRosterRefetchIds = useRef<Set<string>>(new Set());
 
   // Trigger score animation when score actually changes (not on subscription message)
   // This ensures animation is synchronized with the displayed score update
@@ -774,9 +735,9 @@ export const GamePage = () => {
       });
 
       // Debounced refetch for stats-affecting events
-      // These events change who is on the field and player stats
+      // These events change player stats (play time, isOnField)
       // A single substitution generates 2 events (IN + OUT) within ms of each other,
-      // so we debounce to collapse them into a single refetch per affected team
+      // so we debounce to collapse them into a single refetch
       const statsAffectingEvents = [
         'SUBSTITUTION_IN',
         'SUBSTITUTION_OUT',
@@ -784,18 +745,8 @@ export const GamePage = () => {
         'PERIOD_END',
       ];
       if (statsAffectingEvents.includes(event.eventType.name)) {
-        pendingRosterRefetchIds.current.add(event.gameTeamId);
         clearTimeout(rosterRefetchTimerRef.current);
         rosterRefetchTimerRef.current = setTimeout(() => {
-          const teamIds = [...pendingRosterRefetchIds.current];
-          pendingRosterRefetchIds.current.clear();
-          teamIds.forEach((gameTeamId) => {
-            apolloClient.query({
-              query: GET_GAME_ROSTER,
-              variables: { gameTeamId },
-              fetchPolicy: 'network-only',
-            });
-          });
           // Refetch game query to update players[].stats (server-computed field)
           // This ensures the stats tab has fresh isOnField, totalSeconds, etc.
           if (gameId) {
@@ -1618,8 +1569,7 @@ export const GamePage = () => {
       ? {
           format: activeTeamConfiguration.playerNameDisplayFormat,
           showJerseyNumber: activeTeamConfiguration.showJerseyNumber,
-          jerseyNumberPosition:
-            activeTeamConfiguration.jerseyNumberPosition,
+          jerseyNumberPosition: activeTeamConfiguration.jerseyNumberPosition,
         }
       : undefined;
 

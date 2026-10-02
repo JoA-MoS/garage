@@ -621,6 +621,7 @@ describe('SubstitutionPanel Smart Component', () => {
               periodSecond: 900,
             },
           },
+          update: expect.any(Function),
         });
       });
     });
@@ -734,6 +735,7 @@ describe('SubstitutionPanel Smart Component', () => {
               periodSecond: 900,
             },
           },
+          update: expect.any(Function),
         });
       });
     });
@@ -817,6 +819,7 @@ describe('SubstitutionPanel Smart Component', () => {
               swaps: [],
             },
           },
+          update: expect.any(Function),
         });
       });
     });
@@ -829,7 +832,7 @@ describe('SubstitutionPanel Smart Component', () => {
         onSubstitutionComplete,
       });
 
-      render(<SubstitutionPanel {...props} />);
+      const { rerender } = render(<SubstitutionPanel {...props} />);
 
       await waitFor(() => {
         expect(screen.getByText('Jimmy Brown')).toBeTruthy();
@@ -841,6 +844,15 @@ describe('SubstitutionPanel Smart Component', () => {
       await waitFor(() => {
         expect(screen.getByText('Confirm All (1)')).toBeTruthy();
       });
+
+      // The parent clears the external selection once it's been handled; a
+      // lingering prop would reopen the panel when the queue empties.
+      rerender(
+        <SubstitutionPanel
+          {...props}
+          externalFieldPlayerSelection={undefined}
+        />,
+      );
 
       await act(async () => {
         fireEvent.click(screen.getByText('Confirm All (1)'));
@@ -905,7 +917,7 @@ describe('SubstitutionPanel Smart Component', () => {
         onSubstitutionComplete,
       });
 
-      render(<SubstitutionPanel {...props} />);
+      const { rerender } = render(<SubstitutionPanel {...props} />);
 
       await waitFor(() => {
         expect(screen.getByText('Jimmy Brown')).toBeTruthy();
@@ -917,6 +929,15 @@ describe('SubstitutionPanel Smart Component', () => {
       await waitFor(() => {
         expect(screen.getByText('Confirm All (1)')).toBeTruthy();
       });
+
+      // The parent clears the external selection once it's been handled; a
+      // lingering prop would reopen the panel when the queue empties.
+      rerender(
+        <SubstitutionPanel
+          {...props}
+          externalFieldPlayerSelection={undefined}
+        />,
+      );
 
       await act(async () => {
         fireEvent.click(screen.getByText('Confirm All (1)'));

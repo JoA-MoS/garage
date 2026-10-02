@@ -13,8 +13,8 @@ import {
   REMOVE_PLAYER_FROM_FIELD,
   BRING_PLAYER_ONTO_FIELD,
   GET_GAME_BY_ID,
-  GET_GAME_ROSTER,
 } from '../../../services/games-graphql.service';
+import { addEventsToGameTeam } from '../../../services/game-event-cache';
 import { calculatePlayTime } from '../../../hooks/use-play-time';
 import { FIELD_SENTINEL_POSITION } from '../lineup-panel/types';
 
@@ -135,10 +135,8 @@ export const SubstitutionPanel = ({
               swaps: [],
             },
           },
-          refetchQueries: [
-            { query: GET_GAME_ROSTER, variables: { gameTeamId } },
-          ],
-          awaitRefetchQueries: true,
+          update: (cache, { data }) =>
+            addEventsToGameTeam(cache, gameTeamId, data?.batchLineupChanges),
         });
       } catch (err) {
         console.error('Failed to execute substitution:', err);
@@ -166,10 +164,8 @@ export const SubstitutionPanel = ({
               periodSecond,
             },
           },
-          refetchQueries: [
-            { query: GET_GAME_ROSTER, variables: { gameTeamId } },
-          ],
-          awaitRefetchQueries: true,
+          update: (cache, { data }) =>
+            addEventsToGameTeam(cache, gameTeamId, data?.swapPositions),
         });
       } catch (err) {
         console.error('Failed to execute position swap:', err);
@@ -500,10 +496,10 @@ export const SubstitutionPanel = ({
               periodSecond,
             },
           },
-          refetchQueries: [
-            { query: GET_GAME_ROSTER, variables: { gameTeamId } },
-          ],
-          awaitRefetchQueries: true,
+          update: (cache, { data }) =>
+            addEventsToGameTeam(cache, gameTeamId, [
+              data?.removePlayerFromField,
+            ]),
         }).catch((err) => {
           console.error('Failed to remove player from field:', err);
           setError(
@@ -555,10 +551,10 @@ export const SubstitutionPanel = ({
               periodSecond,
             },
           },
-          refetchQueries: [
-            { query: GET_GAME_ROSTER, variables: { gameTeamId } },
-          ],
-          awaitRefetchQueries: true,
+          update: (cache, { data }) =>
+            addEventsToGameTeam(cache, gameTeamId, [
+              data?.bringPlayerOntoField,
+            ]),
         }).catch((err) => {
           console.error('Failed to bring player onto field:', err);
           setError(
@@ -719,6 +715,8 @@ export const SubstitutionPanel = ({
               swaps: swapInputs,
             },
           },
+          update: (cache, { data }) =>
+            addEventsToGameTeam(cache, gameTeamId, data?.batchLineupChanges),
         });
       }
 
@@ -733,6 +731,10 @@ export const SubstitutionPanel = ({
               periodSecond,
             },
           },
+          update: (cache, { data }) =>
+            addEventsToGameTeam(cache, gameTeamId, [
+              data?.removePlayerFromField,
+            ]),
         });
       }
 
@@ -752,6 +754,10 @@ export const SubstitutionPanel = ({
               periodSecond,
             },
           },
+          update: (cache, { data }) =>
+            addEventsToGameTeam(cache, gameTeamId, [
+              data?.bringPlayerOntoField,
+            ]),
         });
       }
 
@@ -760,28 +766,23 @@ export const SubstitutionPanel = ({
       setExecutionProgress(queue.length);
       setQueue([]);
 
-      // Refetch queries in a separate try-catch - these are best-effort refreshes
-      // The mutation already succeeded, so we don't want refetch failures to show errors
-      try {
-        await Promise.all([
-          client.query({
-            query: GET_GAME_BY_ID,
-            variables: { id: gameId },
-            fetchPolicy: 'network-only',
-          }),
-          client.query({
-            query: GET_GAME_ROSTER,
-            variables: { gameTeamId },
-            fetchPolicy: 'network-only',
-          }),
-        ]);
-      } catch (refetchErr) {
-        // Log but don't show error to user - the mutation succeeded
-        console.warn(
-          '[SubstitutionPanel] Refetch failed after successful mutation:',
-          refetchErr,
-        );
-      }
+      // The roster updates from the mutation responses written to the cache
+      // above. The game query is still refreshed because it carries
+      // server-computed per-player stats (play time, isOnField) the client
+      // can't derive - but in the background, so the panel closes at once.
+      client
+        .query({
+          query: GET_GAME_BY_ID,
+          variables: { id: gameId },
+          fetchPolicy: 'network-only',
+        })
+        .catch((refetchErr) => {
+          // The mutations already succeeded; a failed refresh isn't an error
+          console.warn(
+            '[SubstitutionPanel] Refetch failed after successful mutation:',
+            refetchErr,
+          );
+        });
 
       // Close panel and notify parent
       setPanelState('collapsed');

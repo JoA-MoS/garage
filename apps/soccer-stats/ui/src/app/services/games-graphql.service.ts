@@ -102,6 +102,7 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
           homeSecondaryColor
           isManaged
           teamConfiguration {
+            defaultFormation
             playerNameDisplayFormat
             showJerseyNumber
             jerseyNumberPosition
@@ -110,6 +111,7 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
         events {
           id
           createdAt
+          parentEventId
           period
           periodSecond
           position
@@ -426,10 +428,58 @@ export const GET_EVENT_TYPES = graphql(/* GraphQL */ `
   }
 `);
 
+// Every field a lineup mutation's events need in the cache: what the roster
+// derivation reads, plus everything GET_GAME_BY_ID selects for an event so a
+// written event never leaves that query's cache read incomplete.
+export const LINEUP_EVENT_FRAGMENT = graphql(/* GraphQL */ `
+  fragment LineupEvent on GameEvent {
+    id
+    createdAt
+    parentEventId
+    period
+    periodSecond
+    position
+    formation
+    playerId
+    externalPlayerName
+    externalPlayerNumber
+    player {
+      id
+      firstName
+      lastName
+      email
+    }
+    eventType {
+      id
+      name
+      category
+    }
+    childEvents {
+      id
+      playerId
+      externalPlayerName
+      externalPlayerNumber
+      position
+      period
+      periodSecond
+      player {
+        id
+        firstName
+        lastName
+      }
+      eventType {
+        id
+        name
+      }
+    }
+  }
+`);
+
 export const ADD_PLAYER_TO_GAME_ROSTER = graphql(/* GraphQL */ `
   mutation AddPlayerToGameRoster($input: AddToGameRosterInput!) {
     addPlayerToGameRoster(input: $input) {
       id
+      ...LineupEvent
       period
       periodSecond
       position
@@ -463,6 +513,7 @@ export const SUBSTITUTE_PLAYER = graphql(/* GraphQL */ `
   mutation SubstitutePlayer($input: SubstitutePlayerInput!) {
     substitutePlayer(input: $input) {
       id
+      ...LineupEvent
       period
       periodSecond
       position
@@ -495,6 +546,7 @@ export const RECORD_POSITION_CHANGE = graphql(/* GraphQL */ `
   mutation RecordPositionChange($input: RecordPositionChangeInput!) {
     recordPositionChange(input: $input) {
       id
+      ...LineupEvent
       period
       periodSecond
       position
@@ -642,6 +694,7 @@ export const SWAP_POSITIONS = graphql(/* GraphQL */ `
   mutation SwapPositions($input: SwapPositionsInput!) {
     swapPositions(input: $input) {
       id
+      ...LineupEvent
       period
       periodSecond
       position
@@ -660,6 +713,7 @@ export const BATCH_LINEUP_CHANGES = graphql(/* GraphQL */ `
   mutation BatchLineupChanges($input: BatchLineupChangesInput!) {
     batchLineupChanges(input: $input) {
       id
+      ...LineupEvent
       period
       periodSecond
       position
@@ -728,9 +782,11 @@ export const GAME_EVENT_CHANGED = graphql(/* GraphQL */ `
       event {
         id
         gameTeamId
+        parentEventId
         period
         periodSecond
         position
+        formation
         playerId
         externalPlayerName
         externalPlayerNumber
@@ -835,6 +891,7 @@ export const BRING_PLAYER_ONTO_FIELD = graphql(/* GraphQL */ `
   mutation BringPlayerOntoField($input: BringPlayerOntoFieldInput!) {
     bringPlayerOntoField(input: $input) {
       id
+      ...LineupEvent
       period
       periodSecond
       position
@@ -854,6 +911,7 @@ export const REMOVE_PLAYER_FROM_FIELD = graphql(/* GraphQL */ `
   mutation RemovePlayerFromField($input: RemovePlayerFromFieldInput!) {
     removePlayerFromField(input: $input) {
       id
+      ...LineupEvent
       period
       periodSecond
       position
@@ -873,6 +931,7 @@ export const SET_SECOND_HALF_LINEUP = graphql(/* GraphQL */ `
     setSecondHalfLineup(input: $input) {
       events {
         id
+        ...LineupEvent
         period
         periodSecond
         position
@@ -896,6 +955,7 @@ export const START_PERIOD = graphql(/* GraphQL */ `
     startPeriod(input: $input) {
       periodEvent {
         id
+        ...LineupEvent
         period
         periodSecond
         eventType {
@@ -918,6 +978,7 @@ export const START_PERIOD = graphql(/* GraphQL */ `
       }
       substitutionEvents {
         id
+        ...LineupEvent
         period
         periodSecond
         position
@@ -941,6 +1002,7 @@ export const END_PERIOD = graphql(/* GraphQL */ `
     endPeriod(input: $input) {
       periodEvent {
         id
+        ...LineupEvent
         period
         periodSecond
         eventType {
@@ -963,6 +1025,7 @@ export const END_PERIOD = graphql(/* GraphQL */ `
       }
       substitutionEvents {
         id
+        ...LineupEvent
         period
         periodSecond
         position

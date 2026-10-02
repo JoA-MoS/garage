@@ -2,7 +2,6 @@ import { useMutation, useQuery } from '@apollo/client/react';
 import { useCallback, useMemo } from 'react';
 
 import {
-  GetGameRosterDocument,
   GetGameByIdDocument,
   GetGameByIdQuery,
   GetTeamByIdDocument,
@@ -21,7 +20,13 @@ import {
 } from '@garage/soccer-stats/graphql-codegen';
 
 import { RECORD_POSITION_CHANGE } from '../services/games-graphql.service';
+import {
+  addEventsToGameTeam,
+  removeEventFromGameTeam,
+} from '../services/game-event-cache';
 import { formatPlayerName } from '../utils/format-player-name';
+
+import { useTeamRoster } from './use-live-game-state';
 
 // Extract TeamPlayer type from team query result
 type TeamPlayerFromQuery = NonNullable<
@@ -44,36 +49,29 @@ export interface RosterPlayer {
 }
 
 export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
-  // Fetch roster data using optimized SQL window function query
-  // Use cache-and-network to ensure fresh data after mutations
-  // GameRoster is a computed result without an 'id' field, so cache normalization
-  // doesn't work well - we need to always fetch to get accurate roster state
+  // The game query carries every team's events. The on-field/bench roster is
+  // derived from them on the client (useTeamRoster), so lineup mutations only
+  // need to write the events they return into the cache - no roster refetch.
   const {
-    data: rosterData,
-    loading: rosterLoading,
-    error: rosterError,
-    refetch: refetchRoster,
-  } = useQuery(GetGameRosterDocument, {
-    variables: { gameTeamId },
-    skip: !gameTeamId,
-    fetchPolicy: 'cache-and-network',
+    data: gameData,
+    loading: gameLoading,
+    error: gameError,
+    refetch: refetchGame,
+  } = useQuery(GetGameByIdDocument, {
+    variables: { id: gameId! },
+    skip: !gameId,
   });
 
-  // Fetch game data to get team ID (if gameId provided)
-  const { data: gameData, loading: gameLoading } = useQuery(
-    GetGameByIdDocument,
-    {
-      variables: { id: gameId! },
-      skip: !gameId,
-    },
+  const gameTeam = useMemo(
+    () => gameData?.game?.teams?.find((gt) => gt.id === gameTeamId),
+    [gameData, gameTeamId],
   );
+  const roster = useTeamRoster(gameTeam);
 
   // Get team ID from game data
   const teamId = useMemo(() => {
-    if (!gameData?.game?.teams) return null;
-    const gameTeam = gameData.game.teams.find((gt) => gt.id === gameTeamId);
     return gameTeam?.team?.id ?? null;
-  }, [gameData, gameTeamId]);
+  }, [gameTeam]);
 
   // Fetch team roster separately (only when we have team ID)
   const { data: teamData, loading: teamLoading } = useQuery(
@@ -84,84 +82,32 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     },
   );
 
-  // Helper to create refetchQueries function that handles undefined gameTeamId
-  // Using a function ensures we get the current value at mutation time
-  const getRefetchQueries = () =>
-    gameTeamId
-      ? [{ query: GetGameRosterDocument, variables: { gameTeamId } }]
-      : [];
-
-  // Mutations - all use awaitRefetchQueries to prevent race conditions
-  // when multiple mutations are called in sequence
+  // Mutations. Each lineup action passes an `update` (see the callbacks below)
+  // that writes the events it returns into the cache, so the derived roster
+  // changes as soon as the response arrives.
   const [addToGameRosterMutation, { loading: addingToGameRoster }] =
-    useMutation(AddPlayerToGameRosterDocument, {
-      refetchQueries: getRefetchQueries,
-      awaitRefetchQueries: true,
-    });
-
+    useMutation(AddPlayerToGameRosterDocument);
   const [removeFromLineupMutation, { loading: removing }] = useMutation(
     RemoveFromLineupDocument,
-    {
-      refetchQueries: getRefetchQueries,
-      awaitRefetchQueries: true,
-    },
   );
-
   const [updatePositionMutation, { loading: updatingPosition }] = useMutation(
     UpdatePlayerPositionDocument,
-    {
-      refetchQueries: getRefetchQueries,
-      awaitRefetchQueries: true,
-    },
   );
-
   const [substitutePlayerMutation, { loading: substituting }] = useMutation(
     SubstitutePlayerDocument,
-    {
-      refetchQueries: getRefetchQueries,
-      awaitRefetchQueries: true,
-    },
   );
-
   const [recordPositionChangeMutation, { loading: recordingPositionChange }] =
-    useMutation(RECORD_POSITION_CHANGE, {
-      refetchQueries: getRefetchQueries,
-      awaitRefetchQueries: true,
-    });
-
+    useMutation(RECORD_POSITION_CHANGE);
   const [setSecondHalfLineupMutation, { loading: settingSecondHalfLineup }] =
-    useMutation(SetSecondHalfLineupDocument, {
-      refetchQueries: getRefetchQueries,
-      awaitRefetchQueries: true,
-    });
-
+    useMutation(SetSecondHalfLineupDocument);
   const [bringPlayerOntoFieldMutation, { loading: bringingOntoField }] =
-    useMutation(BringPlayerOntoFieldDocument, {
-      refetchQueries: getRefetchQueries,
-      awaitRefetchQueries: true,
-    });
-
+    useMutation(BringPlayerOntoFieldDocument);
   const [removePlayerFromFieldMutation, { loading: removingFromField }] =
-    useMutation(RemovePlayerFromFieldDocument, {
-      refetchQueries: getRefetchQueries,
-      awaitRefetchQueries: true,
-    });
-
-  const [startPeriodMutation, { loading: startingPeriod }] = useMutation(
-    StartPeriodDocument,
-    {
-      refetchQueries: getRefetchQueries,
-      awaitRefetchQueries: true,
-    },
-  );
-
-  const [endPeriodMutation, { loading: endingPeriod }] = useMutation(
-    EndPeriodDocument,
-    {
-      refetchQueries: getRefetchQueries,
-      awaitRefetchQueries: true,
-    },
-  );
+    useMutation(RemovePlayerFromFieldDocument);
+  const [startPeriodMutation, { loading: startingPeriod }] =
+    useMutation(StartPeriodDocument);
+  const [endPeriodMutation, { loading: endingPeriod }] =
+    useMutation(EndPeriodDocument);
 
   // Get the team roster from team data (fetched separately for performance)
   const teamRoster = useMemo((): RosterPlayer[] => {
@@ -184,10 +130,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
   }, [teamData]);
 
   // Get all players from the game roster
-  const players = useMemo(
-    () => rosterData?.gameRoster?.players ?? [],
-    [rosterData],
-  );
+  const players = useMemo(() => roster?.players ?? [], [roster]);
 
   // Derive on-field players (position != null)
   const onField = useMemo(
@@ -217,6 +160,16 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     );
   }, [teamRoster, players]);
 
+  // Kept for callers that resync after a batch of changes. The roster is
+  // derived from the cache now, so there's nothing to wait for: this refreshes
+  // the game query (events, server-computed play time) in the background.
+  const refetchRoster = useCallback(async () => {
+    if (!gameId) return;
+    refetchGame().catch((error) => {
+      console.warn('[useLineup] background game refetch failed:', error);
+    });
+  }, [gameId, refetchGame]);
+
   // Action handlers with error logging
   // All mutations log errors for debugging while re-throwing for caller handling
   // addPlayerToGameRoster: Creates a GAME_ROSTER event
@@ -240,6 +193,10 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
               position: params.position,
             },
           },
+          update: (cache, { data }) =>
+            addEventsToGameTeam(cache, gameTeamId, [
+              data?.addPlayerToGameRoster,
+            ]),
         });
       } catch (error) {
         console.error('[useLineup] addPlayerToGameRoster failed:', error);
@@ -254,13 +211,15 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       try {
         return await removeFromLineupMutation({
           variables: { gameEventId },
+          update: (cache) =>
+            removeEventFromGameTeam(cache, gameTeamId, gameEventId),
         });
       } catch (error) {
         console.error('[useLineup] removeFromLineup failed:', error);
         throw error;
       }
     },
-    [removeFromLineupMutation],
+    [gameTeamId, removeFromLineupMutation],
   );
 
   // position null moves the player to the bench
@@ -269,6 +228,8 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       try {
         return await updatePositionMutation({
           variables: { gameEventId, position },
+          // Updates the event in place; Apollo normalizes the new position
+          // into the cached event the roster derivation reads.
         });
       } catch (error) {
         console.error('[useLineup] updatePosition failed:', error);
@@ -300,6 +261,8 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
               periodSecond: params.periodSecond ?? 0,
             },
           },
+          update: (cache, { data }) =>
+            addEventsToGameTeam(cache, gameTeamId, data?.substitutePlayer),
         });
       } catch (error) {
         console.error('[useLineup] substitutePlayer failed:', error);
@@ -329,6 +292,10 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
               reason: params.reason,
             },
           },
+          update: (cache, { data }) =>
+            addEventsToGameTeam(cache, gameTeamId, [
+              data?.recordPositionChange,
+            ]),
         });
       } catch (error) {
         console.error('[useLineup] recordPositionChange failed:', error);
@@ -356,6 +323,12 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
               lineup,
             },
           },
+          update: (cache, { data }) =>
+            addEventsToGameTeam(
+              cache,
+              gameTeamId,
+              data?.setSecondHalfLineup?.events,
+            ),
         });
       } catch (error) {
         console.error('[useLineup] setSecondHalfLineup failed:', error);
@@ -388,6 +361,10 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
               periodSecond: params.periodSecond ?? 0,
             },
           },
+          update: (cache, { data }) =>
+            addEventsToGameTeam(cache, gameTeamId, [
+              data?.bringPlayerOntoField,
+            ]),
         });
       } catch (error) {
         console.error('[useLineup] bringPlayerOntoField failed:', error);
@@ -414,6 +391,10 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
               periodSecond: params.periodSecond ?? 0,
             },
           },
+          update: (cache, { data }) =>
+            addEventsToGameTeam(cache, gameTeamId, [
+              data?.removePlayerFromField,
+            ]),
         });
       } catch (error) {
         console.error('[useLineup] removePlayerFromField failed:', error);
@@ -445,6 +426,11 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
               periodSecond: params.periodSecond ?? 0,
             },
           },
+          update: (cache, { data }) =>
+            addEventsToGameTeam(cache, gameTeamId, [
+              data?.startPeriod?.periodEvent,
+              ...(data?.startPeriod?.substitutionEvents ?? []),
+            ]),
         });
       } catch (error) {
         console.error('[useLineup] startPeriod failed:', error);
@@ -467,6 +453,11 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
               periodSecond: params.periodSecond,
             },
           },
+          update: (cache, { data }) =>
+            addEventsToGameTeam(cache, gameTeamId, [
+              data?.endPeriod?.periodEvent,
+              ...(data?.endPeriod?.substitutionEvents ?? []),
+            ]),
         });
       } catch (error) {
         console.error('[useLineup] endPeriod failed:', error);
@@ -478,7 +469,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
 
   return {
     // Data - simplified from 5 arrays to position-based derivation
-    formation: rosterData?.gameRoster?.formation,
+    formation: roster?.formation,
     players, // All players with current position state
     onField, // Derived: players.filter(p => p.position != null)
     bench, // Derived: players.filter(p => p.position == null)
@@ -486,7 +477,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     availableRoster,
 
     // Loading states
-    loading: rosterLoading || gameLoading || teamLoading,
+    loading: (gameLoading && !gameData) || teamLoading,
     mutating:
       addingToGameRoster ||
       removing ||
@@ -500,7 +491,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       endingPeriod,
 
     // Error
-    error: rosterError,
+    error: gameError,
 
     // Actions
     addPlayerToGameRoster,
