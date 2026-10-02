@@ -23,11 +23,18 @@ export interface PendingEvent extends LiveGameEvent {
   gameTeamId: string;
 }
 
-/** Game-level fields an `updateGame` action changes (status, pause). */
+/**
+ * Game-level fields an `updateGame` action changes: status, pause, and the
+ * clock sync fields the displayed clock is computed from.
+ */
 export interface PendingGamePatch {
   status?: string;
   /** ISO time the clock paused, or null for resume. */
   pausedAt?: string | null;
+  currentPeriod?: string | null;
+  currentPeriodSecond?: number;
+  /** Epoch ms the currentPeriodSecond was taken at. */
+  serverTimestamp?: number;
 }
 
 export interface OutboxAction {
