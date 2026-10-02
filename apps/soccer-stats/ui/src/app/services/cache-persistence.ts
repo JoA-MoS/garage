@@ -58,25 +58,49 @@ export function shouldRestoreSnapshot(
  * Loads the saved snapshot into `cache`. Returns it (so the caller can check
  * it belongs to the signed-in user), or undefined if there was nothing
  * usable. Never throws: a broken snapshot just means a cold start.
+ *
+ * With `deadlineMs`, gives up after that long, and a snapshot read after the
+ * deadline is never applied. A late restore would overwrite data fetched
+ * since startup, and its owner would be unknown to the caller, so the
+ * cross-user wipe in CachePersistence couldn't run.
  */
 export async function restoreCache(
   cache: InMemoryCache,
-  { store = defaultStore(), now = Date.now }: RestoreOptions = {},
+  { store = defaultStore(), now = Date.now, deadlineMs }: RestoreOptions = {},
 ): Promise<CacheSnapshot | undefined> {
+  let expired = false;
+  const restore = (async () => {
+    try {
+      const snapshot = await store.read();
+      if (expired || !shouldRestoreSnapshot(snapshot, now())) return undefined;
+      cache.restore(snapshot.data);
+      return snapshot;
+    } catch (error) {
+      console.warn('[cache-persistence] Ignoring unreadable snapshot:', error);
+      return undefined;
+    }
+  })();
+  if (deadlineMs === undefined) return restore;
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<undefined>((resolve) => {
+    timer = setTimeout(() => {
+      expired = true;
+      resolve(undefined);
+    }, deadlineMs);
+  });
   try {
-    const snapshot = await store.read();
-    if (!shouldRestoreSnapshot(snapshot, now())) return undefined;
-    cache.restore(snapshot.data);
-    return snapshot;
-  } catch (error) {
-    console.warn('[cache-persistence] Ignoring unreadable snapshot:', error);
-    return undefined;
+    return await Promise.race([restore, deadline]);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
 interface RestoreOptions {
   store?: CacheStore;
   now?: () => number;
+  /** Give up after this long; a late snapshot is then never applied. */
+  deadlineMs?: number;
 }
 
 export interface PersistOptions {

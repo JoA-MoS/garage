@@ -155,6 +155,59 @@ describe('cache persistence', () => {
     expect(await store.read()).toBeUndefined();
   });
 
+  it('never applies a snapshot that arrives after the deadline', async () => {
+    vi.useFakeTimers();
+    let releaseRead: (s: CacheSnapshot) => void = () => undefined;
+    const slowStore = {
+      ...memoryCacheStore(),
+      read: () =>
+        new Promise<CacheSnapshot | undefined>((r) => (releaseRead = r)),
+    };
+    const cache = new ObservableInMemoryCache();
+    writeGame(cache, 'Fetched after startup');
+
+    const restoring = restoreCache(cache, {
+      store: slowStore,
+      now: () => NOW,
+      deadlineMs: 1500,
+    });
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(await restoring).toBeUndefined();
+
+    // The read finishes late: the live cache must be left alone.
+    releaseRead(
+      snapshot({
+        userId: 'someone-else',
+        data: new ObservableInMemoryCache().extract(),
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(cache.readQuery({ query: GAME })).toEqual({
+      game: { __typename: 'Game', id: 'g1', name: 'Fetched after startup' },
+    });
+  });
+
+  it('restores a snapshot that arrives before the deadline', async () => {
+    vi.useFakeTimers();
+    const store = memoryCacheStore();
+    const source = new ObservableInMemoryCache();
+    writeGame(source, 'Saved');
+    await store.write(snapshot({ data: source.extract() }));
+    const cache = new ObservableInMemoryCache();
+
+    const restored = await restoreCache(cache, {
+      store,
+      now: () => NOW,
+      deadlineMs: 1500,
+    });
+
+    expect(restored?.userId).toBe('user-1');
+    expect(cache.readQuery({ query: GAME })).toMatchObject({
+      game: { name: 'Saved' },
+    });
+  });
+
   it('does not restore an expired snapshot', async () => {
     const store = memoryCacheStore();
     await store.write(snapshot({ savedAt: NOW - MAX_CACHE_AGE_MS - 1 }));

@@ -65,14 +65,13 @@ function ErrorScreen({ error }: { error: string }) {
 }
 
 // Start loading the saved Apollo cache immediately, in parallel with
-// everything else. Capped so a stuck IndexedDB can't block startup.
-const RESTORE_TIMEOUT_MS = 1500;
-const cacheRestored: Promise<CacheSnapshot | undefined> = Promise.race([
-  restoreCache(apolloClient.cache as ObservableInMemoryCache),
-  new Promise<undefined>((resolve) =>
-    setTimeout(() => resolve(undefined), RESTORE_TIMEOUT_MS),
-  ),
-]);
+// everything else. Capped so a stuck IndexedDB can't block startup; a
+// snapshot that arrives after the cap is discarded, never applied.
+const RESTORE_DEADLINE_MS = 1500;
+const cacheRestored: Promise<CacheSnapshot | undefined> = restoreCache(
+  apolloClient.cache as ObservableInMemoryCache,
+  { deadlineMs: RESTORE_DEADLINE_MS },
+);
 
 // Build-time key (useful for debugging); otherwise fetched from the API.
 const buildTimeKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
