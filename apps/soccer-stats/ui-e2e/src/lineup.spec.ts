@@ -48,11 +48,61 @@ test.describe('Pre-game lineup', () => {
     await expect(page.getByRole('button', { name: '+ GK' })).toHaveCount(0);
     await settle(page);
 
-    expect(operations).toEqual(['AddPlayerToGameRoster']);
+    // The player is already on the bench, so placing them is a position update.
+    expect(operations).toEqual(['UpdatePlayerPosition']);
     expect(
       await page.evaluate(
         () => (window as unknown as { spinnerSeen: boolean }).spinnerSeen,
       ),
     ).toBe(false);
+  });
+
+  test('a new game starts with every player on the bench, numbered', async ({
+    page,
+  }) => {
+    await createGame(page);
+
+    await expect(page.getByRole('button', { name: 'Bench (8)' })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Team Roster (0)' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: '#1 Alex Johnson', exact: true }),
+    ).toBeVisible();
+  });
+
+  test('Move to bench keeps a placed player in the game, on the bench', async ({
+    page,
+  }) => {
+    await createGame(page);
+    await page.getByRole('button', { name: '+ GK' }).click();
+    await page
+      .getByRole('button', { name: '#1 Alex Johnson', exact: true })
+      .click();
+    await expect(page.getByRole('button', { name: '+ GK' })).toHaveCount(0);
+
+    // Tap him on the field, then the bench's "Move to bench".
+    await page.getByRole('button', { name: /Alex Johnson/ }).click();
+    await page.getByRole('button', { name: /Move to bench/ }).click();
+
+    await expect(page.getByRole('button', { name: '+ GK' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Bench (8)' })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Team Roster (0)' }),
+    ).toBeVisible();
+  });
+
+  test('Remove from Bench takes a player out of the game', async ({ page }) => {
+    await createGame(page);
+
+    await page
+      .getByRole('button', { name: '#11 Morgan Wilson', exact: true })
+      .click();
+    await page.getByRole('button', { name: 'Remove from Bench' }).click();
+
+    await expect(page.getByRole('button', { name: 'Bench (7)' })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Team Roster (1)' }),
+    ).toBeVisible();
   });
 });

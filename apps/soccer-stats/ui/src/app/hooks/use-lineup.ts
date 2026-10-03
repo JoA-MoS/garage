@@ -135,6 +135,20 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       }));
   }, [teamData]);
 
+  // Jersey number for a game-roster player: external players carry their
+  // own; the team's players get theirs from the team roster.
+  const getJerseyNumber = useCallback(
+    (player: GqlRosterPlayer): string | undefined => {
+      if (player.externalPlayerNumber) return player.externalPlayerNumber;
+      if (!player.playerId) return undefined;
+      return (
+        teamRoster.find((rp) => rp.oduserId === player.playerId)
+          ?.jerseyNumber ?? undefined
+      );
+    },
+    [teamRoster],
+  );
+
   // Get all players from the game roster
   const players = useMemo(() => roster?.players ?? [], [roster]);
 
@@ -480,6 +494,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     onField, // Derived: players.filter(p => p.position != null)
     bench, // Derived: players.filter(p => p.position == null)
     teamRoster,
+    getJerseyNumber,
     availableRoster,
 
     // Loading states

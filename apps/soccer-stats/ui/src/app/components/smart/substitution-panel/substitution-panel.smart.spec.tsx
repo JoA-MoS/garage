@@ -24,6 +24,10 @@ vi.mock('@apollo/client/react', () => ({
 }));
 
 // Recorded actions go to the outbox, not the network
+vi.mock('../../../hooks/use-lineup', () => ({
+  useLineup: () => ({ getJerseyNumber: () => undefined }),
+}));
+
 vi.mock('../../../outbox/game-outbox-context', () => ({
   useGameOutbox: () => ({ recordAction: mockRecordAction }),
 }));

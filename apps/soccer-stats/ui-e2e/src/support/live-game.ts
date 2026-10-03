@@ -37,7 +37,8 @@ export async function createGame(
 
 /**
  * Places each starter: tap the empty position on the field ("+ GK"), then
- * the player in the lineup panel's roster ("#1 Alex Johnson").
+ * the player on the lineup panel's bench ("#1 Alex Johnson"). Every active
+ * player starts a new game on the bench.
  */
 export async function setStartingLineup(
   page: Page,
@@ -51,18 +52,6 @@ export async function setStartingLineup(
     ).toHaveCount(0);
   }
   await expect(page.getByText('Lineup complete')).toBeVisible();
-}
-
-/**
- * Adds a roster player to the game's bench (tap them, then "Add to bench").
- * Only game-roster players appear on the bench once the game starts.
- */
-export async function addToBench(page: Page, player: string): Promise<void> {
-  await page.getByRole('button', { name: player, exact: true }).click();
-  await page.getByRole('button', { name: /Add to bench/ }).click();
-  await expect(
-    page.getByRole('button', { name: player, exact: true }),
-  ).toHaveCount(0);
 }
 
 async function expectStatus(page: Page, status: string): Promise<void> {
@@ -114,7 +103,10 @@ export async function substitute(
   const openPanel = page.getByRole('button', { name: 'Substitutions' });
   if (await openPanel.isVisible()) await openPanel.click();
 
-  await page.getByRole('button', { name: new RegExp(`^${playerIn} `) }).click();
+  // Bench cards read "#11 Morgan Wilson 00:00"
+  await page
+    .getByRole('button', { name: new RegExp(`^(#\\d+ )?${playerIn} `) })
+    .click();
   await expect(page.getByText(`Bringing in: ${playerIn}`)).toBeVisible();
   await onFieldCard(page, playerOut).click();
   await page.getByRole('button', { name: 'Confirm All (1)' }).click();

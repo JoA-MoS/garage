@@ -51,7 +51,7 @@ const buildLineup = (overrides?: {
   onField: overrides?.onField ?? [playerA, playerB],
   bench: overrides?.bench ?? [benchPlayer],
   availableRoster: [],
-  teamRoster: [],
+  getJerseyNumber: (_player: GqlRosterPlayer): string | undefined => undefined,
   loading: false,
   mutating: false,
   error: null,
@@ -280,7 +280,8 @@ describe('GameLineupTab with trackPositions: false', () => {
   it('resolves jersey numbers from the team roster for managed players', () => {
     useLineupMock.mockReturnValue({
       ...buildLineup(),
-      teamRoster: [{ oduserId: 'a', jerseyNumber: '9' }],
+      getJerseyNumber: (player: GqlRosterPlayer) =>
+        player.playerId === 'a' ? '9' : undefined,
     });
 
     render(

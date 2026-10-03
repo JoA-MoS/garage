@@ -24,13 +24,6 @@ function getPlayerDisplayName(player: GqlRosterPlayer): string {
 }
 
 /**
- * Get jersey number display
- */
-function getJerseyNumber(player: GqlRosterPlayer): string | null {
-  return player.externalPlayerNumber || null;
-}
-
-/**
  * Presentation component for the inline substitution panel
  */
 export const SubstitutionPanelPresentation = ({
@@ -39,6 +32,7 @@ export const SubstitutionPanelPresentation = ({
   teamName,
   teamColor,
   benchPlayers,
+  getJerseyNumber,
   playTimeByPlayer,
   selection,
   onBenchPlayerClick,
@@ -233,6 +227,7 @@ export const SubstitutionPanelPresentation = ({
                       timeSeconds={playTime?.totalSeconds ?? 0}
                       isLive={false}
                       isSelected={isSelected}
+                      jerseyNumber={getJerseyNumber?.(player)}
                       onClick={() => onBenchPlayerClick(player)}
                     />
                   );
