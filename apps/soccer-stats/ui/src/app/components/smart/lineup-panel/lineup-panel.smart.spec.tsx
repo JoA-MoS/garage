@@ -192,4 +192,10 @@ describe('LineupPanel pre-game replace flow', () => {
       expect(hookMocks.removeFromLineup).toHaveBeenCalledWith('event-b');
     });
   });
+
+  it('keeps the bench expanded by default during halftime lineup changes', () => {
+    render(<LineupPanel {...createProps({ gameStatus: 'HALFTIME' })} />);
+
+    expect(screen.getByText('Jimmy Brown')).toBeTruthy();
+  });
 });

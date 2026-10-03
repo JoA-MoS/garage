@@ -200,6 +200,8 @@ export class GamesService {
             eventTypeId: gameRosterEventType.id,
             playerId: member.userId,
             recordedByUserId,
+            period: '1',
+            periodSecond: 0,
             position: null,
           }),
         );

@@ -517,7 +517,9 @@ export const LineupPanelPresentation = ({
             onPlayerClick={onPlayerClick}
             playTimeByPlayer={playTimeByPlayer}
             isExecuting={isExecuting}
-            defaultExpanded={gameStatus === 'SCHEDULED'}
+            defaultExpanded={
+              gameStatus === 'SCHEDULED' || gameStatus === 'HALFTIME'
+            }
             actionButton={
               selection.direction === 'player-first' &&
               selection.player !== null &&

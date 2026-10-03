@@ -250,6 +250,8 @@ describe('GamesService', () => {
           eventTypeId: 'event-type-game-roster',
           playerId: 'home-player',
           recordedByUserId: 'coach-user',
+          period: '1',
+          periodSecond: 0,
           position: null,
         }),
         expect.objectContaining({
@@ -258,6 +260,8 @@ describe('GamesService', () => {
           eventTypeId: 'event-type-game-roster',
           playerId: 'away-player',
           recordedByUserId: 'coach-user',
+          period: '1',
+          periodSecond: 0,
           position: null,
         }),
       ]);
