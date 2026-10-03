@@ -1,12 +1,8 @@
 import { Link, useLocation } from 'react-router';
 import { useState } from 'react';
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  SignUpButton,
-  UserButton,
-} from '@clerk/clerk-react';
+import { SignInButton, SignUpButton, UserButton } from '@clerk/clerk-react';
+
+import { WhenSignedIn, WhenSignedOut } from '../../auth/session';
 
 /**
  * Main navigation component for the application
@@ -61,7 +57,7 @@ export const NavigationPresentation = () => {
           </div>
 
           {/* Desktop navigation */}
-          <SignedIn>
+          <WhenSignedIn>
             <div className="hidden items-center space-x-4 md:flex">
               {navigationItems.map((item) => (
                 <Link
@@ -78,13 +74,13 @@ export const NavigationPresentation = () => {
                 </Link>
               ))}
             </div>
-          </SignedIn>
+          </WhenSignedIn>
 
           {/* Right side: Auth buttons and mobile menu button */}
           <div className="flex items-center space-x-4">
             {/* Desktop auth buttons */}
             <div className="hidden items-center space-x-4 md:flex">
-              <SignedOut>
+              <WhenSignedOut>
                 <SignInButton>
                   <button className="rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">
                     Sign In
@@ -95,27 +91,27 @@ export const NavigationPresentation = () => {
                     Sign Up
                   </button>
                 </SignUpButton>
-              </SignedOut>
-              <SignedIn>
+              </WhenSignedOut>
+              <WhenSignedIn>
                 <UserButton afterSignOutUrl="/" />
-              </SignedIn>
+              </WhenSignedIn>
             </div>
 
             {/* Mobile auth and menu button */}
             <div className="flex items-center space-x-2 md:hidden">
-              <SignedIn>
+              <WhenSignedIn>
                 <UserButton afterSignOutUrl="/" />
-              </SignedIn>
-              <SignedOut>
+              </WhenSignedIn>
+              <WhenSignedOut>
                 <SignInButton>
                   <button className="rounded-md p-2 text-sm font-medium text-gray-600 hover:text-gray-900">
                     Sign In
                   </button>
                 </SignInButton>
-              </SignedOut>
+              </WhenSignedOut>
 
               {/* Mobile menu button */}
-              <SignedIn>
+              <WhenSignedIn>
                 <button
                   onClick={toggleMobileMenu}
                   className="min-h-[44px] min-w-[44px] rounded-md p-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -145,13 +141,13 @@ export const NavigationPresentation = () => {
                     )}
                   </svg>
                 </button>
-              </SignedIn>
+              </WhenSignedIn>
             </div>
           </div>
         </div>
 
         {/* Mobile navigation menu */}
-        <SignedIn>
+        <WhenSignedIn>
           {isMobileMenuOpen && (
             <div className="border-t border-gray-200 py-4 md:hidden">
               <div className="space-y-1">
@@ -173,7 +169,7 @@ export const NavigationPresentation = () => {
               </div>
 
               {/* Mobile auth section */}
-              <SignedOut>
+              <WhenSignedOut>
                 <div className="mt-4 space-y-2 border-t border-gray-200 pt-4">
                   <SignUpButton>
                     <button className="min-h-[44px] w-full rounded-md bg-blue-600 px-4 py-3 text-base font-medium text-white hover:bg-blue-700">
@@ -181,10 +177,10 @@ export const NavigationPresentation = () => {
                     </button>
                   </SignUpButton>
                 </div>
-              </SignedOut>
+              </WhenSignedOut>
             </div>
           )}
-        </SignedIn>
+        </WhenSignedIn>
       </div>
     </nav>
   );

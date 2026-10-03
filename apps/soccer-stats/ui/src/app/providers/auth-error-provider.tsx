@@ -4,6 +4,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useRef,
   ReactNode,
 } from 'react';
 import { useAuth } from '@clerk/clerk-react';
@@ -34,7 +35,11 @@ interface AuthErrorProviderProps {
  * When an UNAUTHENTICATED error occurs, it signs the user out and shows an error screen.
  */
 export function AuthErrorProvider({ children }: AuthErrorProviderProps) {
-  const { signOut } = useAuth();
+  const { signOut, isLoaded } = useAuth();
+  // Before Clerk loads (e.g. the offline session) a request can't carry a
+  // token, so a rejection doesn't mean the session expired.
+  const clerkLoaded = useRef(isLoaded);
+  clerkLoaded.current = isLoaded;
   const [authError, setAuthError] = useState<string | null>(null);
 
   const clearAuthError = useCallback(() => {
@@ -43,6 +48,7 @@ export function AuthErrorProvider({ children }: AuthErrorProviderProps) {
 
   useEffect(() => {
     setAuthErrorHandler(() => {
+      if (!clerkLoaded.current) return;
       console.warn('Authentication error detected, signing out...');
       setAuthError('Your session has expired. Please sign in again.');
       // Sign out after a brief delay to show the error message

@@ -4,7 +4,7 @@ import { act, render } from '@testing-library/react';
 import { OutboxBackgroundSync } from './outbox-background-sync';
 
 const auth = { isLoaded: true, userId: 'user-1' as string | null };
-vi.mock('@clerk/clerk-react', () => ({ useAuth: () => auth }));
+vi.mock('../auth/session', () => ({ useSession: () => auth }));
 
 const client = {};
 vi.mock('@apollo/client/react', () => ({ useApolloClient: () => client }));

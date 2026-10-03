@@ -10,8 +10,8 @@ import {
 } from 'react';
 import type { ApolloClient } from '@apollo/client';
 import { useApolloClient } from '@apollo/client/react';
-import { useAuth } from '@clerk/clerk-react';
 
+import { useSession } from '../auth/session';
 import {
   BATCH_LINEUP_CHANGES,
   BRING_PLAYER_ONTO_FIELD,
@@ -160,7 +160,7 @@ export function GameOutboxProvider({
   storage,
   send,
 }: GameOutboxProviderProps) {
-  const { userId } = useAuth();
+  const { userId } = useSession();
   const client = useApolloClient();
   const [actions, setActions] = useState<OutboxAction[]>([]);
   // Set during render so the outbox is usable on the first render.

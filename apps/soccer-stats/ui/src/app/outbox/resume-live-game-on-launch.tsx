@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { useAuth } from '@clerk/clerk-react';
 import { useLocation, useNavigate } from 'react-router';
+
+import { useSession } from '../auth/session';
 
 import { findGameToResume } from './live-game-resume';
 import { hasUnsyncedChanges } from './outbox-registry';
@@ -21,7 +22,7 @@ export function resetLaunchResumeForTests(): void {
  * left alone.
  */
 export function ResumeLiveGameOnLaunch() {
-  const { isLoaded, userId } = useAuth();
+  const { isLoaded, userId } = useSession();
   const location = useLocation();
   const navigate = useNavigate();
   const launchPath = useRef(location.pathname);

@@ -3,8 +3,12 @@ import { render } from '@testing-library/react';
 
 import { CachePersistence } from './cache-persistence';
 
-const auth = { isLoaded: true, userId: 'user-1' as string | null };
-vi.mock('@clerk/clerk-react', () => ({ useAuth: () => auth }));
+const auth = {
+  isLoaded: true,
+  userId: 'user-1' as string | null,
+  isOffline: false,
+};
+vi.mock('../auth/session', () => ({ useSession: () => auth }));
 
 const client = { cache: {}, clearStore: vi.fn().mockResolvedValue([]) };
 vi.mock('@apollo/client/react', () => ({ useApolloClient: () => client }));
@@ -22,6 +26,7 @@ describe('CachePersistence', () => {
     vi.clearAllMocks();
     auth.isLoaded = true;
     auth.userId = 'user-1';
+    auth.isOffline = false;
   });
 
   it('keeps the restored cache and saves it for the same user', () => {
@@ -63,5 +68,29 @@ describe('CachePersistence', () => {
 
     expect(client.clearStore).not.toHaveBeenCalled();
     expect(persistCache).not.toHaveBeenCalled();
+  });
+
+  it('keeps the saved data while offline with nobody to fall back to', () => {
+    auth.userId = null;
+    auth.isOffline = true;
+
+    render(<CachePersistence restoredUserId="user-1" />);
+
+    expect(client.clearStore).not.toHaveBeenCalled();
+    expect(clearPersistedCache).not.toHaveBeenCalled();
+    expect(persistCache).not.toHaveBeenCalled();
+  });
+
+  it('wipes when Clerk loads after the offline session and reports a different user', () => {
+    auth.isOffline = true;
+    const { rerender } = render(<CachePersistence restoredUserId="user-1" />);
+    expect(client.clearStore).not.toHaveBeenCalled();
+
+    auth.isOffline = false;
+    auth.userId = 'user-2';
+    rerender(<CachePersistence restoredUserId="user-1" />);
+
+    expect(client.clearStore).toHaveBeenCalledTimes(1);
+    expect(clearPersistedCache).toHaveBeenCalledTimes(1);
   });
 });

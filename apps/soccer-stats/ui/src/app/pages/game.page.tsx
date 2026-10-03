@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { useAuth } from '@clerk/clerk-react';
 import { useParams, useNavigate, useLocation, Navigate } from 'react-router';
 import {
   useQuery,
@@ -30,6 +29,7 @@ import {
 } from '@garage/soccer-stats/graphql-codegen';
 import { fromPeriodSecond, toPeriodSecond } from '@garage/soccer-stats/utils';
 
+import { useSession } from '../auth/session';
 import {
   GET_GAME_BY_ID,
   UPDATE_GAME,
@@ -365,7 +365,7 @@ const GamePageContent = () => {
   // Remember the game being viewed, so reopening the app mid-game returns
   // here instead of the dashboard (ResumeLiveGameOnLaunch). Refreshed when
   // the app is backgrounded - the moment a coach typically closes it.
-  const { userId: viewerId } = useAuth();
+  const { userId: viewerId } = useSession();
   const liveStatus = liveGame?.status;
   useEffect(() => {
     if (!viewerId || !gameId || !liveStatus) return;

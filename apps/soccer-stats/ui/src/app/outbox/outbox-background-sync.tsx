@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '@clerk/clerk-react';
 import { useApolloClient } from '@apollo/client/react';
+
+import { useSession } from '../auth/session';
 
 import { sendOutboxAction } from './game-outbox-context';
 import { setActiveOutboxUser, syncAllQueuedGames } from './outbox-registry';
@@ -17,7 +18,7 @@ const RETRY_INTERVAL_MS = 15_000;
  * is sent twice.
  */
 export function OutboxBackgroundSync() {
-  const { isLoaded, userId } = useAuth();
+  const { isLoaded, userId } = useSession();
   const client = useApolloClient();
   const [stillQueued, setStillQueued] = useState(false);
 
