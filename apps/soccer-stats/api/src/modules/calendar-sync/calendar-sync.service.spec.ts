@@ -89,6 +89,7 @@ describe('CalendarSyncService', () => {
   let teamRepo: RepoMock<Team>;
   let teamConfigRepo: RepoMock<TeamConfiguration>;
   let gameFormatRepo: RepoMock<GameFormat>;
+  let gameBench: { seedBench: jest.Mock };
   let service: CalendarSyncService;
 
   beforeEach(() => {
@@ -99,6 +100,7 @@ describe('CalendarSyncService', () => {
     teamRepo = repo<Team>();
     teamConfigRepo = repo<TeamConfiguration>();
     gameFormatRepo = repo<GameFormat>();
+    gameBench = { seedBench: jest.fn().mockResolvedValue(0) };
 
     calendarSourceRepo.findOne.mockResolvedValue(source);
     mappingRepo.findOne.mockResolvedValue(null);
@@ -125,6 +127,7 @@ describe('CalendarSyncService', () => {
       teamConfigRepo as never,
       gameFormatRepo as never,
       new PlayMetricsIcsParserService(),
+      gameBench as never,
     );
     jest.spyOn(service, 'fetchFeed').mockResolvedValue(sampleIcs);
   });
@@ -171,6 +174,12 @@ describe('CalendarSyncService', () => {
         externalSequence: 1783365109,
       }),
     );
+    // The managed team's players start on the bench, as for a game created
+    // by hand.
+    expect(gameBench.seedBench).toHaveBeenCalledWith('game-1', [
+      expect.objectContaining({ teamId: 'team-opponent' }),
+      expect.objectContaining({ teamId: managedTeam.id }),
+    ]);
   });
 
   it('updates an existing mapped game when PlayMetrics changes the event', async () => {
@@ -220,6 +229,7 @@ describe('CalendarSyncService', () => {
         status: GameStatus.COMPLETED,
       }),
     );
+    expect(gameBench.seedBench).not.toHaveBeenCalled();
   });
 
   it('creates a scheduled game from a SportsEngine feed', async () => {

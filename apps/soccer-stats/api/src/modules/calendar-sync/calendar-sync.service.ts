@@ -18,6 +18,7 @@ import { GameTeam } from '../../entities/game-team.entity';
 import { GameFormat } from '../../entities/game-format.entity';
 import { Team, SourceType } from '../../entities/team.entity';
 import { TeamConfiguration } from '../../entities/team-configuration.entity';
+import { GameBenchService } from '../game-bench/game-bench.service';
 
 import {
   ImportedCalendarGame,
@@ -52,6 +53,7 @@ export class CalendarSyncService {
     @InjectRepository(GameFormat)
     private readonly gameFormatRepository: Repository<GameFormat>,
     private readonly playMetricsIcsParser: PlayMetricsIcsParserService,
+    private readonly gameBenchService: GameBenchService,
   ) {}
 
   async createSource(input: {
@@ -238,7 +240,7 @@ export class CalendarSyncService {
     const savedGame = await this.gameRepository.save(game);
     const isManagedHome = imported.homeTeamName === imported.managedTeamName;
 
-    await this.gameTeamRepository.save([
+    const gameTeams = await this.gameTeamRepository.save([
       this.gameTeamRepository.create({
         gameId: savedGame.id,
         teamId: isManagedHome ? managedTeam.id : opponentTeam.id,
@@ -250,6 +252,11 @@ export class CalendarSyncService {
         teamType: 'away',
       }),
     ]);
+
+    // Same as a game created by hand: the team's players start on the bench.
+    if (savedGame.status === GameStatus.SCHEDULED) {
+      await this.gameBenchService.seedBench(savedGame.id, gameTeams);
+    }
 
     await this.externalGameMappingRepository.save(
       this.externalGameMappingRepository.create({

@@ -17,7 +17,6 @@ import { GameFormat } from '../../entities/game-format.entity';
 import { GameEvent } from '../../entities/game-event.entity';
 import { EventType } from '../../entities/event-type.entity';
 import { TeamConfiguration } from '../../entities/team-configuration.entity';
-import { TeamMember, TeamRole } from '../../entities/team-member.entity';
 import { GameEventsService } from '../game-events/game-events.service';
 import {
   GameEventAction,
@@ -26,6 +25,7 @@ import {
 import { createSlimGameEventForSubscription } from '../game-events/utils/subscription-payload.util';
 import { ActionReceiptService } from '../game-events/services/action-receipt.service';
 import { resolveOccurredAt } from '../game-events/utils/client-action.util';
+import { GameBenchService } from '../game-bench/game-bench.service';
 
 import { CreateGameInput } from './dto/create-game.input';
 import { UpdateGameInput } from './dto/update-game.input';
@@ -51,11 +51,10 @@ export class GamesService {
     private readonly eventTypeRepository: Repository<EventType>,
     @InjectRepository(TeamConfiguration)
     private readonly teamConfigurationRepository: Repository<TeamConfiguration>,
-    @InjectRepository(TeamMember)
-    private readonly teamMemberRepository: Repository<TeamMember>,
     @Inject(forwardRef(() => GameEventsService))
     private readonly gameEventsService: GameEventsService,
     private readonly gameTimingService: GameTimingService,
+    private readonly gameBenchService: GameBenchService,
     private readonly receipts: ActionReceiptService,
     @Inject('PUB_SUB') private readonly pubSub: PubSub,
   ) {}
@@ -139,25 +138,6 @@ export class GamesService {
       );
     }
 
-    // A game roster represents the players available for this particular
-    // match. Start every active player on each team's bench; coaches can then
-    // place starters on the field or remove players who are unavailable.
-    const [homeMembers, awayMembers, gameRosterEventType] = await Promise.all([
-      this.teamMemberRepository.find({
-        where: { teamId: createGameInput.homeTeamId, isActive: true },
-        relations: ['roles'],
-      }),
-      this.teamMemberRepository.find({
-        where: { teamId: createGameInput.awayTeamId, isActive: true },
-        relations: ['roles'],
-      }),
-      this.eventTypeRepository.findOne({ where: { name: 'GAME_ROSTER' } }),
-    ]);
-
-    if (!gameRosterEventType) {
-      throw new NotFoundException('GAME_ROSTER event type not found');
-    }
-
     // Create the game with inherited settings from team configuration
     const game = this.gameRepository.create({
       gameFormatId: createGameInput.gameFormatId,
@@ -185,35 +165,12 @@ export class GamesService {
 
     await this.gameTeamRepository.save([homeGameTeam, awayGameTeam]);
 
-    const createBenchEntries = (
-      gameTeam: GameTeam,
-      members: TeamMember[],
-    ): GameEvent[] =>
-      members
-        .filter((member) =>
-          member.roles?.some((role) => role.role === TeamRole.PLAYER),
-        )
-        .map((member) =>
-          this.gameEventRepository.create({
-            gameId: savedGame.id,
-            gameTeamId: gameTeam.id,
-            eventTypeId: gameRosterEventType.id,
-            playerId: member.userId,
-            recordedByUserId,
-            period: '1',
-            periodSecond: 0,
-            position: null,
-          }),
-        );
-
-    const benchEntries = [
-      ...createBenchEntries(homeGameTeam, homeMembers),
-      ...createBenchEntries(awayGameTeam, awayMembers),
-    ];
-
-    if (benchEntries.length > 0) {
-      await this.gameEventRepository.save(benchEntries);
-    }
+    // Every active player starts on the bench (see GameBenchService).
+    await this.gameBenchService.seedBench(
+      savedGame.id,
+      [homeGameTeam, awayGameTeam],
+      recordedByUserId,
+    );
 
     return this.findOne(savedGame.id);
   }
