@@ -27,6 +27,8 @@ vi.mock('../../../hooks/use-lineup', () => ({
     setSecondHalfLineup: hookMocks.setSecondHalfLineup,
     refetchRoster: hookMocks.refetchRoster,
     availableRoster: hookMocks.availableRoster,
+    getJerseyNumber: (player: GqlRosterPlayer) =>
+      player.playerId === 'b' ? '7' : undefined,
   }),
 }));
 
@@ -197,5 +199,26 @@ describe('LineupPanel pre-game replace flow', () => {
     render(<LineupPanel {...createProps({ gameStatus: 'HALFTIME' })} />);
 
     expect(screen.getByText('Jimmy Brown')).toBeTruthy();
+  });
+
+  it("shows a bench player's jersey number from the team roster", () => {
+    render(<LineupPanel {...createProps()} />);
+    fireEvent.click(screen.getAllByRole('button')[0]);
+
+    expect(screen.getByRole('button', { name: '#7 Jimmy Brown' })).toBeTruthy();
+  });
+
+  it('moves an on-field player to the bench, keeping them in the game', async () => {
+    render(<FieldClickHarness {...createProps()} />);
+    fireEvent.click(screen.getAllByRole('button')[0]);
+
+    // Select the on-field player, then the bench's "Move to bench"
+    fireEvent.click(screen.getByTestId('tap-field-player'));
+    fireEvent.click(screen.getByRole('button', { name: /Move to bench/ }));
+
+    await waitFor(() => {
+      expect(mockUpdatePosition).toHaveBeenCalledWith('event-a', null);
+    });
+    expect(hookMocks.removeFromLineup).not.toHaveBeenCalled();
   });
 });

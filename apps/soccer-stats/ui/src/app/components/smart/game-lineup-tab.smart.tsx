@@ -244,7 +244,7 @@ export const GameLineupTab = memo(function GameLineupTab({
     onField,
     bench,
     availableRoster,
-    teamRoster,
+    getJerseyNumber: jerseyNumberOf,
     loading,
     mutating,
     error,
@@ -258,25 +258,10 @@ export const GameLineupTab = memo(function GameLineupTab({
     formation: savedFormation,
   } = useLineup({ gameTeamId, gameId });
 
-  // Helper to get jersey number for a player (from roster for managed players, or externalPlayerNumber)
+  // '?' where a number is shown inline and the player has none
   const getJerseyNumber = useCallback(
-    (player: GqlRosterPlayer): string => {
-      // For external players, use externalPlayerNumber
-      if (player.externalPlayerNumber) {
-        return player.externalPlayerNumber;
-      }
-      // For managed roster players, look up jersey number from roster
-      if (player.playerId && teamRoster) {
-        const rosterPlayer = teamRoster.find(
-          (rp) => rp.oduserId === player.playerId,
-        );
-        if (rosterPlayer?.jerseyNumber) {
-          return rosterPlayer.jerseyNumber;
-        }
-      }
-      return '?';
-    },
-    [teamRoster],
+    (player: GqlRosterPlayer): string => jerseyNumberOf(player) ?? '?',
+    [jerseyNumberOf],
   );
 
   // Sync local formation state with backend formation

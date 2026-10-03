@@ -90,6 +90,7 @@ export const LineupPanel = ({
     setSecondHalfLineup,
     refetchRoster,
     availableRoster,
+    getJerseyNumber,
   } = useLineup({ gameTeamId, gameId });
 
   // Calculate filled positions (Set for highlighting) and filled count (for counter)
@@ -953,9 +954,11 @@ export const LineupPanel = ({
           },
         ]);
       } else {
-        // SCHEDULED: execute immediately
+        // SCHEDULED: execute immediately. Clearing the position keeps the
+        // player in the game, on the bench; removing them is "Remove from
+        // Bench".
         try {
-          await removeFromLineup(player.gameEventId);
+          await updatePosition(player.gameEventId, null);
         } catch (err) {
           console.error('[LineupPanel] Failed to move player to bench:', err);
           const message =
@@ -990,7 +993,7 @@ export const LineupPanel = ({
         err instanceof Error ? err.message : 'Failed to add player to bench';
       setError(message);
     }
-  }, [selection, gameStatus, addPlayerToGameRoster, removeFromLineup]);
+  }, [selection, gameStatus, addPlayerToGameRoster, updatePosition]);
 
   // Remove a pre-game bench player from this game's roster. All active team
   // players begin on the bench, so this is how a coach marks someone as not
@@ -1156,6 +1159,7 @@ export const LineupPanel = ({
       onFieldPlayers={onField}
       benchPlayers={bench}
       availableRoster={availableRoster}
+      getJerseyNumber={getJerseyNumber}
       playTimeByPlayer={playTimeByPlayer}
       selection={selection}
       onPlayerClick={handlePlayerClick}

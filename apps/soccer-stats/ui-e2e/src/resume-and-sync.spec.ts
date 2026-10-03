@@ -4,7 +4,6 @@ import { setupClerkTestingToken } from '@clerk/testing/playwright';
 import { expect, test, type Browser } from '@playwright/test';
 
 import {
-  addToBench,
   createGame,
   onFieldCard,
   settle,
@@ -45,7 +44,6 @@ test.describe('Leaving and reopening a live game', () => {
   }) => {
     const gameId = await createGame(page);
     await setStartingLineup(page);
-    await addToBench(page, '#11 Morgan Wilson');
     await startFirstHalf(page);
     await settle(page);
 

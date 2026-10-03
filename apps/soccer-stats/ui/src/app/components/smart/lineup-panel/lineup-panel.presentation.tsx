@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { RosterPlayer as GqlRosterPlayer } from '@garage/soccer-stats/graphql-codegen';
 
 import { RosterPlayer as TeamRosterPlayer } from '../../../hooks/use-lineup';
+import { PlayerCardConnected } from '../player-card-connected.smart';
 
 import {
   LineupPanelPresentationProps,
@@ -30,15 +31,21 @@ function getPlayerDisplayName(
 }
 
 /**
- * Get jersey number
+ * Team Roster players aren't in the game yet, so they have no game-roster
+ * entry; shape them like one for the shared player card.
  */
-function getJerseyNumber(
+function asCardPlayer(
   player: GqlRosterPlayer | TeamRosterPlayer,
-): string | null {
-  if ('externalPlayerNumber' in player)
-    return player.externalPlayerNumber || null;
-  if ('jerseyNumber' in player) return player.jerseyNumber || null;
-  return null;
+): GqlRosterPlayer {
+  if ('gameEventId' in player) return player;
+  return {
+    __typename: 'RosterPlayer',
+    gameEventId: player.id,
+    playerId: player.oduserId,
+    firstName: player.firstName,
+    lastName: player.lastName,
+    playerName: player.email,
+  };
 }
 
 /**
@@ -179,6 +186,7 @@ function CollapsiblePlayerSection({
   defaultExpanded,
   emptyMessage,
   actionButton,
+  getJerseyNumber,
 }: {
   title: string;
   players: (GqlRosterPlayer | TeamRosterPlayer)[];
@@ -194,6 +202,7 @@ function CollapsiblePlayerSection({
   emptyMessage?: string;
   /** Optional action button shown in place of the toggle header */
   actionButton?: { label: string; onClick: () => void };
+  getJerseyNumber: (player: GqlRosterPlayer) => string | undefined;
 }) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
@@ -251,42 +260,28 @@ function CollapsiblePlayerSection({
           {players.map((player) => {
             const id = getPlayerId(player);
             const playTime = playTimeByPlayer?.get(id);
-            const isSelected =
-              selection.player && getPlayerId(selection.player) === id;
-            const jerseyNumber = getJerseyNumber(player);
+            const cardPlayer = asCardPlayer(player);
 
             return (
-              <button
+              <PlayerCardConnected
                 key={id}
-                type="button"
-                onClick={() => onPlayerClick(player, source)}
+                player={cardPlayer}
+                variant="bench"
+                timeSeconds={
+                  playTime === undefined ? undefined : playTime.minutes * 60
+                }
+                isLive={false}
+                isSelected={
+                  !!selection.player && getPlayerId(selection.player) === id
+                }
+                jerseyNumber={
+                  'jerseyNumber' in player
+                    ? (player.jerseyNumber ?? undefined)
+                    : getJerseyNumber(cardPlayer)
+                }
                 disabled={isExecuting}
-                className={`flex flex-col items-start rounded-lg border p-2 text-left transition-colors disabled:opacity-50 ${
-                  isSelected
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  {jerseyNumber && (
-                    <span className="text-xs font-bold text-gray-600">
-                      #{jerseyNumber}
-                    </span>
-                  )}
-                  <span
-                    className={`text-sm font-medium ${
-                      isSelected ? 'text-blue-700' : 'text-gray-900'
-                    }`}
-                  >
-                    {getPlayerDisplayName(player)}
-                  </span>
-                </div>
-                {playTime !== undefined && (
-                  <span className="text-xs text-gray-500">
-                    {playTime.minutes} min
-                  </span>
-                )}
-              </button>
+                onClick={() => onPlayerClick(player, source)}
+              />
             );
           })}
         </div>
@@ -310,6 +305,7 @@ export const LineupPanelPresentation = ({
   benchPlayers,
   availableRoster,
   playTimeByPlayer,
+  getJerseyNumber,
   selection,
   onPlayerClick,
   onClearSelection,
@@ -516,6 +512,7 @@ export const LineupPanelPresentation = ({
             selection={selection}
             onPlayerClick={onPlayerClick}
             playTimeByPlayer={playTimeByPlayer}
+            getJerseyNumber={getJerseyNumber}
             isExecuting={isExecuting}
             defaultExpanded={
               gameStatus === 'SCHEDULED' || gameStatus === 'HALFTIME'
@@ -541,6 +538,7 @@ export const LineupPanelPresentation = ({
             source="roster"
             selection={selection}
             onPlayerClick={onPlayerClick}
+            getJerseyNumber={getJerseyNumber}
             isExecuting={isExecuting}
             defaultExpanded={false}
             emptyMessage="All roster players assigned"

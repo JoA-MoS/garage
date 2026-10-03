@@ -35,7 +35,8 @@ function getPlayerDisplayName(
 export interface PlayerCardProps {
   player: GqlRosterPlayer;
   variant: 'bench' | 'onField';
-  timeSeconds: number;
+  /** Time played; omit before kickoff, when there's none to show. */
+  timeSeconds?: number;
   isLive: boolean;
   isSelected: boolean;
   /** Queued for a substitution, swap, or removal — shown dimmed with a badge instead of disappearing. */
@@ -145,20 +146,22 @@ export function PlayerCard({
           </>
         )}
       </div>
-      <span
-        className={`inline-flex items-center gap-1.5 text-xs ${isOnField ? 'text-purple-600' : 'text-gray-500'}`}
-      >
-        {formatTime(timeSeconds)}
-        {isLive && (
-          <span
-            role="status"
-            aria-label="Live"
-            className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500"
-            title="On field"
-          />
-        )}
-        {positionLabel ? ` · ${positionLabel}` : ''}
-      </span>
+      {(timeSeconds !== undefined || positionLabel) && (
+        <span
+          className={`inline-flex items-center gap-1.5 text-xs ${isOnField ? 'text-purple-600' : 'text-gray-500'}`}
+        >
+          {timeSeconds !== undefined && formatTime(timeSeconds)}
+          {isLive && (
+            <span
+              role="status"
+              aria-label="Live"
+              className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500"
+              title="On field"
+            />
+          )}
+          {positionLabel ? ` · ${positionLabel}` : ''}
+        </span>
+      )}
     </button>
   );
 }

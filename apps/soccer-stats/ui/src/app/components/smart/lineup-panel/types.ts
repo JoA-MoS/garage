@@ -97,6 +97,8 @@ export interface LineupPanelPresentationProps {
   benchPlayers: GqlRosterPlayer[];
   availableRoster: TeamRosterPlayer[];
   playTimeByPlayer?: Map<string, { minutes: number; isOnField: boolean }>;
+  /** Jersey number for a game-roster player (see useLineup). */
+  getJerseyNumber: (player: GqlRosterPlayer) => string | undefined;
 
   // Selection state
   selection: LineupSelection;

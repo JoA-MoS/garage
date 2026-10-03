@@ -85,6 +85,8 @@ export interface SubstitutionPanelPresentationProps {
 
   // Player data
   benchPlayers: GqlRosterPlayer[];
+  /** Jersey number for a game-roster player (see useLineup). */
+  getJerseyNumber?: (player: GqlRosterPlayer) => string | undefined;
   playTimeByPlayer: Map<string, { totalSeconds: number; isOnField: boolean }>;
 
   // Selection state

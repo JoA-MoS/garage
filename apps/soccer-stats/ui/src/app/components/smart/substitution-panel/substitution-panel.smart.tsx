@@ -18,6 +18,7 @@ import { addEventsToGameTeam } from '../../../services/game-event-cache';
 import { useGameOutbox } from '../../../outbox/game-outbox-context';
 import { calculatePlayTime } from '../../../hooks/use-play-time';
 import { FIELD_SENTINEL_POSITION } from '../lineup-panel/types';
+import { useLineup } from '../../../hooks/use-lineup';
 
 import { buildQueuedActions } from './build-queued-actions';
 import { SubstitutionPanelPresentation } from './substitution-panel.presentation';
@@ -108,6 +109,7 @@ export const SubstitutionPanel = ({
   // Apollo
   const client = useApolloClient();
   const { recordAction } = useGameOutbox();
+  const { getJerseyNumber } = useLineup({ gameTeamId, gameId });
   const [batchLineupChanges] = useMutation(BATCH_LINEUP_CHANGES);
   const [swapPositions] = useMutation(SWAP_POSITIONS);
   const [removePlayerFromFieldMutation] = useMutation(REMOVE_PLAYER_FROM_FIELD);
@@ -739,6 +741,7 @@ export const SubstitutionPanel = ({
       teamName={teamName}
       teamColor={teamColor}
       benchPlayers={availableBench}
+      getJerseyNumber={getJerseyNumber}
       playTimeByPlayer={playTimeByPlayer}
       selection={selection}
       onBenchPlayerClick={handleBenchPlayerClick}
