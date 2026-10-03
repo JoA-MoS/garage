@@ -38,6 +38,7 @@ import { AddTeamCalendarSources1776100000000 } from './1776100000000-AddTeamCale
 import { AddPlayerNameDisplayFormatToTeamConfiguration1789926501879 } from './1789926501879-AddPlayerNameDisplayFormatToTeamConfiguration';
 import { AddAppliedActionsAndOccurredAt1790100000000 } from './1790100000000-AddAppliedActionsAndOccurredAt';
 import { CreatedAtClockTimestamp1790200000000 } from './1790200000000-CreatedAtClockTimestamp';
+import { BackfillScheduledGameBench1790300000000 } from './1790300000000-BackfillScheduledGameBench';
 
 /**
  * All migrations in chronological order.
@@ -73,4 +74,5 @@ export const migrations = [
   AddPlayerNameDisplayFormatToTeamConfiguration1789926501879,
   AddAppliedActionsAndOccurredAt1790100000000,
   CreatedAtClockTimestamp1790200000000,
+  BackfillScheduledGameBench1790300000000,
 ];

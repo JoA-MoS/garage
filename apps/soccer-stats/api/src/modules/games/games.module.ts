@@ -6,12 +6,12 @@ import { Team } from '../../entities/team.entity';
 import { User } from '../../entities/user.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { TeamConfiguration } from '../../entities/team-configuration.entity';
-import { TeamMember } from '../../entities/team-member.entity';
 import { EventType } from '../../entities/event-type.entity';
 import { GameEvent } from '../../entities/game-event.entity';
 import { GameFormat } from '../../entities/game-format.entity';
 import { AuthModule } from '../auth/auth.module';
 import { GameEventsModule } from '../game-events/game-events.module';
+import { GameBenchModule } from '../game-bench/game-bench.module';
 
 import { GamesResolver } from './games.resolver';
 import { GamesService } from './games.service';
@@ -27,12 +27,12 @@ import { GameTeamResolver } from './game-team.resolver';
       User,
       GameTeam,
       TeamConfiguration,
-      TeamMember,
       EventType,
       GameEvent,
       GameFormat,
     ]),
     AuthModule,
+    GameBenchModule,
     forwardRef(() => GameEventsModule), // Circular dependency with GameEventsModule
   ],
   providers: [
