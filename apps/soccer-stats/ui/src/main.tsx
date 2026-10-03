@@ -6,8 +6,19 @@ import { ApolloProvider } from '@apollo/client/react';
 
 import { router } from './app/router/router';
 import { apolloClient, setTokenGetter } from './app/services/apollo-client';
-import { fetchPublicConfig, PublicConfig } from './app/services/config.service';
+import {
+  fetchPublicConfig,
+  PublicConfig,
+  readCachedPublicConfig,
+  savePublicConfig,
+} from './app/services/config.service';
+import {
+  restoreCache,
+  type CacheSnapshot,
+  type ObservableInMemoryCache,
+} from './app/services/cache-persistence';
 import { AuthErrorProvider } from './app/providers/auth-error-provider';
+import { CachePersistence } from './app/providers/cache-persistence';
 import { registerServiceWorker } from './app/pwa/register-service-worker';
 
 // Component that sets up the auth token getter for Apollo
@@ -53,41 +64,60 @@ function ErrorScreen({ error }: { error: string }) {
   );
 }
 
+// Start loading the saved Apollo cache immediately, in parallel with
+// everything else. Capped so a stuck IndexedDB can't block startup; a
+// snapshot that arrives after the cap is discarded, never applied.
+const RESTORE_DEADLINE_MS = 1500;
+const cacheRestored: Promise<CacheSnapshot | undefined> = restoreCache(
+  apolloClient.cache as ObservableInMemoryCache,
+  { deadlineMs: RESTORE_DEADLINE_MS },
+);
+
+// Build-time key (useful for debugging); otherwise fetched from the API.
+const buildTimeKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
 // Main App component that handles configuration loading
-// Configuration is fetched once on mount and cached in state
 function App() {
-  const [config, setConfig] = useState<PublicConfig | null>(null);
+  // Start from the config saved last time, so opening the app doesn't wait
+  // on the API; it's refreshed in the background below.
+  const [config, setConfig] = useState<PublicConfig | null>(() =>
+    buildTimeKey
+      ? { clerkPublishableKey: buildTimeKey }
+      : readCachedPublicConfig(),
+  );
   const [error, setError] = useState<string | null>(null);
+  const [restored, setRestored] = useState<{ userId?: string } | null>(null);
 
-  // Fetch configuration once on mount
-  // This ensures configuration is loaded before the app initializes
   useEffect(() => {
-    // Check if VITE_CLERK_PUBLISHABLE_KEY is defined for debugging purposes
-    const buildTimeKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+    void cacheRestored.then((snapshot) =>
+      setRestored({ userId: snapshot?.userId }),
+    );
+  }, []);
 
-    if (buildTimeKey) {
-      // Use build-time key if available (useful for debugging)
-      setConfig({ clerkPublishableKey: buildTimeKey });
-      return;
-    }
+  useEffect(() => {
+    if (buildTimeKey) return;
 
-    // Otherwise, fetch from API (production path)
     fetchPublicConfig()
       .then((fetchedConfig) => {
-        setConfig(fetchedConfig);
+        savePublicConfig(fetchedConfig);
+        setConfig((current) =>
+          current?.clerkPublishableKey === fetchedConfig.clerkPublishableKey
+            ? current
+            : fetchedConfig,
+        );
       })
       .catch((err) => {
         console.error('Failed to load configuration:', err);
+        // Only fatal when there's no saved config to run with.
         setError(err.message || 'Failed to load configuration');
       });
   }, []); // Empty dependency array ensures this runs only once
 
-  // Show loading state while configuration is being fetched
-  if (error) {
+  if (error && !config) {
     return <ErrorScreen error={error} />;
   }
 
-  if (!config) {
+  if (!config || !restored) {
     return <LoadingScreen />;
   }
 
@@ -99,6 +129,7 @@ function App() {
     >
       <AuthErrorProvider>
         <AuthApolloProvider>
+          <CachePersistence restoredUserId={restored.userId} />
           <RouterProvider router={router} />
         </AuthApolloProvider>
       </AuthErrorProvider>

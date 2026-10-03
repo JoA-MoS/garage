@@ -264,6 +264,34 @@ Code: `apps/soccer-stats/ui/src/app/outbox/`.
 Not covered by automated tests: the game page's status/pause handlers and
 the full device-to-API round trip. Verify those manually.
 
+## Phase 4 status (implemented)
+
+- **Saved cache** (`ui/src/app/services/cache-persistence.ts`): the Apollo
+  cache is saved to IndexedDB about 1s after changes, and immediately when
+  the app goes to the background. It is restored at startup, in parallel
+  with config loading and capped at 1.5s. Each snapshot records the
+  schema version (`CACHE_SCHEMA_VERSION`), the save time and the user ID.
+  Snapshots from another version or older than 7 days are ignored. Bump
+  the version when cached query shapes change incompatibly.
+- **Fetch policy:** `ObservableInMemoryCache` reports changes through
+  `broadcastWatches`. The client default is now
+  `cache-and-network` → `cache-first`: screens render the restored data at
+  once and refresh it on mount. Explicit `cache-first` overrides were
+  removed, and spinners show only when there is no data yet
+  (`loading && !data`).
+- **User scoping** (`providers/cache-persistence.tsx`): once Clerk loads,
+  a snapshot belonging to someone else is wiped, and signing out wipes the
+  cache. Because the cache is restored before Clerk loads (for an instant
+  open), another user's data could appear briefly — only if a session
+  ended without signing out and someone else then signed in on the same
+  device.
+- **Config:** the public config (Clerk publishable key) is kept in
+  localStorage, so startup doesn't wait on the API. It is refreshed in the
+  background.
+
+Still needs the network on a cold start: Clerk's script and session
+check. A fully offline cold start is out of scope.
+
 ## Known issues found during design (not addressed here)
 
 - The goal duplicate check (`DUPLICATE_CONFLICT_WINDOW_SECONDS`) silently

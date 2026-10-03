@@ -479,7 +479,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     availableRoster,
 
     // Loading states
-    loading: (gameLoading && !gameData) || teamLoading,
+    loading: (gameLoading && !gameData) || (teamLoading && !teamData),
     mutating:
       addingToGameRoster ||
       removing ||

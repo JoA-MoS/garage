@@ -105,9 +105,7 @@ export const TeamGamesComposition = ({ teamId }: TeamGamesCompositionProps) => {
       error: modalError,
       called: modalCalled,
     },
-  ] = useLazyQuery(CreateGameModalQuery, {
-    fetchPolicy: 'cache-first',
-  });
+  ] = useLazyQuery(CreateGameModalQuery);
 
   // Handler to load modal data when needed
   const handleOpenModal = useCallback(() => {
@@ -138,8 +136,8 @@ export const TeamGamesComposition = ({ teamId }: TeamGamesCompositionProps) => {
       gameTeams={gameTeams}
       opponents={opponents}
       gameFormats={gameFormats}
-      loading={pageLoading}
-      modalLoading={modalLoading}
+      loading={pageLoading && !pageData}
+      modalLoading={modalLoading && !modalData}
       modalError={modalError?.message}
       onOpenModal={handleOpenModal}
       onGameCreated={refetchGames}

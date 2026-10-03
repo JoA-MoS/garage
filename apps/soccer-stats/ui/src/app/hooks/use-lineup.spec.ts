@@ -1,11 +1,31 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook } from '@testing-library/react';
 
 import {
   RosterPlayer as GqlRosterPlayer,
   PlayerNameDisplayFormat,
 } from '@garage/soccer-stats/graphql-codegen';
 
-import { getPlayerDisplayName } from './use-lineup';
+import { getPlayerDisplayName, useLineup } from './use-lineup';
+
+const { useQueryMock } = vi.hoisted(() => ({ useQueryMock: vi.fn() }));
+
+vi.mock('@apollo/client/react', () => ({
+  useQuery: useQueryMock,
+  useMutation: () => [vi.fn(), { loading: false }],
+}));
+
+vi.mock('../outbox/game-outbox-context', () => ({
+  usePendingTeamEvents: () => [],
+}));
+
+vi.mock('./use-live-game-state', () => ({
+  useTeamRoster: () => ({ players: [], formation: null }),
+}));
+
+beforeEach(() => {
+  useQueryMock.mockReset();
+});
 
 function createPlayer(
   overrides: Partial<GqlRosterPlayer> = {},
@@ -106,5 +126,44 @@ describe('getPlayerDisplayName', () => {
       lastName: 'Smith',
     });
     expect(getPlayerDisplayName(player)).toBe('Guest');
+  });
+});
+
+describe('useLineup loading state with cached data', () => {
+  const gameData = {
+    game: {
+      id: 'game-1',
+      teams: [{ id: 'gt-1', team: { id: 'team-1' }, events: [] }],
+    },
+  };
+  const teamData = { team: { id: 'team-1', roster: [] } };
+
+  function mockQueries(opts: { gameLoading: boolean; teamLoading: boolean }) {
+    useQueryMock.mockImplementation(
+      (_doc: unknown, options: { variables?: { id?: string } }) =>
+        options?.variables?.id === 'game-1'
+          ? { data: gameData, loading: opts.gameLoading, refetch: vi.fn() }
+          : { data: teamData, loading: opts.teamLoading },
+    );
+  }
+
+  it('is not loading while a background refetch runs over cached data', () => {
+    mockQueries({ gameLoading: true, teamLoading: true });
+    const { result } = renderHook(() =>
+      useLineup({ gameTeamId: 'gt-1', gameId: 'game-1' }),
+    );
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('is loading when there is no cached data yet', () => {
+    useQueryMock.mockReturnValue({
+      data: undefined,
+      loading: true,
+      refetch: vi.fn(),
+    });
+    const { result } = renderHook(() =>
+      useLineup({ gameTeamId: 'gt-1', gameId: 'game-1' }),
+    );
+    expect(result.current.loading).toBe(true);
   });
 });
