@@ -113,9 +113,8 @@ describe('LineupPanel pre-game replace flow', () => {
     const props = createProps();
     render(<FieldClickHarness {...props} />);
 
-    // Expand the collapsed panel, then the bench section (collapsed pre-game)
+    // Expand the collapsed panel. The pre-game bench is expanded by default.
     fireEvent.click(screen.getAllByRole('button')[0]);
-    fireEvent.click(screen.getByText(/Bench \(1\)/));
 
     // Select the bench player (player-first flow)
     fireEvent.click(screen.getByText('Jimmy Brown'));
@@ -158,6 +157,7 @@ describe('LineupPanel pre-game replace flow', () => {
     render(<FieldClickHarness {...props} />);
 
     fireEvent.click(screen.getAllByRole('button')[0]);
+    fireEvent.click(screen.getByText(/Team Roster \(1\)/));
 
     // Select the team-roster player (player-first flow, source 'roster')
     fireEvent.click(screen.getByText(/Taylor White/));
@@ -178,5 +178,18 @@ describe('LineupPanel pre-game replace flow', () => {
     );
 
     hookMocks.availableRoster = [];
+  });
+
+  it('removes a selected pre-game bench player from the game roster', async () => {
+    render(<LineupPanel {...createProps()} />);
+
+    fireEvent.click(screen.getAllByRole('button')[0]);
+    fireEvent.click(screen.getByText('Jimmy Brown'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove from Bench' }));
+
+    await waitFor(() => {
+      expect(hookMocks.removeFromLineup).toHaveBeenCalledWith('event-b');
+    });
   });
 });

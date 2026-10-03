@@ -10,6 +10,7 @@ import { GameFormat } from '../../entities/game-format.entity';
 import { GameEvent } from '../../entities/game-event.entity';
 import { EventType, EventCategory } from '../../entities/event-type.entity';
 import { TeamConfiguration } from '../../entities/team-configuration.entity';
+import { TeamMember, TeamRole } from '../../entities/team-member.entity';
 import { DEFAULT_STATS_FEATURES } from '../../entities/stats-features.type';
 import { GameEventsService } from '../game-events/game-events.service';
 import { GameEventAction } from '../game-events/dto/game-event-subscription.output';
@@ -66,6 +67,10 @@ describe('GamesService', () => {
 
   const mockTeamConfigurationRepository = {
     findOne: jest.fn(),
+  };
+
+  const mockTeamMemberRepository = {
+    find: jest.fn(),
   };
 
   const mockGameEventsService = {
@@ -146,6 +151,10 @@ describe('GamesService', () => {
           useValue: mockTeamConfigurationRepository,
         },
         {
+          provide: getRepositoryToken(TeamMember),
+          useValue: mockTeamMemberRepository,
+        },
+        {
           provide: GameEventsService,
           useValue: mockGameEventsService,
         },
@@ -170,6 +179,89 @@ describe('GamesService', () => {
     eventTypeRepository = module.get(getRepositoryToken(EventType));
 
     jest.clearAllMocks();
+  });
+
+  describe('create', () => {
+    it('puts every active player from both teams on the bench', async () => {
+      mockTeamRepository.findOne
+        .mockResolvedValueOnce({ id: 'team-home' } as Team)
+        .mockResolvedValueOnce({ id: 'team-away' } as Team);
+      mockTeamConfigurationRepository.findOne.mockResolvedValue(null);
+      mockGameFormatRepository.findOne.mockResolvedValue({
+        id: 'format-5v5',
+      } as GameFormat);
+      mockTeamMemberRepository.find
+        .mockResolvedValueOnce([
+          {
+            teamId: 'team-home',
+            userId: 'home-player',
+            isActive: true,
+            roles: [{ role: TeamRole.PLAYER }],
+          },
+          {
+            teamId: 'team-home',
+            userId: 'home-coach',
+            isActive: true,
+            roles: [{ role: TeamRole.COACH }],
+          },
+        ] as TeamMember[])
+        .mockResolvedValueOnce([
+          {
+            teamId: 'team-away',
+            userId: 'away-player',
+            isActive: true,
+            roles: [{ role: TeamRole.PLAYER }],
+          },
+        ] as TeamMember[]);
+      mockEventTypeRepository.findOne.mockResolvedValue({
+        id: 'event-type-game-roster',
+        name: 'GAME_ROSTER',
+      } as EventType);
+      mockGameRepository.create.mockImplementation((input) => input as Game);
+      mockGameRepository.save.mockResolvedValue({ id: 'game-1' } as Game);
+      mockGameTeamRepository.create.mockImplementation(
+        (input) =>
+          ({
+            ...input,
+            id: input.teamType === 'home' ? 'game-team-home' : 'game-team-away',
+          }) as GameTeam,
+      );
+      mockGameTeamRepository.save.mockImplementation(async (teams) => teams);
+      mockGameEventRepository.create.mockImplementation(
+        (input) => input as GameEvent,
+      );
+      mockGameEventRepository.save.mockImplementation(async (events) => events);
+      mockGameRepository.findOne.mockResolvedValue({ id: 'game-1' } as Game);
+
+      await service.create(
+        {
+          homeTeamId: 'team-home',
+          awayTeamId: 'team-away',
+          gameFormatId: 'format-5v5',
+          duration: 60,
+        },
+        'coach-user',
+      );
+
+      expect(mockGameEventRepository.save).toHaveBeenCalledWith([
+        expect.objectContaining({
+          gameId: 'game-1',
+          gameTeamId: 'game-team-home',
+          eventTypeId: 'event-type-game-roster',
+          playerId: 'home-player',
+          recordedByUserId: 'coach-user',
+          position: null,
+        }),
+        expect.objectContaining({
+          gameId: 'game-1',
+          gameTeamId: 'game-team-away',
+          eventTypeId: 'event-type-game-roster',
+          playerId: 'away-player',
+          recordedByUserId: 'coach-user',
+          position: null,
+        }),
+      ]);
+    });
   });
 
   describe('update - timing event creation', () => {

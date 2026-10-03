@@ -992,6 +992,42 @@ export const LineupPanel = ({
     }
   }, [selection, gameStatus, addPlayerToGameRoster, removeFromLineup]);
 
+  // Remove a pre-game bench player from this game's roster. All active team
+  // players begin on the bench, so this is how a coach marks someone as not
+  // available for this match.
+  const handleRemoveFromBench = useCallback(async () => {
+    if (
+      gameStatus !== 'SCHEDULED' ||
+      selection.direction !== 'player-first' ||
+      selection.playerSource !== 'bench' ||
+      !selection.player ||
+      !('gameEventId' in selection.player) ||
+      !selection.player.gameEventId
+    ) {
+      return;
+    }
+
+    setError(null);
+    const gameEventId = selection.player.gameEventId;
+    setSelection({
+      direction: null,
+      position: null,
+      player: null,
+      playerSource: null,
+    });
+
+    try {
+      await removeFromLineup(gameEventId);
+    } catch (err) {
+      console.error('[LineupPanel] Failed to remove player from bench:', err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Failed to remove player from bench';
+      setError(message);
+    }
+  }, [gameStatus, selection, removeFromLineup]);
+
   // Add selected player to field in substitution-only mode (no position tracked)
   const handleAddToField = useCallback(async () => {
     if (
@@ -1133,6 +1169,7 @@ export const LineupPanel = ({
       }
       trackPositions={trackPositions}
       onAddToBench={handleAddToBench}
+      onRemoveFromBench={handleRemoveFromBench}
       onAddToField={handleAddToField}
       isExecuting={isExecuting}
       executionProgress={executionProgress}

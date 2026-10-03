@@ -319,6 +319,7 @@ export const LineupPanelPresentation = ({
   onClearQueue,
   onKeepSameLineup,
   onAddToBench,
+  onRemoveFromBench,
   onAddToField,
   isExecuting,
   executionProgress,
@@ -516,7 +517,7 @@ export const LineupPanelPresentation = ({
             onPlayerClick={onPlayerClick}
             playTimeByPlayer={playTimeByPlayer}
             isExecuting={isExecuting}
-            defaultExpanded={gameStatus === 'HALFTIME'}
+            defaultExpanded={gameStatus === 'SCHEDULED'}
             actionButton={
               selection.direction === 'player-first' &&
               selection.player !== null &&
@@ -539,7 +540,7 @@ export const LineupPanelPresentation = ({
             selection={selection}
             onPlayerClick={onPlayerClick}
             isExecuting={isExecuting}
-            defaultExpanded={gameStatus === 'SCHEDULED'}
+            defaultExpanded={false}
             emptyMessage="All roster players assigned"
           />
         </div>
@@ -594,6 +595,18 @@ export const LineupPanelPresentation = ({
                   ? `${playersPerTeam - filledCount} positions remaining`
                   : 'Lineup complete'}
               </div>
+            )}
+
+          {gameStatus === 'SCHEDULED' &&
+            selection.direction === 'player-first' &&
+            selection.playerSource === 'bench' && (
+              <button
+                type="button"
+                onClick={onRemoveFromBench}
+                className="mt-2 w-full rounded-lg border border-red-300 bg-white px-4 py-2 font-medium text-red-700 transition-colors hover:bg-red-50"
+              >
+                Remove from Bench
+              </button>
             )}
         </div>
       )}

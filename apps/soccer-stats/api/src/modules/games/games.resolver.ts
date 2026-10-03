@@ -44,11 +44,14 @@ export class GamesResolver {
   }
 
   @Mutation(() => Game)
-  async createGame(@Args('createGameInput') createGameInput: CreateGameInput) {
+  async createGame(
+    @Args('createGameInput') createGameInput: CreateGameInput,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     this.logger.log(
       `Creating game with input: ${JSON.stringify(createGameInput)}`,
     );
-    const game = await this.gamesService.create(createGameInput);
+    const game = await this.gamesService.create(createGameInput, user.id);
     try {
       await this.pubSub.publish('gameCreated', { gameCreated: game });
     } catch (error) {
