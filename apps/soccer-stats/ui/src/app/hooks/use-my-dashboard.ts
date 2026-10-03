@@ -58,7 +58,7 @@ export const useMyDashboard = (options?: {
     hasLiveGames: (myData?.liveGames?.length ?? 0) > 0,
 
     // Status
-    isLoading: !isLoaded || loading,
+    isLoading: !isLoaded || (loading && !data),
     isAuthenticated: isSignedIn,
     error: error?.message,
 

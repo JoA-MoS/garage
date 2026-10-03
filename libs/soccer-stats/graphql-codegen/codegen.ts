@@ -12,6 +12,12 @@ const config: CodegenConfig = {
   ],
   ignoreNoDocuments: true,
   generates: {
+    // The API schema, so UI tests can validate operation variables built at
+    // runtime (e.g. outbox actions) against it.
+    './src/generated/schema.introspection.json': {
+      plugins: ['introspection'],
+      config: { minify: true },
+    },
     './src/generated/': {
       preset: 'client',
       config: {

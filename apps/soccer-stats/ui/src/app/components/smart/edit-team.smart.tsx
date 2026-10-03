@@ -57,7 +57,7 @@ export const EditTeamSmart = ({ teamId }: EditTeamSmartProps) => {
         console.error('Error updating team:', err);
       }
     },
-    [updateTeam, teamId]
+    [updateTeam, teamId],
   );
 
   const handleCancel = useCallback(() => {
@@ -65,7 +65,7 @@ export const EditTeamSmart = ({ teamId }: EditTeamSmartProps) => {
   }, [navigate]);
 
   // Show loading state
-  if (fetchLoading) {
+  if (fetchLoading && !teamData) {
     return (
       <div className="mx-auto max-w-2xl p-6">
         <div className="rounded-lg bg-white p-6 shadow-lg">

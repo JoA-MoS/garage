@@ -43,9 +43,7 @@ export const CreateGamePage = () => {
     data: managedTeamsData,
     loading: teamsLoading,
     error: teamsError,
-  } = useQuery<{ managedTeams: Team[] }>(GET_MANAGED_TEAMS, {
-    fetchPolicy: 'cache-first',
-  });
+  } = useQuery<{ managedTeams: Team[] }>(GET_MANAGED_TEAMS);
 
   // Mutation to find or create unmanaged opponent team
   const [findOrCreateUnmanagedTeam, { loading: opponentLoading }] =
@@ -57,9 +55,7 @@ export const CreateGamePage = () => {
     data: gameFormatsData,
     loading: gameFormatsLoading,
     error: gameFormatsError,
-  } = useQuery<{ gameFormats: GameFormat[] }>(GET_GAME_FORMATS, {
-    fetchPolicy: 'cache-first',
-  });
+  } = useQuery<{ gameFormats: GameFormat[] }>(GET_GAME_FORMATS);
 
   // Create game mutation
   const [createGame, { loading: createLoading }] =
@@ -166,7 +162,9 @@ export const CreateGamePage = () => {
 
   const managedTeams = managedTeamsData?.managedTeams || [];
   const gameFormats = gameFormatsData?.gameFormats || [];
-  const isLoading = teamsLoading || gameFormatsLoading;
+  const isLoading =
+    (teamsLoading && !managedTeamsData) ||
+    (gameFormatsLoading && !gameFormatsData);
   const queryError = teamsError || gameFormatsError;
 
   if (isLoading) {
@@ -257,7 +255,11 @@ export const CreateGamePage = () => {
           {/* Opponent Team */}
           <div>
             <label
-              htmlFor={gameForm.useExistingManagedTeam ? 'opponentTeam' : 'opponentName'}
+              htmlFor={
+                gameForm.useExistingManagedTeam
+                  ? 'opponentTeam'
+                  : 'opponentName'
+              }
               className="mb-1 block text-sm font-medium text-gray-700"
             >
               Opponent

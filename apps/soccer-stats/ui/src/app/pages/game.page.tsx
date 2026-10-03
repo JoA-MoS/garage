@@ -41,7 +41,6 @@ import {
   GET_DEPENDENT_EVENTS,
   DELETE_EVENT_WITH_CASCADE,
   RESOLVE_EVENT_CONFLICT,
-  RECORD_GOAL,
   RECORD_FORMATION_CHANGE,
   REOPEN_GAME,
 } from '../services/games-graphql.service';
@@ -61,7 +60,20 @@ import {
 } from '../context/player-name-display.context';
 import { useSyncedGameTime } from '../hooks/use-synced-game-time';
 import { useResyncOnWake } from '../hooks/use-resync-on-wake';
-import { useTeamRoster } from '../hooks/use-live-game-state';
+import {
+  mergePendingEvents,
+  useTeamRoster,
+} from '../hooks/use-live-game-state';
+import {
+  GameOutboxProvider,
+  useGameOutbox,
+  usePendingGamePatch,
+  usePendingTeamEvents,
+} from '../outbox/game-outbox-context';
+import { buildGoalAction } from '../outbox/goal-action';
+import { applyGamePatch, type GameClockAction } from '../outbox/game-patches';
+import { buildGameClockAction } from '../outbox/game-clock-action';
+import { SyncStatus } from '../components/smart/sync-status.smart';
 import { pruneDeletedGameEvents } from '../services/game-event-cache';
 import {
   areGameEventNotificationsEnabled,
@@ -124,6 +136,21 @@ type TabType = 'lineup' | 'stats' | 'events';
 
 export const GamePage = () => {
   const { gameId } = useParams<{ gameId: string }>();
+  if (!gameId) {
+    return <Navigate to="/games" replace />;
+  }
+  // The outbox provider sits above the page body so the body can read the
+  // pending (not yet confirmed) events of this game.
+  return (
+    <GameOutboxProvider gameId={gameId}>
+      <GamePageContent />
+    </GameOutboxProvider>
+  );
+};
+
+const GamePageContent = () => {
+  const { gameId } = useParams<{ gameId: string }>();
+  const { recordAction } = useGameOutbox();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -314,17 +341,24 @@ export const GamePage = () => {
     // Prevent loading state from becoming true during cache updates or background refetches
     // Only show loading on initial fetch, not when cache is modified by subscriptions
     notifyOnNetworkStatusChange: false,
-    fetchPolicy: 'cache-first',
   });
+
+  // The game with queued status/clock changes (start, halftime, pause...)
+  // applied, so the clock and status react the moment the coach taps.
+  const pendingGamePatch = usePendingGamePatch();
+  const liveGame = useMemo(
+    () => applyGamePatch(data?.game, pendingGamePatch),
+    [data?.game, pendingGamePatch],
+  );
 
   // Server-synced game time - keeps multiple clients in sync
   const syncedTime = useSyncedGameTime(
-    data?.game
+    liveGame
       ? {
-          currentPeriod: data.game.currentPeriod,
-          currentPeriodSecond: data.game.currentPeriodSecond,
-          serverTimestamp: data.game.serverTimestamp,
-          pausedAt: data.game.pausedAt,
+          currentPeriod: liveGame.currentPeriod,
+          currentPeriodSecond: liveGame.currentPeriodSecond,
+          serverTimestamp: liveGame.serverTimestamp,
+          pausedAt: liveGame.pausedAt,
         }
       : null,
   );
@@ -332,18 +366,18 @@ export const GamePage = () => {
   // Debug: Log when loading spinner is displayed (for E2E testing)
   // Only logs in development/test environments to avoid polluting production console
   useEffect(() => {
-    if (import.meta.env.DEV && loading) {
+    if (import.meta.env.DEV && loading && !data) {
       console.log(
         '[Game Page Loading Spinner] Displayed - loading state is true',
       );
     }
-  }, [loading]);
+  }, [loading, data]);
 
   // Auto-switch to stats tab for completed games:
   // 1. When opening a completed game, default to stats tab
   // 2. When a game becomes completed during the session, auto-switch to stats
   useEffect(() => {
-    const gameStatus = data?.game?.status;
+    const gameStatus = liveGame?.status;
     if (!gameStatus) return;
 
     // Case 1: Initial load of a completed game - set to stats tab
@@ -363,7 +397,7 @@ export const GamePage = () => {
 
     // Update previous status ref
     prevGameStatusRef.current = gameStatus;
-  }, [data?.game?.status]);
+  }, [liveGame?.status]);
 
   // Note: We don't use refetchQueries for updateGame.
   // Game status is updated via GameUpdated subscription (handleGameStateChanged).
@@ -371,13 +405,6 @@ export const GamePage = () => {
   // GameEventChanged subscription, enabling real-time updates for all viewers.
   const [updateGame, { loading: updatingGame }] = useMutation(UPDATE_GAME);
   const [reopenGame, { loading: reopeningGame }] = useMutation(REOPEN_GAME);
-
-  // Direct goal recording for GOALS_ONLY mode (skips modal)
-  // Note: We intentionally don't use refetchQueries here.
-  // The real-time subscription handles adding new events to the cache
-  // via apolloClient.cache.modify, preventing loading state flickers.
-  const [recordGoalDirect, { loading: recordingGoal }] =
-    useMutation(RECORD_GOAL);
 
   const [deleteGoal, { loading: deletingGoal }] = useMutation(DELETE_GOAL, {
     refetchQueries: () => {
@@ -542,21 +569,43 @@ export const GamePage = () => {
     [data?.game?.teams],
   );
 
+  // Events the outbox has recorded but the server hasn't confirmed yet.
+  const homePending = usePendingTeamEvents(homeTeamData?.id);
+  const awayPending = usePendingTeamEvents(awayTeamData?.id);
+
+  // Confirmed + pending events: what the score, lineup and timeline show.
+  // Pending events have the same shape (and IDs) as the confirmed ones.
+  const homeEvents = useMemo(
+    () =>
+      mergePendingEvents(homeTeamData?.events, homePending) as NonNullable<
+        typeof homeTeamData
+      >['events'],
+    [homeTeamData, homePending],
+  );
+  const awayEvents = useMemo(
+    () =>
+      mergePendingEvents(awayTeamData?.events, awayPending) as NonNullable<
+        typeof awayTeamData
+      >['events'],
+    [awayTeamData, awayPending],
+  );
+
+  // Events not yet confirmed by the server can't be edited or deleted
+  // there, so the timeline offers no actions on them until they sync.
+  const pendingEventIds = useMemo(
+    () => new Set([...homePending, ...awayPending].map((e) => e.id)),
+    [homePending, awayPending],
+  );
+
   // Memoize scores to prevent recalculation on every render
-  const homeScore = useMemo(
-    () => computeScore(homeTeamData?.events),
-    [homeTeamData?.events],
-  );
-  const awayScore = useMemo(
-    () => computeScore(awayTeamData?.events),
-    [awayTeamData?.events],
-  );
+  const homeScore = useMemo(() => computeScore(homeEvents), [homeEvents]);
+  const awayScore = useMemo(() => computeScore(awayEvents), [awayEvents]);
 
   // On-field and bench players are derived from the game's events, so lineup
   // changes show up as soon as their events reach the cache - no roster query.
   // position != null = on field, position == null = bench
-  const homeRoster = useTeamRoster(homeTeamData);
-  const awayRoster = useTeamRoster(awayTeamData);
+  const homeRoster = useTeamRoster(homeTeamData, homePending);
+  const awayRoster = useTeamRoster(awayTeamData, awayPending);
   const homeRosterPlayers = homeRoster?.players;
   const awayRosterPlayers = awayRoster?.players;
 
@@ -1030,19 +1079,21 @@ export const GamePage = () => {
     [resolveConflict],
   );
 
-  // Start first half
-  // Note: The backend's updateGame automatically creates PERIOD_START and SUB_IN events
-  // via createTimingEventsForStatusChange when status changes to FIRST_HALF
+  // Status/clock changes go through the outbox (see buildGameClockAction).
+  const recordGameClockAction = (
+    action: GameClockAction,
+    updateGameInput: Record<string, unknown>,
+  ) =>
+    recordAction(
+      buildGameClockAction(gameId!, action, updateGameInput, {
+        periodSecond: syncedTime.periodSecond,
+      }),
+    );
+
   const handleStartFirstHalf = async () => {
     try {
-      await updateGame({
-        variables: {
-          id: gameId!,
-          updateGameInput: {
-            status: GameStatus.FirstHalf,
-            actualStart: new Date().toISOString(),
-          },
-        },
+      await recordGameClockAction('startFirstHalf', {
+        status: GameStatus.FirstHalf,
       });
     } catch (err) {
       console.error('Failed to start first half:', err);
@@ -1052,20 +1103,11 @@ export const GamePage = () => {
     }
   };
 
-  // End first half and go to halftime
-  // Note: The backend's updateGame automatically creates PERIOD_END and SUB_OUT events
-  // via createTimingEventsForStatusChange when status changes to HALFTIME
   const handleEndFirstHalf = async () => {
     try {
-      await updateGame({
-        variables: {
-          id: gameId!,
-          updateGameInput: {
-            status: GameStatus.Halftime,
-            firstHalfEnd: new Date().toISOString(),
-            periodSecond: syncedTime.periodSecond,
-          },
-        },
+      await recordGameClockAction('endFirstHalf', {
+        status: GameStatus.Halftime,
+        periodSecond: syncedTime.periodSecond,
       });
     } catch (err) {
       console.error('Failed to end first half:', err);
@@ -1075,20 +1117,12 @@ export const GamePage = () => {
     }
   };
 
-  // Start second half
-  // Note: The backend's updateGame automatically creates PERIOD_START and SUB_IN events
-  // via createTimingEventsForStatusChange when status changes to SECOND_HALF.
-  // It also auto-copies the first half lineup if setSecondHalfLineup wasn't called.
+  // The backend also auto-copies the first half lineup if
+  // setSecondHalfLineup wasn't called.
   const handleStartSecondHalf = async () => {
     try {
-      await updateGame({
-        variables: {
-          id: gameId!,
-          updateGameInput: {
-            status: GameStatus.SecondHalf,
-            secondHalfStart: new Date().toISOString(),
-          },
-        },
+      await recordGameClockAction('startSecondHalf', {
+        status: GameStatus.SecondHalf,
       });
     } catch (err) {
       console.error('Failed to start second half:', err);
@@ -1098,20 +1132,11 @@ export const GamePage = () => {
     }
   };
 
-  // End game
-  // Note: The backend's updateGame automatically creates PERIOD_END and SUB_OUT events
-  // via createTimingEventsForStatusChange when status changes to COMPLETED
   const handleEndGame = async () => {
     try {
-      await updateGame({
-        variables: {
-          id: gameId!,
-          updateGameInput: {
-            status: GameStatus.Completed,
-            actualEnd: new Date().toISOString(),
-            periodSecond: syncedTime.periodSecond,
-          },
-        },
+      await recordGameClockAction('endGame', {
+        status: GameStatus.Completed,
+        periodSecond: syncedTime.periodSecond,
       });
       setShowEndGameConfirm(false);
     } catch (err) {
@@ -1251,33 +1276,19 @@ export const GamePage = () => {
     setDeleteTarget(null);
   };
 
-  // Pause/Resume game clock
+  // Pause/Resume game clock. Reads the live (patched) game, so a pause
+  // that hasn't synced yet is resumed correctly by the next tap.
   const handleTogglePause = async () => {
-    const game = data?.game;
-    if (!game) return;
+    if (!liveGame) return;
 
     try {
-      if (game.pausedAt) {
-        // Resume: clear pausedAt and adjust start times
-        await updateGame({
-          variables: {
-            id: gameId!,
-            updateGameInput: {
-              pausedAt: null,
-            },
-          },
-        });
-      } else {
-        // Pause: set pausedAt to now
-        await updateGame({
-          variables: {
-            id: gameId!,
-            updateGameInput: {
-              pausedAt: new Date().toISOString(),
-            },
-          },
-        });
-      }
+      const paused = !!liveGame.pausedAt;
+      await recordGameClockAction(paused ? 'resume' : 'pause', {
+        pausedAt: paused ? null : new Date().toISOString(),
+        // Places the stoppage in game time (STOPPAGE_START/END events).
+        period: syncedTime.period,
+        periodSecond: syncedTime.periodSecond,
+      });
       setShowGameMenu(false);
     } catch (err) {
       console.error('Failed to toggle pause:', err);
@@ -1353,9 +1364,9 @@ export const GamePage = () => {
   // Falls back to status-based calculation for games that haven't started
   const currentPeriod =
     syncedTime.period ??
-    (data?.game?.status === GameStatus.SecondHalf
+    (liveGame?.status === GameStatus.SecondHalf
       ? '2'
-      : data?.game?.status === GameStatus.Halftime
+      : liveGame?.status === GameStatus.Halftime
         ? '2' // At halftime, we're transitioning to period 2
         : '1');
 
@@ -1457,17 +1468,15 @@ export const GamePage = () => {
       if (!gameTeam || !game) return;
 
       try {
-        // Call mutation - subscription will update cache for all connected clients
-        // Use server-synced time for consistent timing across clients
-        await recordGoalDirect({
-          variables: {
-            input: {
-              gameTeamId: gameTeam.id,
-              period: currentPeriod,
-              periodSecond: syncedTime.periodSecond,
-            },
-          },
-        });
+        // Recorded on this device first: the score updates at once and the
+        // outbox sends it. Use server-synced time for consistent timing.
+        await recordAction(
+          buildGoalAction({
+            gameTeamId: gameTeam.id,
+            period: currentPeriod,
+            periodSecond: syncedTime.periodSecond,
+          }),
+        );
       } catch (err) {
         console.error('Failed to record goal:', err);
         setActionError(
@@ -1493,9 +1502,9 @@ export const GamePage = () => {
         ? '40vh'
         : '4rem';
   const hasFixedPanel =
-    data?.game?.status === GameStatus.FirstHalf ||
-    data?.game?.status === GameStatus.SecondHalf ||
-    data?.game?.status === GameStatus.InProgress;
+    liveGame?.status === GameStatus.FirstHalf ||
+    liveGame?.status === GameStatus.SecondHalf ||
+    liveGame?.status === GameStatus.InProgress;
   useEffect(() => {
     const main = document.querySelector('main');
     if (!main) return;
@@ -1527,7 +1536,7 @@ export const GamePage = () => {
     return <Navigate to="/games" replace />;
   }
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
@@ -1562,10 +1571,12 @@ export const GamePage = () => {
     );
   }
 
-  const { game } = data;
-  // Use memoized team data instead of recalculating
-  const homeTeam = homeTeamData;
-  const awayTeam = awayTeamData;
+  // Render from the game as it will be once queued changes apply.
+  const game = liveGame ?? data.game;
+  // Use memoized team data (with pending events merged in) instead of
+  // recalculating
+  const homeTeam = homeTeamData && { ...homeTeamData, events: homeEvents };
+  const awayTeam = awayTeamData && { ...awayTeamData, events: awayEvents };
 
   // The active tab's team controls player-name display prefs (format,
   // jersey number visibility/position) for the lineup/substitution UI below.
@@ -1764,7 +1775,7 @@ export const GamePage = () => {
           venue={game.venue}
           scheduledStart={game.scheduledStart}
           isActivePlay={isActivePlay}
-          recordingGoal={recordingGoal}
+          recordingGoal={false}
           updatingGame={updatingGame}
           showEndGameConfirm={showEndGameConfirm}
           onStartFirstHalf={handleStartFirstHalf}
@@ -1774,6 +1785,8 @@ export const GamePage = () => {
           onShowEndGameConfirm={setShowEndGameConfirm}
           onGoalClick={handleGoalClick}
         />
+
+        <SyncStatus />
 
         {/* Main Tabs */}
         <div className="rounded-lg bg-white shadow">
@@ -2038,7 +2051,7 @@ export const GamePage = () => {
                       elapsedSeconds={
                         isActivePlay ? syncedTime.periodSecond : undefined
                       }
-                      isLoading={loading}
+                      isLoading={loading && !data}
                     />
                   )}
                   {activeTeam === 'away' && awayTeam && (
@@ -2049,7 +2062,7 @@ export const GamePage = () => {
                       elapsedSeconds={
                         isActivePlay ? syncedTime.periodSecond : undefined
                       }
-                      isLoading={loading}
+                      isLoading={loading && !data}
                     />
                   )}
                 </div>
@@ -2584,9 +2597,14 @@ export const GamePage = () => {
                             newFormation={event.newFormation}
                             period={event.period}
                             childEvents={event.childEvents}
-                            onDeleteClick={handleDeleteClick}
+                            onDeleteClick={
+                              pendingEventIds.has(event.id)
+                                ? undefined
+                                : handleDeleteClick
+                            }
                             onEdit={
-                              event.eventType === 'goal'
+                              event.eventType === 'goal' &&
+                              !pendingEventIds.has(event.id)
                                 ? () =>
                                     setEditGoalData({
                                       team: event.teamType as 'home' | 'away',
@@ -2810,6 +2828,12 @@ export const GamePage = () => {
             period={currentPeriod}
             periodSecond={currentPeriodSeconds}
             executeImmediately={false}
+            trackPositions={
+              (activeTeam === 'home'
+                ? homeEffectiveFeatures
+                : awayEffectiveFeatures
+              ).trackPositions
+            }
             gameEvents={
               (activeTeam === 'home' ? homeTeam.events : awayTeam.events)?.map(
                 (e) => ({

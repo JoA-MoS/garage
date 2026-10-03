@@ -13,14 +13,19 @@ import { SubstitutionPanel } from './substitution-panel.smart';
 import { SubstitutionPanelSmartProps } from './types';
 
 // Mock Apollo Client hooks
-const mockBatchLineupChanges = vi.fn();
+const mockRecordAction = vi.fn();
 const mockQuery = vi.fn();
 
 vi.mock('@apollo/client/react', () => ({
   useApolloClient: () => ({
     query: mockQuery,
   }),
-  useMutation: () => [mockBatchLineupChanges],
+  useMutation: () => [vi.fn()],
+}));
+
+// Recorded actions go to the outbox, not the network
+vi.mock('../../../outbox/game-outbox-context', () => ({
+  useGameOutbox: () => ({ recordAction: mockRecordAction }),
 }));
 
 // Mock player factory
@@ -74,9 +79,7 @@ const createDefaultProps = (
 describe('SubstitutionPanel Smart Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockBatchLineupChanges.mockResolvedValue({
-      data: { batchLineupChanges: { success: true } },
-    });
+    mockRecordAction.mockResolvedValue(undefined);
     mockQuery.mockResolvedValue({ data: {} });
   });
 
@@ -609,20 +612,26 @@ describe('SubstitutionPanel Smart Component', () => {
       });
 
       await waitFor(() => {
-        expect(mockBatchLineupChanges).toHaveBeenCalledWith({
-          variables: {
-            input: {
-              gameTeamId: 'game-team-1',
-              playerId: '3',
-              externalPlayerName: undefined,
-              externalPlayerNumber: undefined,
-              position: 'FIELD',
-              period: '1',
-              periodSecond: 900,
-            },
-          },
-          update: expect.any(Function),
-        });
+        expect(mockRecordAction).toHaveBeenCalledTimes(1);
+      });
+      const action = mockRecordAction.mock.calls[0][0];
+      expect(action.kind).toBe('bringPlayerOntoField');
+      expect(action.variables.input).toMatchObject({
+        actionId: action.actionId,
+        gameTeamId: 'game-team-1',
+        playerId: '3',
+        position: 'FIELD',
+        period: '1',
+        periodSecond: 900,
+      });
+      // The pending event carries the client-chosen ID the server will use
+      expect(action.pendingEvents).toHaveLength(1);
+      expect(action.pendingEvents[0]).toMatchObject({
+        id: action.variables.input.eventId,
+        gameTeamId: 'game-team-1',
+        eventType: { name: 'SUBSTITUTION_IN' },
+        playerId: '3',
+        position: 'FIELD',
       });
     });
 
@@ -675,7 +684,7 @@ describe('SubstitutionPanel Smart Component', () => {
         expect(screen.getByText('Jimmy Brown')).toBeTruthy();
         expect(onExternalEmptyPositionHandled).toHaveBeenCalled();
       });
-      expect(mockBatchLineupChanges).not.toHaveBeenCalled();
+      expect(mockRecordAction).not.toHaveBeenCalled();
     });
 
     it('queues an addition carrying the target position when a bench selection is already active', async () => {
@@ -700,7 +709,7 @@ describe('SubstitutionPanel Smart Component', () => {
         expect(screen.getByText(/LB/)).toBeTruthy();
         expect(onExternalEmptyPositionHandled).toHaveBeenCalled();
       });
-      expect(mockBatchLineupChanges).not.toHaveBeenCalled();
+      expect(mockRecordAction).not.toHaveBeenCalled();
     });
 
     it('confirms a queued position-fill with the real target position, not the FIELD sentinel', async () => {
@@ -723,20 +732,26 @@ describe('SubstitutionPanel Smart Component', () => {
       });
 
       await waitFor(() => {
-        expect(mockBatchLineupChanges).toHaveBeenCalledWith({
-          variables: {
-            input: {
-              gameTeamId: 'game-team-1',
-              playerId: '3',
-              externalPlayerName: undefined,
-              externalPlayerNumber: undefined,
-              position: 'LB',
-              period: '1',
-              periodSecond: 900,
-            },
-          },
-          update: expect.any(Function),
-        });
+        expect(mockRecordAction).toHaveBeenCalledTimes(1);
+      });
+      const action = mockRecordAction.mock.calls[0][0];
+      expect(action.kind).toBe('bringPlayerOntoField');
+      expect(action.variables.input).toMatchObject({
+        actionId: action.actionId,
+        gameTeamId: 'game-team-1',
+        playerId: '3',
+        position: 'LB',
+        period: '1',
+        periodSecond: 900,
+      });
+      // The pending event carries the client-chosen ID the server will use
+      expect(action.pendingEvents).toHaveLength(1);
+      expect(action.pendingEvents[0]).toMatchObject({
+        id: action.variables.input.eventId,
+        gameTeamId: 'game-team-1',
+        eventType: { name: 'SUBSTITUTION_IN' },
+        playerId: '3',
+        position: 'LB',
       });
     });
 
@@ -767,7 +782,7 @@ describe('SubstitutionPanel Smart Component', () => {
       await waitFor(() => {
         expect(onExternalEmptyPositionHandled).toHaveBeenCalled();
       });
-      expect(mockBatchLineupChanges).not.toHaveBeenCalled();
+      expect(mockRecordAction).not.toHaveBeenCalled();
       // The field-first selection is untouched - still showing "Replacing:".
       expect(screen.getByText(/Replacing:/)).toBeTruthy();
     });
@@ -802,29 +817,26 @@ describe('SubstitutionPanel Smart Component', () => {
       });
 
       await waitFor(() => {
-        expect(mockBatchLineupChanges).toHaveBeenCalledWith({
-          variables: {
-            input: {
-              gameTeamId: 'game-team-1',
-              period: '1',
-              periodSecond: 900,
-              substitutions: [
-                {
-                  playerOutEventId: 'event-1',
-                  playerInId: '3',
-                  externalPlayerInName: undefined,
-                  externalPlayerInNumber: undefined,
-                },
-              ],
-              swaps: [],
-            },
-          },
-          update: expect.any(Function),
-        });
+        expect(mockRecordAction).toHaveBeenCalledTimes(1);
       });
+      const action = mockRecordAction.mock.calls[0][0];
+      expect(action.kind).toBe('batchLineupChanges');
+      const input = action.variables.input;
+      expect(input).toMatchObject({
+        actionId: action.actionId,
+        gameTeamId: 'game-team-1',
+        period: '1',
+        periodSecond: 900,
+        swaps: [],
+        substitutions: [{ playerOutEventId: 'event-1', playerInId: '3' }],
+      });
+      expect(action.pendingEvents.map((e: { id: string }) => e.id)).toEqual([
+        input.substitutions[0].subOutEventId,
+        input.substitutions[0].subInEventId,
+      ]);
     });
 
-    it('clears queue and collapses panel on mutation success', async () => {
+    it('clears queue and collapses panel as soon as the action is recorded', async () => {
       const onSubstitutionComplete = vi.fn();
       const props = createDefaultProps({
         externalFieldPlayerSelection: mockPlayer('1', 'Sarah Smith'),
@@ -865,9 +877,9 @@ describe('SubstitutionPanel Smart Component', () => {
       });
     });
 
-    it('shows error and preserves queue on mutation failure', async () => {
-      mockBatchLineupChanges.mockRejectedValueOnce(
-        new Error('Network error: Failed to execute substitutions'),
+    it('shows error and preserves queue when the action cannot be recorded', async () => {
+      mockRecordAction.mockRejectedValueOnce(
+        new Error('Could not save to this device'),
       );
 
       const onSubstitutionComplete = vi.fn();
@@ -904,7 +916,7 @@ describe('SubstitutionPanel Smart Component', () => {
       });
     });
 
-    it('handles refetch failure gracefully after mutation success', async () => {
+    it('handles refetch failure gracefully after recording', async () => {
       // Mutation succeeds, but refetch fails
       mockQuery.mockRejectedValueOnce(new Error('Refetch failed'));
 
@@ -952,7 +964,7 @@ describe('SubstitutionPanel Smart Component', () => {
         expect(onSubstitutionComplete).toHaveBeenCalled();
         // Warning should have been logged
         expect(consoleSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Refetch failed after successful mutation'),
+          expect.stringContaining('Background refetch failed'),
           expect.any(Error),
         );
       });

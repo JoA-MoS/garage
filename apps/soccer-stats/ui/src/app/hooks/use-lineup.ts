@@ -25,6 +25,7 @@ import {
   removeEventFromGameTeam,
 } from '../services/game-event-cache';
 import { formatPlayerName } from '../utils/format-player-name';
+import { usePendingTeamEvents } from '../outbox/game-outbox-context';
 
 import { useTeamRoster } from './use-live-game-state';
 
@@ -66,7 +67,8 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     () => gameData?.game?.teams?.find((gt) => gt.id === gameTeamId),
     [gameData, gameTeamId],
   );
-  const roster = useTeamRoster(gameTeam);
+  const pendingEvents = usePendingTeamEvents(gameTeamId);
+  const roster = useTeamRoster(gameTeam, pendingEvents);
 
   // Get team ID from game data
   const teamId = useMemo(() => {
@@ -477,7 +479,7 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     availableRoster,
 
     // Loading states
-    loading: (gameLoading && !gameData) || teamLoading,
+    loading: (gameLoading && !gameData) || (teamLoading && !teamData),
     mutating:
       addingToGameRoster ||
       removing ||
