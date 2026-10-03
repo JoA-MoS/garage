@@ -2157,6 +2157,7 @@ export type GetGameByIdQuery = {
         isManaged: boolean;
         teamConfiguration?: {
           __typename?: 'TeamConfiguration';
+          id: string;
           defaultFormation: string;
           playerNameDisplayFormat: PlayerNameDisplayFormat;
           showJerseyNumber: boolean;
@@ -2846,6 +2847,7 @@ export type GameEventChangedSubscription = {
         id: string;
         firstName: string;
         lastName: string;
+        email?: string | null;
       } | null;
       recordedByUser: {
         __typename?: 'User';
@@ -5933,6 +5935,10 @@ export const GetGameByIdDocument = {
                               selectionSet: {
                                 kind: 'SelectionSet',
                                 selections: [
+                                  {
+                                    kind: 'Field',
+                                    name: { kind: 'Name', value: 'id' },
+                                  },
                                   {
                                     kind: 'Field',
                                     name: {
@@ -9163,6 +9169,10 @@ export const GameEventChangedDocument = {
                             {
                               kind: 'Field',
                               name: { kind: 'Name', value: 'lastName' },
+                            },
+                            {
+                              kind: 'Field',
+                              name: { kind: 'Name', value: 'email' },
                             },
                           ],
                         },
