@@ -194,7 +194,7 @@ export const TeamPlayersPage = () => {
     );
   }
 
-  if (error) {
+  if (error && !data) {
     return (
       <div className="rounded-lg bg-red-50 p-4 text-red-700">
         Error loading team: {error.message}

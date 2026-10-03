@@ -21,7 +21,13 @@ export const useMyDashboard = (options?: {
 }) => {
   const { isSignedIn, isLoaded } = useUserProfile();
 
-  const { data, loading, error, refetch } = useQuery(GET_MY_DASHBOARD, {
+  const {
+    data: currentData,
+    previousData,
+    loading,
+    error,
+    refetch,
+  } = useQuery(GET_MY_DASHBOARD, {
     variables: {
       upcomingLimit: options?.upcomingLimit ?? 5,
       recentLimit: options?.recentLimit ?? 5,
@@ -33,6 +39,9 @@ export const useMyDashboard = (options?: {
     // Subsequent renders: use cache to avoid unnecessary network requests
     nextFetchPolicy: 'cache-first',
   });
+  // Apollo 4 clears `data` when a refetch fails (e.g. offline); keep the
+  // last good result.
+  const data = currentData ?? previousData;
 
   // Extract data from the `my` query response
   const myData = data?.my;
@@ -60,7 +69,9 @@ export const useMyDashboard = (options?: {
     // Status
     isLoading: !isLoaded || (loading && !data),
     isAuthenticated: isSignedIn,
-    error: error?.message,
+    // Only when there's nothing to show (a failed background refresh, e.g.
+    // offline, keeps the cached dashboard).
+    error: data ? undefined : error?.message,
 
     // Actions
     refetch,

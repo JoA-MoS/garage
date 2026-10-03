@@ -165,7 +165,9 @@ export const CreateGamePage = () => {
   const isLoading =
     (teamsLoading && !managedTeamsData) ||
     (gameFormatsLoading && !gameFormatsData);
-  const queryError = teamsError || gameFormatsError;
+  // Only when there's nothing to show (offline refreshes keep cached data).
+  const queryError =
+    (!managedTeamsData && teamsError) || (!gameFormatsData && gameFormatsError);
 
   if (isLoading) {
     return (

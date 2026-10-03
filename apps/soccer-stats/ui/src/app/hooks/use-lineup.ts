@@ -54,7 +54,8 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
   // derived from them on the client (useTeamRoster), so lineup mutations only
   // need to write the events they return into the cache - no roster refetch.
   const {
-    data: gameData,
+    data: currentGameData,
+    previousData: previousGameData,
     loading: gameLoading,
     error: gameError,
     refetch: refetchGame,
@@ -62,6 +63,9 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
     variables: { id: gameId! },
     skip: !gameId,
   });
+  // Apollo 4 clears `data` when a refetch fails (e.g. offline); keep the
+  // last good result so the lineup stays on screen.
+  const gameData = currentGameData ?? previousGameData;
 
   const gameTeam = useMemo(
     () => gameData?.game?.teams?.find((gt) => gt.id === gameTeamId),
@@ -493,7 +497,9 @@ export function useLineup({ gameTeamId, gameId }: UseLineupOptions) {
       endingPeriod,
 
     // Error
-    error: gameError,
+    // Only when there's nothing to show: a failed background refresh (e.g.
+    // offline) keeps the cached lineup instead of an error screen.
+    error: gameData ? undefined : gameError,
 
     // Actions
     addPlayerToGameRoster,

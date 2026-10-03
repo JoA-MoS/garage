@@ -337,13 +337,22 @@ const GamePageContent = () => {
   // sleep - subscriptions can silently miss events while asleep.
   useResyncOnWake();
 
-  const { data, loading, error, subscribeToMore } = useQuery(GET_GAME_BY_ID, {
+  const {
+    data: currentData,
+    previousData,
+    loading,
+    error,
+    subscribeToMore,
+  } = useQuery(GET_GAME_BY_ID, {
     variables: { id: gameId! },
     skip: !gameId,
     // Prevent loading state from becoming true during cache updates or background refetches
     // Only show loading on initial fetch, not when cache is modified by subscriptions
     notifyOnNetworkStatusChange: false,
   });
+  // Apollo 4 clears `data` when a refetch fails (e.g. offline when the app
+  // returns to the foreground); keep showing the last good result.
+  const data = currentData ?? previousData;
 
   // The game with queued status/clock changes (start, halftime, pause...)
   // applied, so the clock and status react the moment the coach taps.
@@ -1575,7 +1584,9 @@ const GamePageContent = () => {
     );
   }
 
-  if (error) {
+  // Only when there's nothing to show: a failed background refresh (e.g.
+  // offline) must not replace cached data with an error screen.
+  if (error && !data?.game) {
     return (
       <div className="rounded-lg border border-red-200 bg-red-50 p-6">
         <h2 className="mb-2 text-xl font-bold text-red-900">
