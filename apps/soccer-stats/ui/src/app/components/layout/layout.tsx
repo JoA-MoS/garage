@@ -3,6 +3,7 @@ import { Outlet } from 'react-router';
 import { NavigationSmart } from '../smart/navigation.smart';
 import { ProtectedRoute } from '../common/protected-route';
 import { ImpersonationBannerSmart } from '../smart/impersonation-banner.smart';
+import { ResumeLiveGameOnLaunch } from '../../outbox/resume-live-game-on-launch';
 
 /**
  * Main layout component that wraps all pages
@@ -11,6 +12,7 @@ import { ImpersonationBannerSmart } from '../smart/impersonation-banner.smart';
 export const Layout = () => {
   return (
     <div className="flex h-dvh flex-col bg-gray-50">
+      <ResumeLiveGameOnLaunch />
       <ImpersonationBannerSmart />
       <NavigationSmart />
       <main className="min-h-0 flex-1 overflow-y-auto">

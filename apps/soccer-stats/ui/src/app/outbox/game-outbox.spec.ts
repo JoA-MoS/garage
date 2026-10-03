@@ -296,6 +296,19 @@ describe('GameOutbox', () => {
       expect(await tabA.load()).toHaveLength(4);
     });
 
+    it('lists the scopes (games) a user has queues for', async () => {
+      const storage = indexedDbOutboxStorage('test-outbox-list');
+      await storage.update('user-1:game-a', () => [action()]);
+      await storage.update('user-1:game-b', () => [action()]);
+      await storage.update('user-2:game-c', () => [action()]);
+
+      expect((await storage.listScopes('user-1:')).sort()).toEqual([
+        'user-1:game-a',
+        'user-1:game-b',
+      ]);
+      expect(await memoryOutboxStorage().listScopes('user-1:')).toEqual([]);
+    });
+
     it('keeps users and games apart', async () => {
       const storage = indexedDbOutboxStorage('test-outbox-scopes');
       const mine = new GameOutbox({

@@ -1,4 +1,4 @@
-import { createStore, get, update, type UseStore } from 'idb-keyval';
+import { createStore, get, keys, update, type UseStore } from 'idb-keyval';
 
 import type { OutboxAction } from './outbox-types';
 
@@ -13,6 +13,8 @@ export interface OutboxStorage {
     scope: string,
     change: (actions: OutboxAction[]) => OutboxAction[],
   ): Promise<OutboxAction[]>;
+  /** Scopes starting with `prefix` (e.g. `${userId}:`) that have a list. */
+  listScopes(prefix: string): Promise<string[]>;
 }
 
 /**
@@ -39,6 +41,13 @@ export function indexedDbOutboxStorage(
       );
       return next;
     },
+    async listScopes(prefix) {
+      const all = await keys<string>(getStore());
+      return all.filter(
+        (key): key is string =>
+          typeof key === 'string' && key.startsWith(prefix),
+      );
+    },
   };
 }
 
@@ -53,6 +62,9 @@ export function memoryOutboxStorage(): OutboxStorage {
       const next = change(lists.get(scope) ?? []);
       lists.set(scope, next);
       return next;
+    },
+    async listScopes(prefix) {
+      return [...lists.keys()].filter((key) => key.startsWith(prefix));
     },
   };
 }
