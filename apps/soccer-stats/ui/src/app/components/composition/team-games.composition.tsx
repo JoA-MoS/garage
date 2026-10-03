@@ -115,7 +115,7 @@ export const TeamGamesComposition = ({ teamId }: TeamGamesCompositionProps) => {
   }, [modalCalled, loadModalData]);
 
   // Error state
-  if (pageError) {
+  if (pageError && !pageData) {
     return (
       <div className="p-4">
         <div className="text-red-600">
