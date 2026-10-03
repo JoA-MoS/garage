@@ -1,6 +1,8 @@
 import { setupClerkTestingToken } from '@clerk/testing/playwright';
 import { expect, test } from '@playwright/test';
 
+import { startLiveGame } from './support/live-game';
+
 /**
  * Goal Recording E2E Tests
  *
@@ -22,39 +24,9 @@ test.describe('Goal Recording', () => {
     page,
   }) => {
     // Navigate to games list
-    await page.goto('/games');
-    await page.waitForLoadState('domcontentloaded');
-
-    // Find and click on an active game (in FIRST_HALF, HALFTIME, or SECOND_HALF status)
-    // The games list uses div cards with onClick
-    const activeStatuses = [
-      'FIRST HALF',
-      'SECOND HALF',
-      'HALFTIME',
-      'IN PROGRESS',
-    ];
-    let activeGameBadge = null;
-
-    for (const status of activeStatuses) {
-      const badge = page.locator('span').filter({ hasText: status }).first();
-      if (await badge.isVisible().catch(() => false)) {
-        activeGameBadge = badge;
-        break;
-      }
-    }
-
-    // If no active game, we need to start one first
-    if (!activeGameBadge) {
-      test.skip(true, 'No active game found - skipping goal recording test');
-      return;
-    }
-
-    // Click the parent card (the div with cursor-pointer)
-    const gameCard = activeGameBadge.locator(
-      'xpath=ancestor::div[contains(@class, "cursor-pointer")]'
-    );
-    await gameCard.click();
-    await page.waitForURL(/\/games\/[a-z0-9-]+/);
+    // A fresh game in the first half, so the test never depends on
+    // existing data or skips.
+    await startLiveGame(page);
 
     // Wait for game page to fully load
     const gameHeader = page.locator('h1').first();
@@ -104,7 +76,11 @@ test.describe('Goal Recording', () => {
         .filter({ hasText: /^Record Goal$/ });
 
       // If we need to select a player first, select the first one
-      const scorerSelect = page.locator('select').first();
+      const scorerSelect = page
+        // The goal modal's scorer select (not the formation picker).
+        .getByRole('combobox')
+        .filter({ has: page.getByRole('option', { name: 'Select player...' }) })
+        .first();
       if (await scorerSelect.isVisible().catch(() => false)) {
         const options = await scorerSelect.locator('option').all();
         if (options.length > 1) {
@@ -128,7 +104,7 @@ test.describe('Goal Recording', () => {
 
     // Also check for the generic loading spinner in the center of the page
     const centeredSpinner = page.locator(
-      'div.flex.min-h-\\[400px\\].items-center.justify-center'
+      'div.flex.min-h-\\[400px\\].items-center.justify-center',
     );
     await expect(centeredSpinner).toBeHidden();
 
@@ -143,13 +119,13 @@ test.describe('Goal Recording', () => {
     console.log(
       `Goal recorded successfully. Score changed from ${initialHomeScore} to ${
         initialHomeScore + 1
-      }`
+      }`,
     );
     console.log(`Loading spinner appeared: ${loadingSpinnerAppeared}`);
     if (loadingSpinnerAppeared) {
       console.log(
         'Console messages with loading spinner:',
-        consoleMessages.filter((m) => m.includes('Loading'))
+        consoleMessages.filter((m) => m.includes('Loading')),
       );
     }
 
@@ -161,35 +137,9 @@ test.describe('Goal Recording', () => {
     page,
   }) => {
     // This test monitors network requests to verify no GET_GAME_BY_ID refetch happens
-    await page.goto('/games');
-    await page.waitForLoadState('domcontentloaded');
-
-    const activeStatuses = [
-      'FIRST HALF',
-      'SECOND HALF',
-      'HALFTIME',
-      'IN PROGRESS',
-    ];
-    let activeGameBadge = null;
-
-    for (const status of activeStatuses) {
-      const badge = page.locator('span').filter({ hasText: status }).first();
-      if (await badge.isVisible().catch(() => false)) {
-        activeGameBadge = badge;
-        break;
-      }
-    }
-
-    if (!activeGameBadge) {
-      test.skip(true, 'No active game found');
-      return;
-    }
-
-    const gameCard = activeGameBadge.locator(
-      'xpath=ancestor::div[contains(@class, "cursor-pointer")]'
-    );
-    await gameCard.click();
-    await page.waitForURL(/\/games\/[a-z0-9-]+/);
+    // A fresh game in the first half, so the test never depends on
+    // existing data or skips.
+    await startLiveGame(page);
     await page.waitForLoadState('domcontentloaded');
 
     // Track GraphQL requests after initial load
@@ -234,7 +184,11 @@ test.describe('Goal Recording', () => {
       .catch(() => false);
 
     if (modalVisible) {
-      const scorerSelect = page.locator('select').first();
+      const scorerSelect = page
+        // The goal modal's scorer select (not the formation picker).
+        .getByRole('combobox')
+        .filter({ has: page.getByRole('option', { name: 'Select player...' }) })
+        .first();
       if (await scorerSelect.isVisible().catch(() => false)) {
         const options = await scorerSelect.locator('option').all();
         if (options.length > 1) {
@@ -262,18 +216,18 @@ test.describe('Goal Recording', () => {
 
     // Check that GetGameById was NOT called (it should update via subscription)
     const gameByIdRequests = graphqlRequests.filter(
-      (r) => r.operationName === 'GetGameById' || r.operationName === 'GetGame'
+      (r) => r.operationName === 'GetGameById' || r.operationName === 'GetGame',
     );
 
     // We expect RecordGoal mutation but NOT GetGameById query
     expect(graphqlRequests.some((r) => r.operationName === 'RecordGoal')).toBe(
-      true
+      true,
     );
 
     // This is the key assertion - no refetch of the game should happen
     if (gameByIdRequests.length > 0) {
       console.warn(
-        `WARNING: GetGameById was called ${gameByIdRequests.length} time(s) after goal recording. This causes loading flicker!`
+        `WARNING: GetGameById was called ${gameByIdRequests.length} time(s) after goal recording. This causes loading flicker!`,
       );
     }
     expect(gameByIdRequests.length).toBe(0);
@@ -284,35 +238,9 @@ test.describe('Goal Recording', () => {
   }) => {
     // This test verifies that pause/resume also doesn't cause loading
     // (This should already work, but good to verify alongside goals)
-    await page.goto('/games');
-    await page.waitForLoadState('domcontentloaded');
-
-    const activeStatuses = [
-      'FIRST HALF',
-      'SECOND HALF',
-      'HALFTIME',
-      'IN PROGRESS',
-    ];
-    let activeGameBadge = null;
-
-    for (const status of activeStatuses) {
-      const badge = page.locator('span').filter({ hasText: status }).first();
-      if (await badge.isVisible().catch(() => false)) {
-        activeGameBadge = badge;
-        break;
-      }
-    }
-
-    if (!activeGameBadge) {
-      test.skip(true, 'No active game found');
-      return;
-    }
-
-    const gameCard = activeGameBadge.locator(
-      'xpath=ancestor::div[contains(@class, "cursor-pointer")]'
-    );
-    await gameCard.click();
-    await page.waitForURL(/\/games\/[a-z0-9-]+/);
+    // A fresh game in the first half, so the test never depends on
+    // existing data or skips.
+    await startLiveGame(page);
     await page.waitForLoadState('domcontentloaded');
 
     // Open game menu (three dots)

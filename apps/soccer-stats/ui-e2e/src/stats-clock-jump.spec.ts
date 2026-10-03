@@ -1,6 +1,8 @@
 import { setupClerkTestingToken } from '@clerk/testing/playwright';
 import { expect, test, Page } from '@playwright/test';
 
+import { setStartingLineup } from './support/live-game';
+
 /**
  * Stats Clock Jump E2E Tests
  *
@@ -61,41 +63,6 @@ async function createGameWithLineup(
   const gameId = page.url().split('/games/')[1].split('/')[0];
 
   return gameId;
-}
-
-// Helper: Add 5 players to the lineup
-async function addPlayersToLineup(page: Page): Promise<void> {
-  const positions = ['GK', 'LB', 'RB', 'LM', 'ST'];
-  // Use exact player button names to avoid regex matching issues
-  const playerButtonNames = [
-    '#1 Alex',
-    '#7 Sam',
-    '#10 Jordan',
-    '#4 Casey',
-    '#9 Riley',
-  ];
-
-  for (let i = 0; i < positions.length; i++) {
-    const positionButton = page.getByRole('button', {
-      name: `+ ${positions[i]}`,
-    });
-    await positionButton.click();
-
-    // Wait for player selection modal
-    await expect(
-      page.getByRole('heading', { name: `Assign Player to ${positions[i]}` }),
-    ).toBeVisible({ timeout: 5000 });
-
-    // Select the player by exact name
-    const playerButton = page.getByRole('button', {
-      name: playerButtonNames[i],
-      exact: true,
-    });
-    await playerButton.click();
-
-    // Wait for modal to close
-    await page.waitForTimeout(300);
-  }
 }
 
 // Helper: Get player stats from the table
@@ -164,7 +131,7 @@ test.describe('Stats Clock Jump Fix', () => {
     console.log(`Created game: ${gameId}`);
 
     // Add players to lineup
-    await addPlayersToLineup(page);
+    await setStartingLineup(page);
     console.log('Added 5 players to lineup');
 
     // Start first half
