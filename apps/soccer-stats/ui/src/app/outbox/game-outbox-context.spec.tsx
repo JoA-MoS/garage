@@ -12,9 +12,7 @@ import { memoryOutboxStorage, type OutboxStorage } from './outbox-storage';
 import type { OutboxAction, PendingEvent } from './outbox-types';
 
 let userId: string | null = 'user-1';
-vi.mock('@clerk/clerk-react', () => ({
-  useAuth: () => ({ userId }),
-}));
+vi.mock('../auth/session', () => ({ useSession: () => ({ userId }) }));
 // The real client is a stable singleton; a new object per render would
 // rebuild the outbox on every render.
 const apolloClient = {};

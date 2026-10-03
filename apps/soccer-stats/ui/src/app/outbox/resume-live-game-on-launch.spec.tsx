@@ -8,7 +8,7 @@ import {
 } from './resume-live-game-on-launch';
 
 const auth = { isLoaded: true, userId: 'u1' as string | null };
-vi.mock('@clerk/clerk-react', () => ({ useAuth: () => auth }));
+vi.mock('../auth/session', () => ({ useSession: () => auth }));
 
 const findGameToResume = vi.fn();
 vi.mock('./live-game-resume', () => ({

@@ -20,6 +20,7 @@ import {
 import { AuthErrorProvider } from './app/providers/auth-error-provider';
 import { CachePersistence } from './app/providers/cache-persistence';
 import { OutboxBackgroundSync } from './app/outbox/outbox-background-sync';
+import { SessionProvider } from './app/auth/session';
 import { registerServiceWorker } from './app/pwa/register-service-worker';
 import { registerWarmupOnWake, warmUpApi } from './app/services/warmup.service';
 
@@ -134,13 +135,15 @@ function App() {
       publishableKey={config.clerkPublishableKey}
       afterSignOutUrl="/"
     >
-      <AuthErrorProvider>
-        <AuthApolloProvider>
-          <CachePersistence restoredUserId={restored.userId} />
-          <OutboxBackgroundSync />
-          <RouterProvider router={router} />
-        </AuthApolloProvider>
-      </AuthErrorProvider>
+      <SessionProvider>
+        <AuthErrorProvider>
+          <AuthApolloProvider>
+            <CachePersistence restoredUserId={restored.userId} />
+            <OutboxBackgroundSync />
+            <RouterProvider router={router} />
+          </AuthApolloProvider>
+        </AuthErrorProvider>
+      </SessionProvider>
     </ClerkProvider>
   );
 }
