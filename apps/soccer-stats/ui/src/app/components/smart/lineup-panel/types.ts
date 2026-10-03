@@ -118,6 +118,9 @@ export interface LineupPanelPresentationProps {
   // Add to bench (when player selected but no position needed)
   onAddToBench: () => void;
 
+  /** Remove a selected pre-game bench player from this game's roster. */
+  onRemoveFromBench: () => void;
+
   /** Add selected player to field (substitution-only mode, no position tracked) */
   onAddToField?: () => void;
 

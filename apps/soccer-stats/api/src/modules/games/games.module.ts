@@ -6,6 +6,7 @@ import { Team } from '../../entities/team.entity';
 import { User } from '../../entities/user.entity';
 import { GameTeam } from '../../entities/game-team.entity';
 import { TeamConfiguration } from '../../entities/team-configuration.entity';
+import { TeamMember } from '../../entities/team-member.entity';
 import { EventType } from '../../entities/event-type.entity';
 import { GameEvent } from '../../entities/game-event.entity';
 import { GameFormat } from '../../entities/game-format.entity';
@@ -26,6 +27,7 @@ import { GameTeamResolver } from './game-team.resolver';
       User,
       GameTeam,
       TeamConfiguration,
+      TeamMember,
       EventType,
       GameEvent,
       GameFormat,
