@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useAuth } from '@clerk/clerk-react';
 import { useParams, useNavigate, useLocation, Navigate } from 'react-router';
 import {
   useQuery,
@@ -73,6 +74,7 @@ import {
 import { buildGoalAction } from '../outbox/goal-action';
 import { applyGamePatch, type GameClockAction } from '../outbox/game-patches';
 import { buildGameClockAction } from '../outbox/game-clock-action';
+import { rememberViewedGame } from '../outbox/live-game-resume';
 import { SyncStatus } from '../components/smart/sync-status.smart';
 import { pruneDeletedGameEvents } from '../services/game-event-cache';
 import {
@@ -350,6 +352,32 @@ const GamePageContent = () => {
     () => applyGamePatch(data?.game, pendingGamePatch),
     [data?.game, pendingGamePatch],
   );
+
+  // Remember the game being viewed, so reopening the app mid-game returns
+  // here instead of the dashboard (ResumeLiveGameOnLaunch). Refreshed when
+  // the app is backgrounded - the moment a coach typically closes it.
+  const { userId: viewerId } = useAuth();
+  const liveStatus = liveGame?.status;
+  useEffect(() => {
+    if (!viewerId || !gameId || !liveStatus) return;
+    const remember = () =>
+      rememberViewedGame({
+        userId: viewerId,
+        gameId,
+        inProgress: [
+          GameStatus.FirstHalf,
+          GameStatus.Halftime,
+          GameStatus.SecondHalf,
+          GameStatus.InProgress,
+        ].includes(liveStatus as GameStatus),
+      });
+    remember();
+    const onHidden = () => {
+      if (document.visibilityState === 'hidden') remember();
+    };
+    document.addEventListener('visibilitychange', onHidden);
+    return () => document.removeEventListener('visibilitychange', onHidden);
+  }, [viewerId, gameId, liveStatus]);
 
   // Server-synced game time - keeps multiple clients in sync
   const syncedTime = useSyncedGameTime(

@@ -19,6 +19,7 @@ import {
 } from './app/services/cache-persistence';
 import { AuthErrorProvider } from './app/providers/auth-error-provider';
 import { CachePersistence } from './app/providers/cache-persistence';
+import { OutboxBackgroundSync } from './app/outbox/outbox-background-sync';
 import { registerServiceWorker } from './app/pwa/register-service-worker';
 import { registerWarmupOnWake, warmUpApi } from './app/services/warmup.service';
 
@@ -136,6 +137,7 @@ function App() {
       <AuthErrorProvider>
         <AuthApolloProvider>
           <CachePersistence restoredUserId={restored.userId} />
+          <OutboxBackgroundSync />
           <RouterProvider router={router} />
         </AuthApolloProvider>
       </AuthErrorProvider>

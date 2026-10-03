@@ -25,8 +25,8 @@ import {
 } from '../services/games-graphql.service';
 import { addEventsToGameTeam } from '../services/game-event-cache';
 
-import { GameOutbox } from './game-outbox';
-import { indexedDbOutboxStorage, type OutboxStorage } from './outbox-storage';
+import type { OutboxStorage } from './outbox-storage';
+import { getGameOutbox, setActiveOutboxUser } from './outbox-registry';
 import type {
   OutboxAction,
   OutboxActionKind,
@@ -139,8 +139,6 @@ export interface GameOutboxValue {
 
 export const GameOutboxContext = createContext<GameOutboxValue | null>(null);
 
-let sharedStorage: OutboxStorage | undefined;
-
 export interface GameOutboxProviderProps {
   gameId: string;
   children: ReactNode;
@@ -150,9 +148,11 @@ export interface GameOutboxProviderProps {
 }
 
 /**
- * Owns the signed-in user's outbox for one game and keeps it draining: on
+ * Exposes the signed-in user's outbox for one game and keeps it draining: on
  * mount, after each new action, when the device comes back online or to the
- * foreground, and every few seconds while anything is queued.
+ * foreground, and every few seconds while anything is queued. The outbox
+ * itself is shared (outbox-registry) with the app-wide background sync, so
+ * changes keep syncing after the coach leaves the game page.
  */
 export function GameOutboxProvider({
   gameId,
@@ -163,8 +163,8 @@ export function GameOutboxProvider({
   const { userId } = useAuth();
   const client = useApolloClient();
   const [actions, setActions] = useState<OutboxAction[]>([]);
-  const userRef = useRef(userId);
-  userRef.current = userId;
+  // Set during render so the outbox is usable on the first render.
+  setActiveOutboxUser(userId);
   // Bumped on every change, so a slower initial load can't overwrite a
   // newer list (e.g. an action recorded right as the page opened).
   const changeCount = useRef(0);
@@ -173,21 +173,19 @@ export function GameOutboxProvider({
     setActions(next);
   }, []);
 
-  const outbox = useMemo(() => {
+  const registered = useMemo(() => {
     if (!userId) return undefined;
-    return new GameOutbox({
-      scope: `${userId}:${gameId}`,
-      storage: storage ?? (sharedStorage ??= indexedDbOutboxStorage()),
+    return getGameOutbox(userId, gameId, {
+      storage,
       send: send ?? ((action) => sendOutboxAction(client, action)),
-      onChange: handleChange,
-      // Stop touching this user's queue the moment they sign out.
-      isActive: () => userRef.current === userId,
     });
-  }, [userId, gameId, storage, send, client, handleChange]);
+  }, [userId, gameId, storage, send, client]);
+  const outbox = registered?.outbox;
 
   useEffect(() => {
     setActions([]);
-    if (!outbox) return;
+    if (!registered || !outbox) return;
+    const unsubscribe = registered.subscribe(handleChange);
     let cancelled = false;
     const changesBeforeLoad = changeCount.current;
     void outbox.load().then((loaded) => {
@@ -205,10 +203,11 @@ export function GameOutboxProvider({
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       cancelled = true;
+      unsubscribe();
       window.removeEventListener('online', sync);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [outbox]);
+  }, [registered, outbox, handleChange]);
 
   const hasQueued = actions.some((a) => a.status === 'queued');
   useEffect(() => {
