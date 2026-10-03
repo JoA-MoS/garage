@@ -9,9 +9,10 @@ test.describe('Authentication Tests', () => {
     // Navigate to homepage first
     await page.goto('/');
 
-    // Verify we're authenticated by checking that "Authentication Required" is NOT shown
-    const welcomeBanner = page.locator('text=Welcome back, User!');
-    await expect(welcomeBanner).toBeVisible();
+    // Signed in: the dashboard shows the user's teams.
+    await expect(
+      page.getByRole('heading', { name: 'My Teams', level: 2 }),
+    ).toBeVisible();
 
     const authRequiredLocator = page.locator('text=Authentication Required');
     await expect(authRequiredLocator).toBeHidden();
@@ -30,7 +31,7 @@ test.describe('Authentication Tests', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Verify we're on the game setup page
-    expect(page.url()).toContain('/game/new');
+    await expect(page).toHaveURL(/\/games\/new$/);
 
     // Verify no authentication required on the game setup page
     const finalAuthRequired = page.locator('text=Authentication Required');
