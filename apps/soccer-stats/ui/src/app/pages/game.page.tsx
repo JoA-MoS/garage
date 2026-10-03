@@ -641,6 +641,7 @@ export const GamePage = () => {
     (event: {
       id: string;
       gameTeamId: string;
+      parentEventId?: string | null;
       period?: string | null;
       periodSecond: number;
       position?: string | null;
@@ -651,6 +652,7 @@ export const GamePage = () => {
         id: string;
         firstName?: string | null;
         lastName?: string | null;
+        email?: string | null;
       } | null;
       formation?: string | null;
       eventType: { id: string; name: string; category: string };
@@ -686,6 +688,10 @@ export const GamePage = () => {
                 __typename: 'GameEvent',
                 id: event.id,
                 createdAt: new Date().toISOString(),
+                // Write every field GameEventFragmentDoc selects: a missing
+                // one leaves cached queries incomplete, and Apollo refetches
+                // them (the lineup flickered behind a spinner).
+                parentEventId: event.parentEventId ?? null,
                 period: event.period ?? null,
                 periodSecond: event.periodSecond,
                 position: event.position ?? null,
@@ -699,6 +705,7 @@ export const GamePage = () => {
                       id: event.player.id,
                       firstName: event.player.firstName,
                       lastName: event.player.lastName,
+                      email: event.player.email ?? null,
                     }
                   : null,
                 eventType: {

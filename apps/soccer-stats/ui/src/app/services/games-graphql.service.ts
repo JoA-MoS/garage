@@ -102,6 +102,11 @@ export const GET_GAME_BY_ID = graphql(/* GraphQL */ `
           homeSecondaryColor
           isManaged
           teamConfiguration {
+            # id lets Apollo normalize it. Without it, this inline object
+            # replaced the normalized TeamConfiguration other queries read
+            # (GetTeamById), leaving them incomplete, so they refetched and
+            # the lineup tab flashed a spinner.
+            id
             defaultFormation
             playerNameDisplayFormat
             showJerseyNumber
@@ -799,6 +804,7 @@ export const GAME_EVENT_CHANGED = graphql(/* GraphQL */ `
           id
           firstName
           lastName
+          email
         }
         recordedByUser {
           id
